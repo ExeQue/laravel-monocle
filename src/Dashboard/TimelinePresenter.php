@@ -184,12 +184,40 @@ final readonly class TimelinePresenter
      */
     private function meta(array $meta): array
     {
-        $links = array_filter([
-            'class' => is_string($meta['class'] ?? null) ? $this->links->class($meta['class']) : null,
-            'path' => is_string($meta['path'] ?? null) ? $this->links->file($meta['path']) : null,
-        ]);
+        $links = [];
+
+        foreach ($meta as $key => $value) {
+            if (($link = $this->link($value)) !== null) {
+                $links[$key] = $link;
+            }
+        }
 
         return $links === [] ? $meta : $meta + ['_links' => $links];
+    }
+
+    /**
+     * Editor link for a value that names a class (optionally with a method)
+     * or a file (optionally with a line).
+     */
+    public function link(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '' || strlen($value) > 500 || ! $this->links->enabled()) {
+            return null;
+        }
+
+        if (preg_match('/^\\\\?([A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+)(?:(?:->|::|@)\w+(?:\(\))?)?$/', $value, $match) === 1) {
+            return $this->links->class($match[1]);
+        }
+
+        if (str_contains($value, '://') || preg_match('/\s/', $value) === 1) {
+            return null;
+        }
+
+        if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,5})(?::(\d+))?$#', str_replace('\\', '/', $value), $match) === 1) {
+            return $this->links->file($match[1], isset($match[2]) ? (int) $match[2] : null);
+        }
+
+        return null;
     }
 
     /**
@@ -242,6 +270,7 @@ final readonly class TimelinePresenter
                 'line' => $frame['line'] ?? null,
                 'call' => $frame['call'] ?? null,
                 'link' => isset($frame['file']) ? $this->links->file((string) $frame['file'], isset($frame['line']) ? (int) $frame['line'] : null) : null,
+                'call_link' => $this->link($frame['call'] ?? null),
             ];
         }
 
@@ -249,6 +278,8 @@ final readonly class TimelinePresenter
             'file' => $origin['file'],
             'line' => $line,
             'call' => $origin['call'] ?? null,
+            'call_link' => $this->link($origin['call'] ?? null),
+            'vendor' => $origin['vendor'] ?? false,
             'link' => $this->links->file((string) $origin['file'], $line),
             'frames' => $frames,
         ];

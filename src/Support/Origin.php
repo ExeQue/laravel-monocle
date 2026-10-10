@@ -7,21 +7,35 @@ namespace ExeQue\Monocle\Support;
 /**
  * Finds the user-land call site that triggered a recorded operation and a
  * short call chain above it. Vendor and Monocle frames are skipped; compiled
- * Blade files are mapped back to their .blade.php source.
+ * Blade files are mapped back to their .blade.php source. When no user-land
+ * code is involved, the first library call outside the database, cache and
+ * event plumbing is reported instead, marked as vendor.
  */
 final class Origin
 {
+    /** Library code that only passes the operation along. */
+    private const array PLUMBING = [
+        '/laravel/framework/src/Illuminate/Database/',
+        '/laravel/framework/src/Illuminate/Cache/',
+        '/laravel/framework/src/Illuminate/Redis/',
+        '/laravel/framework/src/Illuminate/Events/',
+        '/laravel/framework/src/Illuminate/Support/Facades/',
+        '/laravel/framework/src/Illuminate/Container/',
+    ];
+
     /** @var array<string, string|null> */
     private static array $compiledViewSources = [];
 
     /**
      * @param  list<string>  $includeVendor
-     * @return array{file: string|null, line: int|null, call: string|null, frames: list<array{file: string, line: int|null, call: string|null}>}|null
+     * @param  list<array<string, mixed>>|null  $trace  the backtrace to read; the current one when null
+     * @return array{file: string|null, line: int|null, call: string|null, frames: list<array{file: string, line: int|null, call: string|null}>, vendor?: true}|null
      */
-    public static function capture(string $basePath, int $frames = 5, array $includeVendor = []): ?array
+    public static function capture(string $basePath, int $frames = 5, array $includeVendor = [], ?array $trace = null): ?array
     {
-        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 60);
+        $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 60);
         $kept = [];
+        $library = null;
 
         foreach ($trace as $index => $frame) {
             $file = $frame['file'] ?? null;
@@ -37,6 +51,10 @@ final class Origin
             }
 
             if (self::isVendor($file, $basePath, $includeVendor)) {
+                if ($library === null && ! self::isPlumbing($file)) {
+                    $library = ['file' => self::relative($file, $basePath), 'line' => $frame['line'] ?? null, 'call' => $call, 'frames' => [], 'vendor' => true];
+                }
+
                 continue;
             }
 
@@ -65,7 +83,7 @@ final class Origin
         }
 
         if ($kept === []) {
-            return null;
+            return $library;
         }
 
         $first = array_shift($kept);
@@ -116,6 +134,23 @@ final class Origin
         }
 
         return true;
+    }
+
+    private static function isPlumbing(string $file): bool
+    {
+        $file = str_replace('\\', '/', $file);
+
+        if (str_contains($file, '/exeque/laravel-monocle/')) {
+            return true;
+        }
+
+        foreach (self::PLUMBING as $path) {
+            if (str_contains($file, $path)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function relative(string $file, string $basePath): string

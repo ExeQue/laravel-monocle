@@ -191,7 +191,7 @@ Alpine.data('monocle', (config) => ({
   get tableColumns() {
     const rows = this.tabData?.rows ?? [];
     const keys = [];
-    for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n') keys.push(k);
+    for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n' && k !== '_links') keys.push(k);
     return keys.filter((k) => k !== 'origin').slice(0, 7).concat(keys.includes('origin') ? ['origin'] : []);
   },
 
@@ -200,7 +200,8 @@ Alpine.data('monocle', (config) => ({
     if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, 'origin') : '';
     if (key === 'duration' && typeof v === 'number') return esc(ms(v));
     const text = fmtValue(v);
-    return esc(text.length > 240 ? text.slice(0, 240) + '...' : text);
+    const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
+    return row._links?.[key] ? maybeLink(shown, row._links[key]) : esc(shown);
   },
 
   // Template helpers

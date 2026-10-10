@@ -252,3 +252,25 @@ td .origin, .origin { font-family: var(--font-mono); font-size: 11.5px; color: v
 .kv dd { margin: 0; overflow-wrap: anywhere; }
 .more { margin-top: 10px; }
 td { overflow-wrap: anywhere; }
+.vendor-tag { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
+
+/* Sidebar and content scroll on their own; scrollbars stay out of sight until hovered. */
+@media (min-width: 861px) {
+  html, body { height: 100%; overflow: hidden; }
+  .app { height: 100vh; height: 100dvh; }
+  .list { min-height: 0; overflow: hidden; }
+  .rows, .detail { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+}
+.rows, .detail, .waterfall, .table-wrap, .pop {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.rows:hover, .detail:hover, .waterfall:hover, .table-wrap:hover, .pop:hover,
+.rows:focus-within, .detail:focus-within {
+  scrollbar-color: var(--line) transparent;
+}
+.rows::-webkit-scrollbar, .detail::-webkit-scrollbar, .waterfall::-webkit-scrollbar, .table-wrap::-webkit-scrollbar, .pop::-webkit-scrollbar { width: 8px; height: 8px; }
+.rows::-webkit-scrollbar-track, .detail::-webkit-scrollbar-track, .waterfall::-webkit-scrollbar-track, .table-wrap::-webkit-scrollbar-track, .pop::-webkit-scrollbar-track { background: transparent; }
+.rows::-webkit-scrollbar-thumb, .detail::-webkit-scrollbar-thumb, .waterfall::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb, .pop::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
+.rows:hover::-webkit-scrollbar-thumb, .detail:hover::-webkit-scrollbar-thumb, .waterfall:hover::-webkit-scrollbar-thumb, .table-wrap:hover::-webkit-scrollbar-thumb, .pop:hover::-webkit-scrollbar-thumb { background: var(--line); }
+.rows::-webkit-scrollbar-thumb:hover, .detail::-webkit-scrollbar-thumb:hover { background: var(--muted); }

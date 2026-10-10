@@ -24,6 +24,26 @@ describe(Origin::class, function (): void {
             ->and($included()['frames'][0]['file'] ?? $included()['file'])->toContain('vendor/laravel/framework');
     });
 
+    it('falls back to the first library call outside the database and cache plumbing', function (): void {
+        $base = '/app';
+        $frame = fn (string $file, string $class): array => ['file' => $base.'/vendor/'.$file, 'line' => 10, 'class' => $class, 'type' => '->', 'function' => 'handle'];
+
+        $origin = Origin::capture($base, 3, [], [
+            $frame('laravel/framework/src/Illuminate/Database/Connection.php', 'Illuminate\\Database\\Connection'),
+            $frame('laravel/framework/src/Illuminate/Database/Query/Builder.php', 'Illuminate\\Database\\Query\\Builder'),
+            $frame('livewire/livewire/src/Mechanisms/HandleComponents.php', 'Livewire\\Mechanisms\\HandleComponents'),
+            $frame('laravel/framework/src/Illuminate/Pipeline/Pipeline.php', 'Illuminate\\Pipeline\\Pipeline'),
+        ]);
+
+        expect($origin)->toBe([
+            'file' => 'vendor/livewire/livewire/src/Mechanisms/HandleComponents.php',
+            'line' => 10,
+            'call' => 'Illuminate\\Pipeline\\Pipeline->handle',
+            'frames' => [],
+            'vendor' => true,
+        ])->and(Origin::capture($base, 3, [], [$frame('exeque/laravel-monocle/src/Eyepiece.php', 'X')]))->toBeNull();
+    });
+
     it('maps compiled blade files back to their source', function (): void {
         $base = sys_get_temp_dir().'/monocle-origin-'.bin2hex(random_bytes(4));
         $compiledDir = $base.'/storage/framework/views';

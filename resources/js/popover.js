@@ -5,9 +5,9 @@ const pathOf = (n) => { const out = []; for (let p = n.parent; p; p = p.parent) 
 
 const originHtml = (o) => !o || !o.file ? '' : `
   <div class="pop-sec"><div class="pop-k">Origin</div>
-    <div class="mono origin-line">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}</div>
-    ${o.call ? `<div class="pop-sub mono">${esc(o.call)}</div>` : ''}
-    ${o.frames?.length ? `<details><summary>Call chain (${o.frames.length})</summary><ol class="frames">${o.frames.map((f) => `<li class="mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${esc(f.call ?? '')}</li>`).join('')}</ol></details>` : ''}
+    <div class="mono origin-line">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="vendor-tag">vendor</span>' : ''}</div>
+    ${o.call ? `<div class="pop-sub mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
+    ${o.frames?.length ? `<details><summary>Call chain (${o.frames.length})</summary><ol class="frames">${o.frames.map((f) => `<li class="mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
 function metaRows(meta) {
