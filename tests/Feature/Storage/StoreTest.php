@@ -27,7 +27,7 @@ function makeCapture(string $id, ?string $parent = null, ?string $trace = null):
 
 describe('stores', function (): void {
     $drivers = [
-        'file' => fn (): Store => new FileStore(sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4)), 3),
+        'file' => fn (): Store => new FileStore(sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4)), 3, sys_get_temp_dir()),
         'cache' => fn (): Store => new CacheStore(Cache::store('array'), 3, 60),
     ];
 
@@ -67,9 +67,39 @@ describe('stores', function (): void {
         });
     }
 
+    it('refuses relative paths and ids that could escape the directory', function (): void {
+        expect(fn () => new FileStore('relative/path', 3, '/tmp'))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => new FileStore('', 3, '/tmp'))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => new FileStore('/etc/monocle', 3, within: '/var/www/storage'))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => new FileStore('/var/www/storage/../etc', 3, within: '/var/www/storage'))->toThrow(InvalidArgumentException::class)
+            ->and(new FileStore('/var/www/storage/monocle', 3, within: '/var/www/storage/'))->toBeInstanceOf(FileStore::class)
+            ->and(FileStore::isInside('/a/b/./c', '/a/b'))->toBeTrue()
+            ->and(FileStore::isInside('/a/bc', '/a/b'))->toBeFalse();
+
+        $path = sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4));
+        $store = new FileStore($path, 3, sys_get_temp_dir());
+        $store->put(makeCapture('safe'));
+
+        expect($store->find('../../etc/passwd'))->toBeNull()
+            ->and($store->find('../safe'))->toBeNull()
+            ->and($store->find('safe'))->not->toBeNull()
+            ->and(fn () => $store->put(makeCapture('../escape')))->toThrow(InvalidArgumentException::class)
+            ->and(file_exists($path.'/../escape.monocle.json'))->toBeFalse();
+
+        file_put_contents($path.'/stranger.json', '{}');
+        file_put_contents($path.'/index.monocle.json', json_encode([['id' => '../../outside'], ['id' => 'stranger'], ['id' => 'safe']]));
+        $store->clear();
+
+        expect(file_exists($path.'/safe.monocle.json'))->toBeFalse()
+            ->and(file_exists($path.'/stranger.json'))->toBeTrue()
+            ->and(file_exists($path.'/index.monocle.json'))->toBeFalse();
+
+        exec('rm -rf '.escapeshellarg($path));
+    });
+
     it('writes a .gitignore into a fresh file store directory', function (): void {
         $path = sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4));
-        (new FileStore($path, 3))->put(makeCapture('a'));
+        (new FileStore($path, 3, sys_get_temp_dir()))->put(makeCapture('a'));
 
         expect(file_get_contents($path.'/.gitignore'))->toContain('*');
 
@@ -78,6 +108,12 @@ describe('stores', function (): void {
 });
 
 describe(StoreManager::class, function (): void {
+    it('refuses a file path outside the application storage directory', function (): void {
+        config(['monocle.storage.driver' => 'file', 'monocle.storage.file.path' => '/tmp/elsewhere']);
+
+        expect(fn () => (new StoreManager($this->app))->store())->toThrow(InvalidArgumentException::class);
+    });
+
     it('resolves the configured driver', function (): void {
         config(['monocle.storage.driver' => 'cache']);
         $manager = new StoreManager($this->app);

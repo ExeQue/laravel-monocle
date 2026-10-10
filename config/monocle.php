@@ -154,6 +154,8 @@ return [
         'driver' => env('MONOCLE_STORAGE', 'file'),
         'limit' => 200,
         'file' => [
+            // Must be inside storage_path(); the file store never operates
+            // outside the application's storage directory.
             'path' => storage_path('monocle'),
         ],
         'cache' => [

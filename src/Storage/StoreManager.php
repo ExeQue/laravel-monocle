@@ -57,6 +57,7 @@ final class StoreManager
             return new FileStore(
                 path: (string) ($config['file']['path'] ?? $this->app->storagePath('monocle')),
                 limit: $limit,
+                within: $this->app->storagePath(),
             );
         }
 

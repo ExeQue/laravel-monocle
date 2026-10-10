@@ -11,7 +11,7 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Default store: one JSON file per capture plus an index.json holding summary
+ * Default store: one {id}.monocle.json file per capture plus an index.monocle.json holding summary
  * rows newest first. Works across web, worker and MCP processes with no
  * configuration. The index is rewritten under an exclusive lock.
  *
@@ -20,15 +20,57 @@ use RuntimeException;
  */
 final class FileStore implements Store
 {
+    public const string SUFFIX = '.monocle.json';
+
+    /**
+     * @param  string  $within  directory the store must live inside - the application's storage path; a store that wants to live elsewhere is a custom Store, with the responsibility that comes with it
+     */
     public function __construct(
         private readonly string $path,
         private readonly int $limit,
+        private readonly string $within,
     ) {
         // A relative or empty path would make the store operate on the working
         // directory; refuse it rather than ever deleting files there.
         if (trim($this->path, '/') === '' || ! str_starts_with($this->path, DIRECTORY_SEPARATOR)) {
             throw new InvalidArgumentException("Monocle file storage needs an absolute path, got [{$this->path}].");
         }
+
+        if (! self::isInside($this->path, $this->within)) {
+            throw new InvalidArgumentException("Monocle file storage must live inside [{$this->within}], got [{$this->path}].");
+        }
+    }
+
+    /**
+     * Lexical containment check on normalized paths, so it also holds before
+     * the directories exist.
+     */
+    public static function isInside(string $path, string $root): bool
+    {
+        $normalize = static function (string $value): string {
+            $parts = [];
+
+            foreach (explode('/', str_replace('\\', '/', $value)) as $segment) {
+                if ($segment === '' || $segment === '.') {
+                    continue;
+                }
+
+                if ($segment === '..') {
+                    array_pop($parts);
+
+                    continue;
+                }
+
+                $parts[] = $segment;
+            }
+
+            return '/'.implode('/', $parts);
+        };
+
+        $path = $normalize($path);
+        $root = $normalize($root);
+
+        return $path === $root || str_starts_with($path, rtrim($root, '/').'/');
     }
 
     public function put(Capture $capture): void
@@ -50,6 +92,10 @@ final class FileStore implements Store
 
     public function find(string $id): ?Capture
     {
+        if (! $this->isValidId($id)) {
+            return null;
+        }
+
         $path = $this->capturePath($id);
 
         if (! is_file($path)) {
@@ -78,9 +124,14 @@ final class FileStore implements Store
             return;
         }
 
-        // Only what the index knows about is ours to delete.
+        // Only what the index knows about is ours to delete, and only files
+        // carrying Monocle's own suffix.
         foreach ($this->readIndex() as $row) {
-            @unlink($this->capturePath((string) $row['id']));
+            $id = (string) ($row['id'] ?? '');
+
+            if ($this->isValidId($id) && str_ends_with($this->capturePath($id), self::SUFFIX)) {
+                @unlink($this->capturePath($id));
+            }
         }
 
         @unlink($this->indexPath());
@@ -96,7 +147,7 @@ final class FileStore implements Store
      */
     private function withLockedIndex(Closure $mutate): void
     {
-        $lock = fopen($this->path.DIRECTORY_SEPARATOR.'index.lock', 'c');
+        $lock = fopen($this->path.DIRECTORY_SEPARATOR.'index.monocle.lock', 'c');
 
         if ($lock === false) {
             throw new RuntimeException("Monocle could not open the index lock in [{$this->path}].");
@@ -153,13 +204,34 @@ final class FileStore implements Store
         file_put_contents($this->path.DIRECTORY_SEPARATOR.'.gitignore', "*\n!.gitignore\n");
     }
 
+    /**
+     * Ids are uuids (or simple tokens in tests); anything else - slashes,
+     * dots, traversal - never becomes a path.
+     */
+    private function isValidId(string $id): bool
+    {
+        return preg_match('/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/', $id) === 1;
+    }
+
     private function capturePath(string $id): string
     {
-        return $this->path.DIRECTORY_SEPARATOR.basename($id).'.json';
+        if (! $this->isValidId($id)) {
+            throw new InvalidArgumentException("Monocle capture ids may only contain letters, digits, dashes and underscores, got [{$id}].");
+        }
+
+        $path = $this->path.DIRECTORY_SEPARATOR.$id.self::SUFFIX;
+        $root = realpath($this->path);
+
+        // Belt and braces: the resolved file must live inside the storage directory.
+        if ($root !== false && ! str_starts_with((string) realpath(dirname($path)), $root)) {
+            throw new InvalidArgumentException("Monocle refused to touch [{$path}] outside of [{$root}].");
+        }
+
+        return $path;
     }
 
     private function indexPath(): string
     {
-        return $this->path.DIRECTORY_SEPARATOR.'index.json';
+        return $this->path.DIRECTORY_SEPARATOR.'index'.self::SUFFIX;
     }
 }

@@ -12,14 +12,14 @@ Writes happen after the response has been sent (in `terminating`), on job comple
 'storage' => [
     'driver' => env('MONOCLE_STORAGE', 'file'),
     'limit' => 200,
-    'file' => ['path' => storage_path('monocle')],
+    'file' => ['path' => storage_path('monocle')],   // must be inside storage_path()
     'cache' => ['store' => null, 'ttl' => 86400],
 ],
 ```
 
 ### `file` (default)
 
-One JSON file per capture plus an `index.json` of summary rows, in `storage/monocle/`. The directory gets a `.gitignore`. The index is rewritten under an exclusive lock and files are written atomically, so the web process, a queue worker and the MCP server can share it without configuration. Listing, filtering and tracing read only the index.
+One `{id}.monocle.json` file per capture plus an `index.monocle.json` of summary rows, in `storage/monocle/`. The store refuses to operate outside the application's `storage_path()` - that boundary is not configurable; a store that must live elsewhere is a [custom store](#custom-stores) and carries that responsibility itself. It also rejects relative paths, only accepts ids made of letters, digits, dashes and underscores, and only deletes files its own index lists that carry the `.monocle.json` suffix - so neither configuration nor a crafted id can make it touch anything else. The directory gets a `.gitignore`. The index is rewritten under an exclusive lock and files are written atomically, so the web process, a queue worker and the MCP server can share it without configuration. Listing, filtering and tracing read only the index.
 
 ### `cache`
 
@@ -73,4 +73,4 @@ Monocle::extendStore('redis-stream', fn ($app, array $config) => new RedisStream
 }
 ```
 
-Because the file store is plain JSON, other tools can read `storage/monocle/*.json` directly.
+Because the file store is plain JSON, other tools can read `storage/monocle/*.monocle.json` directly.

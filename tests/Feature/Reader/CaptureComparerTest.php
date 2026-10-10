@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-covers(CaptureComparer::class, CompareCaptures::class, CompareCommand::class);
+covers(CaptureComparer::class, CompareCaptures::class, CompareCommand::class, Viewfinder::class);
 
 describe(CaptureComparer::class, function (): void {
     beforeEach(function (): void {

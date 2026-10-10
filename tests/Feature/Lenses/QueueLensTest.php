@@ -14,7 +14,7 @@ use Tests\Fixtures\Jobs\FailingJob;
 use Tests\Fixtures\Jobs\PlainCommand;
 use Tests\Fixtures\Jobs\RecordingJob;
 
-covers(QueueLens::class, SyncDispatchPipe::class);
+covers(QueueLens::class, SyncDispatchPipe::class, CaptureReader::class);
 
 describe(QueueLens::class, function (): void {
     beforeEach(function (): void {

@@ -24,7 +24,7 @@ abstract class TestCase extends BaseTestCase
 
     protected function defineEnvironment($app): void
     {
-        $this->monoclePath = sys_get_temp_dir().'/monocle-tests-'.bin2hex(random_bytes(4));
+        $this->monoclePath = $app->storagePath('monocle-tests-'.bin2hex(random_bytes(4)));
 
         $app['config']->set('monocle.enabled', true);
         $app['config']->set('monocle.storage.file.path', $this->monoclePath);
