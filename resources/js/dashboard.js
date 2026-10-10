@@ -1,5 +1,6 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
+import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
@@ -45,6 +46,7 @@ Alpine.data('monocle', (config) => ({
   groupBy: 'order',
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
+  foldable: [],
   theme: theme.get(),
   error: null,
   confirmClear: false,
@@ -136,30 +138,37 @@ Alpine.data('monocle', (config) => ({
   },
 
   renderTimeline() {
-    this.timelineHtml = this.model ? renderTimeline(this.model, this.timelineState) : '';
+    const rendered = this.model ? renderTimeline(this.model, this.timelineState.kinds) : { html: '', foldable: [] };
+    this.timelineHtml = rendered.html;
+    this.foldable = rendered.foldable;
   },
 
   timelineClick(e) {
-    const t = e.target.closest('button');
+    const t = e.target.closest('button[data-kind]');
     if (!t) return;
-    const s = this.timelineState;
-    if (t.dataset.toggle) {
-      const id = t.dataset.toggle;
-      if (t.dataset.open === 'true') { s.open.delete(id); s.shut.add(id); } else { s.shut.delete(id); s.open.add(id); }
-    } else if (t.dataset.expand) {
-      Object.keys(this.model.tree.byId).forEach((id) => s.open.add(id));
-      (phasesOf(this.model.tree) ?? []).forEach((p) => s.open.add(p.id));
-      s.shut.clear();
-    } else if (t.dataset.collapse) {
-      s.open.clear();
-      (phasesOf(this.model.tree) ?? []).forEach((p) => s.shut.add(p.id));
-    } else if (t.dataset.kind) {
-      s.kinds.has(t.dataset.kind) ? s.kinds.delete(t.dataset.kind) : s.kinds.add(t.dataset.kind);
-    } else {
-      return;
-    }
+    const kinds = this.timelineState.kinds;
+    kinds.has(t.dataset.kind) ? kinds.delete(t.dataset.kind) : kinds.add(t.dataset.kind);
     this.popover.close();
     this.renderTimeline();
+  },
+
+  tlOpen(id, fallback) {
+    const s = this.timelineState;
+    return s.open.has(id) ? true : s.shut.has(id) ? false : fallback;
+  },
+
+  tlToggle(id, fallback) {
+    const s = this.timelineState;
+    this.popover.close();
+    if (this.tlOpen(id, fallback)) { s.open.delete(id); s.shut.add(id); } else { s.shut.delete(id); s.open.add(id); }
+  },
+
+  tlAll(expand) {
+    const s = this.timelineState;
+    this.popover.close();
+    for (const { id } of this.foldable) {
+      if (expand) { s.shut.delete(id); s.open.add(id); } else { s.open.delete(id); s.shut.add(id); }
+    }
   },
 
   async clearAll() {
@@ -238,5 +247,6 @@ Alpine.data('monocle', (config) => ({
   originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
 
+Alpine.plugin(collapse);
 window.Alpine = Alpine;
 Alpine.start();

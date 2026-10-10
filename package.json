@@ -10,11 +10,12 @@
     "watch": "vite build --config vite.dashboard.config.js --watch --mode development"
   },
   "devDependencies": {
+    "@alpinejs/collapse": "^3.17.4",
+    "@tailwindcss/vite": "^4.3.3",
     "alpinejs": "^3.17.4",
-    "vitepress": "^1.6.4",
-    "vite": "^6.4.3",
     "tailwindcss": "^4.3.3",
-    "@tailwindcss/vite": "^4.3.3"
+    "vite": "^6.4.3",
+    "vitepress": "^1.6.4"
   },
   "//overrides": [
     "VitePress 1.6 pins vite ^5, where the fs.deny bypass and the esbuild dev-server advisories are unpatched.",

@@ -83,8 +83,6 @@ export function phasesOf(roots) {
   }).sort((a, b) => a.s - b.s);
 }
 
-let view = { open: new Set(), shut: new Set(), kinds: new Set() };
-const isOpen = (id, fallback) => (view.open.has(id) ? true : view.shut.has(id) ? false : fallback);
 
 function closure(n, lens, out) {
   out.push(n);
@@ -93,37 +91,6 @@ function closure(n, lens, out) {
 }
 
 /** Consecutive same-lens siblings (and their same-lens descendants) fold into one group row. */
-function buildRows(children, depth, rows, plain = null) {
-  for (let i = 0; i < children.length; i++) {
-    const n = children[i];
-    const lens = lensOf(n);
-    if (lens === 'phase' || lens === plain) {
-      rows.push({ type: 'span', node: n, depth });
-      buildRows(n.children, depth + 1, rows, plain === lens ? plain : null);
-      continue;
-    }
-    let j = i;
-    while (j + 1 < children.length && lensOf(children[j + 1]) === lens) j++;
-    const run = children.slice(i, j + 1);
-    const members = run.flatMap((r) => closure(r, lens, []));
-    if (members.length < 2) {
-      rows.push({ type: 'span', node: n, depth });
-      buildRows(n.children, depth + 1, rows);
-      continue;
-    }
-    const id = run[0].id;
-    const open = isOpen(id, false);
-    rows.push({ type: 'group', id, run, members, lens, depth, open });
-    if (open) {
-      run.forEach((r) => { rows.push({ type: 'span', node: r, depth: depth + 1 }); buildRows(r.children, depth + 2, rows, lens); });
-    } else {
-      buildRows(members.flatMap((m) => m.children.filter((c) => lensOf(c) !== lens)).sort((a, b) => a.s - b.s), depth + 1, rows);
-    }
-    i = j;
-  }
-  return rows;
-}
-
 function lanes(items) {
   const ends = [];
   return items.slice().sort((a, b) => a.s - b.s).map((it) => {
@@ -154,16 +121,21 @@ const TRACK = 'relative h-full overflow-hidden bg-[linear-gradient(to_right,var(
 const DUR = 'pr-2.5 text-right font-mono text-[11.5px] tabular-nums text-muted';
 const COUNT = 'block text-[10px] leading-tight text-muted';
 
-export function renderTimeline(model, state) {
-  view = state;
+/**
+ * Render the timeline of a capture once; folding is left to Alpine (tlOpen /
+ * tlToggle on the dashboard component), so rows animate with x-collapse.
+ * model = { tree (from indexTree), duration }, kinds = Set of lens filters.
+ * Returns the html and every foldable id with its default state.
+ */
+export function renderTimeline(model, kinds) {
   const roots = model.tree;
   const all = []; const flat = (n) => { all.push(n); n.children.forEach(flat); }; roots.forEach(flat);
   const lensList = [...new Set(all.map(lensOf))];
   const end = model.duration;
   const pct = (v) => Math.max(0, Math.min(100, (v / end) * 100));
   const phases = phasesOf(roots);
+  const foldable = [];
 
-  /** Clockwork-style label: after the bar in the left half, before it in the right half, inside when the bar is wide. */
   const label = (text, s, e, extra = '') => {
     const left = pct(s); const right = pct(e);
     const inside = right - left > 38;
@@ -182,15 +154,44 @@ export function renderTimeline(model, state) {
     };
   };
 
-  const spanRow = ({ node: n, depth }) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
+  const spanRow = (n, depth) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
       <span class="${NAME}" style="padding-left:${10 + depth * 12}px"><span class="${KIND}">${n.kind}</span></span>
       <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
       <span class="${DUR}">${ms(n.e - n.s)}</span>
     </div>`;
 
-  const toggleCell = (id, open, depth, text) => `<button class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" data-toggle="${id}" data-open="${open}" aria-expanded="${open}" style="padding-left:${10 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform ${open ? 'rotate-90' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>${text}</button>`;
+  const open = (id, def) => `tlOpen('${id}', ${def})`;
 
-  const groupRow = (g) => {
+  const toggleCell = (id, def, depth, text) => `<button type="button" class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" @click="tlToggle('${id}', ${def})" :aria-expanded="${open(id, def)}" style="padding-left:${6 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform duration-200 ease-out" :class="${open(id, def)} && 'rotate-90'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>${text}</button>`;
+
+  const fold = (id, def, html) => (html ? `<div x-show="${open(id, def)}" x-collapse${def ? '' : ' x-cloak'}>${html}</div>` : '');
+
+  /** Consecutive same-lens siblings (and their same-lens descendants) fold into one group row. */
+  const nodes = (children, depth, plain = null) => {
+    let html = '';
+    for (let i = 0; i < children.length; i++) {
+      const n = children[i];
+      const lens = lensOf(n);
+      if (lens === 'phase' || lens === plain) {
+        html += spanRow(n, depth) + nodes(n.children, depth + 1, plain === lens ? plain : null);
+        continue;
+      }
+      let j = i;
+      while (j + 1 < children.length && lensOf(children[j + 1]) === lens) j++;
+      const run = children.slice(i, j + 1);
+      const members = run.flatMap((r) => closure(r, lens, []));
+      if (members.length < 2) {
+        html += spanRow(n, depth) + nodes(n.children, depth + 1);
+        continue;
+      }
+      html += group({ id: run[0].id, run, members, lens, depth });
+      i = j;
+    }
+    return html;
+  };
+
+  const group = (g) => {
+    foldable.push({ id: g.id, def: false });
     const from = Math.min(...g.members.map((m) => m.s));
     const to = Math.max(...g.members.map((m) => m.e));
     const color = LENS_COLOR[g.lens] ?? 'var(--c-phase)';
@@ -199,53 +200,62 @@ export function renderTimeline(model, state) {
     const wl = lanes(wrappers);
     const wCount = wl.length ? Math.max(...wl.map((l) => l.lane)) + 1 : 0;
     const seg = segments(leaves, color, 7 + wCount * 3 + (wCount ? 2 : 0));
-    return `<div class="${ROW} bg-[color-mix(in_srgb,var(--brass-soft)_45%,transparent)]" style="height:${g.open ? 26 : seg.height}px">
-      ${toggleCell(g.id, g.open, g.depth, `<span class="${KIND}">${g.lens}</span>`)}
+    const external = g.members.flatMap((m) => m.children.filter((c) => lensOf(c) !== g.lens)).sort((a, b) => a.s - b.s);
+    const header = `<div class="${ROW} bg-[color-mix(in_srgb,var(--brass-soft)_45%,transparent)] transition-[height] duration-200" :style="${open(g.id, false)} ? 'height:26px' : 'height:${seg.height}px'" style="height:${seg.height}px">
+      ${toggleCell(g.id, false, g.depth, `<span class="${KIND}">${g.lens}</span>`)}
       <div class="${TRACK} self-stretch">
-        ${g.open ? `<span class="absolute top-1/2 -mt-[3px] h-1.5 rounded-b-sm border-[1.5px] border-t-0 opacity-70" style="left:${pct(from)}%;width:${pct(to) - pct(from)}%;border-color:${color}"></span>` : `
+        <span x-show="${open(g.id, false)}" x-cloak class="absolute top-1/2 -mt-[3px] h-1.5 rounded-b-sm border-[1.5px] border-t-0 opacity-70" style="left:${pct(from)}%;width:${pct(to) - pct(from)}%;border-color:${color}"></span>
+        <div x-show="!${open(g.id, false)}">
           ${wl.map(({ it, lane }) => `<span class="absolute h-0.5 min-w-0.5 rounded-[1px] opacity-55" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${7 + lane * 3}px;background:${color}"></span>`).join('')}
-          ${seg.html}`}
+          ${seg.html}
+        </div>
         ${label(groupLabel(g), from, to)}
       </div>
       <span class="${DUR} leading-tight">${ms(to - from)}<span class="${COUNT}">${g.members.length} spans</span></span>
     </div>`;
+    const level = (m) => { let d = 0; for (let p = m; !g.run.includes(p); p = p.parent) d++; return d; };
+    const expanded = g.members.map((m) => spanRow(m, g.depth + 1 + level(m))).join('');
+    return header + fold(g.id, false, expanded) + nodes(external, g.depth + 1);
   };
 
   const phaseRow = (p) => {
     const color = PHASE_COLOR[p.label] ?? 'var(--c-phase)';
-    const collapsible = p.members.length > 0;
     const middleware = p.label.startsWith('Middleware');
-    const open = collapsible && isOpen(p.id, !middleware);
-    const seg = !open && collapsible ? segments(p.members, middleware ? color : null, 8) : null;
+    const def = !middleware;
+    const collapsible = p.members.length > 0;
     const count = middleware ? ` <span class="font-mono text-[10.5px] opacity-80">${p.members.filter((m) => m.kind.startsWith('middleware')).length} middleware</span>` : '';
     const name = `<span class="text-[12.5px] font-semibold">${p.label}</span>`;
     phaseIndex[p.id] = p;
-    return `<div class="${ROW} bg-sunk" style="height:${seg ? seg.height : 28}px">
-      ${collapsible ? toggleCell(p.id, open, 0, name) : `<span class="${NAME} pl-2.5">${name}</span>`}
+    if (collapsible) foldable.push({ id: p.id, def });
+    const seg = collapsible ? segments(p.members, middleware ? color : null, 8) : null;
+    const bar = `<span class="absolute top-1.5 h-4 min-w-0.5 cursor-pointer rounded-sm opacity-85 hover:brightness-110" data-phase="${p.id}" style="left:${pct(p.s)}%;width:${pct(p.e) - pct(p.s)}%;background:${color}"></span>`;
+    const header = `<div class="${ROW} bg-sunk ${collapsible ? 'transition-[height] duration-200' : ''}" style="height:${collapsible && !def ? seg.height : 28}px" ${collapsible ? `:style="${open(p.id, def)} ? 'height:28px' : 'height:${seg.height}px'"` : ''}>
+      ${collapsible ? toggleCell(p.id, def, 0, name) : `<span class="${NAME} pl-2.5">${name}</span>`}
       <div class="${TRACK}">
-        ${seg ? seg.html : `<span class="absolute top-1.5 h-4 min-w-0.5 cursor-pointer rounded-sm opacity-85 hover:brightness-110" data-phase="${p.id}" style="left:${pct(p.s)}%;width:${pct(p.e) - pct(p.s)}%;background:${color}"></span>`}
+        ${collapsible ? `<div x-show="${open(p.id, def)}"${def ? '' : ' x-cloak'}>${bar}</div><div x-show="!${open(p.id, def)}"${def ? ' x-cloak' : ''}>${seg.html}</div>` : bar}
         ${label(p.label, p.s, p.e, count)}
       </div>
       <span class="${DUR}">${ms(p.e - p.s)}</span>
-    </div>${open ? buildRows(p.members, 1, [], middleware ? 'middleware' : null).map(row).join('') : ''}`;
+    </div>`;
+    return header + (collapsible ? fold(p.id, def, nodes(p.members, 1, middleware ? 'middleware' : null)) : '');
   };
 
-  const row = (r) => (r.type === 'group' ? groupRow(r) : spanRow(r));
-
-  const body = view.kinds.size
-    ? all.filter((n) => view.kinds.has(lensOf(n))).map((node) => spanRow({ node, depth: 0 })).join('')
-    : phases ? phases.map(phaseRow).join('') : buildRows(roots, 0, []).map(row).join('');
+  const body = kinds.size
+    ? all.filter((n) => kinds.has(lensOf(n))).map((n) => spanRow(n, 0)).join('')
+    : phases ? phases.map(phaseRow).join('') : nodes(roots, 0);
 
   const ticks = [0, .25, .5, .75, 1].map((f) => `<span class="absolute top-[7px] -translate-x-1/2 first:translate-x-0 last:-translate-x-full" style="left:${f * 100}%">${ms(end * f)}</span>`).join('');
-  return `
+  const html = `
     <div class="mb-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <div class="flex flex-wrap gap-1.5" role="group" aria-label="Lenses">
-        ${lensList.map((k) => `<button class="${cls.chip} gap-1.5" data-kind="${k}" aria-pressed="${view.kinds.has(k)}"><i class="${cls.swatch} size-2" style="background:${LENS_COLOR[k] ?? 'var(--c-phase)'}"></i>${k}</button>`).join('')}
+        ${lensList.map((k) => `<button type="button" class="${cls.chip} gap-1.5" data-kind="${k}" aria-pressed="${kinds.has(k)}"><i class="${cls.swatch} size-2" style="background:${LENS_COLOR[k] ?? 'var(--c-phase)'}"></i>${k}</button>`).join('')}
       </div>
-      ${view.kinds.size ? '' : `<div class="flex gap-3.5 text-[13px]"><button class="${cls.link}" data-expand="1">Expand all</button><button class="${cls.link}" data-collapse="1">Collapse all</button></div>`}
+      ${kinds.size ? '' : `<div class="flex gap-3.5 text-[13px]"><button type="button" class="${cls.link}" @click="tlAll(true)">Expand all</button><button type="button" class="${cls.link}" @click="tlAll(false)">Collapse all</button></div>`}
     </div>
     <div class="scroll-quiet overflow-x-auto rounded-md border border-line bg-panel"><div class="min-w-[640px]">
       <div class="${COLUMNS} h-7 border-b border-line font-mono text-[11px] text-muted"><span class="pl-2.5"></span><div class="relative h-full">${ticks}</div><span class="pr-2.5 text-right">time</span></div>
       ${body}
     </div></div>`;
+
+  return { html, foldable };
 }
