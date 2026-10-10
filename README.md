@@ -2,6 +2,8 @@
 
 # Monocle
 
+**Documentation: [exeque.github.io/laravel-monocle](https://exeque.github.io/laravel-monocle/)**
+
 Agent-focused request profiler for Laravel. Monocle records what the application did while handling a request, job or command - timing phases, every middleware, database queries, cache operations, filesystem and AI agent calls, plus spans you add yourself - and exposes it to AI coding agents through an MCP server, to humans through artisan commands, and later through a web dashboard.
 
 Monocle is built from **lenses**: discrete classes that each hook into the framework and write one section of the recorded capture. Enable, disable, configure or add lenses through config or the facade.
