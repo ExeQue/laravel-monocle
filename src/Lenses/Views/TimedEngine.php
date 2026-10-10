@@ -35,7 +35,10 @@ final class TimedEngine implements Engine
 
         $name = $this->viewName((string) $path, $data);
         $relative = $this->relative((string) $path);
-        $keys = array_values(array_diff(array_keys($data), self::INTERNAL_KEYS));
+        $keys = array_values(array_filter(
+            array_diff(array_keys($data), self::INTERNAL_KEYS),
+            fn (int|string $key): bool => ! str_starts_with((string) $key, '_'),
+        ));
 
         $span = $this->eyepiece->span($name, 'view')->start([
             'path' => $relative,

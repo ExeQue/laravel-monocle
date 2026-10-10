@@ -17,7 +17,7 @@ describe(ViewsLens::class, function (): void {
     beforeEach(function (): void {
         View::addLocation(__DIR__.'/../../Fixtures/views');
 
-        Route::get('/page', fn () => view('parent', ['title' => 'Hello', 'items' => ['a', 'b', 'c']]));
+        Route::get('/page', fn () => view('parent', ['title' => 'Hello', 'items' => ['a', 'b', 'c'], '_instance' => 'internal']));
     });
 
     it('times every render as nested spans and rows', function (): void {
