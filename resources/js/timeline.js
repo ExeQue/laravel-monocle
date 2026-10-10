@@ -6,7 +6,11 @@ export const LENS_COLOR = {
 };
 export const PHASE_COLOR = { 'Middleware (request)': 'var(--c-mw)', 'Middleware (response)': 'var(--c-mw)', Controller: 'var(--c-ctrl)' };
 export const lensOf = (n) => n.kind.split('.')[0];
-export const colorOf = (n) => LENS_COLOR[lensOf(n)] ?? 'var(--c-phase)';
+/** A span's own colour (a SpanColor name or a hex value) wins over its kind's. */
+export const colorOf = (n) => {
+  if (n.color) return n.color.startsWith('#') ? n.color : `var(--span-${n.color})`;
+  return LENS_COLOR[lensOf(n)] ?? 'var(--c-phase)';
+};
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /** What the bar says, in the words of the operation (Clockwork style). */
@@ -165,7 +169,7 @@ export function renderTimeline(model, state) {
     const h = count === 1 ? 12 : Math.max(4, Math.floor(18 / count));
     return {
       height: Math.max(26, top + count * (h + 2) + 6),
-      html: packed.map(({ it, lane }, k) => `<span class="wf-seg${k % 2 ? ' alt' : ''}" data-node="${it.id}" title="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${color ?? colorOf(it)}"></span>`).join('')
+      html: packed.map(({ it, lane }, k) => `<span class="wf-seg${k % 2 ? ' alt' : ''}" data-node="${it.id}" title="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${it.color ? colorOf(it) : (color ?? colorOf(it))}"></span>`).join('')
     };
   };
 

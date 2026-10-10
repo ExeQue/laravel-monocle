@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Dashboard;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Editor\EditorLinks;
+use ExeQue\Monocle\Enums\SpanColor;
 
 /**
  * Builds the dashboard timeline: the span tree, with every timed row
@@ -66,6 +67,7 @@ final readonly class TimelinePresenter
             'parent' => $span->parentId !== null && isset($capture->spans[$span->parentId]) ? $span->parentId : null,
             'kind' => $span->kind,
             'name' => $span->name,
+            'color' => $this->color($span->color),
             's' => round($span->start ?? 0.0, 3),
             'e' => round($span->end ?? $capture->duration(), 3),
             'd' => [
@@ -113,6 +115,18 @@ final readonly class TimelinePresenter
         };
 
         return mb_strimwidth(trim($text), 0, 300, '...');
+    }
+
+    /**
+     * Only colours the dashboard can draw safely: a SpanColor name or a hex value.
+     */
+    private function color(?string $color): ?string
+    {
+        if ($color === null) {
+            return null;
+        }
+
+        return SpanColor::tryFrom($color) !== null || preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) === 1 ? $color : null;
     }
 
     /**

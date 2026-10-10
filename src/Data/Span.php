@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Data;
 
 use Closure;
+use ExeQue\Monocle\Enums\SpanColor;
+use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 
@@ -26,6 +28,9 @@ final class Span
 
     /** @var array<string, mixed>|null */
     public ?array $origin = null;
+
+    /** A SpanColor value or a hex colour; null draws the kind's own colour. */
+    public ?string $color = null;
 
     public function __construct(
         public readonly string $id,
@@ -87,6 +92,28 @@ final class Span
         return $this;
     }
 
+    /**
+     * Draw this span in a colour of its own on the dashboard timeline.
+     *
+     * @throws InvalidSpanColorException
+     */
+    public function color(SpanColor|string $color): self
+    {
+        if ($color instanceof SpanColor) {
+            $this->color = $color->value;
+
+            return $this;
+        }
+
+        if (SpanColor::tryFrom($color) === null && preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) !== 1) {
+            throw InvalidSpanColorException::forValue($color);
+        }
+
+        $this->color = $color;
+
+        return $this;
+    }
+
     public function parent(?Span $parent): self
     {
         $this->parentId = $parent?->id;
@@ -144,6 +171,7 @@ final class Span
             'ended_by' => $this->endedBy,
             'meta' => $this->meta,
             'origin' => $this->origin,
+            'color' => $this->color,
         ];
     }
 
@@ -164,6 +192,7 @@ final class Span
         $span->start = $data['start'] ?? null;
         $span->end = $data['end'] ?? null;
         $span->endedBy = $data['ended_by'] ?? null;
+        $span->color = isset($data['color']) && is_string($data['color']) ? $data['color'] : null;
         $span->meta = $data['meta'] ?? [];
         $span->origin = $data['origin'] ?? null;
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Enums\SpanColor;
+use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\MonocleManager;
@@ -96,6 +98,24 @@ describe(Eyepiece::class, function (): void {
                 ->and(array_values($capture->spans)[0]->endedBy)->toBe('finalize')
                 ->and($capture->health['open_spans_at_finalize'])->toBe(1);
         });
+        it('takes a colour from the curated list or as a hex value and keeps it through storage', function (): void {
+            $named = Monocle::span('named')->color(SpanColor::Teal)->start()->stop();
+            $byValue = Monocle::span('by value')->color('lavender')->start()->stop();
+            $hex = Monocle::span('hex')->color('#FF8800')->start()->stop();
+            $short = Monocle::span('short')->color('#f80');
+
+            $restored = Capture::fromArray($this->eyepiece->finalize()->toArray())->spans;
+
+            expect($named->color)->toBe('teal')
+                ->and($byValue->color)->toBe('lavender')
+                ->and($short->color)->toBe('#f80')
+                ->and($restored[$hex->id]->color)->toBe('#FF8800')
+                ->and($restored[$named->id]->color)->toBe('teal');
+        });
+
+        it('rejects colours it cannot draw', function (string $color): void {
+            Monocle::span('bad')->color($color);
+        })->throws(InvalidSpanColorException::class)->with(['orange', '#ff88', 'red; background: url(x)', '']);
     });
 
     describe('capture metadata', function (): void {

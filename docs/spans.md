@@ -45,6 +45,19 @@ Monocle::meta(['tenant' => $tenant->id]);
 Monocle::label('baseline');   // find it again with monocle-list label=baseline
 ```
 
+## Colour
+
+Give a span its own colour on the dashboard timeline, from a short list that follows the light and dark theme, or as a hex value:
+
+```php
+use ExeQue\Monocle\Enums\SpanColor;
+
+Monocle::span('import photos')->color(SpanColor::Teal)->start();
+Monocle::span('resize')->color('#c08429')->start();
+```
+
+The list: `Bronze`, `Teal`, `Lavender`, `Green`, `Blue`, `Red`, `Pink`, `Grey`. Anything else throws `InvalidSpanColorException`.
+
 ## Stopping a span somewhere else
 
 When a span starts in one place and ends in another, give it a key:

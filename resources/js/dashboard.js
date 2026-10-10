@@ -11,7 +11,10 @@ const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'va
 
 /** Totals shown first, in this order; everything else follows. */
 const KEY_TOTALS = ['duration_ms', 'queries', 'query_ms', 'cache_hit_rate', 'views_rendered', 'models_retrieved', 'redis_commands', 'memory_peak_mb', 'response_bytes', 'tokens_total', 'jobs_dispatched'];
-const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'meta'];
+const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'meta', 'queries'];
+/** Section tabs, most useful first; sections not listed follow in their own order. */
+const TAB_ORDER = ['exceptions', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {
   get() { try { return localStorage.getItem('monocle.theme') ?? 'system'; } catch { return 'system'; } },
@@ -168,8 +171,8 @@ Alpine.data('monocle', (config) => ({
     const counts = this.capture.summary?.counts ?? {};
     const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
     if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
-    for (const s of this.capture.available_sections ?? []) {
-      if (SKIP_SECTIONS.includes(s.key) || !s.rows) continue;
+    const sections = (this.capture.available_sections ?? []).filter((s) => !SKIP_SECTIONS.includes(s.key) && s.rows);
+    for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
       tabs.push({ key: s.key, label: humanize(s.key), count: s.rows, description: s.description });
     }
     tabs.push({ key: 'trace', label: 'Trace' });

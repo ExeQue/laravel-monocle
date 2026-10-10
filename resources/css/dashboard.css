@@ -25,6 +25,7 @@
   --c-view: #4f9a6b;
   --c-io: #b25a7e;
   --c-http: #3b7fc4;
+  --span-bronze: #c08429; --span-teal: #1f9a92; --span-lavender: #7d68c9; --span-green: #4f9a6b; --span-blue: #3b7fc4; --span-red: #c4473d; --span-pink: #b25a7e; --span-grey: #8a847b;
   --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
@@ -34,7 +35,7 @@
     --bg: #111214; --panel: #17181b; --sunk: #1e2024; --line: #2c2e33; --fg: #ece8e1; --muted: #9b958c;
     --brass: #e9b25a; --brass-2: #d99a3a; --brass-soft: rgba(217, 154, 58, 0.16); --on-brass: #17181b;
     --ok: #6cc08f; --warn: #f0b45a; --warn-soft: #3a2a12; --bad: #f08a80; --bad-soft: #3d1c1a;
-    --c-phase: #6e6a64; --c-mw: #d99a3a; --c-ctrl: #e9b25a; --c-db: #6fd6cc; --c-cache: #a593ea; --c-view: #74c495; --c-io: #d886a8; --c-http: #7ab3e8;
+    --c-phase: #6e6a64; --c-mw: #d99a3a; --c-ctrl: #e9b25a; --c-db: #6fd6cc; --c-cache: #a593ea; --c-view: #74c495; --c-io: #d886a8; --c-http: #7ab3e8; --span-bronze: #e9b25a; --span-teal: #6fd6cc; --span-lavender: #a593ea; --span-green: #74c495; --span-blue: #7ab3e8; --span-red: #f08a80; --span-pink: #d886a8; --span-grey: #8f8a83;
     color-scheme: dark;
   }
 }
@@ -42,7 +43,7 @@
   --bg: #111214; --panel: #17181b; --sunk: #1e2024; --line: #2c2e33; --fg: #ece8e1; --muted: #9b958c;
   --brass: #e9b25a; --brass-2: #d99a3a; --brass-soft: rgba(217, 154, 58, 0.16); --on-brass: #17181b;
   --ok: #6cc08f; --warn: #f0b45a; --warn-soft: #3a2a12; --bad: #f08a80; --bad-soft: #3d1c1a;
-  --c-phase: #6e6a64; --c-mw: #d99a3a; --c-ctrl: #e9b25a; --c-db: #6fd6cc; --c-cache: #a593ea; --c-view: #74c495; --c-io: #d886a8; --c-http: #7ab3e8;
+  --c-phase: #6e6a64; --c-mw: #d99a3a; --c-ctrl: #e9b25a; --c-db: #6fd6cc; --c-cache: #a593ea; --c-view: #74c495; --c-io: #d886a8; --c-http: #7ab3e8; --span-bronze: #e9b25a; --span-teal: #6fd6cc; --span-lavender: #a593ea; --span-green: #74c495; --span-blue: #7ab3e8; --span-red: #f08a80; --span-pink: #d886a8; --span-grey: #8f8a83;
   color-scheme: dark;
 }
 

@@ -26,6 +26,20 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->originFromString('app/X.php')['link'])->toBe('vscode://file/app/app/X.php:1');
     });
 
+    it('passes on only colours the dashboard can draw', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
+        $capture = ExeQue\Monocle\Data\Capture::fromArray([
+            'id' => 'c1', 'type' => 'request', 'started_at' => 0.0, 'ended_at' => 0.01,
+            'spans' => [
+                ['id' => 'a', 'kind' => 'user', 'name' => 'a', 'start' => 0, 'end' => 1, 'color' => 'teal'],
+                ['id' => 'b', 'kind' => 'user', 'name' => 'b', 'start' => 1, 'end' => 2, 'color' => '#abc'],
+                ['id' => 'c', 'kind' => 'user', 'name' => 'c', 'start' => 2, 'end' => 3, 'color' => 'red;x:url(y)'],
+            ],
+        ]);
+
+        expect(array_column($presenter->present($capture), 'color', 'name'))->toBe(['a' => 'teal', 'b' => '#abc', 'c' => null]);
+    });
+
     it('links nothing without an editor', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
 
