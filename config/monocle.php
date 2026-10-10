@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Monocle\Lenses\AiLens;
 use ExeQue\Monocle\Lenses\AuthorizationLens;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\CommandLens;
@@ -10,6 +11,7 @@ use ExeQue\Monocle\Lenses\DumpLens;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use ExeQue\Monocle\Lenses\EventsLens;
 use ExeQue\Monocle\Lenses\ExceptionsLens;
+use ExeQue\Monocle\Lenses\FilesystemLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\LivewireLens;
 use ExeQue\Monocle\Lenses\LogLens;
@@ -86,6 +88,12 @@ return [
         LivewireLens::class => true,
         DumpLens::class => true,
         McpLens::class => true,
+        FilesystemLens::class => [
+            'disks' => [],                          // disk names, wildcards allowed: ['media', 'uploads-*'] or ['*']
+        ],
+        AiLens::class => [
+            'max_text' => null,                     // null = never truncate prompts and responses
+        ],
     ],
 
     /*

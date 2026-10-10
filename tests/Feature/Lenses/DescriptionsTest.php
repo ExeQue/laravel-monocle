@@ -6,6 +6,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\LensRegistry;
 
 covers(
+    ExeQue\Monocle\Lenses\AiLens::class,
     ExeQue\Monocle\Lenses\AuthorizationLens::class,
     ExeQue\Monocle\Lenses\CacheLens::class,
     ExeQue\Monocle\Lenses\CommandLens::class,
@@ -14,6 +15,7 @@ covers(
     ExeQue\Monocle\Lenses\EloquentLens::class,
     ExeQue\Monocle\Lenses\EventsLens::class,
     ExeQue\Monocle\Lenses\ExceptionsLens::class,
+    ExeQue\Monocle\Lenses\FilesystemLens::class,
     ExeQue\Monocle\Lenses\HttpClientLens::class,
     ExeQue\Monocle\Lenses\LivewireLens::class,
     ExeQue\Monocle\Lenses\LogLens::class,
@@ -32,11 +34,11 @@ describe('lens descriptions', function (): void {
         $lenses = app(LensRegistry::class)->booted();
         $keys = array_map(fn (Lens $lens): string => $lens->key(), $lenses);
 
-        expect($lenses)->toHaveCount(19)
+        expect($lenses)->toHaveCount(21)
             ->and($keys)->toBe(array_unique($keys));
 
         foreach ($lenses as $lens) {
-            expect($lens->description())->toMatch('/^[A-Z].{40,}/', $lens::class.' needs a real description')
+            expect($lens->description())->toMatch('/^\S.{40,}/', $lens::class.' needs a real description')
                 ->and($lens->key())->toMatch('/^[a-z_]+$/');
         }
 

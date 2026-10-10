@@ -101,6 +101,21 @@ Section `dumps`. Every `dump()` and `dd()`: the value as text, its type, the lab
 
 Section `mcp` plus captures of type `mcp`. Records calls to the MCP servers the application itself exposes (not Monocle's own server, nor Boost's - see `monocle.mcp.except_servers`): `server`, JSON-RPC `method`, `primitive` (tool, resource or prompt name), `arguments`, `duration`, `is_error`, `streamed_chunks` and `exception`. Over HTTP (`Mcp::web()`) the call is a row and an `mcp` span on the request capture; over stdio (`Mcp::local()`) every JSON-RPC request becomes its own capture named `server: method primitive`.
 
-## Lenses on the way
+## FilesystemLens
 
-Filesystem operations (per disk, opt-in) and `laravel/ai` agents, steps and tool calls. Each arrives as its own lens with its own section; the agent discovers them through `available_sections` in `monocle-show`.
+Section `fs`. Laravel fires no events for `Storage`, so this lens replaces the filesystem manager with one that wraps the Flysystem adapter of every disk selected in its options. Nothing is recorded until disks are named; wildcards work:
+
+```php
+// config/monocle.php
+FilesystemLens::class => ['disks' => ['media', 'uploads-*']],   // or ['*'] for every disk
+```
+
+Rows: `disk`, `driver`, `op` (`read`, `readStream`, `write`, `writeStream`, `delete`, `deleteDirectory`, `createDirectory`, `fileExists`, `directoryExists`, `listContents`, `move`, `copy`, `mimeType`, `fileSize`, `lastModified`, `visibility`, `setVisibility`, `checksum`), `path`, `destination`, `bytes`, `duration`, `ok` and the `exception` on failure. Disks not selected are untouched; native `file_*` calls are not covered.
+
+## AiLens
+
+Section `ai`, only when `laravel/ai` is installed. One row per agent invocation: `agent`, `provider`, `model`, `prompt`, `response` (or `structured`), `streamed`, `steps`, `tool_calls`, `failed_tools`, `tokens` (input, output, cache_read, cache_write, reasoning), `status` (`ok`/`failed`), `exception` and `duration`.
+
+The timeline carries the tree: an `ai.agent` span per invocation, `ai.step` children per provider round-trip (model, finish reason, tokens, provider time) and `ai.tool` children per tool call (arguments, result, tool time). An agent invoked from inside a tool nests under that tool's span. Prompts and responses are kept whole; set the lens option `max_text` to truncate them.
+
+The summary adds total tokens, calls per provider/model and warnings for failed agents and tools.

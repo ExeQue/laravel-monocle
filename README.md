@@ -121,6 +121,7 @@ final class MailgunLens implements Lens, Summarizable
 ```bash
 docker compose run --rm composer install
 docker compose run --rm php vendor/bin/pest
+docker compose run --rm php vendor/bin/pest --coverage --min=90
 docker compose run --rm php vendor/bin/pint
 ```
 
