@@ -136,9 +136,16 @@
                         </div>
                         <div>
                             <h3 :class="cls.sectionTitle">Totals</h3>
-                            <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
-                                <template x-for="t in totals" :key="t[0]">
-                                    <div><div class="text-xs text-muted" x-text="totalLabel(t[0])"></div><div class="text-xl font-bold tabular-nums" x-text="totalValue(t)"></div></div>
+                            <div class="grid gap-4">
+                                <template x-for="g in totalGroups" :key="g.label">
+                                    <div class="grid gap-2 border-t border-line pt-3 first:border-t-0 first:pt-0">
+                                        <h4 class="m-0 text-xs font-semibold text-brass" x-text="g.label"></h4>
+                                        <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
+                                            <template x-for="t in g.items" :key="t[0]">
+                                                <div><div class="text-xs text-muted" x-text="totalLabel(t[0], g.label)"></div><div class="text-xl font-bold tabular-nums" x-text="totalValue(t)"></div></div>
+                                            </template>
+                                        </div>
+                                    </div>
                                 </template>
                             </div>
                         </div>

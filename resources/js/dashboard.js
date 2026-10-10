@@ -12,8 +12,22 @@ const PHASE_COLORS = {
 };
 const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', fs: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
 
-/** Totals shown first, in this order; everything else follows. */
-const KEY_TOTALS = ['duration_ms', 'queries', 'query_ms', 'cache_hit_rate', 'views_rendered', 'models_retrieved', 'redis_commands', 'memory_peak_mb', 'response_bytes', 'tokens_total', 'jobs_dispatched'];
+/** Totals grouped by subject: [heading, which keys belong]. Keys no group claims land under "Other". */
+const TOTAL_GROUPS = [
+  ['Request', (k) => ['duration_ms', 'memory_peak_mb', 'response_bytes'].includes(k) || k.startsWith('middleware_')],
+  ['Database', (k) => k === 'queries' || k.startsWith('query') || k.startsWith('queries_') || ['slow_queries', 'duplicate_queries', 'transactions'].includes(k)],
+  ['Cache', (k) => k.startsWith('cache_')],
+  ['Redis', (k) => k.startsWith('redis_')],
+  ['Views', (k) => k.startsWith('views_')],
+  ['Models', (k) => k.startsWith('models_')],
+  ['Livewire', (k) => k.startsWith('livewire_')],
+  ['Jobs', (k) => k.startsWith('jobs_')],
+  ['AI', (k) => k.startsWith('ai_') || k.startsWith('tokens')],
+  ['HTTP', (k) => k.startsWith('http_')],
+  ['Files', (k) => k.startsWith('fs_')],
+  ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification')],
+  ['Authorization', (k) => k.startsWith('authorization_')],
+];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 const TAB_ORDER = ['exceptions', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
@@ -204,13 +218,20 @@ Alpine.data('monocle', (config) => ({
   get categories() { return this.summary.breakdown?.categories ?? []; },
   get maxCategory() { return Math.max(1, ...this.categories.map((c) => c.ms)); },
 
-  get totals() {
+  /** Totals grouped by what they are about, each group in a fixed order. */
+  get totalGroups() {
     const totals = this.summary.totals ?? {};
-    const shown = (k, v) => v !== null && typeof v !== 'object' && (v !== 0 || k === 'queries');
-    const scalar = Object.entries(totals).filter(([k, v]) => shown(k, v));
-    const first = KEY_TOTALS.filter((k) => totals[k] !== undefined && shown(k, totals[k])).map((k) => [k, totals[k]]);
-    return [...first, ...scalar.filter(([k]) => !KEY_TOTALS.includes(k))];
+    const shown = (k, v) => v !== null && v !== undefined && typeof v !== 'object' && (v !== 0 || k === 'queries');
+    const taken = new Set();
+    const groups = TOTAL_GROUPS.map(([label, test]) => {
+      const items = Object.entries(totals).filter(([k, v]) => !taken.has(k) && test(k) && shown(k, v));
+      items.forEach(([k]) => taken.add(k));
+      return { label, items };
+    });
+    groups.push({ label: 'Other', items: Object.entries(totals).filter(([k, v]) => !taken.has(k) && shown(k, v)) });
+    return groups.filter((g) => g.items.length);
   },
+
 
   /** Original query row number => how many later queries repeat it. */
   get duplicates() {
@@ -277,9 +298,11 @@ Alpine.data('monocle', (config) => ({
     if (k.endsWith('_mb')) return v + ' MB';
     return String(v);
   },
-  totalLabel(k) {
+  totalLabel(k, group = null) {
     const labels = { duration_ms: 'Duration', query_ms: 'Query time', cache_ms: 'Cache time', redis_ms: 'Redis time', views_ms: 'View time', middleware_self_ms: 'Middleware time', memory_peak_mb: 'Peak memory', response_bytes: 'Response size', cache_hit_rate: 'Cache hit rate' };
-    return labels[k] ?? humanize(k.replace(/_(ms|mb|bytes)$/, ''));
+    const label = labels[k] ?? humanize(k.replace(/_(ms|mb|bytes)$/, ''));
+    const prefix = `${group ?? ''} `.toLowerCase();
+    return group && label.toLowerCase().startsWith(prefix) && label.length > prefix.length ? humanize(label.slice(prefix.length)) : label;
   },
   originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
