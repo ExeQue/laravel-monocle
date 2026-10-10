@@ -41,12 +41,12 @@ Requests and commands that are never recorded:
 
 ```php
 'except' => [
-    'paths' => ['_monocle', '_monocle/*', 'horizon', 'horizon/*'],
-    'commands' => ['monocle:*', 'queue:work', 'horizon*'],
+    'paths' => ['telescope/*', 'pulse/*', 'horizon/*', 'up', 'livewire-*/livewire*.js', /* ... */],
+    'commands' => ['monocle:*', 'queue:work', 'horizon*', 'pulse:work', 'reverb:start', /* ... */],
 ],
 ```
 
-Paths and command names support `*`. Jobs run by `queue:work` and Horizon are still recorded.
+Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization and long-running commands such as queue workers, Reverb, Octane and Pulse. Livewire updates are still recorded, and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
 
 ## Masking
 

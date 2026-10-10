@@ -161,6 +161,20 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture())->toBeNull();
     });
 
+    it('leaves package dashboards and asset routes out but keeps Livewire updates', function (): void {
+        foreach (['telescope/requests', 'pulse', 'up', 'livewire-abc123/livewire.min.js', 'livewire-abc123/js/counter.js', 'flux/flux.js', '_debugbar/assets/js'] as $path) {
+            Route::get($path, fn () => 'x');
+            $this->get('/'.$path)->assertOk();
+        }
+
+        expect(latestCapture())->toBeNull();
+
+        Route::post('livewire-abc123/update', fn () => 'ok');
+        $this->post('/livewire-abc123/update')->assertOk();
+
+        expect(latestCapture()?->name)->toBe('POST /livewire-abc123/update');
+    });
+
     it('does not record broadcast channel authorization by default', function (): void {
         Route::post('/broadcasting/auth', fn () => 'ok');
 

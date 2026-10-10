@@ -125,8 +125,17 @@ return [
     */
 
     'except' => [
-        'paths' => ['__clockwork', '__clockwork/*', '_debugbar/*', '_boost/browser-logs', 'broadcasting/auth', 'horizon', 'horizon/*'],
-        'commands' => ['monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'horizon*', 'schedule:work'],
+        'paths' => [
+            '__clockwork*', 'clockwork', 'clockwork/*', '_debugbar*', '_ignition*', '_boost/browser-logs',
+            'broadcasting/auth', 'horizon', 'horizon/*', 'telescope', 'telescope/*', 'pulse', 'pulse/*',
+            'up', 'oh-dear-health-check-results', '.well-known/appspecific/*', 'flux/*',
+            'livewire-*/livewire*.js', 'livewire-*/*.map', 'livewire-*/js/*', 'livewire-*/css/*',
+        ],
+        'commands' => [
+            'monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish',
+            'package:discover', 'horizon*', 'pulse:check', 'pulse:work', 'reverb:start', 'reverb:restart',
+            'octane:start', 'octane:status', 'nightwatch:agent', 'health:schedule-check-heartbeat', 'health:queue-check-heartbeat',
+        ],
     ],
 
     /*
