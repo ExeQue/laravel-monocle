@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
+use ExeQue\Monocle\Support\Origin;
 use Illuminate\Support\Arr;
 
 /**
@@ -141,7 +142,7 @@ final class RowQuery
         }
 
         if (! $this->verbose && isset($row['origin']) && is_array($row['origin']) && ! $this->requestsOriginField()) {
-            $row['origin'] = ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?');
+            $row['origin'] = Origin::describe($row['origin']);
         }
 
         return $row;

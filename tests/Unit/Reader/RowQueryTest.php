@@ -63,7 +63,10 @@ describe(RowQuery::class, function (): void {
             $compact = RowQuery::fromArray(['limit' => 1])->apply($rows());
             $verbose = RowQuery::fromArray(['limit' => 1, 'verbose' => true])->apply($rows());
 
+            $via = RowQuery::fromArray([])->apply([['origin' => ['file' => 'a.php', 'line' => 2, 'via' => ['call' => 'Lib->go']]]]);
+
             expect($compact['rows'][0]['origin'])->toBe('app/F1.php:1')
+                ->and($via['rows'][0]['origin'])->toBe('a.php:2 via Lib->go')
                 ->and($verbose['rows'][0]['origin']['frames'])->toHaveCount(1);
         });
     });

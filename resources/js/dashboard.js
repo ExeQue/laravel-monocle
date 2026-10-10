@@ -162,12 +162,12 @@ Alpine.data('monocle', (config) => ({
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
       this.tabData = tab === 'queries' && this.groupBy === 'order'
-        ? await this.fetchJson(`${base}/rows/queries?limit=500`)
+        ? await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)
         : tab === 'queries'
         ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
         : tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
-          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=100`);
+          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=100&verbose=1`);
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -178,7 +178,7 @@ Alpine.data('monocle', (config) => ({
   async loadMore() {
     if (this.tabData?.next_offset == null) return;
     const limit = this.tab === 'queries' ? 500 : 100;
-    const more = await this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(this.tab)}?limit=${limit}&offset=${this.tabData.next_offset}`);
+    const more = await this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(this.tab)}?limit=${limit}&offset=${this.tabData.next_offset}&verbose=1`);
     this.tabData = { ...more, rows: [...this.tabData.rows, ...more.rows] };
   },
 

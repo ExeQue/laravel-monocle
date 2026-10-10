@@ -23,7 +23,9 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->link(42))->toBeNull()
             ->and($presenter->row(['class' => TimelinePresenter::class, 'n' => 1])['_links'])->toHaveKey('class')
             ->and($presenter->originFromString('app/X.php:3')['link'])->toBe('vscode://file/app/app/X.php:3')
-            ->and($presenter->originFromString('app/X.php')['link'])->toBe('vscode://file/app/app/X.php:1');
+            ->and($presenter->originFromString('app/X.php')['link'])->toBe('vscode://file/app/app/X.php:1')
+            ->and($presenter->originFromString('app/X.php:4 via Lib->go')['via']['call'])->toBe('Lib->go')
+            ->and($presenter->originFromString('app/X.php:4 via Lib->go')['line'])->toBe(4);
     });
 
     it('passes on only colours the dashboard can draw', function (): void {

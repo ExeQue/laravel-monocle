@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Support\Origin;
 
 /**
  * Groups the queries section by shape, caller, table or transaction so the
@@ -29,9 +30,7 @@ final class QueryAggregator
                     'total_ms' => 0.0,
                     'max_ms' => 0.0,
                     'example' => $row['sql_with_bindings'] ?? $row['sql'] ?? null,
-                    'origin' => is_array($row['origin'] ?? null)
-                        ? ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?')
-                        : null,
+                    'origin' => Origin::describe(is_array($row['origin'] ?? null) ? $row['origin'] : null),
                     'connections' => [],
                 ];
 

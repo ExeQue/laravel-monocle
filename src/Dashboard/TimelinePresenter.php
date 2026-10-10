@@ -258,11 +258,14 @@ final readonly class TimelinePresenter
      */
     public function originFromString(string $origin): ?array
     {
-        if (preg_match('/^(.*):(\d+|\?)$/', $origin, $match) !== 1) {
-            return $this->origin(['file' => $origin]);
+        [$where, $via] = array_pad(explode(' via ', $origin, 2), 2, null);
+        $via = $via === null ? null : ['call' => $via];
+
+        if (preg_match('/^(.*):(\d+|\?)$/', $where, $match) !== 1) {
+            return $this->origin(['file' => $where, 'via' => $via]);
         }
 
-        return $this->origin(['file' => $match[1], 'line' => is_numeric($match[2]) ? (int) $match[2] : null]);
+        return $this->origin(['file' => $match[1], 'line' => is_numeric($match[2]) ? (int) $match[2] : null, 'via' => $via]);
     }
 
     /**
