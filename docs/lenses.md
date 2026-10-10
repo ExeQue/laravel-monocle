@@ -89,6 +89,18 @@ A command invoked while another capture is active - `Artisan::call()` inside a r
 
 Section `scheduled_tasks` on the `schedule:run` capture: one row per task event with `command`, `expression`, `description`, `outcome` (`starting`, `finished`, `finished_in_background`, `skipped`, `failed`), `runtime_ms` and `exception`. Tasks run as subprocesses, so what they did themselves lands in their own command captures.
 
+## LivewireLens
+
+Section `livewire`, only when Livewire is installed. One row per component touched by the request: `component`, `class`, `id`, `lifecycle` (`mount` for the initial render, `update` for subsequent requests), `calls` (method, params, duration), `updates` (property path and value), `render_ms`, `html_bytes` and `exception`. Each component is also a `livewire` span in the timeline, so the views it renders nest under it.
+
+## DumpLens
+
+Section `dumps`. Every `dump()` and `dd()`: the value as text, its type, the label and `is_dd`. The value is still handed to whatever dumper was registered before, so the developer sees it as usual. `dd()` ends the process; the shutdown handler stores the capture with `ended_by: shutdown`, and the summary warns about it.
+
+## McpLens
+
+Section `mcp` plus captures of type `mcp`. Records calls to the MCP servers the application itself exposes (not Monocle's own server, nor Boost's - see `monocle.mcp.except_servers`): `server`, JSON-RPC `method`, `primitive` (tool, resource or prompt name), `arguments`, `duration`, `is_error`, `streamed_chunks` and `exception`. Over HTTP (`Mcp::web()`) the call is a row and an `mcp` span on the request capture; over stdio (`Mcp::local()`) every JSON-RPC request becomes its own capture named `server: method primitive`.
+
 ## Lenses on the way
 
-Eloquent model counts, Redis commands, events, log captures, views (timed per render), mail and notifications, outgoing HTTP calls, exceptions, authorization checks, Livewire components, filesystem operations (per disk, opt-in), `laravel/ai` agents, steps and tool calls, `dump()`/`dd()` captures and the application's own MCP servers. Each arrives as its own lens with its own section; the agent discovers them through `available_sections` in `monocle-show`.
+Filesystem operations (per disk, opt-in) and `laravel/ai` agents, steps and tool calls. Each arrives as its own lens with its own section; the agent discovers them through `available_sections` in `monocle-show`.

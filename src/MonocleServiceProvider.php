@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle;
 
 use ExeQue\Monocle\Console\ClearCommand;
+use ExeQue\Monocle\Console\CompareCommand;
 use ExeQue\Monocle\Console\InstallCommand;
 use ExeQue\Monocle\Console\ListCommand;
 use ExeQue\Monocle\Console\QueriesCommand;
@@ -42,6 +43,7 @@ final class MonocleServiceProvider extends ServiceProvider
                 RowsCommand::class,
                 QueriesCommand::class,
                 TraceCommand::class,
+                CompareCommand::class,
             ]);
         }
 

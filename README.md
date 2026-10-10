@@ -38,11 +38,12 @@ Add the MCP server (done by `monocle:install`) and the agent gets:
 | `monocle-rows` | Paginated, filterable rows of one section with `where`, `sort`, `fields` projection and `verbose`. |
 | `monocle-queries` | Queries grouped by shape, caller, table or transaction. |
 | `monocle-trace` | Every capture in the same trace: the request or command that started it and every job it dispatched, with depth and offsets. |
+| `monocle-compare` | Diff two captures (by id or label): totals, phases, categories, query shapes and warnings. Label a run, change the code, compare. |
 | `monocle-clear` | Empty the ring buffer before reproducing a scenario. |
 
 Every response carries `X-Monocle-Id` and `Server-Timing` headers, so an agent that curls the app can jump straight to `monocle-show id=...`. Every recorded row has an `origin` (user-land `file:line` and a short call chain) so the agent can open the code that triggered it.
 
-The same data is available on the command line: `monocle:list`, `monocle:show`, `monocle:rows`, `monocle:queries`, `monocle:trace`, `monocle:clear` (JSON output, `--compact` for one line).
+The same data is available on the command line: `monocle:list`, `monocle:show`, `monocle:rows`, `monocle:queries`, `monocle:trace`, `monocle:compare`, `monocle:clear` (JSON output, `--compact` for one line).
 
 ## Your own spans and metadata
 

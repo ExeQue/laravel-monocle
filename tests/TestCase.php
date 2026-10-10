@@ -7,6 +7,7 @@ namespace Tests;
 use ExeQue\Monocle\MonocleServiceProvider;
 use Illuminate\Filesystem\Filesystem;
 use Laravel\Mcp\Server\McpServiceProvider;
+use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -18,7 +19,7 @@ abstract class TestCase extends BaseTestCase
      */
     protected function getPackageProviders($app): array
     {
-        return [McpServiceProvider::class, MonocleServiceProvider::class];
+        return [McpServiceProvider::class, LivewireServiceProvider::class, MonocleServiceProvider::class];
     }
 
     protected function defineEnvironment($app): void

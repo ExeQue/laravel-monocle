@@ -6,12 +6,15 @@ use ExeQue\Monocle\Lenses\AuthorizationLens;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\CommandLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
+use ExeQue\Monocle\Lenses\DumpLens;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use ExeQue\Monocle\Lenses\EventsLens;
 use ExeQue\Monocle\Lenses\ExceptionsLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Lenses\LivewireLens;
 use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
+use ExeQue\Monocle\Lenses\McpLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
@@ -80,6 +83,9 @@ return [
         ],
         ExceptionsLens::class => true,
         AuthorizationLens::class => true,
+        LivewireLens::class => true,
+        DumpLens::class => true,
+        McpLens::class => true,
     ],
 
     /*

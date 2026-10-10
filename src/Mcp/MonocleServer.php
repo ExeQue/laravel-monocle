@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Mcp;
 
 use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
+use ExeQue\Monocle\Mcp\Tools\CompareCaptures;
 use ExeQue\Monocle\Mcp\Tools\ListCaptures;
 use ExeQue\Monocle\Mcp\Tools\ShowCapture;
 use ExeQue\Monocle\Mcp\Tools\ShowQueries;
@@ -16,7 +17,7 @@ use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 
-#[Name('Monocle')]
+#[Name('monocle')]
 #[Version('0.1.0')]
 final class MonocleServer extends Server
 {
@@ -42,6 +43,7 @@ MARKDOWN;
         ShowRows::class,
         ShowQueries::class,
         ShowTrace::class,
+        CompareCaptures::class,
         ClearCaptures::class,
     ];
 

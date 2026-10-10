@@ -75,6 +75,10 @@ The queries section grouped by `shape` (SQL with literals and IN-lists normalize
 
 Every capture sharing the trace of the given one - the request or command that started it and the jobs it dispatched - with `depth` and `offset_ms` from the root.
 
+### `monocle-compare`
+
+`a` (id or label) against `b` (id, label or `latest`): every numeric total with `a`, `b`, `delta` and `percent`; time per phase and category side by side; query shapes only in a, only in b, or with a changed count; warnings unique to each side. The workflow it serves: label a run (`X-Monocle-Label: before` or `Monocle::label('before')`), change the code, reproduce, `monocle-compare a=before`.
+
 ### `monocle-clear`
 
 Empties the store. Useful right before reproducing so `monocle-list` only shows what happens next.

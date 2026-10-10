@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle;
 
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Reader\CaptureComparer;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use ExeQue\Monocle\Reader\QueryAggregator;
@@ -26,6 +27,7 @@ final class Viewfinder
         private readonly TimelineBuilder $timeline,
         private readonly QueryAggregator $queries,
         private readonly LensRegistry $registry,
+        private readonly CaptureComparer $comparer,
     ) {
     }
 
@@ -129,6 +131,28 @@ final class Viewfinder
     }
 
     /**
+     * Compare two captures given by id or label; "latest" is allowed for b.
+     *
+     * @param  array<string, mixed>  $args
+     * @return array<string, mixed>
+     */
+    public function compare(array $args): array
+    {
+        $a = $this->resolveByIdOrLabel((string) ($args['a'] ?? ''));
+        $b = $this->resolveByIdOrLabel((string) ($args['b'] ?? 'latest'));
+
+        if ($a === null) {
+            return ['error' => sprintf('Capture [%s] not found by id or label.', $args['a'] ?? '')];
+        }
+
+        if ($b === null) {
+            return ['error' => sprintf('Capture [%s] not found by id or label.', $args['b'] ?? 'latest')];
+        }
+
+        return $this->comparer->compare($a, $b);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function clear(): array
@@ -168,6 +192,23 @@ final class Viewfinder
         }
 
         return $sections;
+    }
+
+    private function resolveByIdOrLabel(string $reference): ?Capture
+    {
+        if ($reference === '') {
+            return null;
+        }
+
+        $capture = $this->captures->find($reference);
+
+        if ($capture !== null) {
+            return $capture;
+        }
+
+        $labelled = $this->captures->list(Filter::fromArray(['label' => $reference, 'limit' => 1]))['rows'][0] ?? null;
+
+        return $labelled === null ? null : $this->captures->find($labelled['id']);
     }
 
     /**

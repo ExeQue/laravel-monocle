@@ -11,6 +11,7 @@ Every MCP tool has an artisan twin that prints the same JSON, so the data is ava
 | `monocle:rows <section> [id]` | `monocle-rows` |
 | `monocle:queries [id]` | `monocle-queries` |
 | `monocle:trace [id]` | `monocle-trace` |
+| `monocle:compare <a> [b]` | `monocle-compare` |
 | `monocle:clear` | `monocle-clear` |
 | `monocle:install` | - |
 
@@ -26,6 +27,7 @@ php artisan monocle:rows queries --where='duration:>:20' --sort=duration --dir=d
 php artisan monocle:rows timeline --kind=phase
 php artisan monocle:queries --group-by=caller --sort=count
 php artisan monocle:trace 01a126fa-6f82-71f5-8387-75067ec20c61
+php artisan monocle:compare before            # label or id against the latest capture
 php artisan monocle:clear
 ```
 
