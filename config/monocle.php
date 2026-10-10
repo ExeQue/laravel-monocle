@@ -57,7 +57,9 @@ return [
 
     'lenses' => [
         RequestLens::class => [
-            'response_types' => ['application/json', 'application/*+json'],
+            'capture' => [
+                'response_types' => ['application/json', 'application/*+json'],
+            ],
         ],
         SessionLens::class => true,
         CommandLens::class => true,

@@ -103,7 +103,7 @@ describe(InstallCommand::class, function (): void {
         $config = include config_path('monocle.php');
 
         expect($config['storage']['limit'])->toBe(75)
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['response_types' => ['application/json', 'application/*+json']])
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json', 'application/*+json']]])
             ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->toBeFalse()
             ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class])->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');

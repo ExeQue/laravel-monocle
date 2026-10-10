@@ -99,11 +99,11 @@ describe(RequestLens::class, function (): void {
         $this->get('/problem')->assertStatus(422);
         expect(latestCapture()->section('request')['response_body'])->toBe('{"title":"x"}');
 
-        $lens->configure(['response_types' => ['text/*']]);
+        $lens->configure(['capture' => ['response_types' => ['text/*']]]);
         $this->get('/html')->assertOk();
         expect(latestCapture()->section('request')['response_body'])->toBe('<p>hi</p>');
 
-        $lens->configure(['response_types' => []]);
+        $lens->configure(['capture' => ['response_types' => []]]);
         $this->get('/problem')->assertStatus(422);
         expect(latestCapture()->section('request')['response_body'])->toBeNull();
     });

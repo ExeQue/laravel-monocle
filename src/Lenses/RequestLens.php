@@ -55,12 +55,12 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (only for the content types in the lens option response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (only for the content types in the lens option capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
     }
 
     public function configure(array $options): void
     {
-        $this->responseTypes = array_values(array_map('strval', (array) ($options['response_types'] ?? $this->responseTypes)));
+        $this->responseTypes = array_values(array_map('strval', (array) ($options['capture']['response_types'] ?? $this->responseTypes)));
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
