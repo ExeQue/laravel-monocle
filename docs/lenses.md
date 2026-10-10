@@ -18,7 +18,7 @@ Option: `capture.response_types` - content type (wildcards allowed) => capture. 
 
 ### Response captures
 
-Some responses read better as something other than their raw body. Map a route name (wildcards allowed) to a class implementing `ExeQue\Monocle\Contracts\ResponseCapture` under `capture.routes`; it takes precedence over the content type capture. The dashboard shows the capture and the raw body side by side. Livewire updates come set up: one card per component with the methods it called, the properties that changed and the events it dispatched.
+Some responses read better as something other than their raw body. Map a route name (wildcards allowed) to a class implementing `ExeQue\Monocle\Contracts\ResponseCapture` under `capture.routes`, or a response header under `capture.headers`. A route capture wins over a header capture, which wins over the content type capture. The dashboard shows the capture and the raw body side by side. Livewire updates come set up: one card per component with the methods it called, the properties that changed and the events it dispatched. Inertia pages do too: the component, its props and, on a partial reload, which props were asked for - both for Inertia visits and for the page embedded in a first load.
 
 ```php
 RequestLens::class => [
@@ -26,6 +26,10 @@ RequestLens::class => [
         'response_types' => [
             'application/json' => JsonCapture::class,
             'application/*+json' => JsonCapture::class,
+            'text/html' => InertiaCapture::class,
+        ],
+        'headers' => [
+            'X-Inertia' => InertiaCapture::class,
         ],
         'routes' => [
             '*livewire.update' => LivewireUpdateCapture::class,

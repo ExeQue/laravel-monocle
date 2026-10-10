@@ -10,7 +10,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 
-covers(ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class, RequestLens::class);
+covers(ExeQue\Monocle\Lenses\Request\InertiaCapture::class, ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class, RequestLens::class);
 
 describe(RequestLens::class, function (): void {
     beforeEach(function (): void {
@@ -137,6 +137,47 @@ describe(RequestLens::class, function (): void {
             ->and($card['items']['dispatched'])->toBe([['name' => 'counted', 'params' => ['by' => 2]], ['name' => 'saved', 'params' => null]])
             ->and($card['items']['returns'])->toBe([2])
             ->and($card['items']['html_bytes'])->toBe(12);
+    });
+
+    describe('Inertia', function (): void {
+        $page = ['component' => 'Orders/Show', 'url' => '/orders/7', 'version' => 'abc', 'props' => ['order' => ['id' => 7], 'password' => 'secret-value'], 'deferredProps' => ['default' => ['stats']]];
+
+        it('shows an Inertia visit as its component and props, with the partial reload asked for', function () use ($page): void {
+            Route::get('/orders/7', fn () => response()->json($page, 200, ['X-Inertia' => 'true', 'Vary' => 'X-Inertia']));
+
+            $this->getJson('/orders/7', ['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Orders/Show', 'X-Inertia-Partial-Data' => 'order, stats'])->assertOk();
+
+            $capture = latestCapture()->section('request')['response_capture'];
+            $card = $capture['cards'][0];
+
+            expect($capture['capture'])->toBe(ExeQue\Monocle\Lenses\Request\InertiaCapture::class)
+                ->and($card['title'])->toBe('Orders/Show')
+                ->and($card['subtitle'])->toBe('/orders/7')
+                ->and($card['items']['visit'])->toBe('inertia')
+                ->and($card['items']['partial_reload'])->toBe(['component' => 'Orders/Show', 'only' => ['order', 'stats']])
+                ->and($card['items']['props']['order'])->toBe(['id' => 7])
+                ->and($card['items']['props']['password'])->not->toBe('secret-value')
+                ->and($card['items']['deferred_props'])->toBe(['default' => ['stats']]);
+        });
+
+        it('reads the page from the HTML of a first visit and leaves other HTML alone', function () use ($page): void {
+            Route::get('/attr', fn () => '<div id="app" data-page="'.htmlspecialchars(json_encode($page), ENT_QUOTES).'"></div>');
+            Route::get('/script', fn () => '<script data-page="app" type="application/json">'.json_encode($page).'</script><div id="app"></div>');
+            Route::get('/plain', fn () => '<p>hello</p>');
+
+            $this->get('/attr')->assertOk();
+            $attr = latestCapture()->section('request')['response_capture']['cards'][0];
+
+            $this->get('/script')->assertOk();
+            $script = latestCapture()->section('request')['response_capture']['cards'][0];
+
+            $this->get('/plain')->assertOk();
+
+            expect($attr['title'])->toBe('Orders/Show')
+                ->and($attr['items']['visit'])->toBe('first load')
+                ->and($script['title'])->toBe('Orders/Show')
+                ->and(latestCapture()->section('request')['response_capture'])->toBeNull();
+        });
     });
 
     it('masks matching input keys', function (): void {

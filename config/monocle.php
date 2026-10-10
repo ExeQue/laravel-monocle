@@ -20,6 +20,7 @@ use ExeQue\Monocle\Lenses\McpLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
+use ExeQue\Monocle\Lenses\Request\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\RequestLens;
@@ -63,6 +64,10 @@ return [
                 'response_types' => [
                     'application/json' => JsonCapture::class,
                     'application/*+json' => JsonCapture::class,
+                    'text/html' => InertiaCapture::class,
+                ],
+                'headers' => [
+                    'X-Inertia' => InertiaCapture::class,
                 ],
                 'routes' => [
                     '*livewire.update' => LivewireUpdateCapture::class,

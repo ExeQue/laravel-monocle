@@ -14,6 +14,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Lenses\Request\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -48,10 +49,13 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     private int $requestsInProcess = 0;
 
     /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
-    private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class];
+    private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class, 'text/html' => InertiaCapture::class];
 
     /** @var array<string, class-string<ResponseCapture>> Route name pattern => capture. */
     private array $routeCaptures = [];
+
+    /** @var array<string, class-string<ResponseCapture>> Response header => capture. */
+    private array $headerCaptures = ['X-Inertia' => InertiaCapture::class];
 
     public function key(): string
     {
@@ -67,6 +71,7 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     {
         $this->responseTypes = (array) ($options['capture']['response_types'] ?? $this->responseTypes);
         $this->routeCaptures = (array) ($options['capture']['routes'] ?? $this->routeCaptures);
+        $this->headerCaptures = (array) ($options['capture']['headers'] ?? $this->headerCaptures);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -353,8 +358,8 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     }
 
     /**
-     * The response as presented by the capture registered for its route or,
-     * failing that, for its content type. Null when neither applies.
+     * The response as presented by the capture registered for its route, a
+     * response header or its content type, in that order. Null when none applies.
      *
      * @return array{capture: string, cards: list<array<string, mixed>>, raw: string|null}|null
      */
@@ -364,6 +369,7 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
         $type = strtolower(trim(Str::before((string) $response->headers->get('Content-Type'), ';')));
 
         $class = ($route === null ? null : $this->match($this->routeCaptures, $route))
+            ?? $this->headerCapture($response)
             ?? ($type === '' ? null : $this->match($this->responseTypes, $type));
 
         if ($class === null) {
@@ -388,6 +394,17 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
         }
 
         return ['capture' => $class, 'cards' => $cards, 'raw' => is_string($raw) ? $raw : null];
+    }
+
+    private function headerCapture(Response $response): ?string
+    {
+        foreach ($this->headerCaptures as $header => $class) {
+            if ($response->headers->has((string) $header)) {
+                return $class;
+            }
+        }
+
+        return null;
     }
 
     /**
