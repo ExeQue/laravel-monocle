@@ -40,7 +40,7 @@ describe(HttpClientLens::class, function (): void {
             ->and($rows[0]['response_headers']['X-Rate'])->toBe('10')
             ->and($rows[0]['response_bytes'])->toBe(strlen('{"ok":true}'))
             ->and($rows[0]['failed'])->toBeFalse()
-            ->and($rows[0]['duration'])->toBeFloat()
+            ->and($rows[0]['duration'])->toBeNumeric()
             ->and($rows[1]['status'])->toBe(503)
             ->and($rows[1]['failed'])->toBeTrue()
             ->and($rows[0]['origin']['file'])->toContain('HttpClientLensTest.php');

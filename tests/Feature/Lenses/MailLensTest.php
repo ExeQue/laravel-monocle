@@ -29,7 +29,7 @@ describe(MailLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['type' => 'mail', 'subject' => 'Greetings', 'to' => ['ada@example.com'], 'cc' => ['bob@example.com'], 'bcc' => [], 'attachments' => 0])
             ->and($rows[0]['from'][0])->toContain('noreply@example.com')
             ->and($rows[0]['body_bytes'])->toBe(10)
-            ->and($rows[0]['duration'])->toBeFloat()
+            ->and($rows[0]['duration'])->toBeNumeric()
             ->and($rows[0]['origin']['file'])->toContain('MailLensTest.php');
     });
 

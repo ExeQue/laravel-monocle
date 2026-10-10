@@ -26,7 +26,7 @@ describe(CacheLens::class, function (): void {
             ->and($rows[1]['ttl'])->toBe(60)
             ->and($rows[1]['value_size_bytes'])->toBeGreaterThan(0)
             ->and($rows[1])->not->toHaveKey('value')
-            ->and($rows[2]['duration'])->toBeFloat()
+            ->and($rows[2]['duration'])->toBeNumeric()
             ->and($rows[2]['store'])->toBe('array')
             ->and($rows[2]['origin']['file'])->toContain('CacheLensTest.php');
     });

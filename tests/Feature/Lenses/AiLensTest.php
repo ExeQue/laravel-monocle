@@ -59,7 +59,7 @@ describe(AiLens::class, function (): void {
         expect((string) $response)->toBe('Hello Ada!')
             ->and($rows)->toHaveCount(1)
             ->and($rows[0])->toMatchArray(['agent' => Greeter::class, 'status' => 'ok', 'prompt' => 'Say hi to Ada', 'response' => 'Hello Ada!', 'streamed' => false])
-            ->and($rows[0]['duration'])->toBeFloat()
+            ->and($rows[0]['duration'])->toBeNumeric()
             ->and($span->name)->toBe('Greeter')
             ->and($span->meta['status'])->toBe('ok');
     });

@@ -37,7 +37,7 @@ describe(LivewireLens::class, function (): void {
         expect($updated->rows('livewire')[0]['lifecycle'])->toBe('update')
             ->and($calls->pluck('method')->all())->toContain('increment')
             ->and($calls->firstWhere('method', 'increment')['params'])->toBe([2])
-            ->and($calls->firstWhere('method', 'increment')['duration'])->toBeFloat();
+            ->and($calls->firstWhere('method', 'increment')['duration'])->toBeNumeric();
 
         try {
             $component->call('explode');

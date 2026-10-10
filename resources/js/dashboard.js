@@ -87,6 +87,18 @@ Alpine.data('monocle', (config) => ({
     this.load();
     setInterval(() => this.live && !document.hidden && this.load(true), 2500);
     this.$watch('filters', () => this.load(), { deep: true });
+    addEventListener('keydown', (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+      const step = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
+      if (!step || !this.captures.length) return;
+      e.preventDefault();
+      const index = this.captures.findIndex((c) => c.id === this.selectedId);
+      const next = this.captures[Math.max(0, Math.min(this.captures.length - 1, index + step))];
+      if (next && next.id !== this.selectedId) {
+        this.select(next.id, ['overview', 'timeline', 'queries'].includes(this.tab) ? this.tab : 'overview');
+        this.$nextTick(() => document.querySelector(`[aria-current="true"]`)?.scrollIntoView({ block: 'nearest' }));
+      }
+    });
   },
 
   async fetchJson(url, options = {}) {

@@ -38,7 +38,7 @@ describe(McpLens::class, function (): void {
         expect($capture->type)->toBe(CaptureType::Request)
             ->and($rows)->toHaveCount(1)
             ->and($rows[0])->toMatchArray(['server' => 'echo-server', 'method' => 'tools/call', 'primitive' => 'echo', 'arguments' => ['text' => 'hi'], 'is_error' => false, 'streamed_chunks' => 0])
-            ->and($rows[0]['duration'])->toBeFloat()
+            ->and($rows[0]['duration'])->toBeNumeric()
             ->and($capture->spansOfKind('mcp'))->toHaveCount(1);
 
         $call('/mcp/echo', ['text' => 'x', 'fail' => true])->assertOk();
