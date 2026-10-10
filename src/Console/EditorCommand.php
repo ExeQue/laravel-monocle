@@ -62,11 +62,12 @@ final class EditorCommand extends Command
         $location = $this->editorLocation($environment, $current);
         $distro = $location === 'windows' ? $this->distro($environment, $current) : null;
         $paths = $this->paths($basePath, $current, $location);
-        $settings = new EditorSettings($editor, $paths, $distro);
+        $project = $this->project($basePath, $editor, $paths, $current, $location, $environment);
+        $settings = new EditorSettings($editor, $paths, $distro, $project);
         $dryRun = (bool) $this->option('dry-run');
 
         if (! $dryRun) {
-            $this->writeJson($file, array_merge($raw, $settings->toArray()));
+            $this->writeJson($file, [...array_diff_key($raw, array_flip(['editor', 'paths', 'wsl', 'project'])), ...$settings->toArray()]);
         }
 
         $this->components->twoColumnDetail(EditorSettings::FILE, $dryRun ? 'would be written' : 'written');
@@ -158,6 +159,49 @@ final class EditorCommand extends Command
     }
 
     /**
+     * JetBrains IDEs on Windows do not register their own URL scheme; their
+     * links go through JetBrains Toolbox, which needs the project name.
+     *
+     * @param  array<string, string>  $paths
+     */
+    private function project(string $basePath, string $editor, array $paths, EditorSettings $current, ?string $location, Environment $environment): ?string
+    {
+        $option = $this->option('project');
+
+        if (is_string($option)) {
+            return $option === '' ? null : $option;
+        }
+
+        $onWindows = in_array($location, ['windows', 'windows-drive'], true) || $environment->os() === 'Windows';
+
+        if (! Editor::tryFrom($editor)?->isJetBrains() || ! $onWindows) {
+            return null;
+        }
+
+        $default = $current->project ?? $this->detectProject($basePath, $paths);
+
+        if (! $this->input->isInteractive()) {
+            return $default;
+        }
+
+        return text('Project name in your JetBrains IDE', default: $default, required: true, hint: 'Links open through JetBrains Toolbox, which finds the file in this open project.');
+    }
+
+    /**
+     * @param  array<string, string>  $paths
+     */
+    private function detectProject(string $basePath, array $paths): string
+    {
+        $name = is_file($basePath.'/.idea/.name') ? trim((string) file_get_contents($basePath.'/.idea/.name')) : '';
+
+        if ($name === '' && is_file($basePath.'/.idea/modules.xml') && preg_match('#/\.idea/([^/"]+)\.iml"#', (string) file_get_contents($basePath.'/.idea/modules.xml'), $match) === 1) {
+            $name = $match[1];
+        }
+
+        return $name !== '' ? $name : basename(str_replace('\\', '/', $paths[$basePath] ?? $basePath));
+    }
+
+    /**
      * @return array<string, string>
      */
     private function paths(string $basePath, EditorSettings $current, ?string $location): array
@@ -205,6 +249,7 @@ final class EditorCommand extends Command
             new InputOption('map', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Path mapping from:to, e.g. /var/www/html:/home/you/code/project (repeatable)'),
             new InputOption('wsl', null, InputOption::VALUE_REQUIRED, 'Where the editor runs under WSL: windows|wsl|windows-drive'),
             new InputOption('distro', null, InputOption::VALUE_REQUIRED, 'WSL distro holding the project, when the editor runs on Windows'),
+            new InputOption('project', null, InputOption::VALUE_REQUIRED, 'JetBrains project name; links then open through JetBrains Toolbox (empty to turn off)'),
             new InputOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be written without touching files'),
         ];
     }

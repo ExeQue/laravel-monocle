@@ -106,6 +106,8 @@ Pick your editor and file paths and class names in Monocle become links that ope
 
 The distro is saved as `"wsl": { "distro": "Ubuntu" }`. A URL template also gets `{distro}` and `{linux_file}`.
 
+**PhpStorm and IntelliJ IDEA on Windows** - these do not register their own link handler on Windows, so links open through [JetBrains Toolbox](https://www.jetbrains.com/toolbox-app/) instead. You are asked for the project name (detected from `.idea`), saved as `"project"`. The project has to be open in the IDE. Use `--project=` to set it, or `--project=""` to go back to `phpstorm://` links.
+
 Without `.monocle.json`, paths are shown as plain text.
 
 | Flag | Meaning |
@@ -114,6 +116,7 @@ Without `.monocle.json`, paths are shown as plain text.
 | `--map=from:to` | a path mapping (repeatable) |
 | `--wsl=` | `windows`, `wsl` or `windows-drive` |
 | `--distro=` | the WSL distro holding the project |
+| `--project=` | JetBrains project name for links through Toolbox |
 | `--dry-run` | show what would be written |
 
 ## Enabling Monocle

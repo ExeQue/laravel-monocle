@@ -53,6 +53,33 @@ enum Editor: string
         };
     }
 
+    public function isJetBrains(): bool
+    {
+        return in_array($this, [self::PhpStorm, self::Idea], true);
+    }
+
+    /**
+     * JetBrains Toolbox link to a file in an open project. Toolbox registers
+     * jetbrains:// on every OS, so it also works where the IDE's own scheme is
+     * not registered (Windows). Toolbox counts lines from 0.
+     */
+    public function toolboxLink(string $relativePath, int $line, string $project): ?string
+    {
+        $product = match ($this) {
+            self::PhpStorm => 'php-storm',
+            self::Idea => 'idea',
+            default => null,
+        };
+
+        if ($product === null) {
+            return null;
+        }
+
+        $path = implode('/', array_map(rawurlencode(...), explode('/', ltrim($relativePath, '/'))));
+
+        return sprintf('jetbrains://%s/navigate/reference?project=%s&path=%s:%d', $product, rawurlencode($project), $path, max(0, $line - 1));
+    }
+
     /**
      * The Windows path of a file inside a WSL distro.
      */

@@ -37,9 +37,16 @@ final readonly class EditorLinks
             return null;
         }
 
-        $path = $this->map($this->absolute($file));
+        $absolute = $this->absolute($file);
         $line ??= 1;
         $editor = Editor::tryFrom($this->settings->editor);
+        $relative = $this->relative($absolute);
+
+        if ($editor?->isJetBrains() && $this->settings->project !== null && $relative !== null) {
+            return $editor->toolboxLink($relative, $line, $this->settings->project);
+        }
+
+        $path = $this->map($absolute);
 
         if ($editor !== null) {
             return $editor->link($path, $line, $this->settings->wslDistro);
@@ -70,6 +77,16 @@ final readonly class EditorLinks
         $file = $reflection->getFileName();
 
         return $file === false ? null : $this->file($file, $reflection->getStartLine() ?: null);
+    }
+
+    /**
+     * The path inside the project, or null for files outside it.
+     */
+    private function relative(string $absolute): ?string
+    {
+        $base = rtrim(str_replace('\\', '/', $this->basePath), '/').'/';
+
+        return str_starts_with($absolute, $base) ? substr($absolute, strlen($base)) : null;
     }
 
     private function absolute(string $file): string

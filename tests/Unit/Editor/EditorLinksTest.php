@@ -9,7 +9,7 @@ use ExeQue\Monocle\Editor\EditorSettings;
 covers(Editor::class, EditorLinks::class, EditorSettings::class);
 
 describe(EditorLinks::class, function (): void {
-    $links = fn (?string $editor, array $paths = [], ?string $distro = null, string $base = '/var/www/html'): EditorLinks => new EditorLinks(new EditorSettings($editor, $paths, $distro), $base);
+    $links = fn (?string $editor, array $paths = [], ?string $distro = null, string $base = '/var/www/html', ?string $project = null): EditorLinks => new EditorLinks(new EditorSettings($editor, $paths, $distro, $project), $base);
 
     describe('without an editor', function () use ($links): void {
         it('makes nothing clickable', function () use ($links): void {
@@ -52,6 +52,15 @@ describe(EditorLinks::class, function (): void {
         it('handles projects on a Windows drive', function () use ($links): void {
             expect($links('vscode', base: 'C:\\code\\app')->file('app\\X.php', 2))->toBe('vscode://file/C:/code/app/app/X.php:2')
                 ->and($links('phpstorm', base: 'C:\\code\\app')->file('C:\\code\\app\\app\\X.php', 2))->toBe('phpstorm://open?file='.rawurlencode('C:/code/app/app/X.php').'&line=2');
+        });
+
+        it('opens JetBrains IDEs through Toolbox when a project is set, counting lines from 0', function () use ($links): void {
+            expect($links('phpstorm', ['/var/www/html' => '/home/me/app'], 'Ubuntu', project: 'eazy.photo')->file('app/My File.php', 12))
+                ->toBe('jetbrains://php-storm/navigate/reference?project=eazy.photo&path=app/My%20File.php:11')
+                ->and($links('idea', project: 'x')->file('/var/www/html/a.php'))->toBe('jetbrains://idea/navigate/reference?project=x&path=a.php:0')
+                ->and($links('phpstorm', project: 'x')->file('/opt/elsewhere.php', 3))->toBe('phpstorm://open?file=%2Fopt%2Felsewhere.php&line=3')
+                ->and($links('vscode', project: 'x')->file('a.php'))->toBe('vscode://file/var/www/html/a.php:1')
+                ->and(Editor::VsCode->toolboxLink('a.php', 1, 'x'))->toBeNull();
         });
 
         it('fills a custom URL template', function () use ($links): void {
@@ -111,6 +120,8 @@ describe(EditorSettings::class, function (): void {
 
     it('serializes paths as an object and leaves out an unset WSL distro', function (): void {
         expect(json_encode((new EditorSettings('vscode'))->toArray()))->toBe('{"editor":"vscode","paths":{}}')
+            ->and(EditorSettings::fromArray(['project' => 'app'])->project)->toBe('app')
+            ->and((new EditorSettings('phpstorm', [], null, 'app'))->toArray()['project'])->toBe('app')
             ->and((new EditorSettings('vscode', [], 'Ubuntu'))->toArray()['wsl'])->toBe(['distro' => 'Ubuntu']);
     });
 });

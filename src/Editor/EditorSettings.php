@@ -16,11 +16,13 @@ final readonly class EditorSettings
      * @param  string|null  $editor  an Editor value, or a URL template with {file} and {line}
      * @param  array<string, string>  $paths  path on the server => path on the machine the editor runs on
      * @param  string|null  $wslDistro  set when the editor runs on Windows and the project lives in this WSL distro
+     * @param  string|null  $project  JetBrains project name; links then go through JetBrains Toolbox
      */
     public function __construct(
         public ?string $editor = null,
         public array $paths = [],
         public ?string $wslDistro = null,
+        public ?string $project = null,
     ) {
     }
 
@@ -39,11 +41,13 @@ final readonly class EditorSettings
 
         $editor = $data['editor'] ?? null;
         $distro = $data['wsl']['distro'] ?? null;
+        $project = $data['project'] ?? null;
 
         return new self(
             editor: is_string($editor) && $editor !== '' ? $editor : null,
             paths: $paths,
             wslDistro: is_string($distro) && $distro !== '' ? $distro : null,
+            project: is_string($project) && $project !== '' ? $project : null,
         );
     }
 
@@ -62,7 +66,7 @@ final readonly class EditorSettings
     }
 
     /**
-     * @return array{editor: string|null, paths: object, wsl?: array{distro: string}}
+     * @return array{editor: string|null, paths: object, wsl?: array{distro: string}, project?: string}
      */
     public function toArray(): array
     {
@@ -70,6 +74,7 @@ final readonly class EditorSettings
             'editor' => $this->editor,
             'paths' => (object) $this->paths,
             'wsl' => $this->wslDistro === null ? null : ['distro' => $this->wslDistro],
+            'project' => $this->project,
         ], fn (mixed $value): bool => $value !== null);
     }
 }

@@ -52,6 +52,46 @@ describe(EditorCommand::class, function (): void {
         expect(($this->settings)())->toMatchArray(['editor' => 'vscode', 'wsl' => ['distro' => 'Ubuntu']]);
     });
 
+    it('asks for the JetBrains project when PhpStorm runs on Windows', function (): void {
+        ($this->environment)('Linux', '5.15.167.4-microsoft-standard-WSL2', ['WSL_DISTRO_NAME' => 'Ubuntu']);
+        mkdir($this->dir.'/.idea');
+        file_put_contents($this->dir.'/.idea/modules.xml', '<module fileurl="file://$PROJECT_DIR$/.idea/eazy.photo.iml" filepath="$PROJECT_DIR$/.idea/eazy.photo.iml" />');
+
+        $this->artisan('monocle:editor')
+            ->expectsChoice('Which editor do you use?', 'phpstorm', $this->editors)
+            ->expectsChoice('Where does your editor run?', 'windows', [
+                'windows' => 'On Windows, with the project inside WSL',
+                'wsl' => 'Inside WSL (WSLg, JetBrains Gateway, VS Code server)',
+                'windows-drive' => 'On Windows, with the project on a Windows drive',
+            ])
+            ->expectsQuestion('Which WSL distro holds the project?', 'Ubuntu')
+            ->expectsQuestion('Project name in your JetBrains IDE', 'eazy.photo')
+            ->expectsOutputToContain('jetbrains://php-storm/navigate/reference?project=eazy.photo&path=artisan:0')
+            ->assertSuccessful();
+
+        expect(($this->settings)())->toMatchArray(['editor' => 'phpstorm', 'project' => 'eazy.photo']);
+
+        $this->artisan('monocle:editor', ['--project' => '', '--no-interaction' => true])->assertSuccessful();
+
+        expect(($this->settings)())->not->toHaveKey('project');
+    });
+
+    it('detects the JetBrains project name without prompting', function (): void {
+        mkdir($this->dir.'/.idea');
+        file_put_contents($this->dir.'/.idea/.name', "shop\n");
+
+        $this->artisan('monocle:editor', ['--editor' => 'phpstorm', '--wsl' => 'windows-drive', '--no-interaction' => true])->assertSuccessful();
+
+        expect(($this->settings)()['project'])->toBe('shop');
+
+        unlink($this->dir.'/.idea/.name');
+        unlink($this->dir.'/.monocle.json');
+
+        $this->artisan('monocle:editor', ['--editor' => 'phpstorm', '--wsl' => 'windows-drive', '--map' => [$this->dir.':C:/code/store'], '--no-interaction' => true])->assertSuccessful();
+
+        expect(($this->settings)()['project'])->toBe('store');
+    });
+
     it('asks for the host path of a Sail project and skips WSL on macOS', function (): void {
         ($this->environment)('Darwin', '5.15.167.4-microsoft-standard-WSL2');
         mkdir($this->dir.'/vendor/bin', 0777, true);
@@ -76,7 +116,7 @@ describe(EditorCommand::class, function (): void {
             ->expectsQuestion("Where is {$this->dir} on the machine your editor runs on?", '')
             ->assertSuccessful();
 
-        expect(($this->settings)())->toBe(['editor' => 'zed', 'paths' => [], 'theme' => 'dark']);
+        expect(($this->settings)())->toEqual(['editor' => 'zed', 'paths' => [], 'theme' => 'dark']);
     });
 
     it('refuses invalid JSON and a missing editor', function (): void {
