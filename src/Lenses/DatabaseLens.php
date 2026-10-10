@@ -1,0 +1,262 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ExeQue\Monocle\Lenses;
+
+use ExeQue\Monocle\Contracts\Configurable;
+use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Recorder;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Database\Events\TransactionBeginning;
+use Illuminate\Database\Events\TransactionCommitted;
+use Illuminate\Database\Events\TransactionRolledBack;
+use Throwable;
+
+/**
+ * Records every executed query with its shape, duplicates and transaction,
+ * and wraps transactions in spans.
+ */
+final class DatabaseLens implements Configurable, Lens, SummarizesEntry
+{
+    private Recorder $recorder;
+
+    private float $slowMs = 70.0;
+
+    private int $nPlusOneThreshold = 3;
+
+    private bool $bindings = true;
+
+    private int $counter = 0;
+
+    /** @var array<string, int> hash => first row number */
+    private array $seen = [];
+
+    /** @var array<string, list<Span>> connection => open transaction spans */
+    private array $transactions = [];
+
+    public function key(): string
+    {
+        return 'queries';
+    }
+
+    public function description(): string
+    {
+        return 'Every executed query: sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query). Transactions are db.transaction spans in the timeline.';
+    }
+
+    public function configure(array $options): void
+    {
+        $this->slowMs = (float) ($options['slow_ms'] ?? $this->slowMs);
+        $this->nPlusOneThreshold = (int) ($options['n_plus_one_threshold'] ?? $this->nPlusOneThreshold);
+        $this->bindings = (bool) ($options['bindings'] ?? $this->bindings);
+    }
+
+    public function boot(Application $app, Recorder $recorder): void
+    {
+        $this->recorder = $recorder;
+
+        $events = $app->make(Dispatcher::class);
+
+        $events->listen(QueryExecuted::class, $this->onQuery(...));
+        $events->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
+        $events->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
+        $events->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
+    }
+
+    public function finalize(Entry $entry): void
+    {
+        foreach ($this->transactions as $spans) {
+            foreach ($spans as $span) {
+                $span->stop(['outcome' => 'left_open']);
+            }
+        }
+    }
+
+    public function reset(): void
+    {
+        $this->counter = 0;
+        $this->seen = [];
+        $this->transactions = [];
+    }
+
+    public function summarize(Entry $entry): array
+    {
+        $rows = $entry->rows('queries');
+        $total = 0.0;
+        $slow = [];
+        $duplicates = 0;
+        $byType = [];
+        $shapes = [];
+
+        foreach ($rows as $row) {
+            $duration = (float) ($row['duration'] ?? 0);
+            $total += $duration;
+            $byType[$row['type'] ?? 'other'] = ($byType[$row['type'] ?? 'other'] ?? 0) + 1;
+
+            if ($row['slow'] ?? false) {
+                $slow[] = $row;
+            }
+
+            if (($row['duplicate_of'] ?? null) !== null) {
+                $duplicates++;
+            }
+
+            if (($row['type'] ?? null) === 'select') {
+                $shape = (string) ($row['shape'] ?? '');
+                $shapes[$shape] ??= ['count' => 0, 'origin' => $row['origin'] ?? null];
+                $shapes[$shape]['count']++;
+            }
+        }
+
+        $warnings = [];
+
+        usort($slow, fn (array $a, array $b): int => ($b['duration'] ?? 0) <=> ($a['duration'] ?? 0));
+
+        foreach (array_slice($slow, 0, 3) as $row) {
+            $warnings[] = sprintf('Slow query (%.1f ms): %s', $row['duration'], $this->truncate($row['sql'] ?? ''));
+        }
+
+        if ($duplicates > 0) {
+            $warnings[] = "{$duplicates} duplicate queries (same SQL and bindings). Use monocle-queries group_by=shape to inspect.";
+        }
+
+        foreach ($shapes as $shape => $info) {
+            if ($info['count'] >= $this->nPlusOneThreshold) {
+                $origin = is_array($info['origin']) ? ($info['origin']['file'] ?? '?') . ':' . ($info['origin']['line'] ?? '?') : 'unknown origin';
+                $warnings[] = sprintf('Possible N+1: %d x %s (%s)', $info['count'], $this->truncate($shape), $origin);
+            }
+        }
+
+        return [
+            'totals' => [
+                'queries' => count($rows),
+                'query_ms' => round($total, 3),
+                'queries_by_type' => $byType,
+                'slow_queries' => count($slow),
+                'duplicate_queries' => $duplicates,
+            ],
+            'warnings' => $warnings,
+        ];
+    }
+
+    private function onQuery(QueryExecuted $event): void
+    {
+        if (! $this->recorder->recording()) {
+            return;
+        }
+
+        $this->counter++;
+
+        $sql = $event->sql;
+        $bindings = $this->bindings ? $event->bindings : [];
+        $hash = md5($sql . '|' . json_encode($event->bindings));
+        $shape = $this->shape($sql);
+        $open = $this->transactions[$event->connectionName] ?? [];
+        $duration = round((float) $event->time, 3);
+
+        $this->recorder->push('queries', [
+            'n' => $this->counter,
+            'sql' => $sql,
+            'bindings' => $bindings,
+            'sql_with_bindings' => $this->rawSql($event),
+            'connection' => $event->connectionName,
+            'driver' => $this->driver($event),
+            'duration' => $duration,
+            'type' => $this->type($sql),
+            'tables' => $this->tables($sql),
+            'shape' => $shape,
+            'shape_hash' => substr(md5($shape), 0, 8),
+            'transaction_id' => $open === [] ? null : end($open)->id,
+            'slow' => $duration >= $this->slowMs,
+            'duplicate_of' => $this->seen[$hash] ?? null,
+        ]);
+
+        $this->seen[$hash] ??= $this->counter;
+    }
+
+    private function onTransactionBeginning(TransactionBeginning $event): void
+    {
+        if (! $this->recorder->recording()) {
+            return;
+        }
+
+        $depth = count($this->transactions[$event->connectionName] ?? []);
+        $span = $this->recorder->span('transaction' . ($depth > 0 ? ' (savepoint ' . $depth . ')' : ''), 'db.transaction');
+        $span->start(['connection' => $event->connectionName, 'level' => $depth + 1]);
+
+        $this->transactions[$event->connectionName][] = $span;
+    }
+
+    private function endTransaction(string $connection, string $outcome): void
+    {
+        $span = array_pop($this->transactions[$connection]);
+
+        $span?->stop(['outcome' => $outcome]);
+    }
+
+    private function rawSql(QueryExecuted $event): ?string
+    {
+        try {
+            return $event->toRawSql();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function driver(QueryExecuted $event): ?string
+    {
+        try {
+            return $event->connection->getDriverName();
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    private function type(string $sql): string
+    {
+        $keyword = strtolower(strtok(ltrim($sql, " \t\n("), " \t\n(") ?: '');
+
+        return match ($keyword) {
+            'select', 'insert', 'update', 'delete' => $keyword,
+            'with' => 'select',
+            default => 'other',
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function tables(string $sql): array
+    {
+        preg_match_all('/\b(?:from|join|into|update)\s+[`"\[]?([\w.]+)[`"\]]?/i', $sql, $matches);
+
+        return array_values(array_unique($matches[1] ?? []));
+    }
+
+    /**
+     * Normalize literals and IN-lists so repeated queries with different
+     * bindings share a shape.
+     */
+    private function shape(string $sql): string
+    {
+        $shape = preg_replace("/'(?:[^'\\\\]|\\\\.)*'/", '?', $sql) ?? $sql;
+        $shape = preg_replace('/\b\d+(?:\.\d+)?\b/', '?', $shape) ?? $shape;
+        $shape = preg_replace('/\(\s*\?(?:\s*,\s*\?)*\s*\)/', '(?)', $shape) ?? $shape;
+        $shape = preg_replace('/\s+/', ' ', $shape) ?? $shape;
+
+        return trim($shape);
+    }
+
+    private function truncate(string $sql, int $length = 120): string
+    {
+        $sql = preg_replace('/\s+/', ' ', $sql) ?? $sql;
+
+        return strlen($sql) > $length ? substr($sql, 0, $length) . '...' : $sql;
+    }
+}

@@ -1,0 +1,79 @@
+{
+    "name": "exeque/laravel-monocle",
+    "description": "Agent-focused request profiler for Laravel with an MCP server: timing spans, queries, cache, filesystem, AI agent calls and more.",
+    "type": "library",
+    "license": "MIT",
+    "minimum-stability": "stable",
+    "keywords": [
+        "laravel",
+        "profiler",
+        "mcp",
+        "debug",
+        "timing",
+        "agent"
+    ],
+    "authors": [
+        {
+            "name": "Morten Harders",
+            "email": "mmh@harders-it.dk"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "illuminate/support": "^13.0",
+        "illuminate/contracts": "^13.0",
+        "laravel/mcp": "^1.0"
+    },
+    "require-dev": {
+        "pestphp/pest": "^5.0",
+        "orchestra/testbench": "^11.3",
+        "laravel/pint": "^1.21",
+        "laravel/ai": "^1.0",
+        "livewire/livewire": "^4.0",
+        "symfony/var-dumper": "^8.0"
+    },
+    "suggest": {
+        "laravel/ai": "Required to record agent, step and tool calls with the AiLens.",
+        "livewire/livewire": "Required to record component lifecycle with the LivewireLens."
+    },
+    "autoload": {
+        "psr-4": {
+            "ExeQue\\Monocle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "ExeQue\\Monocle\\MonocleServiceProvider"
+            ],
+            "aliases": {
+                "Monocle": "ExeQue\\Monocle\\Facades\\Monocle"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest -p",
+        "lint": "vendor/bin/pint -p",
+        "pre-commit": [
+            "@composer lint",
+            "@composer test"
+        ],
+        "post-autoload-dump": [
+            "@clear",
+            "@prepare"
+        ],
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "prepare": "@php vendor/bin/testbench package:discover --ansi"
+    }
+}

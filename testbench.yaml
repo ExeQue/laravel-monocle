@@ -1,0 +1,14 @@
+laravel: '@testbench'
+
+providers:
+  - ExeQue\Monocle\MonocleServiceProvider
+
+workbench:
+  install: false
+  discovers:
+    web: false
+    api: false
+    commands: false
+    components: false
+    factories: false
+    views: false
