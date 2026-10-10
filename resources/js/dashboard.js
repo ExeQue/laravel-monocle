@@ -42,6 +42,14 @@ const theme = {
 };
 theme.set(theme.get());
 
+/** Capture names the viewer chose to hide; kept in this browser only. */
+const hiddenNames = {
+  get() {
+    try { const stored = JSON.parse(localStorage.getItem('monocle.hidden') ?? 'null'); return Array.isArray(stored) ? stored : []; } catch { return []; }
+  },
+  set(names) { try { localStorage.setItem('monocle.hidden', JSON.stringify(names)); } catch { /* storage blocked */ } },
+};
+
 /** A {field, from, to} list as a small table. */
 const changesTable = (changes) => `<table class="w-full border-collapse text-xs"><thead><tr>${['Field', 'From', 'To'].map((h) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 font-mono">${esc(c.field)}</td><td class="px-1.5 py-0.5 font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
 
@@ -50,6 +58,7 @@ Alpine.data('monocle', (config) => ({
   captures: [],
   total: 0,
   filters: { type: '', q: '', errors: false },
+  hidden: hiddenNames.get(),
   live: true,
   selectedId: null,
   capture: null,
@@ -90,6 +99,7 @@ Alpine.data('monocle', (config) => ({
     if (this.filters.type) params.set('type', this.filters.type);
     if (this.filters.q) params.set('uri', this.filters.q);
     if (this.filters.errors) params.set('has_errors', '1');
+    this.hidden.forEach((name) => params.append('exclude[]', name));
     try {
       const result = await this.fetchJson(`${this.api}?${params}`);
       this.captures = result.rows;
@@ -204,11 +214,23 @@ Alpine.data('monocle', (config) => ({
 
   setTheme(value) { this.theme = value; theme.set(value); },
 
+  hide(name) {
+    if (!this.hidden.includes(name)) this.hidden = [...this.hidden, name];
+    hiddenNames.set(this.hidden);
+    this.load();
+  },
+
+  unhide(name) {
+    this.hidden = this.hidden.filter((n) => n !== name);
+    hiddenNames.set(this.hidden);
+    this.load();
+  },
+
   get tabs() {
     if (!this.capture) return [];
     const counts = this.capture.summary?.counts ?? {};
     const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
-    const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key);
+    const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key && s.rows !== 0);
     if (has('request')) tabs.push({ key: 'request', label: 'Request' });
     if (has('session')) tabs.push({ key: 'session', label: 'Session' });
     if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });

@@ -52,7 +52,9 @@ describe('MCP tools', function (): void {
         expect($result['total'])->toBe(1)
             ->and($result['rows'][0]['name'])->toBe('GET /things')
             ->and($result['rows'][0]['counts']['queries'])->toBe(4)
-            ->and(toolJson(ListCaptures::class, ['type' => 'job'], 'list')['total'])->toBe(0);
+            ->and(toolJson(ListCaptures::class, ['type' => 'job'], 'list')['total'])->toBe(0)
+            ->and(toolJson(ListCaptures::class, ['exclude' => ['/THINGS']], 'list')['total'])->toBe(0)
+            ->and(toolJson(ListCaptures::class, ['exclude' => ['/other']], 'list')['total'])->toBe(1);
     });
 
     it('shows the summary with breakdown, warnings and section descriptions', function (): void {

@@ -34,6 +34,15 @@
                     <button type="button" :class="cls.chip" @click="filters.type = type[0]" :aria-pressed="filters.type === type[0]" x-text="type[1]"></button>
                 </template>
             </div>
+            <div class="flex flex-wrap items-center gap-1.5 text-xs text-muted" x-show="hidden.length">
+                <span>Hidden</span>
+                <template x-for="name in hidden" :key="name">
+                    <span class="inline-flex items-center gap-1 rounded-full border border-line py-0.5 pr-1 pl-2.5 font-mono text-[11px]">
+                        <span x-text="name"></span>
+                        <button type="button" class="rounded-full px-1 text-muted hover:text-fg" @click="unhide(name)" :aria-label="'Show ' + name + ' again'">×</button>
+                    </span>
+                </template>
+            </div>
             <div class="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs text-muted">
                 <label class="flex items-center gap-1.5"><input type="checkbox" id="monocle-errors" class="accent-brass" x-model="filters.errors"> Only errors</label>
                 <label class="flex items-center gap-1.5"><input type="checkbox" id="monocle-live" class="accent-brass" x-model="live"> Live</label>
@@ -47,6 +56,7 @@
         </div>
         <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <template x-for="c in captures" :key="c.id">
+                <div class="group relative">
                 <button type="button" class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 border-b border-line px-4 py-2.5 text-left hover:bg-sunk aria-[current=true]:bg-brass-soft aria-[current=true]:shadow-[inset_3px_0_0_var(--brass)]" @click="select(c.id)" :aria-current="c.id === selectedId">
                     <span :class="cls.type" x-text="c.type"></span>
                     <span class="overflow-hidden text-ellipsis whitespace-nowrap font-medium" x-text="c.name"></span>
@@ -59,6 +69,8 @@
                         <span x-text="ago(c.started_at)"></span>
                     </span>
                 </button>
+                <button type="button" class="absolute right-3 bottom-2 rounded px-1.5 text-[11px] text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 max-[860px]:opacity-100" @click.stop="hide(c.name)" :title="'Hide ' + c.name">hide</button>
+                </div>
             </template>
             <p class="m-4" :class="cls.empty" x-show="!captures.length && !error">No captures yet. Open a page, run a job or a command, and it shows up here.</p>
             <p class="m-4" :class="cls.empty" x-show="error" x-text="error"></p>

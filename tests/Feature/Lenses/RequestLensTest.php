@@ -119,6 +119,14 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture())->toBeNull();
     });
 
+    it('does not record broadcast channel authorization by default', function (): void {
+        Route::post('/broadcasting/auth', fn () => 'ok');
+
+        $this->post('/broadcasting/auth')->assertOk();
+
+        expect(latestCapture())->toBeNull();
+    });
+
     it('does not record Boost browser log uploads by default', function (): void {
         Route::post('/_boost/browser-logs', fn () => 'ok');
 

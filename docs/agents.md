@@ -34,6 +34,7 @@ Recent captures, newest first.
 | `label` | captures with this label |
 | `has_errors` | only captures with a 5xx status, a failure or an exception |
 | `has` | only captures with rows in these sections, e.g. `["exceptions"]` |
+| `exclude` | leave out captures whose name contains any of these, e.g. `["/livewire"]` |
 | `offset`, `limit` | paging |
 
 ### `monocle-show`

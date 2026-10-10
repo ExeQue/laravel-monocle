@@ -38,6 +38,7 @@ final class ListCaptures extends Tool
             'label' => $schema->string()->description('Only captures carrying this label (set via the X-Monocle-Label request header or Monocle::label()).'),
             'has_errors' => $schema->boolean()->description('Only captures with 5xx status, failures or recorded exceptions.'),
             'has' => $schema->array()->items($schema->string())->description('Only captures where these sections (lenses) recorded at least one row, e.g. ["queries"] or ["exceptions"].'),
+            'exclude' => $schema->array()->items($schema->string())->description('Leave out captures whose name contains any of these, e.g. ["/broadcasting/auth"].'),
             ...$this->paginationSchema($schema, 20),
         ];
     }

@@ -115,7 +115,7 @@ return [
     */
 
     'except' => [
-        'paths' => ['__clockwork', '__clockwork/*', '_debugbar/*', '_boost/browser-logs', 'horizon', 'horizon/*'],
+        'paths' => ['__clockwork', '__clockwork/*', '_debugbar/*', '_boost/browser-logs', 'broadcasting/auth', 'horizon', 'horizon/*'],
         'commands' => ['monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'horizon*', 'schedule:work'],
     ],
 

@@ -21,6 +21,8 @@ final class Filter
         public readonly ?string $parentId = null,
         /** @var list<string> Sections that must contain at least one row. */
         public readonly array $has = [],
+        /** @var list<string> Captures whose name contains any of these are left out. */
+        public readonly array $exclude = [],
         public readonly int $offset = 0,
         public readonly int $limit = 20,
     ) {
@@ -42,6 +44,7 @@ final class Filter
             traceId: self::string($input['trace_id'] ?? null),
             parentId: self::string($input['parent_id'] ?? null),
             has: array_values(array_filter(array_map('strval', (array) ($input['has'] ?? [])))),
+            exclude: array_values(array_filter(array_map('strval', (array) ($input['exclude'] ?? [])))),
             offset: max(0, (int) ($input['offset'] ?? 0)),
             limit: max(1, min(500, (int) ($input['limit'] ?? 20))),
         );
@@ -86,6 +89,12 @@ final class Filter
 
         if ($this->parentId !== null && ($row['parent_id'] ?? null) !== $this->parentId) {
             return false;
+        }
+
+        foreach ($this->exclude as $part) {
+            if (str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($part))) {
+                return false;
+            }
         }
 
         foreach ($this->has as $section) {

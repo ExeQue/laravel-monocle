@@ -21,6 +21,7 @@ final class ListCommand extends Command
     {
         return $this->outputJson($viewfinder->list([
             'has' => $this->option('has'),
+            'exclude' => $this->option('exclude'),
             ...$this->optionArgs(['type', 'uri', 'status', 'min-duration-ms', 'since', 'label', 'has-errors', 'offset', 'limit']),
         ]));
     }
@@ -36,6 +37,7 @@ final class ListCommand extends Command
             new InputOption('label', null, InputOption::VALUE_REQUIRED, 'Only captures with this label'),
             new InputOption('has-errors', null, InputOption::VALUE_NONE, 'Only captures with errors'),
             new InputOption('has', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only captures where this section recorded rows (repeatable)'),
+            new InputOption('exclude', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Leave out captures whose name contains this (repeatable)'),
             new InputOption('offset', null, InputOption::VALUE_REQUIRED, 'Skip this many rows'),
             new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'Rows per page (default 20)'),
             ...$this->jsonOptions(),
