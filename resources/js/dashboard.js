@@ -1,5 +1,7 @@
+import '../css/dashboard.css';
 import Alpine from 'alpinejs';
-import { esc, ms, ago, statusClass, humanize, fmtValue, maybeLink } from './format.js';
+import { esc, ms, ago, humanize, fmtValue, maybeLink } from './format.js';
+import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover } from './popover.js';
 
@@ -37,7 +39,7 @@ Alpine.data('monocle', (config) => ({
   tab: 'overview',
   tabData: null,
   tabLoading: false,
-  groupBy: 'shape',
+  groupBy: 'order',
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
   theme: theme.get(),
@@ -109,7 +111,9 @@ Alpine.data('monocle', (config) => ({
     this.tabLoading = true;
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
-      this.tabData = tab === 'queries'
+      this.tabData = tab === 'queries' && this.groupBy === 'order'
+        ? await this.fetchJson(`${base}/rows/queries?limit=500`)
+        : tab === 'queries'
         ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
         : tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
@@ -123,7 +127,8 @@ Alpine.data('monocle', (config) => ({
 
   async loadMore() {
     if (this.tabData?.next_offset == null) return;
-    const more = await this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(this.tab)}?limit=100&offset=${this.tabData.next_offset}`);
+    const limit = this.tab === 'queries' ? 500 : 100;
+    const more = await this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(this.tab)}?limit=${limit}&offset=${this.tabData.next_offset}`);
     this.tabData = { ...more, rows: [...this.tabData.rows, ...more.rows] };
   },
 
@@ -191,6 +196,13 @@ Alpine.data('monocle', (config) => ({
     return [...first, ...scalar.filter(([k]) => !KEY_TOTALS.includes(k))];
   },
 
+  /** Original query row number => how many later queries repeat it. */
+  get duplicates() {
+    const counts = {};
+    for (const q of this.tabData?.rows ?? []) if (q.duplicate_of) counts[q.duplicate_of] = (counts[q.duplicate_of] ?? 0) + 1;
+    return counts;
+  },
+
   get tableColumns() {
     const rows = this.tabData?.rows ?? [];
     const keys = [];
@@ -200,7 +212,7 @@ Alpine.data('monocle', (config) => ({
 
   cell(row, key) {
     const v = row[key];
-    if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, 'origin') : '';
+    if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) : '';
     if (key === 'duration' && typeof v === 'number') return esc(ms(v));
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
@@ -208,7 +220,7 @@ Alpine.data('monocle', (config) => ({
   },
 
   // Template helpers
-  ms, ago, statusClass, humanize, esc,
+  cls, ms, ago, statusClass, humanize, esc,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
   totalValue([k, v]) {
@@ -219,7 +231,7 @@ Alpine.data('monocle', (config) => ({
     return String(v);
   },
   totalLabel(k) { return humanize(k.replace(/_(ms|mb|bytes)$/, (m, u) => ` (${u === 'ms' ? 'ms' : u === 'mb' ? 'MB' : 'bytes'})`)); },
-  originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, 'origin') : ''; },
+  originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
 
 window.Alpine = Alpine;

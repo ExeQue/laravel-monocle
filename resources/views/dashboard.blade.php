@@ -9,133 +9,136 @@
     <link rel="stylesheet" href="{{ $assets['css'] }}">
     <script defer src="{{ $assets['js'] }}"></script>
 </head>
-<body>
-<div class="app" x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token()]))" x-cloak>
-    <aside class="list" aria-label="Captures">
-        <div class="brand">
-            <img class="logo" src="{{ $assets['icon'] }}" width="26" height="26" alt="">
-            <h1>Monocle</h1>
-            <span class="app-name">{{ config('app.name') }} · {{ app()->environment() }}</span>
-            <div class="theme" role="group" aria-label="Theme">
+<body class="min-[861px]:h-dvh min-[861px]:overflow-hidden">
+<div class="grid min-h-dvh grid-cols-1 min-[861px]:h-dvh min-[861px]:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]" x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token()]))" x-cloak>
+    <aside class="flex min-h-0 min-w-0 flex-col border-b border-line bg-panel max-[860px]:max-h-[52vh] min-[861px]:overflow-hidden min-[861px]:border-r min-[861px]:border-b-0" aria-label="Captures">
+        <div class="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line px-4 pt-[18px] pb-3.5">
+            <img class="block shrink-0" src="{{ $assets['icon'] }}" width="26" height="26" alt="">
+            <h1 class="m-0 text-lg font-bold tracking-[.01em]">Monocle</h1>
+            <span class="ml-auto text-xs text-muted">{{ config('app.name') }} · {{ app()->environment() }}</span>
+            <div class="flex gap-0.5 rounded-full border border-line p-0.5" role="group" aria-label="Theme">
                 <template x-for="option in ['system', 'light', 'dark']" :key="option">
-                    <button type="button" @click="setTheme(option)" :aria-pressed="theme === option" x-text="option === 'system' ? 'Auto' : humanize(option)"></button>
+                    <button type="button" class="rounded-full px-2 py-0.5 text-[11px] text-muted aria-pressed:bg-brass aria-pressed:text-on-brass" @click="setTheme(option)" :aria-pressed="theme === option" x-text="option === 'system' ? 'Auto' : humanize(option)"></button>
                 </template>
             </div>
         </div>
-        <div class="filters">
-            <input class="search" id="monocle-search" type="search" placeholder="Filter by path or name" aria-label="Filter captures" x-model.debounce.300ms="filters.q">
-            <div class="types" role="group" aria-label="Capture type">
+        <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3">
+            <input class="w-full rounded-md border border-line bg-bg px-2.5 py-2 text-fg" id="monocle-search" type="search" placeholder="Filter by path or name" aria-label="Filter captures" x-model.debounce.300ms="filters.q">
+            <div class="flex flex-wrap gap-1.5" role="group" aria-label="Capture type">
                 <template x-for="type in [['', 'All'], ['request', 'Requests'], ['job', 'Jobs'], ['command', 'Commands'], ['mcp', 'MCP']]" :key="type[0]">
-                    <button type="button" class="chip" @click="filters.type = type[0]" :aria-pressed="filters.type === type[0]" x-text="type[1]"></button>
+                    <button type="button" :class="cls.chip" @click="filters.type = type[0]" :aria-pressed="filters.type === type[0]" x-text="type[1]"></button>
                 </template>
             </div>
-            <div class="filter-row">
-                <label class="toggle"><input type="checkbox" id="monocle-errors" x-model="filters.errors"> Only errors</label>
-                <label class="toggle"><input type="checkbox" id="monocle-live" x-model="live"> Live</label>
-                <button type="button" class="link clear" x-show="!confirmClear" @click="confirmClear = true">Clear</button>
-                <span class="confirm" x-show="confirmClear">
+            <div class="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-xs text-muted">
+                <label class="flex items-center gap-1.5"><input type="checkbox" id="monocle-errors" class="accent-brass" x-model="filters.errors"> Only errors</label>
+                <label class="flex items-center gap-1.5"><input type="checkbox" id="monocle-live" class="accent-brass" x-model="live"> Live</label>
+                <button type="button" class="ml-auto" :class="cls.link" x-show="!confirmClear" @click="confirmClear = true">Clear</button>
+                <span class="ml-auto flex items-center gap-2" x-show="confirmClear">
                     Delete all captures?
-                    <button type="button" class="link danger" @click="clearAll()">Delete</button>
-                    <button type="button" class="link" @click="confirmClear = false">Cancel</button>
+                    <button type="button" class="text-bad underline underline-offset-[3px]" @click="clearAll()">Delete</button>
+                    <button type="button" :class="cls.link" @click="confirmClear = false">Cancel</button>
                 </span>
             </div>
         </div>
-        <div class="rows">
+        <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <template x-for="c in captures" :key="c.id">
-                <button type="button" class="row" @click="select(c.id)" :aria-current="c.id === selectedId">
-                    <span class="type" x-text="c.type"></span>
-                    <span class="name" x-text="c.name"></span>
-                    <span class="dur num" x-text="ms(c.duration)"></span>
-                    <span class="sub">
-                        <span class="status" :class="statusClass(c.status)" x-text="c.status ?? ''"></span>
+                <button type="button" class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 border-b border-line px-4 py-2.5 text-left hover:bg-sunk aria-[current=true]:bg-brass-soft aria-[current=true]:shadow-[inset_3px_0_0_var(--brass)]" @click="select(c.id)" :aria-current="c.id === selectedId">
+                    <span :class="cls.type" x-text="c.type"></span>
+                    <span class="overflow-hidden text-ellipsis whitespace-nowrap font-medium" x-text="c.name"></span>
+                    <span class="font-mono text-xs tabular-nums" x-text="ms(c.duration)"></span>
+                    <span class="col-span-2 col-start-2 flex flex-wrap gap-2.5 text-xs text-muted">
+                        <span class="font-mono" :class="statusClass(c.status)" x-text="c.status ?? ''"></span>
                         <span x-show="c.counts?.queries" x-text="(c.counts?.queries ?? 0) + ' queries'"></span>
-                        <span x-show="c.has_errors"><i class="dot"></i> error</span>
-                        <span x-show="c.label" class="label-pill" x-text="c.label"></span>
+                        <span x-show="c.has_errors" class="text-bad"><i class="inline-block size-[7px] rounded-full bg-bad"></i> error</span>
+                        <span x-show="c.label" class="rounded-full border border-dashed border-brass px-2 text-brass" x-text="c.label"></span>
                         <span x-text="ago(c.started_at)"></span>
                     </span>
                 </button>
             </template>
-            <p class="empty" style="margin:16px" x-show="!captures.length && !error">No captures yet. Open a page, run a job or a command, and it shows up here.</p>
-            <p class="empty" style="margin:16px" x-show="error" x-text="error"></p>
+            <p class="m-4" :class="cls.empty" x-show="!captures.length && !error">No captures yet. Open a page, run a job or a command, and it shows up here.</p>
+            <p class="m-4" :class="cls.empty" x-show="error" x-text="error"></p>
         </div>
     </aside>
 
-    <main class="detail" x-ref="detail" aria-live="polite">
-        <p class="empty" x-show="!capture">Select a capture.</p>
+    <main class="scroll-quiet flex min-h-0 min-w-0 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
+        <p :class="cls.empty" x-show="!capture">Select a capture.</p>
         <template x-if="capture">
-            <div class="detail-inner">
-                <header class="head">
-                    <h2 x-text="summary.name"></h2>
-                    <span class="status" :class="statusClass(summary.status)" x-text="summary.status ?? ''"></span>
-                    <span class="label-pill" x-show="summary.label" x-text="'label: ' + summary.label"></span>
+            <div class="flex min-w-0 flex-col gap-5">
+                <header class="flex flex-wrap items-baseline gap-x-4 gap-y-2.5">
+                    <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]" x-text="summary.name"></h2>
+                    <span class="font-mono text-xs" :class="statusClass(summary.status)" x-text="summary.status ?? ''"></span>
+                    <span class="rounded-full border border-dashed border-brass px-2 text-xs text-brass" x-show="summary.label" x-text="'label: ' + summary.label"></span>
                 </header>
-                <div class="facts">
-                    <span><b class="num" x-text="ms(summary.totals?.duration_ms ?? model?.duration)"></b> total</span>
+                <div class="flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13px] text-muted">
+                    <span><b class="font-semibold text-fg tabular-nums" x-text="ms(summary.totals?.duration_ms ?? model?.duration)"></b> total</span>
                     <span x-text="summary.type"></span>
-                    <span class="mono" x-text="capture.id"></span>
+                    <span class="font-mono text-xs" x-text="capture.id"></span>
                     <span x-text="summary.started_at ? ago(summary.started_at) : ''"></span>
                 </div>
-                <div class="trace-links" x-show="summary.parent_id || summary.children?.length">
-                    <span x-show="summary.parent_id">Dispatched by <button type="button" class="link" @click="select(summary.parent_id)">parent capture</button></span>
-                    <span x-show="summary.children?.length">Dispatched <button type="button" class="link" @click="openTab('trace')" x-text="summary.children?.length + ' job(s)'"></button></span>
+                <div class="flex flex-wrap gap-2 text-[13px]" x-show="summary.parent_id || summary.children?.length">
+                    <span x-show="summary.parent_id">Dispatched by <button type="button" :class="cls.link" @click="select(summary.parent_id)">parent capture</button></span>
+                    <span x-show="summary.children?.length">Dispatched <button type="button" :class="cls.link" @click="openTab('trace')" x-text="summary.children?.length + ' job(s)'"></button></span>
                 </div>
 
-                <nav class="tabs" role="tablist">
+                <nav class="scroll-quiet flex gap-0.5 overflow-x-auto border-b border-line" role="tablist">
                     <template x-for="t in tabs" :key="t.key">
-                        <button type="button" class="tab" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
-                            <span x-text="t.label"></span><span class="count" x-show="t.count" x-text="t.count"></span>
+                        <button type="button" class="flex items-baseline gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
+                            <span x-text="t.label"></span><span class="font-mono text-[11px] text-muted" x-show="t.count" x-text="t.count"></span>
                         </button>
                     </template>
                 </nav>
 
-                <section x-show="tab === 'overview'" class="grid2">
-                    <div class="col">
+                <section x-show="tab === 'overview'" class="grid grid-cols-1 gap-6 min-[1101px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+                    <div class="grid min-w-0 content-start gap-6">
                         <div x-show="phases.length">
-                            <h3 class="section-title">Where the time went</h3>
-                            <div class="stack" role="img" aria-label="Time per phase">
+                            <h3 :class="cls.sectionTitle">Where the time went</h3>
+                            <div class="flex h-[26px] overflow-hidden rounded bg-sunk" role="img" aria-label="Time per phase">
                                 <template x-for="p in phases" :key="p.name">
-                                    <span :title="p.name + ': ' + ms(p.ms)" :style="`width:${p.percent}%;background:${phaseColor(p.name)}`"></span>
+                                    <span class="h-full min-w-0.5" :title="p.name + ': ' + ms(p.ms)" :style="`width:${p.percent}%;background:${phaseColor(p.name)}`"></span>
                                 </template>
                             </div>
-                            <div class="legend">
+                            <div class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-2">
                                 <template x-for="p in phases" :key="p.name">
-                                    <div>
-                                        <i :style="`background:${phaseColor(p.name)}`"></i>
-                                        <span><span x-text="p.name"></span> <span class="note" x-show="p.count > 1" x-text="'×' + p.count"></span></span>
-                                        <span class="ms num" x-text="ms(p.ms)"></span>
-                                        <span class="pct" x-text="p.percent + ' %'"></span>
+                                    <div class="grid grid-cols-[10px_minmax(0,1fr)_auto] items-baseline gap-x-2 text-[13px]">
+                                        <i class="size-2.5 self-center rounded-sm" :style="`background:${phaseColor(p.name)}`"></i>
+                                        <span><span x-text="p.name"></span> <span class="text-xs text-muted" x-show="p.count > 1" x-text="'×' + p.count"></span></span>
+                                        <span class="font-mono text-xs tabular-nums" x-text="ms(p.ms)"></span>
+                                        <span class="col-span-2 col-start-2 -mt-1 text-xs text-muted" x-text="p.percent + ' %'"></span>
                                     </div>
                                 </template>
                             </div>
                         </div>
                         <div x-show="categories.length">
-                            <h3 class="section-title">Spent on</h3>
-                            <div class="cats">
+                            <h3 :class="cls.sectionTitle">Spent on</h3>
+                            <div class="grid gap-2">
                                 <template x-for="c in categories" :key="c.name">
-                                    <div class="cat">
+                                    <div class="grid grid-cols-[70px_minmax(0,1fr)] items-center gap-3 text-[13px] sm:grid-cols-[90px_minmax(0,1fr)_140px]">
                                         <span x-text="c.name"></span>
-                                        <div class="bar"><span :style="`width:${(c.ms / maxCategory) * 100}%;background:${categoryColor(c.name)}`"></span></div>
-                                        <span class="val num" x-text="ms(c.ms) + ' · ' + c.count + ' ops'"></span>
+                                        <div class="h-2 overflow-hidden rounded bg-sunk"><span class="block h-full rounded" :style="`width:${(c.ms / maxCategory) * 100}%;background:${categoryColor(c.name)}`"></span></div>
+                                        <span class="col-start-2 font-mono text-xs text-muted tabular-nums sm:col-start-auto sm:text-right" x-text="ms(c.ms) + ' · ' + c.count + ' ops'"></span>
                                     </div>
                                 </template>
                             </div>
                         </div>
                     </div>
-                    <div class="col">
+                    <div class="grid min-w-0 content-start gap-6">
                         <div>
-                            <h3 class="section-title">Warnings</h3>
-                            <div class="warnings" x-show="summary.warnings?.length">
+                            <h3 :class="cls.sectionTitle">Warnings</h3>
+                            <div class="grid gap-2" x-show="summary.warnings?.length">
                                 <template x-for="w in summary.warnings" :key="w">
-                                    <div class="warning"><span class="sev">!</span><span class="msg" x-text="w"></span></div>
+                                    <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md bg-warn-soft px-3 py-2.5">
+                                        <span class="pt-0.5 font-mono text-[11px] text-warn">!</span>
+                                        <span class="[overflow-wrap:anywhere]" x-text="w"></span>
+                                    </div>
                                 </template>
                             </div>
-                            <p class="empty" x-show="!summary.warnings?.length">No warnings.</p>
+                            <p :class="cls.empty" x-show="!summary.warnings?.length">No warnings.</p>
                         </div>
                         <div>
-                            <h3 class="section-title">Totals</h3>
-                            <div class="totals">
+                            <h3 :class="cls.sectionTitle">Totals</h3>
+                            <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
                                 <template x-for="t in totals" :key="t[0]">
-                                    <div class="total"><div class="k" x-text="totalLabel(t[0])"></div><div class="v" x-text="totalValue(t)"></div></div>
+                                    <div><div class="text-xs text-muted" x-text="totalLabel(t[0])"></div><div class="text-xl font-bold tabular-nums" x-text="totalValue(t)"></div></div>
                                 </template>
                             </div>
                         </div>
@@ -145,64 +148,88 @@
                 <section x-show="tab === 'timeline'" @click="timelineClick($event)" x-html="timelineHtml"></section>
 
                 <section x-show="tab === 'queries'">
-                    <div class="group-by">Group by
-                        <template x-for="g in ['shape', 'caller', 'table', 'transaction']" :key="g">
-                            <button type="button" class="chip" @click="groupBy = g; openTab('queries')" :aria-pressed="groupBy === g" x-text="g"></button>
+                    <div class="mb-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">Show
+                        <template x-for="g in [['order', 'in order'], ['shape', 'by query'], ['caller', 'by caller'], ['table', 'by table'], ['transaction', 'by transaction']]" :key="g[0]">
+                            <button type="button" :class="cls.chip" @click="groupBy = g[0]; openTab('queries')" :aria-pressed="groupBy === g[0]" x-text="g[1]"></button>
                         </template>
                     </div>
-                    <div class="table-wrap" x-show="tabData?.rows?.length">
-                        <table>
-                            <thead><tr><th>Query</th><th class="r">Count</th><th class="r">Total</th><th class="r">Avg</th><th class="r">Max</th></tr></thead>
+                    <div :class="cls.tableWrap" x-show="groupBy === 'order' && tabData?.rows?.length">
+                        <table class="w-full border-collapse text-[13px]">
+                            <thead><tr><th :class="cls.th" class="text-right">#</th><th :class="cls.th">Query</th><th :class="cls.th" class="text-right">At</th><th :class="cls.th" class="text-right">Time</th></tr></thead>
                             <tbody>
-                                <template x-for="q in tabData?.rows ?? []" :key="q.key">
-                                    <tr>
-                                        <td><code class="sql" x-text="q.example ?? q.key"></code><span x-html="originHtml(q.origin)"></span></td>
-                                        <td class="r num" x-text="q.count"></td>
-                                        <td class="r num" x-text="ms(q.total_ms)"></td>
-                                        <td class="r num" x-text="ms(q.avg_ms)"></td>
-                                        <td class="r num" x-text="ms(q.max_ms)"></td>
+                                <template x-for="q in tabData?.rows ?? []" :key="q.n">
+                                    <tr :class="q.duplicate_of ? 'bg-warn-soft/60' : ''">
+                                        <td :class="cls.td" class="text-right font-mono text-xs text-muted tabular-nums" x-text="q.n"></td>
+                                        <td :class="cls.td">
+                                            <code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" x-text="q.sql_with_bindings ?? q.sql"></code>
+                                            <span class="mt-1 flex flex-wrap items-center gap-2">
+                                                <span x-html="originHtml(q.origin)"></span>
+                                                <span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn" x-show="q.duplicate_of" x-text="'duplicate of #' + q.duplicate_of"></span>
+                                                <span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn" x-show="duplicates[q.n]" x-text="'repeated ' + duplicates[q.n] + '×'"></span>
+                                                <span class="rounded bg-bad-soft px-1.5 font-mono text-[10.5px] text-bad" x-show="q.slow">slow</span>
+                                            </span>
+                                        </td>
+                                        <td :class="cls.td" class="text-right font-mono text-xs text-muted tabular-nums" x-text="ms(q.time)"></td>
+                                        <td :class="cls.td" class="text-right font-mono text-xs tabular-nums" x-text="ms(q.duration)"></td>
                                     </tr>
                                 </template>
                             </tbody>
                         </table>
                     </div>
+                    <div :class="cls.tableWrap" x-show="groupBy !== 'order' && tabData?.rows?.length">
+                        <table class="w-full border-collapse text-[13px]">
+                            <thead><tr><th :class="cls.th">Query</th><th :class="cls.th" class="text-right">Count</th><th :class="cls.th" class="text-right">Total</th><th :class="cls.th" class="text-right">Avg</th><th :class="cls.th" class="text-right">Max</th></tr></thead>
+                            <tbody>
+                                <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
+                                    <tr>
+                                        <td :class="cls.td"><code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" x-text="q.example ?? q.key"></code><span x-html="originHtml(q.origin)"></span></td>
+                                        <td :class="cls.td" class="text-right tabular-nums" x-text="q.count"></td>
+                                        <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.total_ms)"></td>
+                                        <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.avg_ms)"></td>
+                                        <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.max_ms)"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="mt-2.5" :class="cls.link" x-show="groupBy === 'order' && tabData?.next_offset != null" @click="loadMore()" x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"></button>
                 </section>
 
                 <section x-show="tab === 'trace'">
-                    <div class="trace">
+                    <div class="grid gap-1.5">
                         <template x-for="x in tabData?.captures ?? []" :key="x.id">
-                            <div class="tnode" :class="{ current: x.id === selectedId }" :style="`margin-left:${(x.depth ?? 0) * 24}px`">
-                                <span class="t-name">
-                                    <span class="type" x-text="x.type"></span>
-                                    <button type="button" class="link" x-show="x.id !== selectedId" @click="select(x.id)" x-text="x.name"></button>
+                            <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3 rounded-md border border-line bg-panel px-3 py-2" :class="x.id === selectedId ? 'border-brass shadow-[inset_3px_0_0_var(--brass)]' : ''" :style="`margin-left:${(x.depth ?? 0) * 24}px`">
+                                <span class="flex min-w-0 items-baseline gap-2 [overflow-wrap:anywhere]">
+                                    <span :class="cls.type" x-text="x.type"></span>
+                                    <button type="button" :class="cls.link" x-show="x.id !== selectedId" @click="select(x.id)" x-text="x.name"></button>
                                     <span x-show="x.id === selectedId" x-text="x.name"></span>
                                 </span>
-                                <span class="status" :class="statusClass(x.status)" x-text="x.status ?? ''"></span>
-                                <span class="off num" x-text="ms(x.duration)"></span>
+                                <span class="font-mono text-xs" :class="statusClass(x.status)" x-text="x.status ?? ''"></span>
+                                <span class="font-mono text-xs text-muted tabular-nums" x-text="ms(x.duration)"></span>
                             </div>
                         </template>
                     </div>
                 </section>
 
                 <section x-show="!['overview', 'timeline', 'queries', 'trace'].includes(tab)">
-                    <div class="table-wrap" x-show="tabData?.rows?.length">
-                        <table>
-                            <thead><tr><template x-for="col in tableColumns" :key="col"><th x-text="col"></th></template></tr></thead>
+                    <div :class="cls.tableWrap" x-show="tabData?.rows?.length">
+                        <table class="w-full border-collapse text-[13px]">
+                            <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="cls.th" x-text="col"></th></template></tr></thead>
                             <tbody>
                                 <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
-                                    <tr><template x-for="col in tableColumns" :key="col"><td x-html="cell(row, col)"></td></template></tr>
+                                    <tr><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
                                 </template>
                             </tbody>
                         </table>
                     </div>
-                    <dl class="kv" x-show="tabData?.data">
+                    <dl class="m-0 grid gap-1.5" x-show="tabData?.data">
                         <template x-for="[k, v] in Object.entries(tabData?.data ?? {})" :key="k">
-                            <div><dt x-text="k"></dt><dd class="mono" x-text="typeof v === 'object' ? JSON.stringify(v) : v"></dd></div>
+                            <div class="grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-3 border-b border-line py-1.5"><dt class="text-[12.5px] text-muted" x-text="k"></dt><dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]" x-text="typeof v === 'object' ? JSON.stringify(v) : v"></dd></div>
                         </template>
                     </dl>
-                    <button type="button" class="link more" x-show="tabData?.next_offset != null" @click="loadMore()" x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"></button>
+                    <button type="button" class="mt-2.5" :class="cls.link" x-show="tabData?.next_offset != null" @click="loadMore()" x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"></button>
                 </section>
-                <p class="note" x-show="tabLoading">Loading...</p>
+                <p class="text-xs text-muted" x-show="tabLoading">Loading...</p>
             </div>
         </template>
     </main>

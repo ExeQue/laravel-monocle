@@ -1,4 +1,5 @@
 import { esc, ms } from './format.js';
+import { cls } from './classes.js';
 
 export const LENS_COLOR = {
   phase: 'var(--c-phase)', middleware: 'var(--c-mw)', controller: 'var(--c-ctrl)', user: 'var(--brass-2)', db: 'var(--c-db)',
@@ -145,22 +146,30 @@ export const phaseIndex = {};
 /**
  * Render the timeline of a capture. model = { tree (from indexTree), duration }, state = { open, shut, kinds } (Sets).
  */
+const COLUMNS = 'grid grid-cols-[190px_minmax(0,1fr)_76px] items-center';
+const ROW = `wf-row ${COLUMNS} h-[26px] border-b border-line text-[12.5px] last:border-b-0 hover:bg-sunk`;
+const NAME = 'flex items-baseline gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap';
+const KIND = 'font-mono text-[10px] text-muted';
+const TRACK = 'relative h-full overflow-hidden bg-[linear-gradient(to_right,var(--line)_1px,transparent_1px)] bg-[length:25%_100%]';
+const DUR = 'pr-2.5 text-right font-mono text-[11.5px] tabular-nums text-muted';
+const COUNT = 'block text-[10px] leading-tight text-muted';
+
 export function renderTimeline(model, state) {
   view = state;
-  const c = model;
   const roots = model.tree;
   const all = []; const flat = (n) => { all.push(n); n.children.forEach(flat); }; roots.forEach(flat);
   const lensList = [...new Set(all.map(lensOf))];
-  const end = c.duration;
+  const end = model.duration;
   const pct = (v) => Math.max(0, Math.min(100, (v / end) * 100));
   const phases = phasesOf(roots);
 
   /** Clockwork-style label: after the bar in the left half, before it in the right half, inside when the bar is wide. */
   const label = (text, s, e, extra = '') => {
     const left = pct(s); const right = pct(e);
-    const pos = right - left > 38 ? `left:${left}%;width:${right - left}%;padding-left:6px` : left > 50 ? `right:${100 - left}%;text-align:right;padding-right:6px` : `left:${right}%;padding-left:6px`;
-    const cls = right - left > 38 ? 'inside' : '';
-    return `<span class="wf-label ${cls}" style="${pos}">${esc(text)}${extra}</span>`;
+    const inside = right - left > 38;
+    const pos = inside ? `left:${left}%;width:${right - left}%;padding-left:6px` : left > 50 ? `right:${100 - left}%;text-align:right;padding-right:6px` : `left:${right}%;padding-left:6px`;
+    const look = inside ? 'max-w-none font-medium text-on-brass [text-shadow:0_0_2px_rgba(0,0,0,.25)]' : 'max-w-[70%] text-fg';
+    return `<span class="pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px] ${look}" style="${pos}">${esc(text)}${extra}</span>`;
   };
 
   const segments = (items, color, top) => {
@@ -169,17 +178,17 @@ export function renderTimeline(model, state) {
     const h = count === 1 ? 12 : Math.max(4, Math.floor(18 / count));
     return {
       height: Math.max(26, top + count * (h + 2) + 6),
-      html: packed.map(({ it, lane }, k) => `<span class="wf-seg${k % 2 ? ' alt' : ''}" data-node="${it.id}" title="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${it.color ? colorOf(it) : (color ?? colorOf(it))}"></span>`).join('')
+      html: packed.map(({ it, lane }, k) => `<span class="absolute min-w-0.5 cursor-pointer rounded-[1px] shadow-[0_0_0_1px_var(--panel)] hover:brightness-110 ${k % 2 ? 'brightness-[.82] saturate-[1.1]' : ''}" data-node="${it.id}" title="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${it.color ? colorOf(it) : (color ?? colorOf(it))}"></span>`).join(''),
     };
   };
 
-  const spanRow = ({ node: n, depth }) => `<div class="wf-row wf-click" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
-      <span class="wf-name" style="padding-left:${10 + depth * 12}px"><span class="kind">${n.kind}</span></span>
-      <div class="wf-track"><span class="wf-bar" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
-      <span class="wf-dur num">${ms(n.e - n.s)}</span>
+  const spanRow = ({ node: n, depth }) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
+      <span class="${NAME}" style="padding-left:${10 + depth * 12}px"><span class="${KIND}">${n.kind}</span></span>
+      <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
+      <span class="${DUR}">${ms(n.e - n.s)}</span>
     </div>`;
 
-  const toggleCell = (id, open, depth, text) => `<button class="wf-name wf-toggle" data-toggle="${id}" data-open="${open}" aria-expanded="${open}" style="padding-left:${10 + depth * 12}px"><span class="chev" aria-hidden="true">▸</span>${text}</button>`;
+  const toggleCell = (id, open, depth, text) => `<button class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" data-toggle="${id}" data-open="${open}" aria-expanded="${open}" style="padding-left:${10 + depth * 12}px"><span class="inline-block text-[10px] text-brass transition-transform ${open ? 'rotate-90' : ''}" aria-hidden="true">▸</span>${text}</button>`;
 
   const groupRow = (g) => {
     const from = Math.min(...g.members.map((m) => m.s));
@@ -190,34 +199,35 @@ export function renderTimeline(model, state) {
     const wl = lanes(wrappers);
     const wCount = wl.length ? Math.max(...wl.map((l) => l.lane)) + 1 : 0;
     const seg = segments(leaves, color, 7 + wCount * 3 + (wCount ? 2 : 0));
-    return `<div class="wf-row wf-group${g.open ? ' open' : ''}" style="height:${g.open ? 26 : seg.height}px">
-      ${toggleCell(g.id, g.open, g.depth, `<span class="kind">${g.lens}</span>`)}
-      <div class="wf-track">
-        ${g.open ? `<span class="wf-range" style="left:${pct(from)}%;width:${pct(to) - pct(from)}%;border-color:${color}"></span>` : `
-          ${wl.map(({ it, lane }) => `<span class="wf-wrap" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${7 + lane * 3}px;background:${color}"></span>`).join('')}
+    return `<div class="${ROW} bg-[color-mix(in_srgb,var(--brass-soft)_45%,transparent)]" style="height:${g.open ? 26 : seg.height}px">
+      ${toggleCell(g.id, g.open, g.depth, `<span class="${KIND}">${g.lens}</span>`)}
+      <div class="${TRACK} self-stretch">
+        ${g.open ? `<span class="absolute top-1/2 -mt-[3px] h-1.5 rounded-b-sm border-[1.5px] border-t-0 opacity-70" style="left:${pct(from)}%;width:${pct(to) - pct(from)}%;border-color:${color}"></span>` : `
+          ${wl.map(({ it, lane }) => `<span class="absolute h-0.5 min-w-0.5 rounded-[1px] opacity-55" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${7 + lane * 3}px;background:${color}"></span>`).join('')}
           ${seg.html}`}
         ${label(groupLabel(g), from, to)}
       </div>
-      <span class="wf-dur num">${ms(to - from)}<span class="cnt">${g.members.length} spans</span></span>
+      <span class="${DUR} leading-tight">${ms(to - from)}<span class="${COUNT}">${g.members.length} spans</span></span>
     </div>`;
   };
 
   const phaseRow = (p) => {
     const color = PHASE_COLOR[p.label] ?? 'var(--c-phase)';
     const collapsible = p.members.length > 0;
-    const open = collapsible && isOpen(p.id, !p.label.startsWith('Middleware'));
-    const seg = !open && collapsible ? segments(p.members, p.label.startsWith('Middleware') ? color : null, 8) : null;
-    const count = p.label.startsWith('Middleware') ? ` <span class="cnt-inline">${p.members.filter((m) => m.kind.startsWith('middleware')).length} middleware</span>` : '';
-    const name = `<span class="phase-name">${p.label}</span>`;
+    const middleware = p.label.startsWith('Middleware');
+    const open = collapsible && isOpen(p.id, !middleware);
+    const seg = !open && collapsible ? segments(p.members, middleware ? color : null, 8) : null;
+    const count = middleware ? ` <span class="font-mono text-[10.5px] opacity-80">${p.members.filter((m) => m.kind.startsWith('middleware')).length} middleware</span>` : '';
+    const name = `<span class="text-[12.5px] font-semibold">${p.label}</span>`;
     phaseIndex[p.id] = p;
-    return `<div class="wf-row wf-phase${open ? ' open' : ''}" style="height:${seg ? seg.height : 28}px">
-      ${collapsible ? toggleCell(p.id, open, 0, name) : `<span class="wf-name">${name}</span>`}
-      <div class="wf-track">
-        ${seg ? seg.html : `<span class="wf-bar phase" data-phase="${p.id}" style="left:${pct(p.s)}%;width:${pct(p.e) - pct(p.s)}%;background:${color}"></span>`}
+    return `<div class="${ROW} bg-sunk" style="height:${seg ? seg.height : 28}px">
+      ${collapsible ? toggleCell(p.id, open, 0, name) : `<span class="${NAME} pl-2.5">${name}</span>`}
+      <div class="${TRACK}">
+        ${seg ? seg.html : `<span class="absolute top-1.5 h-4 min-w-0.5 cursor-pointer rounded-sm opacity-85 hover:brightness-110" data-phase="${p.id}" style="left:${pct(p.s)}%;width:${pct(p.e) - pct(p.s)}%;background:${color}"></span>`}
         ${label(p.label, p.s, p.e, count)}
       </div>
-      <span class="wf-dur num">${ms(p.e - p.s)}</span>
-    </div>${open ? buildRows(p.members, 1, [], p.label.startsWith('Middleware') ? 'middleware' : null).map(row).join('') : ''}`;
+      <span class="${DUR}">${ms(p.e - p.s)}</span>
+    </div>${open ? buildRows(p.members, 1, [], middleware ? 'middleware' : null).map(row).join('') : ''}`;
   };
 
   const row = (r) => (r.type === 'group' ? groupRow(r) : spanRow(r));
@@ -226,17 +236,16 @@ export function renderTimeline(model, state) {
     ? all.filter((n) => view.kinds.has(lensOf(n))).map((node) => spanRow({ node, depth: 0 })).join('')
     : phases ? phases.map(phaseRow).join('') : buildRows(roots, 0, []).map(row).join('');
 
-  const ticks = [0, .25, .5, .75, 1].map((f) => `<span style="left:${f * 100}%">${ms(end * f)}</span>`).join('');
+  const ticks = [0, .25, .5, .75, 1].map((f) => `<span class="absolute top-[7px] -translate-x-1/2 first:translate-x-0 last:-translate-x-full" style="left:${f * 100}%">${ms(end * f)}</span>`).join('');
   return `
-    <div class="tl-bar">
-      <div class="kinds" role="group" aria-label="Lenses">
-        ${lensList.map((k) => `<button class="chip" data-kind="${k}" aria-pressed="${view.kinds.has(k)}"><i class="sw" style="background:${LENS_COLOR[k] ?? 'var(--c-phase)'}"></i>${k}</button>`).join('')}
+    <div class="mb-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div class="flex flex-wrap gap-1.5" role="group" aria-label="Lenses">
+        ${lensList.map((k) => `<button class="${cls.chip} gap-1.5" data-kind="${k}" aria-pressed="${view.kinds.has(k)}"><i class="${cls.swatch} size-2" style="background:${LENS_COLOR[k] ?? 'var(--c-phase)'}"></i>${k}</button>`).join('')}
       </div>
-      ${view.kinds.size ? '' : `<div class="tl-actions"><button class="link" data-expand="1">Expand all</button><button class="link" data-collapse="1">Collapse all</button></div>`}
+      ${view.kinds.size ? '' : `<div class="flex gap-3.5 text-[13px]"><button class="${cls.link}" data-expand="1">Expand all</button><button class="${cls.link}" data-collapse="1">Collapse all</button></div>`}
     </div>
-    <div class="waterfall"><div class="wf-inner">
-      <div class="wf-scale"><span style="padding-left:10px"></span><div class="wf-ticks">${ticks}</div><span style="text-align:right;padding-right:10px">time</span></div>
+    <div class="scroll-quiet overflow-x-auto rounded-md border border-line bg-panel"><div class="min-w-[640px]">
+      <div class="${COLUMNS} h-7 border-b border-line font-mono text-[11px] text-muted"><span class="pl-2.5"></span><div class="relative h-full">${ticks}</div><span class="pr-2.5 text-right">time</span></div>
       ${body}
     </div></div>`;
 }
-

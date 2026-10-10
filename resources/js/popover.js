@@ -1,20 +1,25 @@
 import { esc, ms, fmtValue, maybeLink } from './format.js';
+import { cls } from './classes.js';
+
+const SEC = 'grid gap-1 border-t border-line pt-2';
+const K = 'text-[11px] uppercase tracking-wider text-muted';
+const SUB = 'text-xs text-muted [overflow-wrap:anywhere]';
 import { colorOf, describe, PHASE_COLOR, phaseIndex } from './timeline.js';
 
 const pathOf = (n) => { const out = []; for (let p = n.parent; p; p = p.parent) out.unshift(describe(p)); return out; };
 
 const originHtml = (o) => !o || !o.file ? '' : `
-  <div class="pop-sec"><div class="pop-k">Origin</div>
-    <div class="mono origin-line">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="vendor-tag">vendor</span>' : ''}</div>
-    ${o.call ? `<div class="pop-sub mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
-    ${o.frames?.length ? `<details><summary>Call chain (${o.frames.length})</summary><ol class="frames">${o.frames.map((f) => `<li class="mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
+  <div class="${SEC}"><div class="${K}">Origin</div>
+    <div class="font-mono text-xs text-brass [overflow-wrap:anywhere]">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
+    ${o.call ? `<div class="${SUB} font-mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
+    ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
 function metaRows(meta) {
   const links = meta._links ?? {};
   return Object.entries(meta)
     .filter(([k]) => k !== '_links')
-    .map(([k, v]) => `<tr><th>${esc(k)}</th><td class="mono">${links[k] ? maybeLink(fmtValue(v), links[k]) : esc(fmtValue(v))}</td></tr>`)
+    .map(([k, v]) => `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(fmtValue(v), links[k]) : esc(fmtValue(v))}</td></tr>`)
     .join('');
 }
 
@@ -25,18 +30,18 @@ function nodeDetails(model, n) {
   const path = pathOf(n);
   const rows = metaRows(meta);
   return `
-    <div class="pop-head"><i class="sw" style="background:${colorOf(n)}"></i><span class="type">${esc(n.kind)}</span><button class="pop-x" data-pop-close aria-label="Close">×</button></div>
-    <div class="pop-title">${esc(describe(n))}</div>
-    ${path.length ? `<div class="pop-path">${path.map(esc).join(' <span>›</span> ')}</div>` : ''}
-    <div class="pop-facts">
-      <div><span class="pop-k">Duration</span><b class="num">${ms(dur)}</b></div>
-      <div><span class="pop-k">Starts at</span><b class="num">${ms(n.s)}</b></div>
-      <div><span class="pop-k">Of total</span><b class="num">${((dur / Math.max(model.duration, 0.001)) * 100).toFixed(1)} %</b></div>
-      ${n.children.length ? `<div><span class="pop-k">Children</span><b class="num">${n.children.length}</b></div>` : ''}
+    <div class="flex items-center gap-2"><i class="${cls.swatch}" style="background:${colorOf(n)}"></i><span class="${cls.type}">${esc(n.kind)}</span><button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
+    <div class="font-semibold [overflow-wrap:anywhere]">${esc(describe(n))}</div>
+    ${path.length ? `<div class="text-[11.5px] text-muted [overflow-wrap:anywhere]">${path.map(esc).join(' <span class="text-brass">›</span> ')}</div>` : ''}
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+      <div class="grid gap-0.5"><span class="${K}">Duration</span><b class="tabular-nums">${ms(dur)}</b></div>
+      <div class="grid gap-0.5"><span class="${K}">Starts at</span><b class="tabular-nums">${ms(n.s)}</b></div>
+      <div class="grid gap-0.5"><span class="${K}">Of total</span><b class="tabular-nums">${((dur / Math.max(model.duration, 0.001)) * 100).toFixed(1)} %</b></div>
+      ${n.children.length ? `<div class="grid gap-0.5"><span class="${K}">Children</span><b class="tabular-nums">${n.children.length}</b></div>` : ''}
     </div>
-    ${d.sql ? `<div class="pop-sec"><div class="pop-k">Query</div><pre class="pop-sql">${esc(d.sql)}</pre></div>` : ''}
-    ${rows ? `<div class="pop-sec"><table class="pop-meta">${rows}</table></div>` : ''}
-    ${n.redis?.length ? `<div class="pop-sec"><div class="pop-k">Redis commands</div>${n.redis.map((r) => `<div class="mono pop-sub">${esc(r.name)} <span class="num">${ms(r.e - r.s)}</span></div>`).join('')}</div>` : ''}
+    ${d.sql ? `<div class="${SEC}"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(d.sql)}</pre></div>` : ''}
+    ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
+    ${n.redis?.length ? `<div class="${SEC}"><div class="${K}">Redis commands</div>${n.redis.map((r) => `<div class="${SUB} font-mono">${esc(r.name)} <span class="tabular-nums">${ms(r.e - r.s)}</span></div>`).join('')}</div>` : ''}
     ${originHtml(d.origin)}`;
 }
 
@@ -44,15 +49,15 @@ function phaseDetails(model, p) {
   const slowest = [...p.members].sort((a, b) => (b.e - b.s) - (a.e - a.s)).slice(0, 5);
   const dur = p.e - p.s;
   return `
-    <div class="pop-head"><i class="sw" style="background:${PHASE_COLOR[p.label] ?? 'var(--c-phase)'}"></i><span class="type">phase</span><button class="pop-x" data-pop-close aria-label="Close">×</button></div>
-    <div class="pop-title">${esc(p.label)}</div>
-    <div class="pop-facts">
-      <div><span class="pop-k">Duration</span><b class="num">${ms(dur)}</b></div>
-      <div><span class="pop-k">From</span><b class="num">${ms(p.s)}</b></div>
-      <div><span class="pop-k">Of total</span><b class="num">${((dur / Math.max(model.duration, 0.001)) * 100).toFixed(1)} %</b></div>
-      <div><span class="pop-k">Spans</span><b class="num">${p.members.length}</b></div>
+    <div class="flex items-center gap-2"><i class="${cls.swatch}" style="background:${PHASE_COLOR[p.label] ?? 'var(--c-phase)'}"></i><span class="${cls.type}">phase</span><button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
+    <div class="font-semibold [overflow-wrap:anywhere]">${esc(p.label)}</div>
+    <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
+      <div class="grid gap-0.5"><span class="${K}">Duration</span><b class="tabular-nums">${ms(dur)}</b></div>
+      <div class="grid gap-0.5"><span class="${K}">From</span><b class="tabular-nums">${ms(p.s)}</b></div>
+      <div class="grid gap-0.5"><span class="${K}">Of total</span><b class="tabular-nums">${((dur / Math.max(model.duration, 0.001)) * 100).toFixed(1)} %</b></div>
+      <div class="grid gap-0.5"><span class="${K}">Spans</span><b class="tabular-nums">${p.members.length}</b></div>
     </div>
-    ${slowest.length ? `<div class="pop-sec"><div class="pop-k">Slowest</div>${slowest.map((m) => `<button class="pop-row" data-pop-node="${m.id}"><span>${esc(describe(m))}</span><span class="num">${ms(m.e - m.s)}</span></button>`).join('')}</div>` : ''}`;
+    ${slowest.length ? `<div class="${SEC}"><div class="${K}">Slowest</div>${slowest.map((m) => `<button class="group flex w-full justify-between gap-2.5 border-b border-dashed border-line py-1 text-left text-[12.5px]" data-pop-node="${m.id}"><span class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap group-hover:text-brass">${esc(describe(m))}</span><span class="tabular-nums">${ms(m.e - m.s)}</span></button>`).join('')}</div>` : ''}`;
 }
 
 /**
@@ -61,7 +66,7 @@ function phaseDetails(model, p) {
  */
 export function setupPopover(root, getModel) {
   const pop = document.createElement('div');
-  pop.className = 'pop';
+  pop.className = 'pop pop-arrow scroll-quiet fixed z-50 grid max-h-[min(70vh,520px)] w-[min(380px,calc(100vw-32px))] gap-2.5 overflow-auto rounded-lg border border-line bg-panel p-3.5 text-[13px] text-fg shadow-[0_12px_32px_rgba(0,0,0,.18),0_2px_6px_rgba(0,0,0,.08)]';
   pop.hidden = true;
   pop.setAttribute('role', 'dialog');
   document.body.append(pop);
