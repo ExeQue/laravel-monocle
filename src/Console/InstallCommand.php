@@ -33,7 +33,7 @@ final class InstallCommand extends Command
         ));
 
         foreach ((array) $this->option('file') as $file) {
-            $path = str_starts_with($file, '/') ? $file : $basePath . '/' . ltrim($file, './');
+            $path = str_starts_with($file, '/') ? $file : $basePath . '/' . preg_replace('#^\./#', '', $file);
             $result = $writer->write($path, $server, $command, (bool) $this->option('dry-run'));
 
             $this->components->twoColumnDetail($file, $this->option('dry-run') ? "would be {$result}" : $result);

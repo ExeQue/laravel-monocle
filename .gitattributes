@@ -1,19 +1,16 @@
+* text=auto eol=lf
+*.jpg binary
+*.png binary
+
 /.gitattributes         export-ignore
 /.gitignore             export-ignore
 /.github                export-ignore
 /.editorconfig          export-ignore
+/art                    export-ignore
 /tests                  export-ignore
 /docker                 export-ignore
 /phpunit.xml            export-ignore
 /docker-compose.yml     export-ignore
 /pint.json              export-ignore
 /workbench              export-ignore
-/img                    export-ignore
 /testbench.yaml         export-ignore
-/img                    export-ignore
-/testbench.yaml         export-ignore
-/.vitepress          export-ignore
-/package.json        export-ignore
-/package-lock.json   export-ignore
-/docs                export-ignore
-/contributing        export-ignore

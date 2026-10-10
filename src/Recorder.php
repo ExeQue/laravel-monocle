@@ -81,7 +81,7 @@ final class Recorder
             return false;
         }
 
-        return (bool) $this->config('app.debug', false, 'app');
+        return (bool) $this->app->make('config')->get('app.debug', false);
     }
 
     public function masker(): Masker
@@ -357,9 +357,9 @@ final class Recorder
         );
     }
 
-    public function config(string $key, mixed $default = null, string $root = 'monocle'): mixed
+    public function config(string $key, mixed $default = null): mixed
     {
-        return $this->app->make('config')->get($root . '.' . $key, $default);
+        return $this->app->make('config')->get('monocle.' . $key, $default);
     }
 
     private function measure(Closure $work): void

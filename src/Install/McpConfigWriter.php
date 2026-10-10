@@ -19,6 +19,7 @@ final class McpConfigWriter
     public function write(string $file, string $name, array $server, bool $dryRun = false): string
     {
         $exists = is_file($file);
+        $original = $exists ? (string) file_get_contents($file) : '';
         $config = $exists ? $this->read($file) : [];
 
         $current = $config['mcpServers'][$name] ?? null;
@@ -36,7 +37,10 @@ final class McpConfigWriter
                 throw new RuntimeException("Could not create [{$directory}].");
             }
 
-            $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+            $json = $this->reindent(
+                json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+                $this->detectIndent($original),
+            );
 
             if (file_put_contents($file, $json . "\n") === false) {
                 throw new RuntimeException("Could not write [{$file}].");
@@ -44,6 +48,28 @@ final class McpConfigWriter
         }
 
         return $exists ? 'updated' : 'created';
+    }
+
+    /**
+     * Keep the indentation the file already uses so the diff only shows the
+     * server that was added.
+     */
+    private function detectIndent(string $contents): int
+    {
+        return preg_match('/^( +)\S/m', $contents, $matches) === 1 ? strlen($matches[1]) : 4;
+    }
+
+    private function reindent(string $json, int $indent): string
+    {
+        if ($indent === 4) {
+            return $json;
+        }
+
+        return (string) preg_replace_callback(
+            '/^( +)/m',
+            fn (array $matches): string => str_repeat(' ', intdiv(strlen($matches[1]), 4) * $indent),
+            $json,
+        );
     }
 
     /**

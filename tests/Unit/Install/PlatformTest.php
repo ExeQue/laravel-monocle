@@ -87,6 +87,19 @@ describe(McpConfigWriter::class, function (): void {
             ->and($final['mcpServers']['monocle']['args'])->toContain('--verbose');
     });
 
+    it('keeps the indentation of an existing file', function (): void {
+        mkdir(dirname($this->file));
+        file_put_contents($this->file, "{\n  \"mcpServers\": {\n    \"other\": {\n      \"command\": \"x\"\n    }\n  }\n}\n");
+
+        (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]);
+
+        $written = (string) file_get_contents($this->file);
+
+        expect($written)->toContain("\n  \"mcpServers\": {\n    \"other\"")
+            ->and($written)->toContain("\n    \"monocle\": {\n      \"command\"")
+            ->and($written)->not->toContain('        ');
+    });
+
     it('does not write in dry-run mode', function (): void {
         expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []], dryRun: true))->toBe('created')
             ->and(file_exists($this->file))->toBeFalse();
