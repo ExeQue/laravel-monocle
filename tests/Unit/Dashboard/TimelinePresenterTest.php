@@ -18,6 +18,7 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->link('app/Models/User.php:12'))->toBe('vscode://file/app/app/Models/User.php:12')
             ->and($presenter->link('resources\\views\\page.blade.php'))->toBe('vscode://file/app/resources/views/page.blade.php:1')
             ->and($presenter->link('https://example.com/a.js'))->toBeNull()
+            ->and($presenter->link('storage/framework/views/abc.blade.php'))->toBeNull()
             ->and($presenter->link('select * from a.php'))->toBeNull()
             ->and($presenter->link('App\\Missing\\Thing'))->toBeNull()
             ->and($presenter->link(42))->toBeNull()

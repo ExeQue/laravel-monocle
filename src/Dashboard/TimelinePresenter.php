@@ -227,6 +227,10 @@ final readonly class TimelinePresenter
             return null;
         }
 
+        if (str_contains(str_replace('\\', '/', $value), 'storage/framework/views/')) {
+            return null;
+        }
+
         if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,5})(?::(\d+))?$#', str_replace('\\', '/', $value), $match) === 1) {
             return $this->links->file($match[1], isset($match[2]) ? (int) $match[2] : null);
         }

@@ -99,12 +99,6 @@ final class TimedEngine implements Engine
             return $name;
         }
 
-        $livewire = $data['__livewire'] ?? null;
-
-        if (is_object($livewire) && method_exists($livewire, 'getName')) {
-            return 'livewire:'.$livewire->getName();
-        }
-
         if (is_string($data['componentName'] ?? null) && $data['componentName'] !== '') {
             return '<x-'.$data['componentName'].'>';
         }
