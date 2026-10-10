@@ -206,8 +206,9 @@ Alpine.data('monocle', (config) => ({
 
   get totals() {
     const totals = this.summary.totals ?? {};
-    const scalar = Object.entries(totals).filter(([, v]) => v !== null && typeof v !== 'object');
-    const first = KEY_TOTALS.filter((k) => totals[k] !== undefined && totals[k] !== null && typeof totals[k] !== 'object').map((k) => [k, totals[k]]);
+    const shown = (k, v) => v !== null && typeof v !== 'object' && (v !== 0 || k === 'queries');
+    const scalar = Object.entries(totals).filter(([k, v]) => shown(k, v));
+    const first = KEY_TOTALS.filter((k) => totals[k] !== undefined && shown(k, totals[k])).map((k) => [k, totals[k]]);
     return [...first, ...scalar.filter(([k]) => !KEY_TOTALS.includes(k))];
   },
 
@@ -276,7 +277,10 @@ Alpine.data('monocle', (config) => ({
     if (k.endsWith('_mb')) return v + ' MB';
     return String(v);
   },
-  totalLabel(k) { return humanize(k.replace(/_(ms|mb|bytes)$/, (m, u) => ` (${u === 'ms' ? 'ms' : u === 'mb' ? 'MB' : 'bytes'})`)); },
+  totalLabel(k) {
+    const labels = { duration_ms: 'Duration', query_ms: 'Query time', cache_ms: 'Cache time', redis_ms: 'Redis time', views_ms: 'View time', middleware_self_ms: 'Middleware time', memory_peak_mb: 'Peak memory', response_bytes: 'Response size', cache_hit_rate: 'Cache hit rate' };
+    return labels[k] ?? humanize(k.replace(/_(ms|mb|bytes)$/, ''));
+  },
   originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
 

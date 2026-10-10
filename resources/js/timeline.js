@@ -263,7 +263,7 @@ export function renderTimeline(model, kinds) {
     ? all.filter((n) => kinds.has(lensOf(n))).map((n) => spanRow(n, 0)).join('')
     : phases ? phases.map(phaseRow).join('') : nodes(roots, 0);
 
-  const ticks = [0, .25, .5, .75, 1].map((f) => `<span class="absolute top-[7px] -translate-x-1/2 first:translate-x-0 last:-translate-x-full" style="left:${f * 100}%">${ms(end * f)}</span>`).join('');
+  const ticks = [0, .25, .5, .75, 1].map((f) => `<span class="absolute top-[7px] -translate-x-1/2 whitespace-nowrap first:translate-x-0 last:-translate-x-full" style="left:${f * 100}%">${ms(end * f)}</span>`).join('');
   const html = `
     <div class="mb-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <div class="flex flex-wrap gap-1.5" role="group" aria-label="Lenses">
