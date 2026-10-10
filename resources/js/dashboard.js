@@ -405,8 +405,9 @@ Alpine.data('monocle', (config) => ({
   totalLabel(k, group = null) {
     const labels = { duration_ms: 'Duration', query_ms: 'Query time', cache_ms: 'Cache time', redis_ms: 'Redis time', views_ms: 'View time', middleware_self_ms: 'Middleware time', memory_peak_mb: 'Peak memory', response_bytes: 'Response size', cache_hit_rate: 'Cache hit rate' };
     const label = labels[k] ?? humanize(k.replace(/_(ms|mb|bytes)$/, ''));
-    const prefix = `${group ?? ''} `.toLowerCase();
-    return group && label.toLowerCase().startsWith(prefix) && label.length > prefix.length ? humanize(label.slice(prefix.length)) : label;
+    const lower = label.toLowerCase();
+    const prefix = group ? [`${group} `, `${group.replace(/s$/, '')} `].map((p) => p.toLowerCase()).find((p) => lower.startsWith(p) && label.length > p.length) : null;
+    return prefix ? humanize(label.slice(prefix.length)) : label;
   },
   originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
