@@ -177,10 +177,10 @@
                                 <h3 :class="cls.sectionTitle">Payload</h3>
                                 <div :class="cls.tableWrap" x-show="dot(request.query).length || dot(request.input).length">
                                     <table class="w-full border-collapse text-[13px]">
-                                        <thead><tr><th :class="cls.th">Key</th><th :class="cls.th">Value</th><th :class="cls.th">From</th></tr></thead>
+                                        <thead><tr><th :class="cls.th">Key</th><th :class="cls.th">Value</th><th :class="cls.th" class="max-sm:hidden">From</th></tr></thead>
                                         <tbody>
                                             <template x-for="[k, v, from] in [...dot(request.query).map((e) => [...e, 'query']), ...dot(request.input).map((e) => [...e, 'body'])]" :key="from + k">
-                                                <tr><td :class="cls.td" class="font-mono text-xs" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-text="v"></td><td :class="cls.td" class="text-xs text-muted" x-text="from"></td></tr>
+                                                <tr><td :class="cls.td" class="min-w-32 font-mono text-xs break-words"><span x-text="k"></span><span class="block text-[10px] text-muted sm:hidden" x-text="from"></span></td><td :class="cls.td" class="font-mono text-xs" x-html="payloadValue(v)"></td><td :class="cls.td" class="text-xs text-muted max-sm:hidden" x-text="from"></td></tr>
                                             </template>
                                         </tbody>
                                     </table>

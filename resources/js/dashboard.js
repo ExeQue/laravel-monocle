@@ -8,7 +8,7 @@ import { setupPopover } from './popover.js';
 
 const PHASE_COLORS = {
   bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)',
-  'middleware (response)': 'color-mix(in srgb, var(--c-mw) 55%, var(--panel))', response: 'var(--c-phase)', terminate: 'var(--c-phase)', other: 'var(--line)',
+  'middleware (response)': 'color-mix(in srgb, var(--c-mw) 75%, var(--panel))', response: 'var(--c-phase)', terminate: 'var(--c-phase)', other: 'var(--line)',
 };
 const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', fs: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
 
@@ -253,6 +253,14 @@ Alpine.data('monocle', (config) => ({
     const entries = Array.isArray(value) ? value.map((v, i) => [String(i), v]) : Object.entries(value);
     if (!entries.length) return prefix ? [[prefix, Array.isArray(value) ? '[]' : '{}']] : [];
     return entries.flatMap(([k, v]) => this.dot(v, prefix ? `${prefix}.${k}` : k));
+  },
+
+  /** A payload value; JSON strings (Livewire snapshots, API bodies) are shown formatted. */
+  payloadValue(v) {
+    if (typeof v === 'string' && /^\s*[[{]/.test(v)) {
+      try { return `<pre class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-all">${esc(JSON.stringify(JSON.parse(v), null, 2))}</pre>`; } catch { /* not JSON */ }
+    }
+    return esc(fmtValue(v));
   },
 
   headers(headers) {
