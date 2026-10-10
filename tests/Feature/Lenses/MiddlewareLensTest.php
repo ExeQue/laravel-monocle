@@ -38,6 +38,36 @@ describe(MiddlewareLens::class, function (): void {
             ->and($before->meta['group'])->toBe('route');
     });
 
+    it('records the work before and after $next as child spans', function () use ($byName): void {
+        $this->get('/timed')->assertOk();
+
+        $children = fn (Span $parent): array => collect(latestCapture()->spans)
+            ->filter(fn (Span $span): bool => $span->parentId === $parent->id)
+            ->mapWithKeys(fn (Span $span): array => [$span->kind => $span])
+            ->all();
+
+        $outer = $byName('SleepBefore');
+        $inner = $byName('SleepAfter');
+        $outerChildren = $children($outer);
+        $innerChildren = $children($inner);
+
+        expect(array_keys($outerChildren))->toBe(['middleware.before', 'middleware', 'middleware.after'])
+            ->and($outerChildren['middleware.before']->duration())->toBeGreaterThanOrEqual(4)
+            ->and($outerChildren['middleware.before']->end)->toBeLessThanOrEqual($inner->start)
+            ->and($outerChildren['middleware.after']->start)->toBeGreaterThanOrEqual($inner->end)
+            ->and($outerChildren['middleware.after']->end)->toBeLessThanOrEqual($outer->end)
+            ->and($innerChildren['middleware.after']->duration())->toBeGreaterThanOrEqual(4);
+    });
+
+    it('only records the before span when the middleware short-circuits', function () use ($byName): void {
+        $this->get('/aborted')->assertStatus(418);
+
+        $abort = $byName('Abort');
+        $kinds = collect(latestCapture()->spans)->filter(fn (Span $span): bool => $span->parentId === $abort->id)->map->kind->values()->all();
+
+        expect($kinds)->toBe(['middleware.before']);
+    });
+
     it('records short circuits', function () use ($byName): void {
         $this->get('/aborted')->assertStatus(418);
 

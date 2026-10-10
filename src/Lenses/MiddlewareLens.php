@@ -49,7 +49,7 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
 
     public function description(): string
     {
-        return 'One timeline span per class-based middleware with before_ms (time until it called $next), after_ms (time after $next returned), passed (false when it short-circuited) and the HTTP status it returned instead. Use kinds=[middleware] on the timeline.';
+        return 'One timeline span per class-based middleware, with child spans "before" (kind middleware.before, the work done before calling $next) and "after" (kind middleware.after, the work done once $next returned). The span meta has before_ms (time until it called $next), after_ms (time after $next returned), passed (false when it short-circuited) and the HTTP status it returned instead. Use kinds=[middleware] on the timeline.';
     }
 
     public function configure(array $options): void

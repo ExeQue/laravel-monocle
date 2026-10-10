@@ -11,7 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Decorates a middleware instance resolved from the container and records a
- * span around handle(), splitting the time spent before and after $next.
+ * span around handle(), with a "before" child span for the work done before
+ * $next and an "after" child span for the work done once $next returned.
  */
 final class TimedMiddleware
 {
@@ -33,25 +34,34 @@ final class TimedMiddleware
         ]);
         $this->eyepiece->startSpan($span, origin: false);
 
+        $before = $this->eyepiece->span('before', 'middleware.before');
+        $this->eyepiece->startSpan($before, origin: false);
+
+        $after = null;
         $passed = false;
         $nextCalledAt = null;
         $nextReturnedAt = null;
         $response = null;
 
         try {
-            $response = $this->inner->handle($request, function (mixed $passable) use ($next, &$passed, &$nextCalledAt, &$nextReturnedAt): mixed {
+            $response = $this->inner->handle($request, function (mixed $passable) use ($next, $before, &$after, &$passed, &$nextCalledAt, &$nextReturnedAt): mixed {
                 $passed = true;
+                $before->stop();
                 $nextCalledAt = $this->eyepiece->now();
 
                 try {
                     return $next($passable);
                 } finally {
                     $nextReturnedAt = $this->eyepiece->now();
+                    $after = $this->eyepiece->span('after', 'middleware.after');
+                    $this->eyepiece->startSpan($after, origin: false);
                 }
             }, ...$parameters);
 
             return $response;
         } finally {
+            $before->stop();
+            $after?->stop();
             $end = $this->eyepiece->now();
             $start = $span->start ?? $end;
 
