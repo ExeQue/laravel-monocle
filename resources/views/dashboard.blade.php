@@ -261,6 +261,12 @@
                                 <span>Session <b class="font-mono text-fg" x-text="session.id"></b></span>
                                 <span x-show="session.flash?.length">Flashed for the next request: <b class="font-mono text-fg" x-text="session.flash?.join(', ')"></b></span>
                             </p>
+                            <div x-show="session.changes?.length">
+                                <h3 :class="cls.sectionTitle">Changed by this request</h3>
+                                <div class="p-1" :class="cls.tableWrap" x-html="changesTable(session.changes ?? [])"></div>
+                            </div>
+                            <p class="m-0 text-[13px] text-muted" x-show="session.changes && !session.changes.length">This request did not change the session.</p>
+                            <h3 :class="cls.sectionTitle" class="mb-0">Contents</h3>
                             <div :class="cls.tableWrap" x-show="dot(session.data).length">
                                 <table class="w-full border-collapse text-[13px]"><tbody>
                                     <template x-for="[k, v] in dot(session.data)" :key="k">

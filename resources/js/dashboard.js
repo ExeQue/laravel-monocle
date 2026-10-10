@@ -89,7 +89,7 @@ Alpine.data('monocle', (config) => ({
   },
 
   async fetchJson(url, options = {}) {
-    const response = await fetch(url, { headers: { Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf, ...(options.headers ?? {}) }, ...options });
+    const response = await fetch(url, { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': config.csrf, ...(options.headers ?? {}) }, ...options });
     if (!response.ok) throw new Error(response.status === 403 ? 'You are not allowed to view Monocle here.' : `The request failed (${response.status}).`);
     return response.json();
   },
@@ -300,6 +300,8 @@ Alpine.data('monocle', (config) => ({
     const link = this.tabData?.links?.[path];
     return link ? maybeLink(fmtValue(value), link) : esc(fmtValue(value));
   },
+
+  changesTable(changes) { return changesTable(changes); },
 
   get request() { return this.tab === 'request' ? (this.tabData?.data ?? null) : null; },
   get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },

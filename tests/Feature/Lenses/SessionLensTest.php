@@ -5,7 +5,7 @@ declare(strict_types=1);
 use ExeQue\Monocle\Lenses\SessionLens;
 use Illuminate\Support\Facades\Route;
 
-covers(SessionLens::class);
+covers(SessionLens::class, ExeQue\Monocle\Lenses\Session\SnapshotsSession::class);
 
 describe(SessionLens::class, function (): void {
     it('records the session contents with sensitive keys masked', function (): void {
@@ -26,6 +26,31 @@ describe(SessionLens::class, function (): void {
             ->and($session['flash'])->toBe(['status'])
             ->and($session['id'])->toHaveLength(12)
             ->and($session['driver'])->toBe(config('session.driver'));
+    });
+
+    it('lists what the request added, changed and removed in the session', function (): void {
+        Route::middleware('web')->get('/seed', function () {
+            session(['cart' => ['items' => 1, 'coupon' => 'X'], 'theme' => 'dark']);
+
+            return 'ok';
+        });
+        Route::middleware('web')->get('/change', function () {
+            session()->put('cart.items', 3);
+            session()->forget('cart.coupon');
+            session()->put('seen', true);
+
+            return 'ok';
+        });
+
+        $this->get('/seed')->assertOk();
+        $this->get('/change')->assertOk();
+
+        $changes = collect(latestCapture()->section('session')['changes'])->keyBy('field');
+
+        expect($changes['cart.items'])->toBe(['field' => 'cart.items', 'from' => 1, 'to' => 3])
+            ->and($changes['cart.coupon'])->toBe(['field' => 'cart.coupon', 'from' => 'X', 'to' => null])
+            ->and($changes['seen'])->toBe(['field' => 'seen', 'from' => null, 'to' => true])
+            ->and($changes)->not->toHaveKey('theme');
     });
 
     it('records nothing for requests without a session', function (): void {
