@@ -17,7 +17,7 @@ Monocle keeps the most recent captures - 200 by default - and removes older ones
 
 Captures are stored as JSON files in `storage/monocle`. Requests, queue workers and the MCP server all read and write the same files, with nothing to set up. The folder must be inside your `storage` directory.
 
-`monocle:install` adds the folder to `.gitignore` and excludes it in PhpStorm and VS Code.
+`monocle:install` adds the folder to `.gitignore` and keeps it out of your editor and AI tools - see [Installation](installation.md#installing).
 
 ## Cache
 

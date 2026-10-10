@@ -28,7 +28,12 @@ php artisan monocle:install
 | Laravel Herd | `herd php artisan mcp:start monocle` |
 | Plain PHP | `php /path/to/project/artisan mcp:start monocle` |
 
-With file storage, the folder is also added to `.gitignore`, excluded in PhpStorm and left out of search and file watching in VS Code, when the project has settings for those editors.
+With file storage, the folder is also kept out of your tools - for the ones the project already uses:
+
+- added to `.gitignore`
+- excluded in PhpStorm and Zed
+- left out of search and file watching in VS Code, Cursor and Windsurf
+- added to `.cursorignore`, `.codeiumignore` and `.aiexclude`, so AI tools do not read it
 
 Restart your MCP client when the command is done. If you use Claude Code with an allow-list in `.claude/settings.local.json`, add `"monocle"` to `enabledMcpjsonServers`.
 

@@ -8,13 +8,40 @@ use ExeQue\Monocle\Install\Concerns\WritesJson;
 use RuntimeException;
 
 /**
- * Keeps Monocle's storage folder out of the IDE: excluded in PhpStorm, left
- * out of search and file watching in VS Code. Only touches IDEs the project
- * already has settings for.
+ * Keeps Monocle's storage folder out of editors and AI tools: excluded in
+ * PhpStorm and Zed, left out of search and file watching in VS Code, and
+ * listed in the ignore files of AI coding tools. Only touches tools the
+ * project already uses.
  */
 final class IdeExclusions
 {
     use WritesJson;
+
+    /** Zed's own exclusions; setting the key replaces them, so they are kept. */
+    private const array ZED_DEFAULT_EXCLUSIONS = [
+        '**/.git',
+        '**/.svn',
+        '**/.hg',
+        '**/.jj',
+        '**/.sl',
+        '**/.repo',
+        '**/CVS',
+        '**/.DS_Store',
+        '**/Thumbs.db',
+        '**/.classpath',
+        '**/.settings',
+    ];
+
+    /** AI tool ignore file => directories that show the tool is in use. */
+    private const array AI_IGNORE_FILES = [
+        '.cursorignore' => ['Cursor', ['.cursor']],
+        '.codeiumignore' => ['Windsurf', ['.windsurf', '.codeium']],
+        '.aiexclude' => ['Gemini', []],
+    ];
+
+    public function __construct(private readonly GitignoreWriter $ignoreFiles = new GitignoreWriter())
+    {
+    }
 
     /**
      * @return array<string, string> IDE label => result
@@ -32,6 +59,19 @@ final class IdeExclusions
 
         if (is_dir($basePath.'/.vscode')) {
             $results['VS Code (.vscode/settings.json)'] = $this->vscode($basePath, $relativePath, $dryRun);
+        }
+
+        if (is_dir($basePath.'/.zed')) {
+            $results['Zed (.zed/settings.json)'] = $this->zed($basePath, $relativePath, $dryRun);
+        }
+
+        foreach (self::AI_IGNORE_FILES as $file => [$tool, $directories]) {
+            if (! $this->uses($basePath, $file, $directories)) {
+                continue;
+            }
+
+            $result = $this->ignoreFiles->add($basePath.'/'.$file, $relativePath, $dryRun);
+            $results["{$tool} ({$file})"] = $dryRun && $result === 'added' ? 'would be added' : $result;
         }
 
         return $results;
@@ -115,6 +155,52 @@ final class IdeExclusions
         $insertAt = $offset + ($lineStart === false ? (int) $closing : $lineStart + 1);
 
         return substr($contents, 0, $insertAt).$childIndent.$element."\n".substr($contents, $insertAt);
+    }
+
+    private function zed(string $basePath, string $relativePath, bool $dryRun): string
+    {
+        $file = $basePath.'/.zed/settings.json';
+        $existed = is_file($file);
+        $settings = $this->readJson($file);
+
+        if ($settings === null) {
+            return "skipped: settings.json has comments - add \"**/{$relativePath}\" to file_scan_exclusions yourself";
+        }
+
+        $pattern = '**/'.$relativePath;
+        $exclusions = (array) ($settings['file_scan_exclusions'] ?? self::ZED_DEFAULT_EXCLUSIONS);
+
+        if (in_array($pattern, $exclusions, true) && isset($settings['file_scan_exclusions'])) {
+            return 'unchanged';
+        }
+
+        $settings['file_scan_exclusions'] = array_values(array_unique([...$exclusions, $pattern]));
+
+        if ($dryRun) {
+            return $existed ? 'would be updated' : 'would be created';
+        }
+
+        $this->writeJson($file, $settings);
+
+        return $existed ? 'updated' : 'created';
+    }
+
+    /**
+     * @param  list<string>  $directories
+     */
+    private function uses(string $basePath, string $file, array $directories): bool
+    {
+        if (is_file($basePath.'/'.$file)) {
+            return true;
+        }
+
+        foreach ($directories as $directory) {
+            if (is_dir($basePath.'/'.$directory)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function vscode(string $basePath, string $relativePath, bool $dryRun): string

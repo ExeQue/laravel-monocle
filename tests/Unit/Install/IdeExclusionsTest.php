@@ -78,6 +78,72 @@ describe(IdeExclusions::class, function (): void {
         });
     });
 
+    describe('Zed', function (): void {
+        it('keeps Zed\'s default exclusions when adding the folder', function (): void {
+            mkdir($this->dir.'/.zed');
+
+            expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe(['Zed (.zed/settings.json)' => 'created']);
+
+            $exclusions = json_decode((string) file_get_contents($this->dir.'/.zed/settings.json'), true)['file_scan_exclusions'];
+
+            expect($exclusions)->toContain('**/.git', '**/.DS_Store', '**/.settings', '**/storage/monocle')
+                ->and($exclusions)->toHaveCount(12)
+                ->and($this->ide->apply($this->dir, 'storage/monocle'))->toBe(['Zed (.zed/settings.json)' => 'unchanged']);
+        });
+
+        it('appends to exclusions the project already set', function (): void {
+            mkdir($this->dir.'/.zed');
+            file_put_contents($this->dir.'/.zed/settings.json', json_encode(['tab_size' => 2, 'file_scan_exclusions' => ['**/.git', '**/vendor']]));
+
+            expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe(['Zed (.zed/settings.json)' => 'updated']);
+
+            $settings = json_decode((string) file_get_contents($this->dir.'/.zed/settings.json'), true);
+
+            expect($settings['file_scan_exclusions'])->toBe(['**/.git', '**/vendor', '**/storage/monocle'])
+                ->and($settings['tab_size'])->toBe(2);
+        });
+
+        it('leaves settings with comments alone and writes nothing in dry-run mode', function (): void {
+            mkdir($this->dir.'/.zed');
+
+            expect($this->ide->apply($this->dir, 'storage/monocle', dryRun: true))->toBe(['Zed (.zed/settings.json)' => 'would be created'])
+                ->and(file_exists($this->dir.'/.zed/settings.json'))->toBeFalse();
+
+            file_put_contents($this->dir.'/.zed/settings.json', "{\n  // mine\n}\n");
+
+            expect($this->ide->apply($this->dir, 'storage/monocle')['Zed (.zed/settings.json)'])->toStartWith('skipped: settings.json has comments');
+        });
+    });
+
+    describe('AI tool ignore files', function (): void {
+        it('adds the folder to the ignore files of tools the project uses', function (): void {
+            mkdir($this->dir.'/.cursor');
+            mkdir($this->dir.'/.windsurf');
+            file_put_contents($this->dir.'/.aiexclude', "secrets/\n");
+
+            expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe([
+                'Cursor (.cursorignore)' => 'added',
+                'Windsurf (.codeiumignore)' => 'added',
+                'Gemini (.aiexclude)' => 'added',
+            ])->and(file_get_contents($this->dir.'/.cursorignore'))->toContain('/storage/monocle/')
+                ->and(file_get_contents($this->dir.'/.aiexclude'))->toStartWith("secrets/\n")
+                ->and($this->ide->apply($this->dir, 'storage/monocle'))->toBe([
+                    'Cursor (.cursorignore)' => 'unchanged',
+                    'Windsurf (.codeiumignore)' => 'unchanged',
+                    'Gemini (.aiexclude)' => 'unchanged',
+                ]);
+        });
+
+        it('creates nothing for tools the project does not use and respects dry-run', function (): void {
+            file_put_contents($this->dir.'/.cursorignore', '');
+
+            expect($this->ide->apply($this->dir, 'storage/monocle', dryRun: true))->toBe(['Cursor (.cursorignore)' => 'would be added'])
+                ->and(file_get_contents($this->dir.'/.cursorignore'))->toBe('')
+                ->and(file_exists($this->dir.'/.codeiumignore'))->toBeFalse()
+                ->and(file_exists($this->dir.'/.aiexclude'))->toBeFalse();
+        });
+    });
+
     describe('VS Code', function (): void {
         it('creates settings with search and watcher exclusions', function (): void {
             mkdir($this->dir.'/.vscode');
