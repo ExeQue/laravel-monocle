@@ -6,14 +6,14 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Throwable;
 
 /**
- * Exceptions reported through the exception handler, bound to the entry they
+ * Exceptions reported through the exception handler, bound to the capture they
  * happened in, with the user-land frames of their trace.
  */
 final class ExceptionsLens implements Lens, Summarizable
@@ -29,7 +29,7 @@ final class ExceptionsLens implements Lens, Summarizable
 
     public function description(): string
     {
-        return 'Exceptions reported during the entry: class, message, code, file:line, the user-land frames of the stack trace and the previous exception. Unreported exceptions (404s and other ignored ones) do not appear; the response status does.';
+        return 'Exceptions reported during the capture: class, message, code, file:line, the user-land frames of the stack trace and the previous exception. Unreported exceptions (404s and other ignored ones) do not appear; the response status does.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -52,9 +52,9 @@ final class ExceptionsLens implements Lens, Summarizable
         });
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('exceptions');
+        $rows = $capture->rows('exceptions');
 
         if ($rows === []) {
             return [];

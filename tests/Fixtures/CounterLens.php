@@ -9,7 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
@@ -55,10 +55,10 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
         });
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
         self::$finalized++;
-        $entry->sections['counter_meta'] = ['finalized' => true];
+        $capture->sections['counter_meta'] = ['finalized' => true];
     }
 
     public function reset(): void
@@ -66,9 +66,9 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
         self::$reset++;
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $count = count($entry->rows('counter'));
+        $count = count($capture->rows('counter'));
 
         return [
             'totals' => ['counter_events' => $count],

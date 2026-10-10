@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace ExeQue\Monocle;
 
 use Closure;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Storage\StoreManager;
 use ExeQue\Monocle\Support\Masker;
 use ExeQue\Monocle\Support\Masks\PartialMask;
@@ -18,13 +18,13 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * Holds the entry currently being recorded and the stack of open spans.
+ * Holds the capture currently being recorded and the stack of open spans.
  * Lenses write through push()/set()/span(); nothing here may ever throw into
  * the application, so every write is wrapped and failures are logged once.
  */
 final class Eyepiece
 {
-    private ?Entry $entry = null;
+    private ?Capture $capture = null;
 
     /** @var list<string> Ids of open spans, innermost last. */
     private array $stack = [];
@@ -95,11 +95,11 @@ final class Eyepiece
         );
     }
 
-    public function start(EntryType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Entry
+    public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Capture
     {
         $this->reset();
 
-        return $this->entry = new Entry(
+        return $this->capture = new Capture(
             id: (string) Str::uuid7(),
             type: $type,
             startedAt: $startedAt ?? microtime(true),
@@ -108,18 +108,18 @@ final class Eyepiece
         );
     }
 
-    public function active(): ?Entry
+    public function active(): ?Capture
     {
-        return $this->entry;
+        return $this->capture;
     }
 
     public function recording(): bool
     {
-        return $this->entry !== null && ! $this->discarded;
+        return $this->capture !== null && ! $this->discarded;
     }
 
     /**
-     * Drop the current entry instead of storing it.
+     * Drop the current capture instead of storing it.
      */
     public function discard(): void
     {
@@ -127,27 +127,27 @@ final class Eyepiece
     }
 
     /**
-     * Milliseconds since the active entry started.
+     * Milliseconds since the active capture started.
      */
     public function now(): float
     {
-        if ($this->entry === null) {
+        if ($this->capture === null) {
             return 0.0;
         }
 
-        return round((microtime(true) - $this->entry->startedAt) * 1000, 3);
+        return round((microtime(true) - $this->capture->startedAt) * 1000, 3);
     }
 
     /**
-     * Convert an absolute microtime() to milliseconds relative to the entry.
+     * Convert an absolute microtime() to milliseconds relative to the capture.
      */
     public function relative(float $microtime): float
     {
-        if ($this->entry === null) {
+        if ($this->capture === null) {
             return 0.0;
         }
 
-        return round(($microtime - $this->entry->startedAt) * 1000, 3);
+        return round(($microtime - $this->capture->startedAt) * 1000, 3);
     }
 
     /**
@@ -172,11 +172,11 @@ final class Eyepiece
      */
     public function currentSpan(): ?Span
     {
-        if ($this->entry === null || $this->stack === []) {
+        if ($this->capture === null || $this->stack === []) {
             return null;
         }
 
-        return $this->entry->spans[end($this->stack)] ?? null;
+        return $this->capture->spans[end($this->stack)] ?? null;
     }
 
     /**
@@ -195,10 +195,10 @@ final class Eyepiece
             kind: $kind,
             parentId: null,
             key: $key,
-            eyepiece: $this->entry === null ? null : $this,
+            eyepiece: $this->capture === null ? null : $this,
         );
 
-        if ($key !== null && $this->entry !== null) {
+        if ($key !== null && $this->capture !== null) {
             $this->keyed[$key] = $span;
         }
 
@@ -211,7 +211,7 @@ final class Eyepiece
     public function startSpan(Span $span, bool $origin = true): void
     {
         $this->measure(function () use ($span, $origin): void {
-            if ($this->entry === null) {
+            if ($this->capture === null) {
                 return;
             }
 
@@ -222,7 +222,7 @@ final class Eyepiece
                 $span->origin = $this->origin();
             }
 
-            $this->entry->spans[$span->id] = $span;
+            $this->capture->spans[$span->id] = $span;
             $this->stack[] = $span->id;
         });
     }
@@ -253,7 +253,7 @@ final class Eyepiece
     public function push(string $section, array $row, bool $origin = true): void
     {
         $this->measure(function () use ($section, $row, $origin): void {
-            if ($this->entry === null) {
+            if ($this->capture === null) {
                 return;
             }
 
@@ -263,7 +263,7 @@ final class Eyepiece
                 $row['origin'] = $this->origin();
             }
 
-            $this->entry->sections[$section][] = Normalizer::normalize($row);
+            $this->capture->sections[$section][] = Normalizer::normalize($row);
         });
     }
 
@@ -275,14 +275,14 @@ final class Eyepiece
     public function set(string $section, array $data): void
     {
         $this->measure(function () use ($section, $data): void {
-            if ($this->entry === null) {
+            if ($this->capture === null) {
                 return;
             }
 
-            $existing = $this->entry->sections[$section] ?? [];
+            $existing = $this->capture->sections[$section] ?? [];
             $existing = array_is_list($existing) ? [] : $existing;
 
-            $this->entry->sections[$section] = array_merge($existing, Normalizer::normalize($data));
+            $this->capture->sections[$section] = array_merge($existing, Normalizer::normalize($data));
         });
     }
 
@@ -291,61 +291,61 @@ final class Eyepiece
      */
     public function meta(array $meta): void
     {
-        if ($this->entry === null) {
+        if ($this->capture === null) {
             return;
         }
 
-        $this->entry->meta = array_merge($this->entry->meta, Normalizer::normalize($meta));
+        $this->capture->meta = array_merge($this->capture->meta, Normalizer::normalize($meta));
     }
 
     public function describe(?string $name = null, ?string $status = null, ?string $label = null): void
     {
-        if ($this->entry === null) {
+        if ($this->capture === null) {
             return;
         }
 
-        $this->entry->name = $name ?? $this->entry->name;
-        $this->entry->status = $status ?? $this->entry->status;
-        $this->entry->label = $label ?? $this->entry->label;
+        $this->capture->name = $name ?? $this->capture->name;
+        $this->capture->status = $status ?? $this->capture->status;
+        $this->capture->label = $label ?? $this->capture->label;
     }
 
     /**
-     * Close the entry, let lenses flush, store it and reset. Returns the stored
-     * entry or null when nothing was recorded or the entry was discarded.
+     * Close the capture, let lenses flush, store it and reset. Returns the stored
+     * capture or null when nothing was recorded or the capture was discarded.
      */
-    public function finalize(string $endedBy = 'normal'): ?Entry
+    public function finalize(string $endedBy = 'normal'): ?Capture
     {
-        if ($this->entry === null || $this->finalizing) {
+        if ($this->capture === null || $this->finalizing) {
             return null;
         }
 
         $this->finalizing = true;
-        $entry = $this->entry;
+        $capture = $this->capture;
 
         try {
             if ($this->discarded) {
                 return null;
             }
 
-            $entry->endedAt = microtime(true);
-            $entry->endedBy = $endedBy;
+            $capture->endedAt = microtime(true);
+            $capture->endedBy = $endedBy;
 
-            foreach ($entry->spans as $span) {
+            foreach ($capture->spans as $span) {
                 if ($span->isOpen()) {
                     $this->stopSpan($span, 'finalize');
                 }
             }
 
-            $this->app->make(LensRegistry::class)->finalize($entry);
+            $this->app->make(LensRegistry::class)->finalize($capture);
 
-            $entry->health = [
+            $capture->health = [
                 'overhead_ms' => round($this->overheadNs / 1_000_000, 3),
-                'open_spans_at_finalize' => count(array_filter($entry->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
+                'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
             ];
 
-            $this->stores->store()->put($entry);
+            $this->stores->store()->put($capture);
 
-            return $entry;
+            return $capture;
         } catch (Throwable $e) {
             $this->reportFailure($e);
 
@@ -358,7 +358,7 @@ final class Eyepiece
 
     public function reset(): void
     {
-        $this->entry = null;
+        $this->capture = null;
         $this->stack = [];
         $this->keyed = [];
         $this->spanCounter = 0;

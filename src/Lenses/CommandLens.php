@@ -7,9 +7,9 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
@@ -19,8 +19,8 @@ use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputInterface;
 
 /**
- * Artisan commands become entries of type command; a command invoked while
- * another entry is active (Artisan::call inside a request or a command)
+ * Artisan commands become captures of type command; a command invoked while
+ * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead.
  */
 final class CommandLens implements Finalizable, Lens, Resettable
@@ -41,7 +41,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
 
     public function description(): string
     {
-        return 'Artisan command facts for entries of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job entries.';
+        return 'Artisan command facts for captures of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -63,7 +63,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
         $eyepiece->listen(CommandFinished::class, $this->onFinished(...));
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
         $this->phase?->stop();
         $this->phase = null;
@@ -104,7 +104,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
             $this->usedLaravelStart = true;
         }
 
-        $this->eyepiece->start(EntryType::Command, $startedAt);
+        $this->eyepiece->start(CaptureType::Command, $startedAt);
         $this->eyepiece->describe(name: 'artisan ' . $event->command);
         $this->eyepiece->set('command', [
             'name' => $event->command,
@@ -136,9 +136,9 @@ final class CommandLens implements Finalizable, Lens, Resettable
             return;
         }
 
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        if ($entry === null || $entry->type !== EntryType::Command) {
+        if ($capture === null || $capture->type !== CaptureType::Command) {
             return;
         }
 

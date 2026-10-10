@@ -2,19 +2,25 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Reader;
+namespace ExeQue\Monocle;
 
-use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\LensRegistry;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Reader\CaptureReader;
+use ExeQue\Monocle\Reader\Filter;
+use ExeQue\Monocle\Reader\QueryAggregator;
+use ExeQue\Monocle\Reader\RowQuery;
+use ExeQue\Monocle\Reader\SectionReader;
+use ExeQue\Monocle\Reader\SummaryBuilder;
+use ExeQue\Monocle\Reader\TimelineBuilder;
 
 /**
  * One array-in, array-out API shared by the MCP tools, the artisan commands
  * and any future UI, so every front shows identical data.
  */
-final class Presenter
+final class Viewfinder
 {
     public function __construct(
-        private readonly EntryReader $entries,
+        private readonly CaptureReader $captures,
         private readonly SectionReader $sections,
         private readonly SummaryBuilder $summary,
         private readonly TimelineBuilder $timeline,
@@ -29,7 +35,7 @@ final class Presenter
      */
     public function list(array $args): array
     {
-        return $this->entries->list(Filter::fromArray($args));
+        return $this->captures->list(Filter::fromArray($args));
     }
 
     /**
@@ -38,21 +44,21 @@ final class Presenter
      */
     public function show(array $args): array
     {
-        $entry = $this->resolve($args);
+        $capture = $this->resolve($args);
 
-        if ($entry === null) {
+        if ($capture === null) {
             return $this->notFound($args);
         }
 
         $requested = array_values(array_filter(array_map('strval', (array) ($args['sections'] ?? ['summary']))));
         $query = RowQuery::fromArray(['limit' => $args['limit'] ?? 25, 'verbose' => $args['verbose'] ?? false]);
-        $result = ['id' => $entry->id, 'available_sections' => $this->availableSections($entry)];
+        $result = ['id' => $capture->id, 'available_sections' => $this->availableSections($capture)];
 
         foreach ($requested as $section) {
             $result[$section] = match ($section) {
-                'summary' => $this->summary->build($entry),
-                'timeline' => $this->timeline->build($entry, (array) ($args['kinds'] ?? []), $query->verbose),
-                default => $this->sections->read($entry, $section, $query),
+                'summary' => $this->summary->build($capture),
+                'timeline' => $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose),
+                default => $this->sections->read($capture, $section, $query),
             };
         }
 
@@ -65,21 +71,21 @@ final class Presenter
      */
     public function rows(array $args): array
     {
-        $entry = $this->resolve($args);
+        $capture = $this->resolve($args);
 
-        if ($entry === null) {
+        if ($capture === null) {
             return $this->notFound($args);
         }
 
         $section = (string) ($args['section'] ?? '');
 
         if ($section === 'timeline') {
-            $rows = $this->timeline->build($entry, (array) ($args['kinds'] ?? []), filter_var($args['verbose'] ?? false, FILTER_VALIDATE_BOOL));
+            $rows = $this->timeline->build($capture, (array) ($args['kinds'] ?? []), filter_var($args['verbose'] ?? false, FILTER_VALIDATE_BOOL));
 
-            return ['id' => $entry->id, 'section' => 'timeline'] + RowQuery::fromArray($args)->apply($rows);
+            return ['id' => $capture->id, 'section' => 'timeline'] + RowQuery::fromArray($args)->apply($rows);
         }
 
-        return ['id' => $entry->id] + $this->sections->read($entry, $section, RowQuery::fromArray($args));
+        return ['id' => $capture->id] + $this->sections->read($capture, $section, RowQuery::fromArray($args));
     }
 
     /**
@@ -88,19 +94,19 @@ final class Presenter
      */
     public function queries(array $args): array
     {
-        $entry = $this->resolve($args);
+        $capture = $this->resolve($args);
 
-        if ($entry === null) {
+        if ($capture === null) {
             return $this->notFound($args);
         }
 
         $groups = $this->queries->group(
-            $entry,
+            $capture,
             (string) ($args['group_by'] ?? 'shape'),
             (string) ($args['sort'] ?? 'total_ms'),
         );
 
-        return ['id' => $entry->id, 'group_by' => $args['group_by'] ?? 'shape'] + RowQuery::fromArray(['offset' => $args['offset'] ?? 0, 'limit' => $args['limit'] ?? 25])->apply($groups);
+        return ['id' => $capture->id, 'group_by' => $args['group_by'] ?? 'shape'] + RowQuery::fromArray(['offset' => $args['offset'] ?? 0, 'limit' => $args['limit'] ?? 25])->apply($groups);
     }
 
     /**
@@ -109,16 +115,16 @@ final class Presenter
      */
     public function trace(array $args): array
     {
-        $entry = $this->resolve($args);
+        $capture = $this->resolve($args);
 
-        if ($entry === null) {
+        if ($capture === null) {
             return $this->notFound($args);
         }
 
         return [
-            'id' => $entry->id,
-            'trace_id' => $entry->traceId,
-            'entries' => $this->entries->trace($entry->traceId ?? $entry->id),
+            'id' => $capture->id,
+            'trace_id' => $capture->traceId,
+            'captures' => $this->captures->trace($capture->traceId ?? $capture->id),
         ];
     }
 
@@ -127,27 +133,27 @@ final class Presenter
      */
     public function clear(): array
     {
-        $this->entries->clear();
+        $this->captures->clear();
 
         return ['cleared' => true];
     }
 
     /**
      * Every section the agent can ask for, with what it contains and how many
-     * rows the entry holds, so it can decide where to look next.
+     * rows the capture holds, so it can decide where to look next.
      *
      * @return list<array{key: string, description: string, rows: int|null}>
      */
-    private function availableSections(Entry $entry): array
+    private function availableSections(Capture $capture): array
     {
         $descriptions = $this->registry->descriptions();
 
         $sections = [
             ['key' => 'summary', 'description' => 'Time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), trace links and Monocle health.', 'rows' => null],
-            ['key' => 'timeline', 'description' => 'The span tree: request phases, each middleware (before/after $next), the derived controller span, transactions and spans added via Monocle::span(). Filter with kinds.', 'rows' => count($entry->spans)],
+            ['key' => 'timeline', 'description' => 'The span tree: request phases, each middleware (before/after $next), the derived controller span, transactions and spans added via Monocle::span(). Filter with kinds.', 'rows' => count($capture->spans)],
         ];
 
-        foreach ($entry->sections as $key => $data) {
+        foreach ($capture->sections as $key => $data) {
             $sections[] = [
                 'key' => (string) $key,
                 'description' => $descriptions[$key] ?? 'Custom section.',
@@ -156,7 +162,7 @@ final class Presenter
         }
 
         foreach ($descriptions as $key => $description) {
-            if (! array_key_exists($key, $entry->sections)) {
+            if (! array_key_exists($key, $capture->sections)) {
                 $sections[] = ['key' => $key, 'description' => $description, 'rows' => 0];
             }
         }
@@ -167,9 +173,9 @@ final class Presenter
     /**
      * @param  array<string, mixed>  $args
      */
-    private function resolve(array $args): ?Entry
+    private function resolve(array $args): ?Capture
     {
-        return $this->entries->find((string) ($args['id'] ?? 'latest'));
+        return $this->captures->find((string) ($args['id'] ?? 'latest'));
     }
 
     /**
@@ -182,8 +188,8 @@ final class Presenter
 
         return [
             'error' => $id === 'latest'
-                ? 'No entries recorded yet. Make a request to the application first.'
-                : "Entry [{$id}] not found. It may have been evicted from the ring buffer; use monocle-list to see what is stored.",
+                ? 'No captures recorded yet. Make a request to the application first.'
+                : "Capture [{$id}] not found. It may have been evicted from the ring buffer; use monocle-list to see what is stored.",
         ];
     }
 }

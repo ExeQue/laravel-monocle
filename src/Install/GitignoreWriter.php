@@ -11,7 +11,7 @@ use RuntimeException;
  */
 final class GitignoreWriter
 {
-    public const string COMMENT = '# Monocle profiler entries (see config/monocle.php)';
+    public const string COMMENT = '# Monocle profiler captures (see config/monocle.php)';
 
     /**
      * @return 'added'|'unchanged'

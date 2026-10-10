@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +12,7 @@ covers(DatabaseLens::class);
 describe(DatabaseLens::class, function (): void {
     beforeEach(function (): void {
         DB::statement('create table things (id integer primary key, name text)');
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('records queries with shape, type, tables and duplicates', function (): void {
@@ -21,8 +21,8 @@ describe(DatabaseLens::class, function (): void {
         DB::table('things')->where('id', 1)->first();
         DB::table('things')->where('id', 2)->first();
 
-        $entry = app(Eyepiece::class)->finalize();
-        $rows = $entry->rows('queries');
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('queries');
 
         expect($rows)->toHaveCount(4)
             ->and($rows[0]['type'])->toBe('insert')
@@ -52,9 +52,9 @@ describe(DatabaseLens::class, function (): void {
         } catch (RuntimeException) {
         }
 
-        $entry = app(Eyepiece::class)->finalize();
-        $transactions = $entry->spansOfKind('db.transaction');
-        $rows = $entry->rows('queries');
+        $capture = app(Eyepiece::class)->finalize();
+        $transactions = $capture->spansOfKind('db.transaction');
+        $rows = $capture->rows('queries');
 
         expect($transactions)->toHaveCount(2)
             ->and($transactions[0]->meta['outcome'])->toBe('committed')
@@ -71,8 +71,8 @@ describe(DatabaseLens::class, function (): void {
             DB::table('things')->where('id', $id)->first();
         }
 
-        $entry = app(Eyepiece::class)->finalize();
-        $summary = $lens->summarize($entry);
+        $capture = app(Eyepiece::class)->finalize();
+        $summary = $lens->summarize($capture);
 
         expect($summary['totals']['queries'])->toBe(3)
             ->and($summary['totals']['queries_by_type'])->toBe(['select' => 3])

@@ -2,7 +2,7 @@
 
 # Storage
 
-Entries are kept in a **ring buffer**: the newest `monocle.storage.limit` entries (default 200) survive, older ones are evicted on every write. There is no limit on the size of one entry - every query and every span is kept - only on how many entries there are.
+Captures are kept in a **ring buffer**: the newest `monocle.storage.limit` captures (default 200) survive, older ones are evicted on every write. There is no limit on the size of one capture - every query and every span is kept - only on how many captures there are.
 
 Writes happen after the response has been sent (in `terminating`), on job completion and on command completion. A write that fails is logged once and never breaks the application.
 
@@ -19,7 +19,7 @@ Writes happen after the response has been sent (in `terminating`), on job comple
 
 ### `file` (default)
 
-One JSON file per entry plus an `index.json` of summary rows, in `storage/monocle/`. The directory gets a `.gitignore`. The index is rewritten under an exclusive lock and files are written atomically, so the web process, a queue worker and the MCP server can share it without configuration. Listing, filtering and tracing read only the index.
+One JSON file per capture plus an `index.json` of summary rows, in `storage/monocle/`. The directory gets a `.gitignore`. The index is rewritten under an exclusive lock and files are written atomically, so the web process, a queue worker and the MCP server can share it without configuration. Listing, filtering and tracing read only the index.
 
 ### `cache`
 
@@ -31,18 +31,18 @@ Implement the contract:
 
 ```php
 use ExeQue\Monocle\Contracts\Store;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 
 interface Store
 {
-    public function put(Entry $entry): void;     // persist and trim to the limit
-    public function find(string $id): ?Entry;
+    public function put(Capture $capture): void;     // persist and trim to the limit
+    public function find(string $id): ?Capture;
     public function index(): array;              // summary rows, newest first
     public function clear(): void;
 }
 ```
 
-`ExeQue\Monocle\Storage\Index::summarize($entry)` builds the summary row the readers expect. Then either point `driver` at the class name (it is resolved through the container) or register a named driver:
+`ExeQue\Monocle\Storage\Index::summarize($capture)` builds the summary row the readers expect. Then either point `driver` at the class name (it is resolved through the container) or register a named driver:
 
 ```php
 use ExeQue\Monocle\Facades\Monocle;
@@ -57,9 +57,9 @@ Monocle::extendStore('redis-stream', fn ($app, array $config) => new RedisStream
 'storage' => ['driver' => 'redis-stream', 'limit' => 500],
 ```
 
-## The entry format
+## The capture format
 
-`Entry::toArray()` is what gets stored and what every reader consumes. It carries `schema_version` (currently 1); changes are additive and a breaking change bumps it. The shape:
+`Capture::toArray()` is what gets stored and what every reader consumes. It carries `schema_version` (currently 1); changes are additive and a breaking change bumps it. The shape:
 
 ```json
 {

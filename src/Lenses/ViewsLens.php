@@ -7,7 +7,7 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
@@ -68,9 +68,9 @@ final class ViewsLens implements Configurable, Lens, Summarizable
         }
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('views');
+        $rows = $capture->rows('views');
 
         if ($rows === []) {
             return [];
@@ -78,8 +78,8 @@ final class ViewsLens implements Configurable, Lens, Summarizable
 
         $topLevel = 0.0;
 
-        foreach ($entry->spansOfKind('view') as $span) {
-            $parent = $span->parentId !== null ? ($entry->spans[$span->parentId] ?? null) : null;
+        foreach ($capture->spansOfKind('view') as $span) {
+            $parent = $span->parentId !== null ? ($capture->spans[$span->parentId] ?? null) : null;
 
             if (! $parent instanceof Span || $parent->kind !== 'view') {
                 $topLevel += $span->duration() ?? 0.0;

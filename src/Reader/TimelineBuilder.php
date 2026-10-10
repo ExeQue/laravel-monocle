@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 
 /**
@@ -17,9 +17,9 @@ final class TimelineBuilder
      * @param  list<string>  $kinds
      * @return list<array<string, mixed>>
      */
-    public function build(Entry $entry, array $kinds = [], bool $verbose = false): array
+    public function build(Capture $capture, array $kinds = [], bool $verbose = false): array
     {
-        $spans = $entry->spans;
+        $spans = $capture->spans;
 
         if ($kinds !== []) {
             $spans = array_filter($spans, fn (Span $span): bool => in_array($span->kind, $kinds, true));

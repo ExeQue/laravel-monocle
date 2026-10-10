@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use GuzzleHttp\Psr7\Request as PsrRequest;
@@ -20,15 +20,15 @@ describe(HttpClientLens::class, function (): void {
             'down.example.com/*' => Http::response('nope', 503),
         ]);
 
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('records calls with masked query and headers, sizes and status', function (): void {
         Http::withToken('verysecrettoken')->post('https://api.example.com/orders?api_token=abcdefghij&page=2', ['name' => 'ada']);
         Http::get('https://down.example.com/health');
 
-        $entry = app(Eyepiece::class)->finalize();
-        $rows = $entry->rows('http');
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('http');
 
         expect($rows)->toHaveCount(2)
             ->and($rows[0]['method'])->toBe('POST')
@@ -45,7 +45,7 @@ describe(HttpClientLens::class, function (): void {
             ->and($rows[1]['failed'])->toBeTrue()
             ->and($rows[0]['origin']['file'])->toContain('HttpClientLensTest.php');
 
-        $summary = (new HttpClientLens())->summarize($entry);
+        $summary = (new HttpClientLens())->summarize($capture);
 
         expect($summary['totals'])->toMatchArray(['http_calls' => 2, 'http_failed' => 1, 'http_by_host' => ['api.example.com' => 1, 'down.example.com' => 1]])
             ->and($summary['warnings'])->toBe(['HTTP call failed: GET https://down.example.com/health (503)']);

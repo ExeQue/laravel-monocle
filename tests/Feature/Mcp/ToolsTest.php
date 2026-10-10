@@ -3,30 +3,30 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Mcp\MonocleServer;
-use ExeQue\Monocle\Mcp\Tools\ClearEntries;
-use ExeQue\Monocle\Mcp\Tools\ListEntries;
-use ExeQue\Monocle\Mcp\Tools\ShowEntry;
+use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
+use ExeQue\Monocle\Mcp\Tools\ListCaptures;
+use ExeQue\Monocle\Mcp\Tools\ShowCapture;
 use ExeQue\Monocle\Mcp\Tools\ShowQueries;
 use ExeQue\Monocle\Mcp\Tools\ShowRows;
 use ExeQue\Monocle\Mcp\Tools\ShowTrace;
-use ExeQue\Monocle\Reader\Presenter;
 use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Reader\TimelineBuilder;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 
-covers(MonocleServer::class, ListEntries::class, ShowEntry::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearEntries::class, Presenter::class, SummaryBuilder::class, TimelineBuilder::class);
+covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearCaptures::class, Viewfinder::class, SummaryBuilder::class, TimelineBuilder::class);
 
 /**
  * Run the tool through the MCP server (asserting success) and return the same
- * payload from the Presenter the tool delegates to.
+ * payload from the Viewfinder the tool delegates to.
  */
 function toolJson(string $tool, array $args, string $method): array
 {
     MonocleServer::tool($tool, $args)->assertOk()->assertHasNoErrors();
 
-    return app(Presenter::class)->{$method}($args);
+    return app(Viewfinder::class)->{$method}($args);
 }
 
 describe('MCP tools', function (): void {
@@ -46,17 +46,17 @@ describe('MCP tools', function (): void {
         $this->get('/things')->assertOk();
     });
 
-    it('lists entries with filters and pagination', function (): void {
-        $result = toolJson(ListEntries::class, ['uri' => 'things', 'limit' => 5], 'list');
+    it('lists captures with filters and pagination', function (): void {
+        $result = toolJson(ListCaptures::class, ['uri' => 'things', 'limit' => 5], 'list');
 
         expect($result['total'])->toBe(1)
             ->and($result['rows'][0]['name'])->toBe('GET /things')
             ->and($result['rows'][0]['counts']['queries'])->toBe(4)
-            ->and(toolJson(ListEntries::class, ['type' => 'job'], 'list')['total'])->toBe(0);
+            ->and(toolJson(ListCaptures::class, ['type' => 'job'], 'list')['total'])->toBe(0);
     });
 
     it('shows the summary with breakdown, warnings and section descriptions', function (): void {
-        $result = toolJson(ShowEntry::class, ['id' => 'latest'], 'show');
+        $result = toolJson(ShowCapture::class, ['id' => 'latest'], 'show');
         $summary = $result['summary'];
         $phaseNames = array_column($summary['breakdown']['phases'], 'name');
         $sections = array_column($result['available_sections'], 'description', 'key');
@@ -71,7 +71,7 @@ describe('MCP tools', function (): void {
     });
 
     it('shows the timeline filtered by kind', function (): void {
-        $result = toolJson(ShowEntry::class, ['sections' => ['timeline'], 'kinds' => ['phase']], 'show');
+        $result = toolJson(ShowCapture::class, ['sections' => ['timeline'], 'kinds' => ['phase']], 'show');
 
         expect(array_unique(array_column($result['timeline'], 'kind')))->toBe(['phase'])
             ->and($result['timeline'][0])->toHaveKeys(['depth', 'start', 'duration']);
@@ -102,12 +102,12 @@ describe('MCP tools', function (): void {
             ->and($byCaller['rows'][0]['key'])->toContain('ToolsTest.php');
     });
 
-    it('shows the trace of an entry', function (): void {
+    it('shows the trace of a capture', function (): void {
         $result = toolJson(ShowTrace::class, [], 'trace');
 
-        expect($result['entries'])->toHaveCount(1)
-            ->and($result['entries'][0]['depth'])->toBe(0)
-            ->and($result['entries'][0]['offset_ms'])->toBe(0.0);
+        expect($result['captures'])->toHaveCount(1)
+            ->and($result['captures'][0]['depth'])->toBe(0)
+            ->and($result['captures'][0]['offset_ms'])->toBe(0.0);
     });
 
     it('lists every lens section with its description in the server instructions', function (): void {
@@ -122,11 +122,11 @@ describe('MCP tools', function (): void {
             ->and($instructions)->toContain('monocle-list');
     });
 
-    it('reports missing entries as errors and clears the store', function (): void {
-        MonocleServer::tool(ShowEntry::class, ['id' => 'nope'])->assertHasErrors();
+    it('reports missing captures as errors and clears the store', function (): void {
+        MonocleServer::tool(ShowCapture::class, ['id' => 'nope'])->assertHasErrors();
 
-        toolJson(ClearEntries::class, [], 'clear');
+        toolJson(ClearCaptures::class, [], 'clear');
 
-        MonocleServer::tool(ShowEntry::class, [])->assertHasErrors(['No entries recorded yet. Make a request to the application first.']);
+        MonocleServer::tool(ShowCapture::class, [])->assertHasErrors(['No captures recorded yet. Make a request to the application first.']);
     });
 });

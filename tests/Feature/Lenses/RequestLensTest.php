@@ -15,18 +15,18 @@ describe(RequestLens::class, function (): void {
         Route::get('/_monocle/api', fn () => 'hidden');
     });
 
-    it('records a request entry with phases, request facts and response headers', function (): void {
+    it('records a request capture with phases, request facts and response headers', function (): void {
         $response = $this->get('/ping/7?token=abcdefgh1234&page=2', ['Authorization' => 'Bearer verysecrettoken', 'X-Monocle-Label' => 'baseline']);
 
         $response->assertOk();
 
-        $entry = latestEntry();
-        $phases = array_map(fn (Span $span): string => $span->name, $entry->spansOfKind('phase'));
-        $request = $entry->section('request');
+        $capture = latestCapture();
+        $phases = array_map(fn (Span $span): string => $span->name, $capture->spansOfKind('phase'));
+        $request = $capture->section('request');
 
-        expect($entry->name)->toBe('GET /ping/7')
-            ->and($entry->status)->toBe('200')
-            ->and($entry->label)->toBe('baseline')
+        expect($capture->name)->toBe('GET /ping/7')
+            ->and($capture->status)->toBe('200')
+            ->and($capture->label)->toBe('baseline')
             ->and($phases)->toContain('middleware', 'routing', 'handle', 'terminate')
             ->and($request['route']['name'])->toBe('ping')
             ->and($request['route']['parameters'])->toBe(['id' => '7'])
@@ -36,20 +36,20 @@ describe(RequestLens::class, function (): void {
             ->and($request['status'])->toBe(200)
             ->and($request['response_bytes'])->toBeGreaterThan(0)
             ->and($request['memory_peak_bytes'])->toBeGreaterThan(0)
-            ->and($response->headers->get('X-Monocle-Id'))->toBe($entry->id)
+            ->and($response->headers->get('X-Monocle-Id'))->toBe($capture->id)
             ->and($response->headers->get('Server-Timing'))->toContain('app;dur=');
     });
 
     it('masks matching input keys', function (): void {
         $this->post('/login', ['email' => 'a@b.c', 'password' => 'hunter22hunter22']);
 
-        expect(latestEntry()->section('request')['input'])->toBe(['email' => 'a@b.c', 'password' => 'hunt****']);
+        expect(latestCapture()->section('request')['input'])->toBe(['email' => 'a@b.c', 'password' => 'hunt****']);
     });
 
     it('derives a controller span', function (): void {
         $this->get('/ping/1');
 
-        $controller = latestEntry()->spans['controller'] ?? null;
+        $controller = latestCapture()->spans['controller'] ?? null;
 
         expect($controller)->not->toBeNull()
             ->and($controller->kind)->toBe('controller')
@@ -59,14 +59,14 @@ describe(RequestLens::class, function (): void {
     it('does not record excepted paths', function (): void {
         $this->get('/_monocle/api')->assertOk();
 
-        expect(latestEntry())->toBeNull();
+        expect(latestCapture())->toBeNull();
     });
 
-    it('records one entry per request in the same process', function (): void {
+    it('records one capture per request in the same process', function (): void {
         $this->get('/ping/1');
         $this->get('/ping/2');
 
-        expect(app(ExeQue\Monocle\Reader\EntryReader::class)->list(ExeQue\Monocle\Reader\Filter::fromArray([]))['total'])->toBe(2)
-            ->and(latestEntry()->name)->toBe('GET /ping/2');
+        expect(app(ExeQue\Monocle\Reader\CaptureReader::class)->list(ExeQue\Monocle\Reader\Filter::fromArray([]))['total'])->toBe(2)
+            ->and(latestCapture()->name)->toBe('GET /ping/2');
     });
 });

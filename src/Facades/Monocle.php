@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Facades;
 
 use Closure;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\MonocleManager;
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static Span mark(string $name, array $meta = [])
  * @method static MonocleManager meta(array $meta)
  * @method static MonocleManager label(string $label)
- * @method static Entry|null active()
+ * @method static Capture|null active()
  * @method static MonocleManager enabled(bool|Closure $enabled)
  * @method static bool isEnabled()
  * @method static MonocleManager register(string $lens, array|bool $options = true)

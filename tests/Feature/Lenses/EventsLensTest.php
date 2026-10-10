@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\EventsLens;
 use Illuminate\Support\Facades\Event;
@@ -16,7 +16,7 @@ describe(EventsLens::class, function (): void {
         OrderPlacedListener::$handled = 0;
         Event::listen(OrderPlaced::class, OrderPlacedListener::class);
         Event::listen('custom.string', fn (string $value) => null);
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('records application events with payload and listeners but not framework events', function (): void {
@@ -25,8 +25,8 @@ describe(EventsLens::class, function (): void {
         event('unhandled.event', ['x' => 1]);
         cache()->put('k', 'v', 1);
 
-        $entry = app(Eyepiece::class)->finalize();
-        $rows = $entry->rows('events');
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('events');
         $names = array_column($rows, 'event');
 
         expect(OrderPlacedListener::$handled)->toBe(1)
@@ -39,7 +39,7 @@ describe(EventsLens::class, function (): void {
             ->and($rows[2]['listeners'])->toBe([])
             ->and($rows[0]['origin']['file'])->toContain('EventsLensTest.php');
 
-        $summary = (new EventsLens())->summarize($entry);
+        $summary = (new EventsLens())->summarize($capture);
 
         expect($summary['totals'])->toBe(['events' => 3, 'events_without_listeners' => 1]);
     });

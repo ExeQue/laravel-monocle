@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ covers(EloquentLens::class);
 describe(EloquentLens::class, function (): void {
     beforeEach(function (): void {
         DB::statement('create table things (id integer primary key autoincrement, name text, secret text)');
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('counts model events per class and records writes without hidden attributes', function (): void {
@@ -23,9 +23,9 @@ describe(EloquentLens::class, function (): void {
         $thing->update(['name' => 'c']);
         $thing->delete();
 
-        $entry = app(Eyepiece::class)->finalize();
-        $counts = collect($entry->rows('models'))->keyBy('action');
-        $changes = $entry->rows('model_changes');
+        $capture = app(Eyepiece::class)->finalize();
+        $counts = collect($capture->rows('models'))->keyBy('action');
+        $changes = $capture->rows('model_changes');
 
         expect($counts['retrieved']['count'])->toBe(2)
             ->and($counts['created']['count'])->toBe(2)
@@ -53,9 +53,9 @@ describe(EloquentLens::class, function (): void {
     });
 
     it('writes nothing when no models were touched', function (): void {
-        $entry = app(Eyepiece::class)->finalize();
+        $capture = app(Eyepiece::class)->finalize();
 
-        expect($entry->sections)->not->toHaveKey('models')
-            ->and((new EloquentLens())->summarize($entry)['totals']['models_retrieved'])->toBe(0);
+        expect($capture->sections)->not->toHaveKey('models')
+            ->and((new EloquentLens())->summarize($capture)['totals']['models_retrieved'])->toBe(0);
     });
 });

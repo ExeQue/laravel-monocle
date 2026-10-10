@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
 use Illuminate\Database\Eloquent\Model;
 
-covers(Eyepiece::class, Span::class, ExeQue\Monocle\MonocleManager::class, ExeQue\Monocle\Data\Entry::class);
+covers(Eyepiece::class, Span::class, ExeQue\Monocle\MonocleManager::class, ExeQue\Monocle\Data\Capture::class);
 
 describe(Eyepiece::class, function (): void {
     beforeEach(function (): void {
         $this->eyepiece = app(Eyepiece::class);
-        $this->eyepiece->start(EntryType::Request);
+        $this->eyepiece->start(CaptureType::Request);
     });
 
     describe('spans', function (): void {
@@ -87,22 +87,22 @@ describe(Eyepiece::class, function (): void {
         it('closes open spans at finalize and flags them', function (): void {
             Monocle::span('forgotten')->start();
 
-            $entry = $this->eyepiece->finalize();
+            $capture = $this->eyepiece->finalize();
 
-            expect($entry->spans)->toHaveCount(1)
-                ->and(array_values($entry->spans)[0]->endedBy)->toBe('finalize')
-                ->and($entry->health['open_spans_at_finalize'])->toBe(1);
+            expect($capture->spans)->toHaveCount(1)
+                ->and(array_values($capture->spans)[0]->endedBy)->toBe('finalize')
+                ->and($capture->health['open_spans_at_finalize'])->toBe(1);
         });
     });
 
-    describe('entry metadata', function (): void {
-        it('merges entry meta and stores a label', function (): void {
+    describe('capture metadata', function (): void {
+        it('merges capture meta and stores a label', function (): void {
             Monocle::meta(['album' => 1])->meta(['album' => 2, 'user' => 9])->label('baseline');
 
-            $entry = $this->eyepiece->finalize();
+            $capture = $this->eyepiece->finalize();
 
-            expect($entry->meta)->toBe(['album' => 2, 'user' => 9])
-                ->and($entry->label)->toBe('baseline');
+            expect($capture->meta)->toBe(['album' => 2, 'user' => 9])
+                ->and($capture->label)->toBe('baseline');
         });
 
         it('attaches origin and time to pushed rows', function (): void {
@@ -111,7 +111,7 @@ describe(Eyepiece::class, function (): void {
             $row = $this->eyepiece->active()->rows('custom')[0];
 
             expect($row['time'])->toBeFloat()
-                ->and($row['origin']['file'])->toContain('RecorderTest.php');
+                ->and($row['origin']['file'])->toContain('EyepieceTest.php');
         });
 
         it('skips origin when asked', function (): void {
@@ -122,7 +122,7 @@ describe(Eyepiece::class, function (): void {
     });
 
     describe('lifecycle', function (): void {
-        it('is a no-op without an active entry', function (): void {
+        it('is a no-op without an active capture', function (): void {
             $this->eyepiece->reset();
 
             $span = Monocle::span('idle')->start()->stop();
@@ -133,20 +133,20 @@ describe(Eyepiece::class, function (): void {
                 ->and(Monocle::measure('m', fn (): string => 'ok'))->toBe('ok');
         });
 
-        it('does not store discarded entries', function (): void {
+        it('does not store discarded captures', function (): void {
             $this->eyepiece->discard();
 
             expect($this->eyepiece->finalize())->toBeNull()
-                ->and(latestEntry())->toBeNull();
+                ->and(latestCapture())->toBeNull();
         });
 
-        it('stores finalized entries with duration and overhead', function (): void {
+        it('stores finalized captures with duration and overhead', function (): void {
             Monocle::span('a')->start()->stop();
 
-            $entry = $this->eyepiece->finalize();
-            $stored = latestEntry();
+            $capture = $this->eyepiece->finalize();
+            $stored = latestCapture();
 
-            expect($stored->id)->toBe($entry->id)
+            expect($stored->id)->toBe($capture->id)
                 ->and($stored->duration())->toBeGreaterThan(0)
                 ->and($stored->health['overhead_ms'])->toBeGreaterThanOrEqual(0)
                 ->and($stored->endedBy)->toBe('normal')

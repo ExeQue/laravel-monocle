@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Contracts;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 
 interface Store
 {
     /**
-     * Persist the entry and trim the ring buffer to the configured limit.
+     * Persist the capture and trim the ring buffer to the configured limit.
      */
-    public function put(Entry $entry): void;
+    public function put(Capture $capture): void;
 
-    public function find(string $id): ?Entry;
+    public function find(string $id): ?Capture;
 
     /**
-     * Summary rows for every stored entry, newest first.
+     * Summary rows for every stored capture, newest first.
      *
      * @return list<array<string, mixed>>
      */

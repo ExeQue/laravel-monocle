@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
-use ExeQue\Monocle\Reader\Presenter;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 
 final class ClearCommand extends Command
@@ -14,11 +14,11 @@ final class ClearCommand extends Command
 
     protected $name = 'monocle:clear';
 
-    protected $description = 'Delete all recorded entries';
+    protected $description = 'Delete all recorded captures';
 
-    public function handle(Presenter $presenter): int
+    public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($presenter->clear());
+        return $this->outputJson($viewfinder->clear());
     }
 
     protected function getOptions(): array

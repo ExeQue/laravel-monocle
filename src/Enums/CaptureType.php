@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Enums;
 
-enum EntryType: string
+enum CaptureType: string
 {
     case Request = 'request';
     case Job = 'job';

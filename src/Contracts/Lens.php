@@ -14,7 +14,7 @@ use Illuminate\Contracts\Foundation\Application;
 interface Lens
 {
     /**
-     * Section key under Entry->sections and in the MCP `sections` argument.
+     * Section key under Capture->sections and in the MCP `sections` argument.
      */
     public function key(): string;
 

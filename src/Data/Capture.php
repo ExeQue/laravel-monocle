@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Data;
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 
 /**
  * Everything recorded for one unit of work: a request, a job, a command or an
  * MCP call. Lenses write into `sections`; spans form the timeline.
  */
-final class Entry
+final class Capture
 {
     public const int SCHEMA_VERSION = 1;
 
@@ -38,7 +38,7 @@ final class Entry
 
     public function __construct(
         public readonly string $id,
-        public readonly EntryType $type,
+        public readonly CaptureType $type,
         public readonly float $startedAt,
         public ?string $parentId = null,
         public ?string $traceId = null,
@@ -114,27 +114,27 @@ final class Entry
      */
     public static function fromArray(array $data): self
     {
-        $entry = new self(
+        $capture = new self(
             id: $data['id'],
-            type: EntryType::from($data['type']),
+            type: CaptureType::from($data['type']),
             startedAt: (float) $data['started_at'],
             parentId: $data['parent_id'] ?? null,
             traceId: $data['trace_id'] ?? null,
         );
 
-        $entry->name = $data['name'] ?? null;
-        $entry->status = $data['status'] ?? null;
-        $entry->label = $data['label'] ?? null;
-        $entry->endedAt = $data['ended_at'] ?? null;
-        $entry->endedBy = $data['ended_by'] ?? 'normal';
-        $entry->meta = $data['meta'] ?? [];
-        $entry->health = $data['health'] ?? [];
-        $entry->sections = $data['sections'] ?? [];
+        $capture->name = $data['name'] ?? null;
+        $capture->status = $data['status'] ?? null;
+        $capture->label = $data['label'] ?? null;
+        $capture->endedAt = $data['ended_at'] ?? null;
+        $capture->endedBy = $data['ended_by'] ?? 'normal';
+        $capture->meta = $data['meta'] ?? [];
+        $capture->health = $data['health'] ?? [];
+        $capture->sections = $data['sections'] ?? [];
 
         foreach ($data['spans'] ?? [] as $span) {
-            $entry->spans[$span['id']] = Span::fromArray($span);
+            $capture->spans[$span['id']] = Span::fromArray($span);
         }
 
-        return $entry;
+        return $capture;
     }
 }

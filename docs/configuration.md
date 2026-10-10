@@ -39,7 +39,7 @@ The facade is `Conditionable`: `Monocle::when($this->app->isLocal())->register(.
 
 ## `except`
 
-Requests and commands that are never recorded. `paths` are matched with `Request::is()`; `commands` with `Str::is()` against the command name. The defaults exclude Monocle's own endpoints and MCP server, Boost, Horizon, Clockwork and Debugbar, and the long-running queue and scheduler workers (the jobs they run are recorded as entries of their own).
+Requests and commands that are never recorded. `paths` are matched with `Request::is()`; `commands` with `Str::is()` against the command name. The defaults exclude Monocle's own endpoints and MCP server, Boost, Horizon, Clockwork and Debugbar, and the long-running queue and scheduler workers (the jobs they run are recorded as captures of their own).
 
 ## `mask`
 
@@ -63,7 +63,7 @@ Every row and span records the user-land call site. `frames` is how many extra f
 
 ## `storage`
 
-See [Storage](storage.md). `driver` is `file` (default), `cache`, a class implementing `Store`, or a name registered with `Monocle::extendStore()`. `limit` is the ring buffer size in entries.
+See [Storage](storage.md). `driver` is `file` (default), `cache`, a class implementing `Store`, or a name registered with `Monocle::extendStore()`. `limit` is the ring buffer size in captures.
 
 ## `mcp`
 

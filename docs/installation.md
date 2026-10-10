@@ -99,4 +99,4 @@ php artisan mcp:inspector monocle
 
 ## Where the data lives
 
-Entries are written to `storage/monocle/` as JSON, newest 200 kept. A `.gitignore` is created in that directory. See [Storage](storage.md) to change the driver or the limit.
+Captures are written to `storage/monocle/` as JSON, newest 200 kept. A `.gitignore` is created in that directory. See [Storage](storage.md) to change the driver or the limit.

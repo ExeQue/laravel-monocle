@@ -6,7 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Foundation\Application;
@@ -14,7 +14,7 @@ use Illuminate\Log\Events\MessageLogged;
 use Throwable;
 
 /**
- * Log messages written during the entry, with level and context.
+ * Log messages written during the capture, with level and context.
  */
 final class LogLens implements Lens, Summarizable
 {
@@ -29,7 +29,7 @@ final class LogLens implements Lens, Summarizable
 
     public function description(): string
     {
-        return 'Log entries written while handling the entry: level, message and context. Exceptions in the context are reduced to class, message and file:line.';
+        return 'Log captures written while handling the capture: level, message and context. Exceptions in the context are reduced to class, message and file:line.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -49,9 +49,9 @@ final class LogLens implements Lens, Summarizable
         });
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('log');
+        $rows = $capture->rows('log');
 
         if ($rows === []) {
             return [];
@@ -69,7 +69,7 @@ final class LogLens implements Lens, Summarizable
         }
 
         return [
-            'totals' => ['log_entries' => count($rows), 'log_by_level' => $byLevel],
+            'totals' => ['log_captures' => count($rows), 'log_by_level' => $byLevel],
             'warnings' => $warnings,
         ];
     }

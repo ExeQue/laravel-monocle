@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Queue;
 
 use Closure;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use Throwable;
 
@@ -21,15 +21,15 @@ final class SyncDispatchPipe
 
     public function handle(object $command, Closure $next): mixed
     {
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        if ($entry === null || ! $this->eyepiece->recording()) {
+        if ($capture === null || ! $this->eyepiece->recording()) {
             return $next($command);
         }
 
-        // Inside a worker the job entry already represents this command, and on
+        // Inside a worker the job capture already represents this command, and on
         // the sync queue the JobProcessing span does.
-        if ($entry->type === EntryType::Job && $entry->name === $command::class) {
+        if ($capture->type === CaptureType::Job && $capture->name === $command::class) {
             return $next($command);
         }
 

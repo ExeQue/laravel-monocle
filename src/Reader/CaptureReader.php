@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Storage\StoreManager;
 
 /**
- * Lists, finds and traces entries using the store index wherever possible.
+ * Lists, finds and traces captures using the store index wherever possible.
  */
-final class EntryReader
+final class CaptureReader
 {
     public function __construct(private readonly StoreManager $stores)
     {
@@ -36,9 +36,9 @@ final class EntryReader
     }
 
     /**
-     * Resolve an entry by id or the literal "latest".
+     * Resolve a capture by id or the literal "latest".
      */
-    public function find(string $id): ?Entry
+    public function find(string $id): ?Capture
     {
         if ($id === 'latest' || $id === '') {
             $index = $this->stores->store()->index();
@@ -65,7 +65,7 @@ final class EntryReader
     }
 
     /**
-     * Every entry sharing the trace of the given entry, oldest first, with a
+     * Every capture sharing the trace of the given capture, oldest first, with a
      * depth computed from the parent chain.
      *
      * @return list<array<string, mixed>>

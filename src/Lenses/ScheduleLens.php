@@ -6,7 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -17,8 +17,8 @@ use Illuminate\Console\Scheduling\Event;
 use Illuminate\Contracts\Foundation\Application;
 
 /**
- * Scheduled tasks run by schedule:run, recorded on that command's entry.
- * Tasks run as subprocesses, so their own output lands in separate entries.
+ * Scheduled tasks run by schedule:run, recorded on that command's capture.
+ * Tasks run as subprocesses, so their own output lands in separate captures.
  */
 final class ScheduleLens implements Lens, Summarizable
 {
@@ -47,9 +47,9 @@ final class ScheduleLens implements Lens, Summarizable
         ]));
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('scheduled_tasks');
+        $rows = $capture->rows('scheduled_tasks');
 
         if ($rows === []) {
             return [];

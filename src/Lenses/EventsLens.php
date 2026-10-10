@@ -8,7 +8,7 @@ use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -75,9 +75,9 @@ final class EventsLens implements Configurable, Lens, Summarizable
         });
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('events');
+        $rows = $capture->rows('events');
 
         if ($rows === []) {
             return [];

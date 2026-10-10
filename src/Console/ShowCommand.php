@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
-use ExeQue\Monocle\Reader\Presenter;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
@@ -16,11 +16,11 @@ final class ShowCommand extends Command
 
     protected $name = 'monocle:show';
 
-    protected $description = 'Show an entry summary, timeline or sections (same output as the monocle-show MCP tool)';
+    protected $description = 'Show a capture summary, timeline or sections (same output as the monocle-show MCP tool)';
 
-    public function handle(Presenter $presenter): int
+    public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($presenter->show([
+        return $this->outputJson($viewfinder->show([
             'id' => $this->argument('id'),
             'sections' => $this->option('section') ?: ['summary'],
             'kinds' => $this->option('kind'),
@@ -31,7 +31,7 @@ final class ShowCommand extends Command
     protected function getArguments(): array
     {
         return [
-            new InputArgument('id', InputArgument::OPTIONAL, 'Entry id or "latest"', 'latest'),
+            new InputArgument('id', InputArgument::OPTIONAL, 'Capture id or "latest"', 'latest'),
         ];
     }
 

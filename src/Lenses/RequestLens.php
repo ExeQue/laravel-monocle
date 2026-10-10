@@ -8,9 +8,9 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
- * Owns the HTTP entry lifecycle: starts it, records request/response facts,
+ * Owns the HTTP capture lifecycle: starts it, records request/response facts,
  * lays down the phase spans and persists at terminate.
  */
 final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
@@ -59,7 +59,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->eyepiece = $eyepiece;
 
         if (! $app->runningInConsole()) {
-            $this->startEntry(defined('LARAVEL_START') ? LARAVEL_START : null);
+            $this->startCapture(defined('LARAVEL_START') ? LARAVEL_START : null);
             $this->phase('bootstrap');
         }
 
@@ -84,11 +84,11 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         });
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
-        $this->deriveControllerSpan($entry);
+        $this->deriveControllerSpan($capture);
 
-        $entry->sections['request'] = array_merge($entry->section('request'), [
+        $capture->sections['request'] = array_merge($capture->section('request'), [
             'memory_peak_bytes' => memory_get_peak_usage(true),
         ]);
     }
@@ -100,9 +100,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->responsePreparedAt = null;
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $request = $entry->section('request');
+        $request = $capture->section('request');
 
         return [
             'totals' => [
@@ -117,7 +117,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $request = $event->request;
 
         if ($this->eyepiece->active() === null || $this->requestsInProcess > 0) {
-            $this->startEntry((float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
+            $this->startCapture((float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
             $this->phase('middleware');
         }
 
@@ -153,9 +153,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function onRequestHandled(RequestHandled $event): void
     {
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        if ($entry === null || ! $this->eyepiece->recording()) {
+        if ($capture === null || ! $this->eyepiece->recording()) {
             return;
         }
 
@@ -166,17 +166,17 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->phase('terminate');
 
         try {
-            $response->headers->set('X-Monocle-Id', $entry->id);
-            $response->headers->set('Server-Timing', $this->serverTiming($entry));
+            $response->headers->set('X-Monocle-Id', $capture->id);
+            $response->headers->set('Server-Timing', $this->serverTiming($capture));
         } catch (Throwable) {
             // Streamed or already-sent responses may refuse header changes.
         }
     }
 
-    private function startEntry(?float $startedAt): void
+    private function startCapture(?float $startedAt): void
     {
         $this->reset();
-        $this->eyepiece->start(EntryType::Request, $startedAt);
+        $this->eyepiece->start(CaptureType::Request, $startedAt);
     }
 
     /**
@@ -212,9 +212,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function firstPhase(): bool
     {
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        return $entry !== null && count($entry->spansOfKind('phase')) === 1;
+        return $capture !== null && count($capture->spansOfKind('phase')) === 1;
     }
 
     private function isExcepted(Request $request): bool
@@ -336,17 +336,17 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         ];
     }
 
-    private function serverTiming(Entry $entry): string
+    private function serverTiming(Capture $capture): string
     {
-        $parts = ['app;dur=' . round($entry->duration(), 1)];
+        $parts = ['app;dur=' . round($capture->duration(), 1)];
 
-        foreach ($entry->spansOfKind('phase') as $span) {
+        foreach ($capture->spansOfKind('phase') as $span) {
             if ($span->duration() !== null) {
                 $parts[] = Str::slug($span->name) . ';dur=' . round($span->duration(), 1);
             }
         }
 
-        $db = array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $entry->rows('queries')));
+        $db = array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $capture->rows('queries')));
 
         if ($db > 0) {
             $parts[] = 'db;dur=' . round($db, 1);
@@ -360,7 +360,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
      * the first response preparation. Without middleware it starts at the
      * route match.
      */
-    private function deriveControllerSpan(Entry $entry): void
+    private function deriveControllerSpan(Capture $capture): void
     {
         if ($this->routeMatchedAt === null) {
             return;
@@ -368,7 +368,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
         $innermost = null;
 
-        foreach ($entry->spansOfKind('middleware') as $span) {
+        foreach ($capture->spansOfKind('middleware') as $span) {
             if (($span->meta['passed'] ?? false) !== true || ! isset($span->meta['next_called_at'])) {
                 if (($span->meta['group'] ?? null) === 'route') {
                     return;
@@ -401,8 +401,8 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $controller->start = $start;
         $controller->end = $end;
         $controller->endedBy = 'derived';
-        $controller->meta = ['action' => $entry->section('request')['route']['action'] ?? null];
+        $controller->meta = ['action' => $capture->section('request')['route']['action'] ?? null];
 
-        $entry->spans[$controller->id] = $controller;
+        $capture->spans[$controller->id] = $controller;
     }
 }

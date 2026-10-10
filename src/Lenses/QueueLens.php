@@ -8,9 +8,9 @@ use DateTimeInterface;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
 use Illuminate\Container\Container;
@@ -30,8 +30,8 @@ use Throwable;
 /**
  * Both sides of the queue. Dispatch side: records every queued job in the
  * `jobs` section and injects parent/trace ids into the payload. Worker side:
- * turns every processed job into its own entry linked to the entry that
- * dispatched it, or into a span when it runs inline inside another entry.
+ * turns every processed job into its own capture linked to the capture that
+ * dispatched it, or into a span when it runs inline inside another capture.
  */
 final class QueueLens implements Lens, Resettable, Summarizable
 {
@@ -51,7 +51,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Jobs dispatched by this entry: job class, connection, queue, delay, job_id, batch_id, chain length and whether it ran inline. Each queued job becomes its own entry (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
+        return 'Jobs dispatched by this capture: job class, connection, queue, delay, job_id, batch_id, chain length and whether it ran inline. Each queued job becomes its own capture (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -74,17 +74,17 @@ final class QueueLens implements Lens, Resettable, Summarizable
         $this->spans = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('jobs');
+        $rows = $capture->rows('jobs');
         $totals = [
             'jobs_dispatched' => count($rows),
             'jobs_inline' => count(array_filter($rows, fn (array $row): bool => (bool) ($row['sync'] ?? false))),
         ];
         $warnings = [];
 
-        if ($entry->type === EntryType::Job) {
-            $job = $entry->section('job');
+        if ($capture->type === CaptureType::Job) {
+            $job = $capture->section('job');
             $totals['job_attempt'] = $job['attempts'] ?? null;
 
             if (isset($job['exception'])) {
@@ -100,15 +100,15 @@ final class QueueLens implements Lens, Resettable, Summarizable
         Queue::createPayloadUsing(static function (?string $connection, ?string $queue, array $payload): array {
             // Resolved per call: the hook is process-wide while eyepieces are per application.
             $eyepiece = Container::getInstance()->make(Eyepiece::class);
-            $entry = $eyepiece->active();
+            $capture = $eyepiece->active();
 
-            if ($entry === null || ! $eyepiece->recording()) {
+            if ($capture === null || ! $eyepiece->recording()) {
                 return [];
             }
 
             return [self::PAYLOAD_KEY => [
-                'parent_id' => $entry->id,
-                'trace_id' => $entry->traceId,
+                'parent_id' => $capture->id,
+                'trace_id' => $capture->traceId,
             ]];
         });
     }
@@ -190,7 +190,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
         $link = (array) ($payload[self::PAYLOAD_KEY] ?? []);
 
         $this->eyepiece->start(
-            EntryType::Job,
+            CaptureType::Job,
             parentId: $link['parent_id'] ?? null,
             traceId: $link['trace_id'] ?? null,
         );
@@ -220,13 +220,13 @@ final class QueueLens implements Lens, Resettable, Summarizable
             return;
         }
 
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        if ($entry === null || $entry->type !== EntryType::Job) {
+        if ($capture === null || $capture->type !== CaptureType::Job) {
             return;
         }
 
-        if ($entry->status === null || $status !== 'processed') {
+        if ($capture->status === null || $status !== 'processed') {
             $this->eyepiece->describe(status: $status);
         }
 
@@ -257,13 +257,13 @@ final class QueueLens implements Lens, Resettable, Summarizable
             return;
         }
 
-        $entry = $this->eyepiece->active();
+        $capture = $this->eyepiece->active();
 
-        if ($entry === null || $entry->type !== EntryType::Job) {
+        if ($capture === null || $capture->type !== CaptureType::Job) {
             return;
         }
 
-        if ($entry->status !== 'failed') {
+        if ($capture->status !== 'failed') {
             $this->eyepiece->describe(status: $status);
             $this->eyepiece->set('job', ['exception' => $info]);
         }

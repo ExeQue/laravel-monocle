@@ -4,7 +4,7 @@
 
 Agent-focused request profiler for Laravel. Monocle records what the application did while handling a request, job or command - timing phases, every middleware, database queries, cache operations, filesystem and AI agent calls, plus spans you add yourself - and exposes it to AI coding agents through an MCP server, to humans through artisan commands, and later through a web dashboard.
 
-Monocle is built from **lenses**: discrete classes that each hook into the framework and write one section of the recorded entry. Enable, disable, configure or add lenses through config or the facade.
+Monocle is built from **lenses**: discrete classes that each hook into the framework and write one section of the recorded capture. Enable, disable, configure or add lenses through config or the facade.
 
 ## Install
 
@@ -33,11 +33,11 @@ Add the MCP server (done by `monocle:install`) and the agent gets:
 
 | Tool | Purpose |
 | --- | --- |
-| `monocle-list` | Recent entries with duration, status and per-section counts. Filters: type, uri, status, min duration, since, label, has_errors. |
+| `monocle-list` | Recent captures with duration, status and per-section counts. Filters: type, uri, status, min duration, since, label, has_errors. |
 | `monocle-show` | Summary: time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), trace links, and a description of every available section. Add `sections=[timeline, queries, ...]`. |
 | `monocle-rows` | Paginated, filterable rows of one section with `where`, `sort`, `fields` projection and `verbose`. |
 | `monocle-queries` | Queries grouped by shape, caller, table or transaction. |
-| `monocle-trace` | Every entry in the same trace: the request or command that started it and every job it dispatched, with depth and offsets. |
+| `monocle-trace` | Every capture in the same trace: the request or command that started it and every job it dispatched, with depth and offsets. |
 | `monocle-clear` | Empty the ring buffer before reproducing a scenario. |
 
 Every response carries `X-Monocle-Id` and `Server-Timing` headers, so an agent that curls the app can jump straight to `monocle-show id=...`. Every recorded row has an `origin` (user-land `file:line` and a short call chain) so the agent can open the code that triggered it.
@@ -56,7 +56,7 @@ $span->meta(['result' => 'ok']);          // still allowed after stop()
 
 Monocle::measure('resize', fn () => $this->resize($file), ['w' => 800]);
 Monocle::mark('cache warmed');
-Monocle::meta(['tenant' => $tenant->id]); // metadata on the entry itself
+Monocle::meta(['tenant' => $tenant->id]); // metadata on the capture itself
 
 // Hand a span over without passing the object: look it up by key.
 Monocle::span('import', key: "import:{$album->id}")->start();
@@ -106,9 +106,9 @@ final class MailgunLens implements Lens, Summarizable
         $eyepiece->listen(MailgunCalled::class, fn ($e) => $eyepiece->push('mailgun', ['endpoint' => $e->endpoint, 'duration' => $e->ms]));
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        return ['totals' => ['mailgun_calls' => count($entry->rows('mailgun'))]];
+        return ['totals' => ['mailgun_calls' => count($capture->rows('mailgun'))]];
     }
 }
 ```

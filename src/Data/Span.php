@@ -9,7 +9,7 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 
 /**
- * A timed interval inside an entry. Handles stay mutable until the entry is
+ * A timed interval inside a capture. Handles stay mutable until the capture is
  * finalized, so metadata can be attached before start(), while running and
  * after stop().
  */

@@ -7,7 +7,7 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Foundation\Application;
@@ -36,7 +36,7 @@ final class MailLens implements Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Mail and notifications sent during the entry. Mail rows: mailable, subject, from/to/cc/bcc, attachments, body_bytes, duration. Notification rows: notification class, channel, notifiable (Class#id), response, duration.';
+        return 'Mail and notifications sent during the capture. Mail rows: mailable, subject, from/to/cc/bcc, attachments, body_bytes, duration. Notification rows: notification class, channel, notifiable (Class#id), response, duration.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -99,9 +99,9 @@ final class MailLens implements Lens, Resettable, Summarizable
         $this->pending = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('mail');
+        $rows = $capture->rows('mail');
 
         if ($rows === []) {
             return [];

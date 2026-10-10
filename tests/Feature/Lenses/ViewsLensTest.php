@@ -20,9 +20,9 @@ describe(ViewsLens::class, function (): void {
     it('times every render as nested spans and rows', function (): void {
         $this->get('/page')->assertOk()->assertSee('Hello');
 
-        $entry = latestEntry();
-        $spans = $entry->spansOfKind('view');
-        $rows = $entry->rows('views');
+        $capture = latestCapture();
+        $spans = $capture->spansOfKind('view');
+        $rows = $capture->rows('views');
 
         expect($spans)->toHaveCount(4)
             ->and($spans[0]->name)->toBe('parent')
@@ -42,9 +42,9 @@ describe(ViewsLens::class, function (): void {
 
         $this->get('/page');
 
-        $entry = latestEntry();
-        $summary = $lens->summarize($entry);
-        $parent = collect($entry->spansOfKind('view'))->first(fn (Span $span): bool => $span->name === 'parent');
+        $capture = latestCapture();
+        $summary = $lens->summarize($capture);
+        $parent = collect($capture->spansOfKind('view'))->first(fn (Span $span): bool => $span->name === 'parent');
 
         expect($summary['totals']['views_rendered'])->toBe(4)
             ->and($summary['totals']['views_ms'])->toBe(round($parent->duration(), 3))
@@ -59,7 +59,7 @@ describe(ViewsLens::class, function (): void {
 
         $this->get('/page');
 
-        $rows = latestEntry()->rows('views');
+        $rows = latestCapture()->rows('views');
         $engine = app('view.engine.resolver')->resolve('blade');
 
         expect(collect($rows)->firstWhere('view', 'parent')['data']['title'])->toBe('Hello')

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\LensRegistry;
 
 /**
- * The agent's first view of an entry: where the time went, totals and
+ * The agent's first view of a capture: where the time went, totals and
  * warnings. Lenses contribute through the Summarizable contract.
  */
 final class SummaryBuilder
@@ -34,31 +34,31 @@ final class SummaryBuilder
 
     public function __construct(
         private readonly LensRegistry $registry,
-        private readonly EntryReader $entries,
+        private readonly CaptureReader $captures,
     ) {
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function build(Entry $entry): array
+    public function build(Capture $capture): array
     {
         $totals = [
-            'duration_ms' => $entry->duration(),
+            'duration_ms' => $capture->duration(),
         ];
         $warnings = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
-            $contribution = $summarizer->summarize($entry);
+            $contribution = $summarizer->summarize($capture);
             $totals = [...$totals, ...($contribution['totals'] ?? [])];
             $warnings = [...$warnings, ...array_values($contribution['warnings'] ?? [])];
         }
 
-        if (is_numeric($entry->status) && (int) $entry->status >= 500) {
-            $warnings[] = "Response status {$entry->status}.";
+        if (is_numeric($capture->status) && (int) $capture->status >= 500) {
+            $warnings[] = "Response status {$capture->status}.";
         }
 
-        $openSpans = (int) ($entry->health['open_spans_at_finalize'] ?? 0);
+        $openSpans = (int) ($capture->health['open_spans_at_finalize'] ?? 0);
 
         if ($openSpans > 0) {
             $warnings[] = "{$openSpans} span(s) were never stopped and were closed at finalize.";
@@ -66,29 +66,29 @@ final class SummaryBuilder
 
         $counts = [];
 
-        foreach ($entry->sections as $section => $rows) {
+        foreach ($capture->sections as $section => $rows) {
             if (array_is_list($rows)) {
                 $counts[$section] = count($rows);
             }
         }
 
         return [
-            'id' => $entry->id,
-            'type' => $entry->type->value,
-            'name' => $entry->name,
-            'status' => $entry->status,
-            'label' => $entry->label,
-            'started_at' => date('c', (int) $entry->startedAt),
-            'ended_by' => $entry->endedBy,
-            'parent_id' => $entry->parentId,
-            'trace_id' => $entry->traceId,
-            'children' => array_column($this->entries->children($entry->id), 'id'),
-            'breakdown' => $this->breakdown($entry),
+            'id' => $capture->id,
+            'type' => $capture->type->value,
+            'name' => $capture->name,
+            'status' => $capture->status,
+            'label' => $capture->label,
+            'started_at' => date('c', (int) $capture->startedAt),
+            'ended_by' => $capture->endedBy,
+            'parent_id' => $capture->parentId,
+            'trace_id' => $capture->traceId,
+            'children' => array_column($this->captures->children($capture->id), 'id'),
+            'breakdown' => $this->breakdown($capture),
             'totals' => $totals,
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
-            'meta' => $entry->meta,
-            'health' => $entry->health + ['sections' => array_keys($entry->sections)],
+            'meta' => $capture->meta,
+            'health' => $capture->health + ['sections' => array_keys($capture->sections)],
         ];
     }
 
@@ -99,16 +99,16 @@ final class SummaryBuilder
      *
      * @return array{phases: list<array<string, mixed>>, categories: list<array<string, mixed>>}
      */
-    public function breakdown(Entry $entry): array
+    public function breakdown(Capture $capture): array
     {
-        $total = max($entry->duration(), 0.001);
+        $total = max($capture->duration(), 0.001);
         $phases = [];
         $accounted = 0.0;
 
         foreach (self::PHASES as $phase) {
             [$ms, $count] = $phase === 'middleware'
-                ? $this->middlewareSelfTime($entry)
-                : $this->spanTime($entry, $phase === 'controller' ? 'controller' : 'phase', $phase === 'controller' ? null : $phase);
+                ? $this->middlewareSelfTime($capture)
+                : $this->spanTime($capture, $phase === 'controller' ? 'controller' : 'phase', $phase === 'controller' ? null : $phase);
 
             if ($count === 0) {
                 continue;
@@ -125,7 +125,7 @@ final class SummaryBuilder
         $categories = [];
 
         foreach (self::SECTION_CATEGORIES as $category => $section) {
-            $rows = $entry->rows($section);
+            $rows = $capture->rows($section);
 
             if ($rows === []) {
                 continue;
@@ -136,7 +136,7 @@ final class SummaryBuilder
         }
 
         foreach (self::SPAN_CATEGORIES as $category => $kind) {
-            [$ms, $count] = $this->spanTime($entry, $kind, null, topLevelOnly: true);
+            [$ms, $count] = $this->spanTime($capture, $kind, null, topLevelOnly: true);
 
             if ($count > 0) {
                 $categories[] = $this->line($category, $ms, $count, $total);
@@ -149,12 +149,12 @@ final class SummaryBuilder
     /**
      * @return array{0: float, 1: int}
      */
-    private function spanTime(Entry $entry, string $kind, ?string $name, bool $topLevelOnly = false): array
+    private function spanTime(Capture $capture, string $kind, ?string $name, bool $topLevelOnly = false): array
     {
         $ms = 0.0;
         $count = 0;
 
-        foreach ($entry->spans as $span) {
+        foreach ($capture->spans as $span) {
             if ($span->kind !== $kind) {
                 continue;
             }
@@ -163,7 +163,7 @@ final class SummaryBuilder
                 continue;
             }
 
-            if ($topLevelOnly && $span->parentId !== null && isset($entry->spans[$span->parentId]) && $entry->spans[$span->parentId]->kind === $kind) {
+            if ($topLevelOnly && $span->parentId !== null && isset($capture->spans[$span->parentId]) && $capture->spans[$span->parentId]->kind === $kind) {
                 continue;
             }
 
@@ -177,12 +177,12 @@ final class SummaryBuilder
     /**
      * @return array{0: float, 1: int}
      */
-    private function middlewareSelfTime(Entry $entry): array
+    private function middlewareSelfTime(Capture $capture): array
     {
         $ms = 0.0;
         $count = 0;
 
-        foreach ($entry->spansOfKind('middleware') as $span) {
+        foreach ($capture->spansOfKind('middleware') as $span) {
             $ms += (float) ($span->meta['before_ms'] ?? 0) + (float) ($span->meta['after_ms'] ?? 0);
             $count++;
         }
@@ -206,8 +206,8 @@ final class SummaryBuilder
     /**
      * @return list<Span>
      */
-    public function phases(Entry $entry): array
+    public function phases(Capture $capture): array
     {
-        return $entry->spansOfKind('phase');
+        return $capture->spansOfKind('phase');
     }
 }

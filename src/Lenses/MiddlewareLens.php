@@ -8,7 +8,7 @@ use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use Illuminate\Contracts\Foundation\Application;
@@ -80,9 +80,9 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
         });
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $spans = $entry->spansOfKind('middleware');
+        $spans = $capture->spansOfKind('middleware');
         $self = 0.0;
         $warnings = [];
 

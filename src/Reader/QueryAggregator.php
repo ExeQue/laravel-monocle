@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 
 /**
  * Groups the queries section by shape, caller, table or transaction so the
@@ -15,11 +15,11 @@ final class QueryAggregator
     /**
      * @return list<array<string, mixed>>
      */
-    public function group(Entry $entry, string $by = 'shape', string $sort = 'total_ms'): array
+    public function group(Capture $capture, string $by = 'shape', string $sort = 'total_ms'): array
     {
         $groups = [];
 
-        foreach ($entry->rows('queries') as $row) {
+        foreach ($capture->rows('queries') as $row) {
             foreach ($this->keysFor($row, $by) as $key) {
                 $group = &$groups[$key];
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Storage;
 
 use ExeQue\Monocle\Contracts\Store;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use Illuminate\Contracts\Cache\Repository;
 
 /**
@@ -23,28 +23,28 @@ final class CacheStore implements Store
     ) {
     }
 
-    public function put(Entry $entry): void
+    public function put(Capture $capture): void
     {
-        $this->cache->put($this->entryKey($entry->id), $entry->toArray(), $this->ttl);
+        $this->cache->put($this->captureKey($capture->id), $capture->toArray(), $this->ttl);
 
-        $this->cache->lock(self::INDEX_KEY . ':lock', 2)->block(1, function () use ($entry): void {
+        $this->cache->lock(self::INDEX_KEY . ':lock', 2)->block(1, function () use ($capture): void {
             $index = $this->index();
 
-            array_unshift($index, Index::summarize($entry));
+            array_unshift($index, Index::summarize($capture));
 
             foreach (array_splice($index, max(1, $this->limit)) as $evicted) {
-                $this->cache->forget($this->entryKey($evicted['id']));
+                $this->cache->forget($this->captureKey($evicted['id']));
             }
 
             $this->cache->put(self::INDEX_KEY, array_values($index), $this->ttl);
         });
     }
 
-    public function find(string $id): ?Entry
+    public function find(string $id): ?Capture
     {
-        $data = $this->cache->get($this->entryKey($id));
+        $data = $this->cache->get($this->captureKey($id));
 
-        return is_array($data) ? Entry::fromArray($data) : null;
+        return is_array($data) ? Capture::fromArray($data) : null;
     }
 
     public function index(): array
@@ -57,14 +57,14 @@ final class CacheStore implements Store
     public function clear(): void
     {
         foreach ($this->index() as $row) {
-            $this->cache->forget($this->entryKey($row['id']));
+            $this->cache->forget($this->captureKey($row['id']));
         }
 
         $this->cache->forget(self::INDEX_KEY);
     }
 
-    private function entryKey(string $id): string
+    private function captureKey(string $id): string
     {
-        return 'monocle:entry:' . $id;
+        return 'monocle:capture:' . $id;
     }
 }

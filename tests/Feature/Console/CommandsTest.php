@@ -34,12 +34,12 @@ describe('monocle:* commands', function (): void {
             ->and(commandJson('monocle:show', ['id' => 'latest'])['summary']['name'])->toBe('GET /things')
             ->and(commandJson('monocle:rows', ['section' => 'queries', '--where' => ['type:=:select'], '--field' => ['sql']])['rows'][0])->toHaveKey('sql')
             ->and(commandJson('monocle:queries', ['--group-by' => 'table'])['rows'][0]['key'])->toBe('things')
-            ->and(commandJson('monocle:trace')['entries'])->toHaveCount(1)
+            ->and(commandJson('monocle:trace')['captures'])->toHaveCount(1)
             ->and(commandJson('monocle:clear'))->toBe(['cleared' => true])
             ->and(commandJson('monocle:list')['total'])->toBe(0);
     });
 
-    it('fail with the error payload for unknown entries', function (): void {
+    it('fail with the error payload for unknown captures', function (): void {
         $this->artisan('monocle:show', ['id' => 'missing', '--compact' => true])->assertFailed();
     });
 });

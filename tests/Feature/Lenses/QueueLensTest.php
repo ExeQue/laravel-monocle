@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
 use ExeQue\Monocle\Lenses\QueueLens;
-use ExeQue\Monocle\Reader\EntryReader;
+use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
@@ -62,12 +62,12 @@ describe(QueueLens::class, function (): void {
         });
     });
 
-    $entries = fn (?string $type = null): array => app(EntryReader::class)->list(Filter::fromArray(['type' => $type, 'limit' => 50]))['rows'];
+    $captures = fn (?string $type = null): array => app(CaptureReader::class)->list(Filter::fromArray(['type' => $type, 'limit' => 50]))['rows'];
 
-    it('records dispatched jobs and links the worker-side entry to the request', function () use ($entries): void {
+    it('records dispatched jobs and links the worker-side capture to the request', function () use ($captures): void {
         $this->get('/dispatch')->assertOk();
 
-        $request = latestEntry();
+        $request = latestCapture();
         $dispatched = $request->rows('jobs');
 
         expect($dispatched)->toHaveCount(1)
@@ -78,10 +78,10 @@ describe(QueueLens::class, function (): void {
 
         Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
 
-        $job = latestEntry();
+        $job = latestCapture();
 
         expect(RecordingJob::$handled)->toBe(1)
-            ->and($job->type)->toBe(EntryType::Job)
+            ->and($job->type)->toBe(CaptureType::Job)
             ->and($job->name)->toBe(RecordingJob::class)
             ->and($job->status)->toBe('processed')
             ->and($job->parentId)->toBe($request->id)
@@ -89,10 +89,10 @@ describe(QueueLens::class, function (): void {
             ->and($job->section('job')['job_id'])->toBe($dispatched[0]['job_id'])
             ->and($job->section('job')['attempts'])->toBe(1)
             ->and($job->rows('cache'))->not->toBeEmpty()
-            ->and($entries('job'))->toHaveCount(1)
-            ->and($entries('request'))->toHaveCount(1);
+            ->and($captures('job'))->toHaveCount(1)
+            ->and($captures('request'))->toHaveCount(1);
 
-        $trace = app(EntryReader::class)->trace($request->id);
+        $trace = app(CaptureReader::class)->trace($request->id);
 
         expect(array_column($trace, 'depth'))->toBe([0, 1])
             ->and($trace[1]['offset_ms'])->toBeGreaterThan(0);
@@ -103,9 +103,9 @@ describe(QueueLens::class, function (): void {
 
         Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
 
-        $job = latestEntry();
+        $job = latestCapture();
 
-        expect($job->type)->toBe(EntryType::Job)
+        expect($job->type)->toBe(CaptureType::Job)
             ->and($job->status)->toBe('failed')
             ->and($job->section('job')['exception']['class'])->toBe(RuntimeException::class)
             ->and($job->section('job')['exception']['message'])->toBe('job exploded');
@@ -115,10 +115,10 @@ describe(QueueLens::class, function (): void {
         expect(implode(' ', $summary['warnings']))->toContain('job exploded');
     });
 
-    it('records jobs on the sync queue as spans inside the dispatching entry', function () use ($entries): void {
+    it('records jobs on the sync queue as spans inside the dispatching capture', function () use ($captures): void {
         $this->get('/inline')->assertOk();
 
-        $request = latestEntry();
+        $request = latestCapture();
         $spans = $request->spansOfKind('job');
 
         expect(RecordingJob::$handled)->toBe(1)
@@ -126,13 +126,13 @@ describe(QueueLens::class, function (): void {
             ->and($spans)->toHaveCount(1)
             ->and($spans[0]->name)->toBe(RecordingJob::class)
             ->and($spans[0]->meta['status'])->toBe('processed')
-            ->and($entries('job'))->toBe([]);
+            ->and($captures('job'))->toBe([]);
     });
 
     it('records dispatchSync of a queueable job once, via the sync queue', function (): void {
         $this->get('/now')->assertOk();
 
-        $spans = latestEntry()->spansOfKind('job');
+        $spans = latestCapture()->spansOfKind('job');
 
         expect(RecordingJob::$handled)->toBe(1)
             ->and($spans)->toHaveCount(1)
@@ -145,7 +145,7 @@ describe(QueueLens::class, function (): void {
 
         $this->get('/plain')->assertOk();
 
-        $spans = latestEntry()->spansOfKind('job');
+        $spans = latestCapture()->spansOfKind('job');
 
         expect(PlainCommand::$handled)->toBe(1)
             ->and($spans)->toHaveCount(1)

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\AuthorizationLens;
 use Illuminate\Auth\Access\Response;
@@ -17,7 +17,7 @@ describe(AuthorizationLens::class, function (): void {
         Gate::define('publish', fn (GenericUser $user): Response => Response::deny('Not an editor.'));
         Gate::define('anything', fn (?GenericUser $user): bool => true);
 
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('records every check with outcome, user and arguments', function (): void {
@@ -28,8 +28,8 @@ describe(AuthorizationLens::class, function (): void {
         Gate::forUser($user)->inspect('publish');
         Gate::allows('anything');
 
-        $entry = app(Eyepiece::class)->finalize();
-        $rows = $entry->rows('authorization');
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('authorization');
 
         expect(array_column($rows, 'ability'))->toBe(['view-report', 'view-report', 'publish', 'anything'])
             ->and(array_column($rows, 'allowed'))->toBe([true, false, false, true])
@@ -39,7 +39,7 @@ describe(AuthorizationLens::class, function (): void {
             ->and($rows[3]['user'])->toBeNull()
             ->and($rows[0]['origin']['file'])->toContain('AuthorizationLensTest.php');
 
-        $summary = (new AuthorizationLens())->summarize($entry);
+        $summary = (new AuthorizationLens())->summarize($capture);
 
         expect($summary['totals'])->toBe(['authorization_checks' => 4, 'authorization_denied' => 2])
             ->and($summary['warnings'])->toBe([

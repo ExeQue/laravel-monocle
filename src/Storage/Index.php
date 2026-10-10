@@ -4,53 +4,53 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Storage;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 
 /**
  * Builds the summary row kept in the store index so listing, tracing and
- * filtering never need to load full entries.
+ * filtering never need to load full captures.
  */
 final class Index
 {
     /**
      * @return array<string, mixed>
      */
-    public static function summarize(Entry $entry): array
+    public static function summarize(Capture $capture): array
     {
         $counts = [];
 
-        foreach ($entry->sections as $section => $rows) {
+        foreach ($capture->sections as $section => $rows) {
             if (array_is_list($rows)) {
                 $counts[$section] = count($rows);
             }
         }
 
         return [
-            'id' => $entry->id,
-            'parent_id' => $entry->parentId,
-            'trace_id' => $entry->traceId,
-            'type' => $entry->type->value,
-            'name' => $entry->name,
-            'status' => $entry->status,
-            'label' => $entry->label,
-            'duration' => $entry->duration(),
-            'started_at' => $entry->startedAt,
-            'ended_by' => $entry->endedBy,
+            'id' => $capture->id,
+            'parent_id' => $capture->parentId,
+            'trace_id' => $capture->traceId,
+            'type' => $capture->type->value,
+            'name' => $capture->name,
+            'status' => $capture->status,
+            'label' => $capture->label,
+            'duration' => $capture->duration(),
+            'started_at' => $capture->startedAt,
+            'ended_by' => $capture->endedBy,
             'counts' => $counts,
-            'has_errors' => self::hasErrors($entry),
+            'has_errors' => self::hasErrors($capture),
         ];
     }
 
-    private static function hasErrors(Entry $entry): bool
+    private static function hasErrors(Capture $capture): bool
     {
-        if (is_numeric($entry->status) && (int) $entry->status >= 500) {
+        if (is_numeric($capture->status) && (int) $capture->status >= 500) {
             return true;
         }
 
-        if (in_array($entry->status, ['failed', 'error'], true)) {
+        if (in_array($capture->status, ['failed', 'error'], true)) {
             return true;
         }
 
-        return $entry->rows('exceptions') !== [];
+        return $capture->rows('exceptions') !== [];
     }
 }

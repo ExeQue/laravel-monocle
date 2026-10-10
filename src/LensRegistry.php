@@ -9,7 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use Illuminate\Contracts\Foundation\Application;
 
@@ -123,7 +123,7 @@ final class LensRegistry
 
     /**
      * Section key => description for every enabled lens, whether or not the
-     * lenses have been booted in this process (the MCP server reads entries
+     * lenses have been booted in this process (the MCP server reads captures
      * even when recording is off).
      *
      * @return array<string, string>
@@ -148,11 +148,11 @@ final class LensRegistry
         return array_values(array_filter($this->booted, fn (Lens $lens): bool => $lens instanceof Summarizable));
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
         foreach ($this->booted as $lens) {
             if ($lens instanceof Finalizable) {
-                $lens->finalize($entry);
+                $lens->finalize($capture);
             }
         }
     }

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\Reader\EntryReader;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Reader\CaptureReader;
 
 pest()->extend(Tests\TestCase::class)->in('Feature', 'Unit');
 
 /**
- * The most recently stored entry, loaded from the configured store.
+ * The most recently stored capture, loaded from the configured store.
  */
-function latestEntry(): ?Entry
+function latestCapture(): ?Capture
 {
-    return app(EntryReader::class)->find('latest');
+    return app(CaptureReader::class)->find('latest');
 }

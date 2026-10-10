@@ -6,11 +6,11 @@ namespace ExeQue\Monocle\Storage;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Store;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use RuntimeException;
 
 /**
- * Default store: one JSON file per entry plus an index.json holding summary
+ * Default store: one JSON file per capture plus an index.json holding summary
  * rows newest first. Works across web, worker and MCP processes with no
  * configuration. The index is rewritten under an exclusive lock.
  *
@@ -25,26 +25,26 @@ final class FileStore implements Store
     ) {
     }
 
-    public function put(Entry $entry): void
+    public function put(Capture $capture): void
     {
         $this->ensureDirectory();
 
-        $this->write($this->entryPath($entry->id), json_encode($entry->toArray(), JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
+        $this->write($this->capturePath($capture->id), json_encode($capture->toArray(), JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE));
 
-        $this->withLockedIndex(function (array $index) use ($entry): array {
-            array_unshift($index, Index::summarize($entry));
+        $this->withLockedIndex(function (array $index) use ($capture): array {
+            array_unshift($index, Index::summarize($capture));
 
             foreach (array_splice($index, max(1, $this->limit)) as $evicted) {
-                @unlink($this->entryPath($evicted['id']));
+                @unlink($this->capturePath($evicted['id']));
             }
 
             return $index;
         });
     }
 
-    public function find(string $id): ?Entry
+    public function find(string $id): ?Capture
     {
-        $path = $this->entryPath($id);
+        $path = $this->capturePath($id);
 
         if (! is_file($path)) {
             return null;
@@ -58,7 +58,7 @@ final class FileStore implements Store
 
         $data = json_decode($contents, true);
 
-        return is_array($data) ? Entry::fromArray($data) : null;
+        return is_array($data) ? Capture::fromArray($data) : null;
     }
 
     public function index(): array
@@ -144,7 +144,7 @@ final class FileStore implements Store
         file_put_contents($this->path . DIRECTORY_SEPARATOR . '.gitignore', "*\n!.gitignore\n");
     }
 
-    private function entryPath(string $id): string
+    private function capturePath(string $id): string
     {
         return $this->path . DIRECTORY_SEPARATOR . basename($id) . '.json';
     }

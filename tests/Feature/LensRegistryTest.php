@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
@@ -45,13 +45,13 @@ describe(LensRegistry::class, function (): void {
         expect($registry->lenses())->toBe([CounterLens::class => ['from' => 'facade'], CacheLens::class => false]);
 
         $registry->boot(app(Eyepiece::class));
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
         event(new CounterEvent(1));
         event(new CounterEvent(2));
-        $entry = app(Eyepiece::class)->finalize();
+        $capture = app(Eyepiece::class)->finalize();
 
-        expect($entry->rows('counter'))->toHaveCount(2)
-            ->and($entry->sections['counter_meta'])->toBe(['finalized' => true])
+        expect($capture->rows('counter'))->toHaveCount(2)
+            ->and($capture->sections['counter_meta'])->toBe(['finalized' => true])
             ->and(CounterLens::$finalized)->toBe(1)
             ->and(CounterLens::$reset)->toBeGreaterThanOrEqual(1);
     });

@@ -8,7 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
@@ -46,7 +46,7 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
         }
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
         $rows = [];
 
@@ -59,7 +59,7 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
         usort($rows, fn (array $a, array $b): int => $b['count'] <=> $a['count']);
 
         if ($rows !== []) {
-            $entry->sections['models'] = $rows;
+            $capture->sections['models'] = $rows;
         }
     }
 
@@ -68,13 +68,13 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
         $this->counts = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
         $retrieved = 0;
         $written = 0;
         $top = [];
 
-        foreach ($entry->rows('models') as $row) {
+        foreach ($capture->rows('models') as $row) {
             if ($row['action'] === 'retrieved') {
                 $retrieved += $row['count'];
                 $top[$row['model']] = ($top[$row['model']] ?? 0) + $row['count'];

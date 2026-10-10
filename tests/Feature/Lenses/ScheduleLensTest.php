@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\ScheduleLens;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -14,8 +14,8 @@ use Illuminate\Console\Scheduling\Schedule;
 covers(ScheduleLens::class);
 
 describe(ScheduleLens::class, function (): void {
-    it('records task outcomes on the running entry and summarizes them', function (): void {
-        app(Eyepiece::class)->start(EntryType::Command);
+    it('records task outcomes on the running capture and summarizes them', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
 
         $schedule = app(Schedule::class);
         $ok = $schedule->command('inspire')->everyMinute()->description('Daily wisdom');
@@ -27,8 +27,8 @@ describe(ScheduleLens::class, function (): void {
         event(new ScheduledTaskFailed($failed, new RuntimeException('disk full')));
         event(new ScheduledTaskSkipped($skipped));
 
-        $entry = app(Eyepiece::class)->finalize();
-        $rows = $entry->rows('scheduled_tasks');
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('scheduled_tasks');
 
         expect(array_column($rows, 'outcome'))->toBe(['starting', 'finished', 'failed', 'skipped'])
             ->and($rows[1]['runtime_ms'])->toBe(250.0)
@@ -37,7 +37,7 @@ describe(ScheduleLens::class, function (): void {
             ->and($rows[1]['command'])->toContain('inspire')
             ->and($rows[2]['exception']['message'])->toBe('disk full');
 
-        $summary = (new ScheduleLens())->summarize($entry);
+        $summary = (new ScheduleLens())->summarize($capture);
 
         expect($summary['totals'])->toBe(['scheduled_tasks_run' => 1, 'scheduled_tasks_skipped' => 1, 'scheduled_tasks_failed' => 1])
             ->and($summary['warnings'][0])->toContain('backup:run');

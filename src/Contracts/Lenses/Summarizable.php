@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Contracts\Lenses;
 
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 
 interface Summarizable
 {
     /**
-     * Contribute totals and warnings to the entry summary.
+     * Contribute totals and warnings to the capture summary.
      *
      * @return array{totals?: array<string, mixed>, warnings?: list<string>}
      */
-    public function summarize(Entry $entry): array;
+    public function summarize(Capture $capture): array;
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
-use ExeQue\Monocle\Reader\Presenter;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
@@ -18,9 +18,9 @@ final class RowsCommand extends Command
 
     protected $description = 'Paginated, filterable rows of one section (same output as the monocle-rows MCP tool)';
 
-    public function handle(Presenter $presenter): int
+    public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($presenter->rows([
+        return $this->outputJson($viewfinder->rows([
             'id' => $this->argument('id'),
             'section' => $this->argument('section'),
             'where' => $this->parseWhere($this->option('where')),
@@ -35,7 +35,7 @@ final class RowsCommand extends Command
     {
         return [
             new InputArgument('section', InputArgument::REQUIRED, 'Section name (queries, cache, timeline, ...)'),
-            new InputArgument('id', InputArgument::OPTIONAL, 'Entry id or "latest"', 'latest'),
+            new InputArgument('id', InputArgument::OPTIONAL, 'Capture id or "latest"', 'latest'),
         ];
     }
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Reader;
 
 /**
- * Filters applied to index rows when listing entries.
+ * Filters applied to index rows when listing captures.
  */
 final class Filter
 {

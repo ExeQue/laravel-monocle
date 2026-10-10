@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Contracts\Store;
-use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Storage\CacheStore;
 use ExeQue\Monocle\Storage\FileStore;
@@ -13,15 +13,15 @@ use Illuminate\Support\Facades\Cache;
 
 covers(FileStore::class, CacheStore::class, StoreManager::class);
 
-function makeEntry(string $id, ?string $parent = null, ?string $trace = null): Entry
+function makeCapture(string $id, ?string $parent = null, ?string $trace = null): Capture
 {
-    $entry = new Entry($id, EntryType::Request, microtime(true) - 1, $parent, $trace);
-    $entry->name = "GET /{$id}";
-    $entry->status = '200';
-    $entry->endedAt = microtime(true);
-    $entry->sections['queries'] = [['sql' => 'select 1', 'duration' => 1.0]];
+    $capture = new Capture($id, CaptureType::Request, microtime(true) - 1, $parent, $trace);
+    $capture->name = "GET /{$id}";
+    $capture->status = '200';
+    $capture->endedAt = microtime(true);
+    $capture->sections['queries'] = [['sql' => 'select 1', 'duration' => 1.0]];
 
-    return $entry;
+    return $capture;
 }
 
 describe('stores', function (): void {
@@ -32,22 +32,22 @@ describe('stores', function (): void {
 
     foreach ($drivers as $driver => $factory) {
         describe($driver, function () use ($factory): void {
-            it('acts as a ring buffer and evicts the oldest entries', function () use ($factory): void {
+            it('acts as a ring buffer and evicts the oldest captures', function () use ($factory): void {
                 $store = $factory();
 
                 foreach (['a', 'b', 'c', 'd', 'e'] as $id) {
-                    $store->put(makeEntry($id));
+                    $store->put(makeCapture($id));
                 }
 
                 expect(array_column($store->index(), 'id'))->toBe(['e', 'd', 'c'])
                     ->and($store->find('a'))->toBeNull()
-                    ->and($store->find('e'))->toBeInstanceOf(Entry::class)
+                    ->and($store->find('e'))->toBeInstanceOf(Capture::class)
                     ->and($store->find('e')->sections['queries'])->toHaveCount(1);
             });
 
             it('keeps summary data in the index', function () use ($factory): void {
                 $store = $factory();
-                $store->put(makeEntry('x', 'parent-1', 'trace-1'));
+                $store->put(makeCapture('x', 'parent-1', 'trace-1'));
 
                 $row = $store->index()[0];
 
@@ -57,7 +57,7 @@ describe('stores', function (): void {
 
             it('clears everything', function () use ($factory): void {
                 $store = $factory();
-                $store->put(makeEntry('x'));
+                $store->put(makeCapture('x'));
                 $store->clear();
 
                 expect($store->index())->toBe([])
@@ -68,7 +68,7 @@ describe('stores', function (): void {
 
     it('writes a .gitignore into a fresh file store directory', function (): void {
         $path = sys_get_temp_dir() . '/monocle-store-' . bin2hex(random_bytes(4));
-        (new FileStore($path, 3))->put(makeEntry('a'));
+        (new FileStore($path, 3))->put(makeCapture('a'));
 
         expect(file_get_contents($path . '/.gitignore'))->toContain('*');
 

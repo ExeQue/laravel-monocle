@@ -8,7 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Events\ConnectionFailed;
@@ -100,9 +100,9 @@ final class HttpClientLens implements Configurable, Lens, Resettable, Summarizab
         $this->pending = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('http');
+        $rows = $capture->rows('http');
 
         if ($rows === []) {
             return [];

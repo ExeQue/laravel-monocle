@@ -6,7 +6,7 @@ namespace ExeQue\Monocle;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Traits\Conditionable;
@@ -60,7 +60,7 @@ final class MonocleManager
     }
 
     /**
-     * Attach metadata to the entry itself.
+     * Attach metadata to the capture itself.
      *
      * @param  array<string, mixed>  $meta
      */
@@ -78,7 +78,7 @@ final class MonocleManager
         return $this;
     }
 
-    public function active(): ?Entry
+    public function active(): ?Capture
     {
         return $this->eyepiece->active();
     }

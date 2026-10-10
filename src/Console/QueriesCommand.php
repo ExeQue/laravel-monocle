@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
-use ExeQue\Monocle\Reader\Presenter;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
@@ -16,11 +16,11 @@ final class QueriesCommand extends Command
 
     protected $name = 'monocle:queries';
 
-    protected $description = 'Aggregate the queries of an entry by shape, caller, table or transaction (same output as the monocle-queries MCP tool)';
+    protected $description = 'Aggregate the queries of a capture by shape, caller, table or transaction (same output as the monocle-queries MCP tool)';
 
-    public function handle(Presenter $presenter): int
+    public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($presenter->queries([
+        return $this->outputJson($viewfinder->queries([
             'id' => $this->argument('id'),
             ...$this->optionArgs(['group-by', 'sort', 'offset', 'limit']),
         ]));
@@ -29,7 +29,7 @@ final class QueriesCommand extends Command
     protected function getArguments(): array
     {
         return [
-            new InputArgument('id', InputArgument::OPTIONAL, 'Entry id or "latest"', 'latest'),
+            new InputArgument('id', InputArgument::OPTIONAL, 'Capture id or "latest"', 'latest'),
         ];
     }
 

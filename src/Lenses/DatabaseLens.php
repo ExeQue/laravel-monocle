@@ -9,7 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
@@ -68,7 +68,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         $eyepiece->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
     }
 
-    public function finalize(Entry $entry): void
+    public function finalize(Capture $capture): void
     {
         foreach ($this->transactions as $spans) {
             foreach ($spans as $span) {
@@ -84,9 +84,9 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         $this->transactions = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('queries');
+        $rows = $capture->rows('queries');
         $total = 0.0;
         $slow = [];
         $duplicates = 0;

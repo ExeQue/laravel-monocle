@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Mcp;
 
 use ExeQue\Monocle\LensRegistry;
-use ExeQue\Monocle\Mcp\Tools\ClearEntries;
-use ExeQue\Monocle\Mcp\Tools\ListEntries;
-use ExeQue\Monocle\Mcp\Tools\ShowEntry;
+use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
+use ExeQue\Monocle\Mcp\Tools\ListCaptures;
+use ExeQue\Monocle\Mcp\Tools\ShowCapture;
 use ExeQue\Monocle\Mcp\Tools\ShowQueries;
 use ExeQue\Monocle\Mcp\Tools\ShowRows;
 use ExeQue\Monocle\Mcp\Tools\ShowTrace;
@@ -26,7 +26,7 @@ command: timing phases, every middleware, database queries, cache operations,
 spans the developers added, and more. Use it after reproducing a request
 (browser, curl, test) to find out where time went and what was executed.
 
-Workflow: `monocle-list` to see recent entries (or read the X-Monocle-Id response
+Workflow: `monocle-list` to see recent captures (or read the X-Monocle-Id response
 header), `monocle-show id=latest` for the summary with time breakdown and warnings,
 then `monocle-rows` / `monocle-queries` to dig into one section with filters and
 pagination. Every row carries `origin` (user-land file:line) so you can jump to
@@ -37,12 +37,12 @@ phases, middleware, controller, transactions, user spans) this application recor
 MARKDOWN;
 
     protected array $tools = [
-        ListEntries::class,
-        ShowEntry::class,
+        ListCaptures::class,
+        ShowCapture::class,
         ShowRows::class,
         ShowQueries::class,
         ShowTrace::class,
-        ClearEntries::class,
+        ClearCaptures::class,
     ];
 
     /**

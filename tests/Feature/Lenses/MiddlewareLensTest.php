@@ -20,7 +20,7 @@ describe(MiddlewareLens::class, function (): void {
         Route::get('/aborted', fn () => 'never')->middleware([SleepBefore::class, Abort::class]);
     });
 
-    $byName = fn (string $name): ?Span => collect(latestEntry()->spansOfKind('middleware'))->first(fn (Span $span): bool => $span->name === $name);
+    $byName = fn (string $name): ?Span => collect(latestCapture()->spansOfKind('middleware'))->first(fn (Span $span): bool => $span->name === $name);
 
     it('times before and after $next for every route middleware', function () use ($byName): void {
         $this->get('/timed')->assertOk();
@@ -45,13 +45,13 @@ describe(MiddlewareLens::class, function (): void {
 
         expect($abort->meta['passed'])->toBeFalse()
             ->and($abort->meta['short_circuited_with'])->toBe(418)
-            ->and(latestEntry()->spans)->not->toHaveKey('controller');
+            ->and(latestCapture()->spans)->not->toHaveKey('controller');
     });
 
     it('forwards and times terminate only for terminable middleware', function (): void {
         $this->get('/timed');
 
-        $terminate = collect(latestEntry()->spansOfKind('middleware.terminate'))->map(fn (Span $span): string => $span->name)->all();
+        $terminate = collect(latestCapture()->spansOfKind('middleware.terminate'))->map(fn (Span $span): string => $span->name)->all();
 
         expect(SleepAfter::$terminated)->toBeTrue()
             ->and($terminate)->toContain('SleepAfter::terminate')
@@ -64,9 +64,9 @@ describe(MiddlewareLens::class, function (): void {
 
         $this->get('/timed');
 
-        $summary = $lens->summarize(latestEntry());
+        $summary = $lens->summarize(latestCapture());
 
         expect($summary['totals']['middleware_count'])->toBe(2)
-            ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $summary['totals']['middleware_self_ms'] - collect(latestEntry()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['after_ms'] - collect(latestEntry()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['before_ms']));
+            ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $summary['totals']['middleware_self_ms'] - collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['after_ms'] - collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['before_ms']));
     });
 });

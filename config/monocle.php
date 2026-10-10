@@ -138,7 +138,7 @@ return [
     | Storage
     |--------------------------------------------------------------------------
     |
-    | Entries are kept in a ring buffer holding the newest `limit` entries.
+    | Captures are kept in a ring buffer holding the newest `limit` captures.
     | The driver may be "file", "cache", a class implementing the Store
     | contract, or a name registered with Monocle::extendStore().
     |

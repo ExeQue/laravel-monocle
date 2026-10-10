@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\CacheLens;
 use Illuminate\Support\Facades\Cache;
@@ -11,7 +11,7 @@ covers(CacheLens::class);
 
 describe(CacheLens::class, function (): void {
     beforeEach(function (): void {
-        app(Eyepiece::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(CaptureType::Request);
     });
 
     it('records misses, writes, hits and forgets with durations and sizes', function (): void {

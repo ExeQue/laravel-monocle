@@ -8,7 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Cache\Events\CacheEvent;
 use Illuminate\Cache\Events\CacheFlushed;
@@ -80,9 +80,9 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         $this->pending = [];
     }
 
-    public function summarize(Entry $entry): array
+    public function summarize(Capture $capture): array
     {
-        $rows = $entry->rows('cache');
+        $rows = $capture->rows('cache');
         $counts = ['hit' => 0, 'miss' => 0, 'write' => 0, 'forget' => 0];
         $ms = 0.0;
         $keys = [];
