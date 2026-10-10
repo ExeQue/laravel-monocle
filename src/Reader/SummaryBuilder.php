@@ -107,8 +107,8 @@ final class SummaryBuilder
 
         foreach (self::PHASES as $phase) {
             [$ms, $count] = match ($phase) {
-                'middleware (request)' => $this->middlewareSelfTime($capture, 'before_ms'),
-                'middleware (response)' => $this->middlewareSelfTime($capture, 'after_ms'),
+                'middleware (request)' => $this->spanTime($capture, 'middleware.request', null),
+                'middleware (response)' => $this->spanTime($capture, 'middleware.response', null),
                 'controller' => $this->spanTime($capture, 'controller', null),
                 default => $this->spanTime($capture, 'phase', $phase),
             };
@@ -171,22 +171,6 @@ final class SummaryBuilder
             }
 
             $ms += $span->duration() ?? 0.0;
-            $count++;
-        }
-
-        return [round($ms, 3), $count];
-    }
-
-    /**
-     * @return array{0: float, 1: int}
-     */
-    private function middlewareSelfTime(Capture $capture, string $part): array
-    {
-        $ms = 0.0;
-        $count = 0;
-
-        foreach ($capture->spansOfKind('middleware') as $span) {
-            $ms += (float) ($span->meta[$part] ?? 0);
             $count++;
         }
 

@@ -6,12 +6,13 @@ use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Reader\SummaryBuilder;
+use ExeQue\Monocle\Reader\TimelineBuilder;
 use Illuminate\Support\Facades\Route;
 use Tests\Fixtures\Middleware\Abort;
 use Tests\Fixtures\Middleware\SleepAfter;
 use Tests\Fixtures\Middleware\SleepBefore;
 
-covers(MiddlewareLens::class, TimedMiddleware::class, SummaryBuilder::class);
+covers(MiddlewareLens::class, TimedMiddleware::class, SummaryBuilder::class, TimelineBuilder::class);
 
 describe(MiddlewareLens::class, function (): void {
     beforeEach(function (): void {
@@ -21,77 +22,57 @@ describe(MiddlewareLens::class, function (): void {
         Route::get('/aborted', fn () => 'never')->middleware([SleepBefore::class, Abort::class]);
     });
 
-    $byName = fn (string $name): ?Span => collect(latestCapture()->spansOfKind('middleware'))->first(fn (Span $span): bool => $span->name === $name);
+    $span = fn (string $kind, string $name): ?Span => collect(latestCapture()->spansOfKind($kind))->first(fn (Span $span): bool => $span->name === $name);
 
-    it('times before and after $next for every route middleware', function () use ($byName): void {
+    it('records the request and the response side of every middleware as separate spans', function () use ($span): void {
         $this->get('/timed')->assertOk();
 
-        $before = $byName('SleepBefore');
-        $after = $byName('SleepAfter');
+        $outerRequest = $span('middleware.request', 'SleepBefore');
+        $innerRequest = $span('middleware.request', 'SleepAfter');
+        $innerResponse = $span('middleware.response', 'SleepAfter');
+        $outerResponse = $span('middleware.response', 'SleepBefore');
+        $controller = latestCapture()->spans['controller'] ?? null;
 
-        expect($before)->not->toBeNull()
-            ->and($before->meta['passed'])->toBeTrue()
-            ->and($before->meta['parameters'])->toBe(['5'])
-            ->and($before->meta['before_ms'])->toBeGreaterThanOrEqual(4)
-            ->and($before->meta['after_ms'])->toBeLessThan(4)
-            ->and($after->meta['after_ms'])->toBeGreaterThanOrEqual(4)
-            ->and($after->parentId)->toBe($before->id)
-            ->and($before->meta['group'])->toBe('route');
+        expect($outerRequest->meta)->toMatchArray(['passed' => true, 'parameters' => ['5'], 'group' => 'route'])
+            ->and($outerRequest->duration())->toBeGreaterThanOrEqual(4)
+            ->and($innerResponse->duration())->toBeGreaterThanOrEqual(4)
+            ->and($outerResponse->duration())->toBeLessThan(4)
+            ->and($outerRequest->end)->toBeLessThanOrEqual($innerRequest->start)
+            ->and($innerResponse->end)->toBeLessThanOrEqual($outerResponse->start)
+            ->and($innerRequest->parentId)->toBe($outerRequest->parentId)
+            ->and($outerResponse->parentId)->toBe($innerResponse->parentId)
+            ->and(latestCapture()->spansOfKind('middleware'))->toBe([])
+            ->and($controller?->start)->toBe($innerRequest->end);
     });
 
-    it('records the work before and after $next as child spans', function () use ($byName): void {
-        $this->get('/timed')->assertOk();
+    it('records short circuits on the request span without a response span', function () use ($span): void {
+        $this->get('/aborted')->assertStatus(418);
 
-        $children = fn (Span $parent): array => collect(latestCapture()->spans)
-            ->filter(fn (Span $span): bool => $span->parentId === $parent->id)
-            ->mapWithKeys(fn (Span $span): array => [$span->kind => $span])
-            ->all();
-
-        $outer = $byName('SleepBefore');
-        $inner = $byName('SleepAfter');
-        $outerChildren = $children($outer);
-        $innerChildren = $children($inner);
-
-        expect(array_keys($outerChildren))->toBe(['middleware.before', 'middleware', 'middleware.after'])
-            ->and($outerChildren['middleware.before']->duration())->toBeGreaterThanOrEqual(4)
-            ->and($outerChildren['middleware.before']->end)->toBeLessThanOrEqual($inner->start)
-            ->and($outerChildren['middleware.after']->start)->toBeGreaterThanOrEqual($inner->end)
-            ->and($outerChildren['middleware.after']->end)->toBeLessThanOrEqual($outer->end)
-            ->and($innerChildren['middleware.after']->duration())->toBeGreaterThanOrEqual(4);
+        expect($span('middleware.request', 'Abort')->meta)->toMatchArray(['passed' => false, 'short_circuited_with' => 418])
+            ->and($span('middleware.response', 'Abort'))->toBeNull()
+            ->and(latestCapture()->spans)->not->toHaveKey('controller');
     });
 
     it('splits middleware time into a request and a response phase', function (): void {
         $this->get('/timed')->assertOk();
 
-        $spans = latestCapture()->spansOfKind('middleware');
         $phases = array_column(app(SummaryBuilder::class)->breakdown(latestCapture())['phases'], 'ms', 'name');
-        $sum = fn (string $part): float => round(array_sum(array_map(fn (Span $span): float => (float) $span->meta[$part], $spans)), 3);
+        $sum = fn (string $kind): float => round(array_sum(array_map(fn (Span $span): float => $span->duration(), latestCapture()->spansOfKind($kind))), 3);
 
         expect(array_keys($phases))->toContain('middleware (request)', 'controller', 'middleware (response)')
-            ->and($phases)->not->toHaveKey('middleware')
-            ->and($phases['middleware (request)'])->toBe($sum('before_ms'))
-            ->and($phases['middleware (response)'])->toBe($sum('after_ms'))
+            ->and($phases['middleware (request)'])->toBe($sum('middleware.request'))
+            ->and($phases['middleware (response)'])->toBe($sum('middleware.response'))
             ->and($phases['middleware (request)'])->toBeGreaterThanOrEqual(4)
             ->and($phases['middleware (response)'])->toBeGreaterThanOrEqual(4);
     });
 
-    it('only records the before span when the middleware short-circuits', function () use ($byName): void {
-        $this->get('/aborted')->assertStatus(418);
+    it('includes both middleware span kinds when the timeline is filtered on middleware', function (): void {
+        $this->get('/timed')->assertOk();
 
-        $abort = $byName('Abort');
-        $kinds = collect(latestCapture()->spans)->filter(fn (Span $span): bool => $span->parentId === $abort->id)->map->kind->values()->all();
+        $kinds = array_unique(array_column(app(TimelineBuilder::class)->build(latestCapture(), ['middleware']), 'kind'));
+        sort($kinds);
 
-        expect($kinds)->toBe(['middleware.before']);
-    });
-
-    it('records short circuits', function () use ($byName): void {
-        $this->get('/aborted')->assertStatus(418);
-
-        $abort = $byName('Abort');
-
-        expect($abort->meta['passed'])->toBeFalse()
-            ->and($abort->meta['short_circuited_with'])->toBe(418)
-            ->and(latestCapture()->spans)->not->toHaveKey('controller');
+        expect($kinds)->toBe(['middleware.request', 'middleware.response', 'middleware.terminate']);
     });
 
     it('forwards and times terminate only for terminable middleware', function (): void {
@@ -111,8 +92,9 @@ describe(MiddlewareLens::class, function (): void {
         $this->get('/timed');
 
         $summary = $lens->summarize(latestCapture());
-        $sleepBefore = collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepBefore');
-        $own = (float) $sleepBefore->meta['before_ms'] + (float) $sleepBefore->meta['after_ms'];
+        $own = collect(latestCapture()->spans)
+            ->filter(fn (Span $span): bool => $span->name === 'SleepBefore' && str_starts_with($span->kind, 'middleware.'))
+            ->sum(fn (Span $span): float => $span->duration());
 
         expect($summary['totals']['middleware_count'])->toBe(2)
             ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $own));

@@ -10,9 +10,9 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Decorates a middleware instance resolved from the container and records a
- * span around handle(), with a "before" child span for the work done before
- * $next and an "after" child span for the work done once $next returned.
+ * Decorates a middleware instance resolved from the container and records two
+ * spans: "middleware.request" for the work done before $next, and
+ * "middleware.response" for the work done once $next returned.
  */
 final class TimedMiddleware
 {
@@ -26,53 +26,37 @@ final class TimedMiddleware
 
     public function handle(mixed $request, Closure $next, mixed ...$parameters): mixed
     {
-        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\'), 'middleware');
-        $span->meta([
-            'class' => $this->class,
-            'parameters' => $parameters,
-            'group' => $this->group,
-        ]);
-        $this->eyepiece->startSpan($span, origin: false);
+        $name = Str::afterLast($this->class, '\\');
 
-        $before = $this->eyepiece->span('before', 'middleware.before');
+        $before = $this->eyepiece->span($name, 'middleware.request');
+        $before->meta(['class' => $this->class, 'parameters' => $parameters, 'group' => $this->group]);
         $this->eyepiece->startSpan($before, origin: false);
 
         $after = null;
         $passed = false;
-        $nextCalledAt = null;
-        $nextReturnedAt = null;
         $response = null;
 
         try {
-            $response = $this->inner->handle($request, function (mixed $passable) use ($next, $before, &$after, &$passed, &$nextCalledAt, &$nextReturnedAt): mixed {
+            $response = $this->inner->handle($request, function (mixed $passable) use ($next, $name, $before, &$after, &$passed): mixed {
                 $passed = true;
                 $before->stop();
-                $nextCalledAt = $this->eyepiece->now();
 
                 try {
                     return $next($passable);
                 } finally {
-                    $nextReturnedAt = $this->eyepiece->now();
-                    $after = $this->eyepiece->span('after', 'middleware.after');
+                    $after = $this->eyepiece->span($name, 'middleware.response');
+                    $after->meta(['class' => $this->class, 'group' => $this->group]);
                     $this->eyepiece->startSpan($after, origin: false);
                 }
             }, ...$parameters);
 
             return $response;
         } finally {
-            $before->stop();
-            $after?->stop();
-            $end = $this->eyepiece->now();
-            $start = $span->start ?? $end;
-
-            $span->stop([
+            $before->stop([
                 'passed' => $passed,
-                'next_called_at' => $nextCalledAt,
-                'next_returned_at' => $nextReturnedAt,
-                'before_ms' => round(($nextCalledAt ?? $end) - $start, 3),
-                'after_ms' => $nextReturnedAt === null ? 0.0 : round($end - $nextReturnedAt, 3),
                 'short_circuited_with' => $passed ? null : ($response instanceof Response ? $response->getStatusCode() : null),
             ]);
+            $after?->stop();
         }
     }
 

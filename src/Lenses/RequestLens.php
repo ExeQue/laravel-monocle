@@ -356,8 +356,8 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
     }
 
     /**
-     * The controller runs between the innermost middleware calling $next and
-     * the first response preparation. Without middleware it starts at the
+     * The controller runs between the last middleware handing the request on
+     * and the first response preparation. Without middleware it starts at the
      * route match.
      */
     private function deriveControllerSpan(Capture $capture): void
@@ -368,8 +368,8 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
         $innermost = null;
 
-        foreach ($capture->spansOfKind('middleware') as $span) {
-            if (($span->meta['passed'] ?? false) !== true || ! isset($span->meta['next_called_at'])) {
+        foreach ($capture->spansOfKind('middleware.request') as $span) {
+            if (($span->meta['passed'] ?? false) !== true || $span->end === null) {
                 if (($span->meta['group'] ?? null) === 'route') {
                     return;
                 }
@@ -377,13 +377,21 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
                 continue;
             }
 
-            if ($innermost === null || $span->meta['next_called_at'] > $innermost->meta['next_called_at']) {
+            if ($innermost === null || $span->end > $innermost->end) {
                 $innermost = $span;
             }
         }
 
-        $start = $innermost?->meta['next_called_at'] ?? $this->routeMatchedAt;
-        $end = $this->responsePreparedAt ?? $innermost?->meta['next_returned_at'] ?? null;
+        $firstResponse = null;
+
+        foreach ($capture->spansOfKind('middleware.response') as $span) {
+            if ($firstResponse === null || $span->start < $firstResponse) {
+                $firstResponse = $span->start;
+            }
+        }
+
+        $start = $innermost !== null ? $innermost->end : $this->routeMatchedAt;
+        $end = $this->responsePreparedAt ?? $firstResponse;
 
         if ($end === null || $end < $start) {
             return;
@@ -393,7 +401,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             id: 'controller',
             name: 'controller',
             kind: 'controller',
-            parentId: $innermost?->id,
+            parentId: $innermost?->parentId,
             key: null,
             eyepiece: null,
         );

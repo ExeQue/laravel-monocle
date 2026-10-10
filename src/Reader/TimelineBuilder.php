@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use Illuminate\Support\Str;
 
 /**
  * Flattens the span tree into an ordered list with depth, ready to render as
@@ -22,7 +23,7 @@ final class TimelineBuilder
         $spans = $capture->spans;
 
         if ($kinds !== []) {
-            $spans = array_filter($spans, fn (Span $span): bool => in_array($span->kind, $kinds, true));
+            $spans = array_filter($spans, fn (Span $span): bool => in_array($span->kind, $kinds, true) || in_array(Str::before($span->kind, '.'), $kinds, true));
         }
 
         $children = [];

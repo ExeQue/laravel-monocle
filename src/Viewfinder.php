@@ -174,7 +174,7 @@ final class Viewfinder
 
         $sections = [
             ['key' => 'summary', 'description' => 'Time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), trace links and Monocle health.', 'rows' => null],
-            ['key' => 'timeline', 'description' => 'The span tree: request phases, each middleware (before/after $next), the derived controller span, transactions and spans added via Monocle::span(). Filter with kinds.', 'rows' => count($capture->spans)],
+            ['key' => 'timeline', 'description' => 'The span tree: request phases, each middleware (request and response side), the derived controller span, transactions and spans added via Monocle::span(). Filter with kinds.', 'rows' => count($capture->spans)],
         ];
 
         foreach ($capture->sections as $key => $data) {

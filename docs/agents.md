@@ -46,7 +46,7 @@ One capture - the latest unless an `id` is given. By default it returns the summ
 - **Trace links** - the parent capture and any jobs it dispatched.
 - **Available sections** - what else can be fetched, with a description and row count.
 
-Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]`.
+Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`).
 
 ### `monocle-rows`
 

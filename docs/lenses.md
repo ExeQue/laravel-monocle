@@ -25,7 +25,7 @@ The timeline splits the request into phases:
 
 ## Middleware
 
-Every middleware is timed. On the timeline each middleware has a `before` span for the work it did before passing the request on and an `after` span for the work it did once the response came back, so you can see where in the request each part ran. It also shows whether the middleware stopped the request (for example a redirect or a 403) and with which status. Middleware written as closures is not timed.
+Every middleware is timed. On the timeline each middleware has a `middleware.request` span for the work it did before passing the request on and a `middleware.response` span for the work it did once the response came back. It also shows whether the middleware stopped the request (for example a redirect or a 403) and with which status. Middleware written as closures is not timed.
 
 Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
