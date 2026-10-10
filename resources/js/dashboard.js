@@ -4,7 +4,7 @@ import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
-import { setupPopover } from './popover.js';
+import { setupPopover, rowDetails } from './popover.js';
 
 const PHASE_COLORS = {
   bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)',
@@ -349,6 +349,13 @@ Alpine.data('monocle', (config) => ({
     if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));
     lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
     return lines.join('\n');
+  },
+
+  /** Open the details of a table row next to the click. */
+  rowPopover(event, row, section) {
+    if (event.target.closest('a, button')) return;
+    event.stopPropagation();
+    this.popover.openDetails(event.currentTarget, rowDetails(row, section), event.clientX);
   },
 
   linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },

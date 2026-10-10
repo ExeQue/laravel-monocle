@@ -20,7 +20,10 @@ function metaRows(meta) {
   const links = meta._links ?? {};
   return Object.entries(meta)
     .filter(([k, v]) => k !== '_links' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
-    .map(([k, v]) => `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(fmtValue(v), links[k]) : esc(fmtValue(v))}</td></tr>`)
+    .map(([k, v]) => {
+      const text = (k === 'duration' || k === 'time' || k.endsWith('_ms')) && typeof v === 'number' ? ms(v) : fmtValue(v);
+      return `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(text, links[k]) : esc(text)}</td></tr>`;
+    })
     .join('');
 }
 
@@ -44,6 +47,20 @@ function nodeDetails(model, n) {
     ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${n.redis?.length ? `<div class="${SEC}"><div class="${K}">Redis commands</div>${n.redis.map((r) => `<div class="${SUB} font-mono">${esc(r.name)} <span class="tabular-nums">${ms(r.e - r.s)}</span></div>`).join('')}</div>` : ''}
     ${originHtml(d.origin)}`;
+}
+
+/** Details of one row from a section table (a query, a cache call, a view ...). */
+export function rowDetails(row, section) {
+  const title = row.sql_with_bindings ?? row.sql ?? row.key ?? row.view ?? row.url ?? row.name ?? row.message ?? row.ability ?? section;
+  const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash'].includes(k)));
+  const rows = metaRows(meta);
+  const sql = row.sql_with_bindings ?? row.sql;
+  return `
+    <div class="flex items-center gap-2"><span class="${cls.type}">${esc(section)}</span>${row.n ? `<span class="font-mono text-[11px] text-muted">#${esc(row.n)}</span>` : ''}<button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
+    ${sql ? '' : `<div class="font-semibold [overflow-wrap:anywhere]">${esc(String(title))}</div>`}
+    ${sql ? `<div class="${SEC} border-t-0 pt-0"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(sql)}</pre></div>` : ''}
+    ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
+    ${originHtml(row.origin)}`;
 }
 
 function phaseDetails(model, p) {
@@ -142,5 +159,5 @@ export function setupPopover(root, getModel) {
   addEventListener('resize', close);
   document.addEventListener('scroll', (e) => { if (!pop.contains(e.target)) close(); }, true);
 
-  return { close };
+  return { close, openDetails: open };
 }

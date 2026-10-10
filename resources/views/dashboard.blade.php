@@ -329,7 +329,7 @@
                             <thead><tr><th :class="cls.th" class="text-right">#</th><th :class="cls.th">Query</th><th :class="cls.th" class="text-right">At</th><th :class="cls.th" class="text-right">Time</th></tr></thead>
                             <tbody>
                                 <template x-for="q in tabData?.rows ?? []" :key="q.n">
-                                    <tr :class="q.duplicate_of ? 'bg-warn-soft/60' : ''">
+                                    <tr class="cursor-pointer hover:bg-sunk" :class="q.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, q, 'queries')">
                                         <td :class="cls.td" class="text-right font-mono text-xs text-muted tabular-nums" x-text="q.n"></td>
                                         <td :class="cls.td">
                                             <code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" x-text="q.sql_with_bindings ?? q.sql"></code>
@@ -388,7 +388,7 @@
                             <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="cls.th" x-text="col"></th></template></tr></thead>
                             <tbody>
                                 <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
-                                    <tr :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
+                                    <tr class="cursor-pointer hover:bg-sunk" :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, row, tab)"><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
                                 </template>
                             </tbody>
                         </table>
