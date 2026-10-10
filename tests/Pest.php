@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+if (! class_exists(Laravel\Pennant\Events\FeatureRetrieved::class)) {
+    require __DIR__.'/Fixtures/Stubs/PennantEvents.php';
+}
+
 if (! class_exists(Laravel\Sanctum\Events\TokenAuthenticated::class)) {
     require __DIR__.'/Fixtures/Stubs/SanctumTokenAuthenticated.php';
 }

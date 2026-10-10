@@ -41,7 +41,7 @@ describe(ConfigPublisher::class, function (): void {
         $lenses = $this->publisher->lensesIn();
 
         expect($lenses)->toContain(RequestLens::class, DatabaseLens::class, CacheLens::class)
-            ->and(count($lenses))->toBe(23);
+            ->and(count($lenses))->toBe(24);
     });
 
     it('turns unchosen lenses off whether they are booleans or option arrays, keeping comments', function (): void {

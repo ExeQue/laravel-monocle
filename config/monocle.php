@@ -12,6 +12,7 @@ use ExeQue\Monocle\Lenses\DumpLens;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use ExeQue\Monocle\Lenses\EventsLens;
 use ExeQue\Monocle\Lenses\ExceptionsLens;
+use ExeQue\Monocle\Lenses\FeatureFlagsLens;
 use ExeQue\Monocle\Lenses\FilesystemLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\LivewireLens;
@@ -109,6 +110,7 @@ return [
         ExceptionsLens::class => true,
         AuthorizationLens::class => true,
         AuthLens::class => true,
+        FeatureFlagsLens::class => true,
         LivewireLens::class => true,
         DumpLens::class => true,
         McpLens::class => true,

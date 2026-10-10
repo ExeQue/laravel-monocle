@@ -1,0 +1,84 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ExeQue\Monocle\Lenses;
+
+use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\Normalizer;
+use Illuminate\Contracts\Foundation\Application;
+
+/**
+ * Laravel Pennant feature checks: which flags a request looked at, for which
+ * scope, the value it got and whether that came from storage or was resolved
+ * just now. Explains why a request took one branch rather than another.
+ */
+final class FeatureFlagsLens implements Lens, Summarizable
+{
+    /** Event class => what happened. */
+    private const array EVENTS = [
+        'Laravel\\Pennant\\Events\\FeatureRetrieved' => 'stored',
+        'Laravel\\Pennant\\Events\\FeatureResolved' => 'resolved',
+        'Laravel\\Pennant\\Events\\UnknownFeatureResolved' => 'unknown',
+        'Laravel\\Pennant\\Events\\FeatureUpdated' => 'updated',
+        'Laravel\\Pennant\\Events\\FeatureDeleted' => 'deleted',
+    ];
+
+    private Eyepiece $eyepiece;
+
+    public function key(): string
+    {
+        return 'features';
+    }
+
+    public function description(): string
+    {
+        return 'Laravel Pennant feature flags: feature, scope (models as Class#id, null for global), value, and source - stored (read from storage), resolved (worked out now and stored), unknown (no such feature defined), updated or deleted.';
+    }
+
+    public function boot(Application $app, Eyepiece $eyepiece): void
+    {
+        $this->eyepiece = $eyepiece;
+
+        foreach (self::EVENTS as $event => $source) {
+            if (! class_exists($event)) {
+                continue;
+            }
+
+            $eyepiece->listen($event, function (object $event) use ($source): void {
+                if (! $this->eyepiece->recording()) {
+                    return;
+                }
+
+                $this->eyepiece->push('features', [
+                    'feature' => is_string($event->feature ?? null) ? $event->feature : Normalizer::value($event->feature ?? null),
+                    'scope' => Normalizer::value($event->scope ?? null),
+                    'value' => property_exists($event, 'value') ? Normalizer::value($event->value) : null,
+                    'source' => $source,
+                ]);
+            });
+        }
+    }
+
+    public function summarize(Capture $capture): array
+    {
+        $rows = $capture->rows('features');
+
+        if ($rows === []) {
+            return [];
+        }
+
+        $unknown = array_values(array_unique(array_column(array_filter($rows, fn (array $row): bool => $row['source'] === 'unknown'), 'feature')));
+
+        return [
+            'totals' => [
+                'features_checked' => count(array_unique(array_column($rows, 'feature'))),
+                'features_resolved' => count(array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved')),
+            ],
+            'warnings' => array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown),
+        ];
+    }
+}
