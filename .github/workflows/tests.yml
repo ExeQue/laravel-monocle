@@ -8,7 +8,11 @@ on:
     paths: &code
       - 'src/**'
       - 'config/**'
+      - 'routes/**'
+      - 'resources/**'
       - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
       - 'composer.json'
       - 'phpunit.xml'
       - '.github/workflows/tests.yml'
@@ -82,3 +86,26 @@ jobs:
       # Fails the build when line coverage drops below 90 %.
       - name: Execute tests with coverage
         run: vendor/bin/pest -p --ci --coverage --min=90
+
+  assets:
+    # The compiled dashboard assets ship in the repository; fail when they
+    # do not match their sources.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build the dashboard assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Check the committed build is current
+        run: git diff --exit-code -- resources/dist

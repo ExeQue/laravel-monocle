@@ -16,6 +16,14 @@ abstract class TestCase extends BaseTestCase
     protected string $monoclePath;
 
     /**
+     * Config applied before the providers boot; set it and call
+     * refreshApplication() to test boot-time behaviour.
+     *
+     * @var array<string, mixed>
+     */
+    public static array $bootConfig = [];
+
+    /**
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
@@ -31,6 +39,10 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('monocle.storage.file.path', $this->monoclePath);
         $app['config']->set('monocle.lenses.'.\ExeQue\Monocle\Lenses\FilesystemLens::class, ['disks' => ['spy', 'wild-*']]);
         $app['config']->set('monocle.storage.limit', 10);
+        foreach (self::$bootConfig as $key => $value) {
+            $app['config']->set($key, $value);
+        }
+
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
@@ -42,6 +54,7 @@ abstract class TestCase extends BaseTestCase
     protected function tearDown(): void
     {
         (new Filesystem())->deleteDirectory($this->monoclePath);
+        self::$bootConfig = [];
 
         parent::tearDown();
     }

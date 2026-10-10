@@ -219,7 +219,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function isExcepted(Request $request): bool
     {
-        foreach ((array) $this->eyepiece->config('except.paths', []) as $pattern) {
+        $dashboard = trim((string) $this->eyepiece->config('dashboard.path', '_monocle'), '/');
+
+        foreach ([$dashboard, $dashboard.'/*', ...(array) $this->eyepiece->config('except.paths', [])] as $pattern) {
             if ($request->is($pattern)) {
                 return true;
             }
@@ -401,7 +403,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             id: 'controller',
             name: 'controller',
             kind: 'controller',
-            parentId: $innermost?->parentId,
+            parentId: $innermost?->parentId ?? $this->handlePhaseId($capture),
             key: null,
             eyepiece: null,
         );
@@ -412,5 +414,16 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $controller->meta = ['action' => $capture->section('request')['route']['action'] ?? null];
 
         $capture->spans[$controller->id] = $controller;
+    }
+
+    private function handlePhaseId(Capture $capture): ?string
+    {
+        foreach ($capture->spansOfKind('phase') as $span) {
+            if ($span->name === 'handle') {
+                return $span->id;
+            }
+        }
+
+        return null;
     }
 }

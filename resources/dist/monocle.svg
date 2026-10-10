@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="monocle-rim" x1="4" y1="3" x2="24" y2="25" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f0c27a"/>
+      <stop offset=".45" stop-color="#c08429"/>
+      <stop offset="1" stop-color="#7e4f12"/>
+    </linearGradient>
+    <clipPath id="monocle-glass"><circle cx="13.5" cy="13.5" r="9"/></clipPath>
+  </defs>
+  <path d="M20.6 20.6c1.4 1.6 2.2 3.4 2.6 5.2.3 1.4 1 2.6 2.4 3.4" stroke="#a36a1e" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="1.4 1.6"/>
+  <circle cx="13.5" cy="13.5" r="9" fill="#17181b"/>
+  <g clip-path="url(#monocle-glass)">
+    <rect x="6" y="9" width="13" height="2.4" rx="1.2" fill="#6fd6cc"/>
+    <rect x="8.5" y="12.3" width="10" height="2.4" rx="1.2" fill="#a593ea"/>
+    <rect x="11" y="15.6" width="5.5" height="2.4" rx="1.2" fill="#6fd6cc"/>
+    <path d="M6.5 8.5a9 9 0 0 1 6-4.4" stroke="#ffffff" stroke-opacity=".35" stroke-width="1.4" stroke-linecap="round"/>
+  </g>
+  <circle cx="13.5" cy="13.5" r="9.8" stroke="url(#monocle-rim)" stroke-width="2.6"/>
+  <circle cx="20.6" cy="20.6" r="1.5" fill="#17181b" stroke="#c08429" stroke-width="1.1"/>
+</svg>

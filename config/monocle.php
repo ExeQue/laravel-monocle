@@ -102,13 +102,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Requests whose path matches one of these patterns, and console commands
-    | whose name matches, are never recorded. Monocle's own endpoints and MCP
-    | server live here so the profiler does not profile itself.
+    | whose name matches, are never recorded. Monocle's own MCP server is
+    | listed here; the dashboard is excluded on its own.
     |
     */
 
     'except' => [
-        'paths' => ['_monocle', '_monocle/*', '__clockwork', '__clockwork/*', '_debugbar/*', '_boost/browser-logs', 'horizon', 'horizon/*'],
+        'paths' => ['__clockwork', '__clockwork/*', '_debugbar/*', '_boost/browser-logs', 'horizon', 'horizon/*'],
         'commands' => ['monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'horizon*', 'schedule:work'],
     ],
 
@@ -186,6 +186,25 @@ return [
         'enabled' => true,
         'server' => 'monocle',
         'except_servers' => ['monocle', 'laravel-boost'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard
+    |--------------------------------------------------------------------------
+    |
+    | The web dashboard and its JSON API live under `path` (and `domain`, when
+    | set). Access is decided by the viewMonocle gate, which by default only
+    | allows the local environment; define the gate yourself to change that.
+    | Requests to the dashboard are never recorded.
+    |
+    */
+
+    'dashboard' => [
+        'enabled' => env('MONOCLE_DASHBOARD', true),
+        'path' => env('MONOCLE_PATH', '_monocle'),
+        'domain' => env('MONOCLE_DOMAIN'),
+        'middleware' => ['web'],
     ],
 
 ];

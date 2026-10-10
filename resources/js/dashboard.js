@@ -1,0 +1,222 @@
+import Alpine from 'alpinejs';
+import { esc, ms, ago, statusClass, humanize, fmtValue, maybeLink } from './format.js';
+import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
+import { setupPopover } from './popover.js';
+
+const PHASE_COLORS = {
+  bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)',
+  'middleware (response)': 'color-mix(in srgb, var(--c-mw) 55%, var(--panel))', response: 'var(--c-phase)', terminate: 'var(--c-phase)', other: 'var(--line)',
+};
+const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', fs: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
+
+/** Totals shown first, in this order; everything else follows. */
+const KEY_TOTALS = ['duration_ms', 'queries', 'query_ms', 'cache_hit_rate', 'views_rendered', 'models_retrieved', 'redis_commands', 'memory_peak_mb', 'response_bytes', 'tokens_total', 'jobs_dispatched'];
+const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'meta'];
+
+const theme = {
+  get() { try { return localStorage.getItem('monocle.theme') ?? 'system'; } catch { return 'system'; } },
+  set(value) {
+    try { localStorage.setItem('monocle.theme', value); } catch { /* storage blocked */ }
+    value === 'system' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', value);
+  },
+};
+theme.set(theme.get());
+
+Alpine.data('monocle', (config) => ({
+  api: config.api,
+  captures: [],
+  total: 0,
+  filters: { type: '', q: '', errors: false },
+  live: true,
+  selectedId: null,
+  capture: null,
+  model: null,
+  tab: 'overview',
+  tabData: null,
+  tabLoading: false,
+  groupBy: 'shape',
+  timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
+  timelineHtml: '',
+  theme: theme.get(),
+  error: null,
+  confirmClear: false,
+
+  init() {
+    this.popover = setupPopover(this.$refs.detail, () => this.model);
+    const fromHash = location.hash.replace(/^#/, '').split('/');
+    if (fromHash[0]) { this.selectedId = fromHash[0]; this.tab = fromHash[1] || 'overview'; }
+    this.load();
+    setInterval(() => this.live && !document.hidden && this.load(true), 2500);
+    this.$watch('filters', () => this.load(), { deep: true });
+  },
+
+  async fetchJson(url, options = {}) {
+    const response = await fetch(url, { headers: { Accept: 'application/json', 'X-CSRF-TOKEN': config.csrf, ...(options.headers ?? {}) }, ...options });
+    if (!response.ok) throw new Error(response.status === 403 ? 'You are not allowed to view Monocle here.' : `The request failed (${response.status}).`);
+    return response.json();
+  },
+
+  async load(quiet = false) {
+    const params = new URLSearchParams({ limit: 200 });
+    if (this.filters.type) params.set('type', this.filters.type);
+    if (this.filters.q) params.set('uri', this.filters.q);
+    if (this.filters.errors) params.set('has_errors', '1');
+    try {
+      const result = await this.fetchJson(`${this.api}?${params}`);
+      this.captures = result.rows;
+      this.total = result.total;
+      this.error = null;
+      if (!this.selectedId && this.captures[0]) this.select(this.captures[0].id);
+      else if (!quiet && this.selectedId && !this.capture) this.select(this.selectedId, this.tab);
+    } catch (e) {
+      this.error = e.message;
+    }
+  },
+
+  async select(id, tab = 'overview') {
+    this.popover.close();
+    this.selectedId = id;
+    this.tab = tab;
+    this.timelineState = { open: new Set(), shut: new Set(), kinds: new Set() };
+    this.tabData = null;
+    try {
+      const capture = await this.fetchJson(`${this.api}/${encodeURIComponent(id)}`);
+      this.capture = capture;
+      this.model = { tree: indexTree(capture.timeline), duration: capture.summary?.totals?.duration_ms ?? this.duration(capture) };
+      history.replaceState(null, '', `#${id}/${this.tab}`);
+      this.openTab(this.tab);
+    } catch (e) {
+      this.capture = null;
+      this.error = e.message;
+    }
+  },
+
+  duration(capture) {
+    const row = this.captures.find((c) => c.id === capture.id);
+    return row?.duration ?? 0;
+  },
+
+  async openTab(tab) {
+    this.popover.close();
+    this.tab = tab;
+    this.tabData = null;
+    history.replaceState(null, '', `#${this.selectedId}/${tab}`);
+    if (tab === 'timeline') return this.renderTimeline();
+    if (tab === 'overview') return;
+    this.tabLoading = true;
+    try {
+      const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
+      this.tabData = tab === 'queries'
+        ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
+        : tab === 'trace'
+          ? await this.fetchJson(`${base}/trace`)
+          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=100`);
+    } catch (e) {
+      this.error = e.message;
+    } finally {
+      this.tabLoading = false;
+    }
+  },
+
+  async loadMore() {
+    if (this.tabData?.next_offset == null) return;
+    const more = await this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(this.tab)}?limit=100&offset=${this.tabData.next_offset}`);
+    this.tabData = { ...more, rows: [...this.tabData.rows, ...more.rows] };
+  },
+
+  renderTimeline() {
+    this.timelineHtml = this.model ? renderTimeline(this.model, this.timelineState) : '';
+  },
+
+  timelineClick(e) {
+    const t = e.target.closest('button');
+    if (!t) return;
+    const s = this.timelineState;
+    if (t.dataset.toggle) {
+      const id = t.dataset.toggle;
+      if (t.dataset.open === 'true') { s.open.delete(id); s.shut.add(id); } else { s.shut.delete(id); s.open.add(id); }
+    } else if (t.dataset.expand) {
+      Object.keys(this.model.tree.byId).forEach((id) => s.open.add(id));
+      (phasesOf(this.model.tree) ?? []).forEach((p) => s.open.add(p.id));
+      s.shut.clear();
+    } else if (t.dataset.collapse) {
+      s.open.clear();
+      (phasesOf(this.model.tree) ?? []).forEach((p) => s.shut.add(p.id));
+    } else if (t.dataset.kind) {
+      s.kinds.has(t.dataset.kind) ? s.kinds.delete(t.dataset.kind) : s.kinds.add(t.dataset.kind);
+    } else {
+      return;
+    }
+    this.popover.close();
+    this.renderTimeline();
+  },
+
+  async clearAll() {
+    await this.fetchJson(this.api, { method: 'DELETE' });
+    this.confirmClear = false;
+    this.capture = null;
+    this.model = null;
+    this.selectedId = null;
+    history.replaceState(null, '', '#');
+    this.load();
+  },
+
+  setTheme(value) { this.theme = value; theme.set(value); },
+
+  get tabs() {
+    if (!this.capture) return [];
+    const counts = this.capture.summary?.counts ?? {};
+    const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
+    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
+    for (const s of this.capture.available_sections ?? []) {
+      if (SKIP_SECTIONS.includes(s.key) || !s.rows) continue;
+      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows, description: s.description });
+    }
+    tabs.push({ key: 'trace', label: 'Trace' });
+    return tabs;
+  },
+
+  get summary() { return this.capture?.summary ?? {}; },
+  get phases() { return this.summary.breakdown?.phases ?? []; },
+  get categories() { return this.summary.breakdown?.categories ?? []; },
+  get maxCategory() { return Math.max(1, ...this.categories.map((c) => c.ms)); },
+
+  get totals() {
+    const totals = this.summary.totals ?? {};
+    const scalar = Object.entries(totals).filter(([, v]) => v !== null && typeof v !== 'object');
+    const first = KEY_TOTALS.filter((k) => totals[k] !== undefined && totals[k] !== null && typeof totals[k] !== 'object').map((k) => [k, totals[k]]);
+    return [...first, ...scalar.filter(([k]) => !KEY_TOTALS.includes(k))];
+  },
+
+  get tableColumns() {
+    const rows = this.tabData?.rows ?? [];
+    const keys = [];
+    for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n') keys.push(k);
+    return keys.filter((k) => k !== 'origin').slice(0, 7).concat(keys.includes('origin') ? ['origin'] : []);
+  },
+
+  cell(row, key) {
+    const v = row[key];
+    if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, 'origin') : '';
+    if (key === 'duration' && typeof v === 'number') return esc(ms(v));
+    const text = fmtValue(v);
+    return esc(text.length > 240 ? text.slice(0, 240) + '...' : text);
+  },
+
+  // Template helpers
+  ms, ago, statusClass, humanize, esc,
+  phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
+  categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
+  totalValue([k, v]) {
+    if (k.endsWith('_ms')) return ms(v);
+    if (k.endsWith('_rate')) return v + ' %';
+    if (k.endsWith('_bytes')) return v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : Math.round(v / 1024) + ' KB';
+    if (k.endsWith('_mb')) return v + ' MB';
+    return String(v);
+  },
+  totalLabel(k) { return humanize(k.replace(/_(ms|mb|bytes)$/, (m, u) => ` (${u === 'ms' ? 'ms' : u === 'mb' ? 'MB' : 'bytes'})`)); },
+  originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, 'origin') : ''; },
+}));
+
+window.Alpine = Alpine;
+Alpine.start();

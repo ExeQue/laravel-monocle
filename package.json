@@ -1,13 +1,17 @@
 {
-  "name": "laravel-monocle-docs",
+  "name": "laravel-monocle-assets",
   "private": true,
   "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev .",
     "docs:build": "vitepress build .",
-    "docs:preview": "vitepress preview ."
+    "docs:preview": "vitepress preview .",
+    "build": "esbuild resources/js/dashboard.js --bundle --minify --format=iife --target=es2020 --legal-comments=eof --banner:js=\"/*! Monocle dashboard. Bundles Alpine.js (c) Caleb Porzio and contributors, MIT license. */\" --outfile=resources/dist/monocle.js && esbuild resources/css/dashboard.css --bundle --minify --outfile=resources/dist/monocle.css",
+    "watch": "esbuild resources/js/dashboard.js --bundle --format=iife --target=es2020 --outfile=resources/dist/monocle.js --watch"
   },
   "devDependencies": {
+    "alpinejs": "^3.17.4",
+    "esbuild": "^0.25.0",
     "vitepress": "^1.6.4"
   },
   "//overrides": [
@@ -17,6 +21,6 @@
   ],
   "overrides": {
     "vite": "^6.4.3",
-    "esbuild": "^0.25.0"
+    "esbuild": "$esbuild"
   }
 }

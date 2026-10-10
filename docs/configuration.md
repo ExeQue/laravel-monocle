@@ -86,3 +86,7 @@ How many captures to keep and where. See [Storage](storage.md).
 ```
 
 `server` is the name used in `mcp:start monocle`. MCP servers listed in `except_servers` are not recorded.
+
+## `dashboard`
+
+Where the web dashboard lives and whether it is enabled - see [Dashboard](dashboard.md#configuration).

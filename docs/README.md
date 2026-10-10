@@ -5,6 +5,7 @@
 - [Installation](installation.md) - Install, enable and connect your MCP client
 - [For AI agents](agents.md) - The MCP tools and how an agent uses them
 - [Artisan commands](commands.md) - The same data from the terminal
+- [Dashboard](dashboard.md) - The same data in your browser
 - [What gets recorded](lenses.md) - Every lens and what it records
 - [Spans and metadata](spans.md) - Measure your own code
 - [Writing a lens](writing-a-lens.md) - Record something Monocle does not know about
