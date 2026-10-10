@@ -3,19 +3,18 @@ name: Documentation
 on:
   push:
     branches: [ "main" ]
-    paths:
+    paths: &docs
       - 'README.md'
       - 'LICENSE.md'
       - 'docs/**'
+      - 'art/**'
       - '.vitepress/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/docs.yml'
   pull_request:
-    paths:
-      - 'README.md'
-      - 'docs/**'
-      - '.vitepress/**'
-      - 'package.json'
+    branches: [ "main" ]
+    paths: *docs
   workflow_dispatch:
 
 # The build runs on a pull request too: VitePress fails on a dead link, which is

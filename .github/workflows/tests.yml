@@ -1,11 +1,21 @@
 name: Tests
 
 on:
-  # Only main: pushes to it, and pull requests that target it.
+  # Only main: pushes to it, and pull requests that target it - and only when
+  # something that can change the outcome of the suite changed.
   push:
     branches: [ "main" ]
+    paths: &code
+      - 'src/**'
+      - 'config/**'
+      - 'tests/**'
+      - 'composer.json'
+      - 'phpunit.xml'
+      - '.github/workflows/tests.yml'
   pull_request:
     branches: [ "main" ]
+    paths: *code
+  workflow_dispatch:
 
 # Runs from maintainers start right away. Pull requests from outside
 # contributors wait for a maintainer to approve the run - that is a
