@@ -154,6 +154,21 @@ export function renderTimeline(model, kinds) {
     };
   };
 
+  /**
+   * What ran inside folded spans from other lenses (queries in middleware, cache in views) as a
+   * thin strip under the blocks, in each lens's colour.
+   */
+  const inner = (members, lens, top) => {
+    const marks = [];
+    const walk = (n) => n.children.forEach((c) => { if (lensOf(c) !== lens) marks.push(c); walk(c); });
+    members.forEach(walk);
+    if (!marks.length) return { height: 0, html: '' };
+    return {
+      height: 6,
+      html: marks.map((m) => `<span class="absolute h-1 min-w-[3px] cursor-pointer rounded-[1px] hover:brightness-110" data-node="${m.id}" title="${esc(describe(m))} · ${ms(m.e - m.s)}" style="left:${pct(m.s)}%;width:${pct(m.e) - pct(m.s)}%;top:${top}px;background:${colorOf(m)}"></span>`).join(''),
+    };
+  };
+
   const spanRow = (n, depth) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
       <span class="${NAME}" style="padding-left:${10 + depth * 12}px"><span class="${KIND}">${n.kind}</span></span>
       <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
@@ -199,7 +214,9 @@ export function renderTimeline(model, kinds) {
     const leaves = g.members.filter((m) => !wrappers.includes(m));
     const wl = lanes(wrappers);
     const wCount = wl.length ? Math.max(...wl.map((l) => l.lane)) + 1 : 0;
-    const seg = segments(leaves, color, 7 + wCount * 3 + (wCount ? 2 : 0));
+    const base = segments(leaves, color, 7 + wCount * 3 + (wCount ? 2 : 0));
+    const marks = inner(g.members, g.lens, base.height - 4);
+    const seg = { height: base.height + marks.height, html: base.html + marks.html };
     const external = g.members.flatMap((m) => m.children.filter((c) => lensOf(c) !== g.lens)).sort((a, b) => a.s - b.s);
     const header = `<div class="${ROW} bg-[color-mix(in_srgb,var(--brass-soft)_45%,transparent)] transition-[height] duration-200" :style="${open(g.id, false)} ? 'height:26px' : 'height:${seg.height}px'" style="height:${seg.height}px">
       ${toggleCell(g.id, false, g.depth, `<span class="${KIND}">${g.lens}</span>`)}
@@ -227,7 +244,9 @@ export function renderTimeline(model, kinds) {
     const name = `<span class="text-[12.5px] font-semibold">${p.label}</span>`;
     phaseIndex[p.id] = p;
     if (collapsible) foldable.push({ id: p.id, def });
-    const seg = collapsible ? segments(p.members, middleware ? color : null, 8) : null;
+    const base = collapsible ? segments(p.members, middleware ? color : null, 8) : null;
+    const marks = collapsible && middleware ? inner(p.members, 'middleware', base.height - 4) : { height: 0, html: '' };
+    const seg = collapsible ? { height: base.height + marks.height, html: base.html + marks.html } : null;
     const bar = `<span class="absolute top-1.5 h-4 min-w-0.5 cursor-pointer rounded-sm opacity-85 hover:brightness-110" data-phase="${p.id}" style="left:${pct(p.s)}%;width:${pct(p.e) - pct(p.s)}%;background:${color}"></span>`;
     const header = `<div class="${ROW} bg-sunk ${collapsible ? 'transition-[height] duration-200' : ''}" style="height:${collapsible && !def ? seg.height : 28}px" ${collapsible ? `:style="${open(p.id, def)} ? 'height:28px' : 'height:${seg.height}px'"` : ''}>
       ${collapsible ? toggleCell(p.id, def, 0, name) : `<span class="${NAME} pl-2.5">${name}</span>`}

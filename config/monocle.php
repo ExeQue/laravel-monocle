@@ -22,6 +22,7 @@ use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
+use ExeQue\Monocle\Lenses\SessionLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
@@ -55,7 +56,10 @@ return [
     */
 
     'lenses' => [
-        RequestLens::class => true,
+        RequestLens::class => [
+            'response_body' => true,
+        ],
+        SessionLens::class => true,
         CommandLens::class => true,
         QueueLens::class => true,
         ScheduleLens::class => true,

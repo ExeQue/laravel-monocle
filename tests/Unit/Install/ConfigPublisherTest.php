@@ -41,13 +41,13 @@ describe(ConfigPublisher::class, function (): void {
         $lenses = $this->publisher->lensesIn();
 
         expect($lenses)->toContain(RequestLens::class, DatabaseLens::class, CacheLens::class)
-            ->and(count($lenses))->toBe(21);
+            ->and(count($lenses))->toBe(22);
     });
 
     it('turns unchosen lenses off whether they are booleans or option arrays, keeping comments', function (): void {
         $rendered = $this->publisher->render(['lenses' => [RequestLens::class, CacheLens::class]]);
 
-        expect($rendered)->toContain('        RequestLens::class => true,')
+        expect($rendered)->toContain("        RequestLens::class => [\n            'response_body' => true,\n        ],")
             ->and($rendered)->toContain('        DatabaseLens::class => false,')
             ->and($rendered)->toContain('        EventsLens::class => false,')
             ->and($rendered)->not->toContain("'n_plus_one_threshold'")

@@ -10,7 +10,9 @@ Turn lenses on, off or change their options in [`config/monocle.php`](configurat
 
 ## Request
 
-Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookie names, IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size and headers, and peak memory.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size, headers and body, and peak memory. The body is kept for text responses (HTML, JSON, XML, text); others only have their size.
+
+Option: `response_body` (default `true`) - `false` leaves response bodies out.
 
 The timeline splits the request into phases:
 
@@ -22,6 +24,11 @@ The timeline splits the request into phases:
 | `handle` | route middleware, the controller and building the response |
 | `controller` | the controller itself |
 | `terminate` | work done after the response was sent |
+
+
+## Session
+
+Section `session`: what the session held once the request was handled - the data (secret-looking keys and the CSRF token masked), the keys flashed for the next request, the driver and a short hash of the session id.
 
 ## Middleware
 

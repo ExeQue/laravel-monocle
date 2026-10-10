@@ -10,6 +10,7 @@ use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 /**
  * JSON for the dashboard, built on the same Viewfinder the MCP tools and
@@ -46,6 +47,10 @@ final readonly class CapturesController
 
         if (isset($result['rows'])) {
             $result['rows'] = array_map($presenter->row(...), $result['rows']);
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            $result['links'] = array_filter(array_map($presenter->link(...), Arr::dot($result['data'])));
         }
 
         return $this->respond($result);

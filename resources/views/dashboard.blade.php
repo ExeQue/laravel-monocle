@@ -147,6 +147,107 @@
 
                 <section x-show="tab === 'timeline'" @click="timelineClick($event)" x-html="timelineHtml"></section>
 
+                <section x-show="tab === 'request'" class="grid gap-6">
+                    <template x-if="request">
+                        <div class="grid gap-6">
+                            <div class="grid gap-2">
+                                <h3 :class="cls.sectionTitle" class="mb-0">Request</h3>
+                                <p class="m-0 font-mono text-[13px] [overflow-wrap:anywhere]"><b x-text="request.method"></b> <span x-text="request.url"></span></p>
+                                <dl class="m-0 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
+                                    <template x-for="[k, v, path] in [['Route', request.route?.name ?? request.route?.uri, 'route.name'], ['Action', request.route?.action, 'route.action'], ['User', request.auth ? (request.auth.user ?? request.auth.id ?? JSON.stringify(request.auth)) : null, 'auth.user'], ['IP', request.ip, 'ip'], ['User agent', request.user_agent, 'user_agent'], ['Locale', request.locale, 'locale']].filter(([, v]) => v)" :key="k">
+                                        <div class="contents"><dt class="text-muted" x-text="k"></dt><dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]" x-html="linked(v, path)"></dd></div>
+                                    </template>
+                                </dl>
+                            </div>
+
+                            <div>
+                                <h3 :class="cls.sectionTitle">Payload</h3>
+                                <div :class="cls.tableWrap" x-show="dot(request.query).length || dot(request.input).length">
+                                    <table class="w-full border-collapse text-[13px]">
+                                        <thead><tr><th :class="cls.th">Key</th><th :class="cls.th">Value</th><th :class="cls.th">From</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="[k, v, from] in [...dot(request.query).map((e) => [...e, 'query']), ...dot(request.input).map((e) => [...e, 'body'])]" :key="from + k">
+                                                <tr><td :class="cls.td" class="font-mono text-xs" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-text="v"></td><td :class="cls.td" class="text-xs text-muted" x-text="from"></td></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p :class="cls.empty" x-show="!dot(request.query).length && !dot(request.input).length && !request.files?.length">No query string or body.</p>
+                                <div class="mt-3" :class="cls.tableWrap" x-show="request.files?.length">
+                                    <table class="w-full border-collapse text-[13px]">
+                                        <thead><tr><th :class="cls.th">File field</th><th :class="cls.th">Name</th><th :class="cls.th">Type</th><th :class="cls.th" class="text-right">Size</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="f in request.files ?? []" :key="f.key + f.name">
+                                                <tr><td :class="cls.td" class="font-mono text-xs" x-text="f.key"></td><td :class="cls.td" x-text="f.name"></td><td :class="cls.td" class="text-xs text-muted" x-text="f.mime"></td><td :class="cls.td" class="text-right tabular-nums" x-text="f.size"></td></tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 :class="cls.sectionTitle">Request headers</h3>
+                                <div :class="cls.tableWrap">
+                                    <table class="w-full border-collapse text-[13px]"><tbody>
+                                        <template x-for="[k, v] in headers(request.headers)" :key="k">
+                                            <tr><td :class="cls.td" class="w-56 font-mono text-xs text-muted" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-text="v"></td></tr>
+                                        </template>
+                                    </tbody></table>
+                                </div>
+                            </div>
+
+                            <div x-show="dot(request.cookies).length">
+                                <h3 :class="cls.sectionTitle">Cookies</h3>
+                                <div :class="cls.tableWrap">
+                                    <table class="w-full border-collapse text-[13px]"><tbody>
+                                        <template x-for="[k, v] in dot(request.cookies)" :key="k">
+                                            <tr><td :class="cls.td" class="w-56 font-mono text-xs text-muted" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-text="v"></td></tr>
+                                        </template>
+                                    </tbody></table>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3">
+                                <h3 :class="cls.sectionTitle" class="mb-0">Response</h3>
+                                <p class="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+                                    <span class="font-mono" :class="statusClass(request.status)" x-text="request.status"></span>
+                                    <span class="text-muted" x-text="request.content_type"></span>
+                                    <span class="text-muted tabular-nums" x-show="request.response_bytes != null" x-text="totalValue(['response_bytes', request.response_bytes])"></span>
+                                    <span x-show="request.redirect">Redirects to <span class="font-mono" x-text="request.redirect"></span></span>
+                                </p>
+                                <div :class="cls.tableWrap">
+                                    <table class="w-full border-collapse text-[13px]"><tbody>
+                                        <template x-for="[k, v] in headers(request.response_headers)" :key="k">
+                                            <tr><td :class="cls.td" class="w-56 font-mono text-xs text-muted" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-text="v"></td></tr>
+                                        </template>
+                                    </tbody></table>
+                                </div>
+                                <pre class="scroll-quiet m-0 max-h-[480px] overflow-auto rounded-md border border-line bg-panel p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]" x-show="request.response_body" x-text="body(request.response_body, request.content_type)"></pre>
+                            </div>
+                        </div>
+                    </template>
+                </section>
+
+                <section x-show="tab === 'session'">
+                    <template x-if="session">
+                        <div class="grid gap-4">
+                            <p class="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
+                                <span>Driver <b class="font-mono text-fg" x-text="session.driver"></b></span>
+                                <span>Session <b class="font-mono text-fg" x-text="session.id"></b></span>
+                                <span x-show="session.flash?.length">Flashed for the next request: <b class="font-mono text-fg" x-text="session.flash?.join(', ')"></b></span>
+                            </p>
+                            <div :class="cls.tableWrap" x-show="dot(session.data).length">
+                                <table class="w-full border-collapse text-[13px]"><tbody>
+                                    <template x-for="[k, v] in dot(session.data)" :key="k">
+                                        <tr><td :class="cls.td" class="w-72 font-mono text-xs text-muted" x-text="k"></td><td :class="cls.td" class="font-mono text-xs" x-html="linked(v, 'data.' + k)"></td></tr>
+                                    </template>
+                                </tbody></table>
+                            </div>
+                            <p :class="cls.empty" x-show="!dot(session.data).length">The session was empty.</p>
+                        </div>
+                    </template>
+                </section>
+
                 <section x-show="tab === 'queries'">
                     <div class="mb-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">Show
                         <template x-for="g in [['order', 'in order'], ['shape', 'by query'], ['caller', 'by caller'], ['table', 'by table'], ['transaction', 'by transaction']]" :key="g[0]">
@@ -211,7 +312,7 @@
                     </div>
                 </section>
 
-                <section x-show="!['overview', 'timeline', 'queries', 'trace'].includes(tab)">
+                <section x-show="!['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)">
                     <div :class="cls.tableWrap" x-show="tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
                             <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="cls.th" x-text="col"></th></template></tr></thead>

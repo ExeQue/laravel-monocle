@@ -44,6 +44,59 @@ describe(RequestLens::class, function (): void {
             ->and($response->headers->get('Server-Timing'))->toContain('app;dur=');
     });
 
+    it('keeps text response bodies and leaves binary ones out', function (): void {
+        Route::post('/json', fn () => response()->json(['ok' => true]));
+        Route::get('/binary', fn () => response("\x89PNG", 200, ['Content-Type' => 'image/png']));
+
+        $this->postJson('/json', ['name' => 'x', 'password' => 'secret-value'])->assertOk();
+        $request = latestCapture()->section('request');
+
+        expect($request['response_body'])->toBe('{"ok":true}')
+            ->and($request['content_type'])->toBe('application/json')
+            ->and($request['input']['name'])->toBe('x')
+            ->and($request['input']['password'])->not->toBe('secret-value');
+
+        $this->get('/binary')->assertOk();
+
+        expect(latestCapture()->section('request')['response_body'])->toBeNull()
+            ->and(latestCapture()->section('request')['response_bytes'])->toBe(4);
+    });
+
+    it('keeps multipart fields as input and files apart', function (): void {
+        Route::post('/upload-form', fn () => 'ok');
+
+        $this->post('/upload-form', [
+            'title' => 'Holiday',
+            'meta' => ['tags' => ['sea', 'sun']],
+            'photo' => Illuminate\Http\UploadedFile::fake()->create('a.jpg', 3, 'image/jpeg'),
+        ])->assertOk();
+
+        $request = latestCapture()->section('request');
+
+        expect($request['input'])->toBe(['title' => 'Holiday', 'meta' => ['tags' => ['sea', 'sun']]])
+            ->and($request['files'][0])->toMatchArray(['key' => 'photo', 'name' => 'a.jpg', 'mime' => 'image/jpeg']);
+    });
+
+    it('records decrypted cookies with the session cookie masked', function (): void {
+        Route::middleware('web')->get('/cookies', fn () => 'ok');
+
+        $this->withCookie('theme', 'dark')->withCookie(config('session.cookie'), 'session-id-value')->get('/cookies')->assertOk();
+
+        $cookies = latestCapture()->section('request')['cookies'];
+
+        expect($cookies['theme'])->toBe('dark')
+            ->and($cookies[config('session.cookie')])->not->toBe('session-id-value');
+    });
+
+    it('leaves response bodies out when turned off', function (): void {
+        collect(app(ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens)->configure(['response_body' => false]);
+        Route::get('/html', fn () => '<p>hi</p>');
+
+        $this->get('/html')->assertOk();
+
+        expect(latestCapture()->section('request')['response_body'])->toBeNull();
+    });
+
     it('masks matching input keys', function (): void {
         $this->post('/login', ['email' => 'a@b.c', 'password' => 'hunter22hunter22']);
 

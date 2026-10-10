@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -19,6 +20,7 @@ use Illuminate\Routing\Events\PreparingResponse;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Routing\Events\Routing;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
@@ -27,7 +29,7 @@ use Throwable;
  * Owns the HTTP capture lifecycle: starts it, records request/response facts,
  * lays down the phase spans and persists at terminate.
  */
-final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
+final class RequestLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
@@ -43,6 +45,8 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private int $requestsInProcess = 0;
 
+    private bool $responseBody = true;
+
     public function key(): string
     {
         return 'request';
@@ -50,7 +54,12 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input, files, auth user, status, response size and headers, peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (text responses only), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+    }
+
+    public function configure(array $options): void
+    {
+        $this->responseBody = (bool) ($options['response_body'] ?? $this->responseBody);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -162,7 +171,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $response = $event->response;
 
         $this->eyepiece->describe(status: (string) $response->getStatusCode());
-        $this->eyepiece->set('request', $this->describeResponse($response));
+        $this->eyepiece->set('request', [...$this->describeResponse($response), 'cookies' => $this->cookies($event->request)]);
         $this->phase('terminate');
 
         try {
@@ -257,10 +266,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             'url' => $request->fullUrl(),
             'path' => '/'.ltrim($request->path(), '/'),
             'query' => $masker->inputs($request->query()),
-            'input' => $masker->inputs($request->except(array_keys($request->query()))),
+            'input' => $masker->inputs(Arr::except($request->input(), array_keys($request->query()))),
             'files' => $files,
             'headers' => $masker->headers($request->headers->all()),
-            'cookies' => array_keys($request->cookies->all()),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'ajax' => $request->ajax(),
@@ -308,13 +316,44 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             // Streamed responses have no buffered content.
         }
 
+        $type = (string) $response->headers->get('Content-Type');
+
         return [
             'status' => $response->getStatusCode(),
             'response_headers' => $this->eyepiece->masker()->headers($response->headers->all()),
             'response_bytes' => is_string($content) ? strlen($content) : null,
-            'content_type' => $response->headers->get('Content-Type'),
+            'content_type' => $type === '' ? null : $type,
             'redirect' => $response->isRedirection() ? $response->headers->get('Location') : null,
+            'response_body' => $this->responseBody && is_string($content) && $content !== '' && $this->isText($type) ? $content : null,
         ];
+    }
+
+    /**
+     * Cookie values once the request has been handled, so encrypted cookies
+     * are already decrypted. The session cookie, the XSRF token and names that
+     * match the input masking pattern are masked.
+     *
+     * @return array<string, mixed>
+     */
+    private function cookies(Request $request): array
+    {
+        $masker = $this->eyepiece->masker();
+        $sensitive = [(string) $this->app->make('config')->get('session.cookie'), 'XSRF-TOKEN'];
+        $cookies = [];
+
+        foreach ($request->cookies->all() as $name => $value) {
+            $cookies[$name] = in_array($name, $sensitive, true) ? $masker->mask($value, (string) $name) : $value;
+        }
+
+        return $masker->inputs($cookies);
+    }
+
+    /**
+     * Bodies worth reading: HTML, JSON, XML, plain text, JavaScript and CSS.
+     */
+    private function isText(string $contentType): bool
+    {
+        return preg_match('#^(text/|application/([\w.+-]*\+)?(json|xml|javascript)|image/svg\+xml)#i', $contentType) === 1;
     }
 
     /**
