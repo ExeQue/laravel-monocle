@@ -48,7 +48,7 @@ final readonly class LivewireUpdateCapture implements ResponseCapture
                         $masker->inputs($this->unwrap((array) ($before['data'] ?? []))),
                         $masker->inputs($this->unwrap((array) ($after['data'] ?? []))),
                     ),
-                    'dispatched' => array_map(fn (mixed $event): string => is_array($event) ? (string) ($event['name'] ?? '') : (string) $event, (array) ($effects['dispatches'] ?? [])),
+                    'dispatched' => array_map($this->dispatched(...), (array) ($effects['dispatches'] ?? [])),
                     'returns' => array_values(array_filter((array) ($effects['returns'] ?? []), fn (mixed $value): bool => $value !== null)),
                     'redirect' => $effects['redirect'] ?? null,
                     'html_bytes' => isset($effects['html']) ? strlen((string) $effects['html']) : null,
@@ -94,10 +94,25 @@ final readonly class LivewireUpdateCapture implements ResponseCapture
         $params = (array) ($call['params'] ?? []);
 
         if ($method === '__dispatch') {
-            return 'dispatch '.($params[0] ?? '?');
+            return 'dispatch '.$this->event((string) ($params[0] ?? '?'), $params[1] ?? []);
         }
 
         return $method.'('.implode(', ', array_map(fn (mixed $param): string => (string) json_encode($param, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE), $params)).')';
+    }
+
+    private function dispatched(mixed $event): string
+    {
+        return is_array($event) ? $this->event((string) ($event['name'] ?? '?'), $event['params'] ?? []) : (string) $event;
+    }
+
+    /**
+     * An event name with its parameters, when it has any.
+     */
+    private function event(string $name, mixed $params): string
+    {
+        $params = $this->eyepiece->masker()->inputs((array) $params);
+
+        return $params === [] ? $name : $name.'('.json_encode($params, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE).')';
     }
 
     /**

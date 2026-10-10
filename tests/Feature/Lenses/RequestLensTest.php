@@ -112,13 +112,13 @@ describe(RequestLens::class, function (): void {
     it('shows a Livewire update as one card per component instead of the raw body', function (): void {
         Route::post('/livewire/update', fn () => response()->json(['components' => [[
             'snapshot' => json_encode(['data' => ['count' => 2, 'items' => [['a', 'b'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
-            'effects' => ['html' => '<div>2</div>', 'dispatches' => [['name' => 'counted']], 'returns' => [2]],
+            'effects' => ['html' => '<div>2</div>', 'dispatches' => [['name' => 'counted', 'params' => ['by' => 2]], ['name' => 'saved', 'params' => []]], 'returns' => [2]],
         ]]]))->name('default-livewire.update');
 
         $this->postJson('/livewire/update', ['components' => [[
             'snapshot' => json_encode(['data' => ['count' => 1, 'items' => [['a'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
             'updates' => ['step' => 1],
-            'calls' => [['method' => 'increment', 'params' => [1], 'metadata' => []], ['method' => '__dispatch', 'params' => ['refresh', []], 'metadata' => []]],
+            'calls' => [['method' => 'increment', 'params' => [1], 'metadata' => []], ['method' => '__dispatch', 'params' => ['refresh', ['id' => 7]], 'metadata' => []]],
         ]]])->assertOk();
 
         $request = latestCapture()->section('request');
@@ -128,13 +128,13 @@ describe(RequestLens::class, function (): void {
             ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class)
             ->and($card['title'])->toBe('counter')
             ->and($card['subtitle'])->toBe('abc')
-            ->and($card['items']['calls'])->toBe(['increment(1)', 'dispatch refresh'])
+            ->and($card['items']['calls'])->toBe(['increment(1)', 'dispatch refresh({"id":7})'])
             ->and($card['items']['updates'])->toBe(['step' => 1])
             ->and($card['items']['changes'])->toBe([
                 ['field' => 'count', 'from' => 1, 'to' => 2],
                 ['field' => 'items.1', 'from' => null, 'to' => 'b'],
             ])
-            ->and($card['items']['dispatched'])->toBe(['counted'])
+            ->and($card['items']['dispatched'])->toBe(['counted({"by":2})', 'saved'])
             ->and($card['items']['returns'])->toBe([2])
             ->and($card['items']['html_bytes'])->toBe(12);
     });
