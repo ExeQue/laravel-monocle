@@ -45,31 +45,81 @@ describe('monocle:* commands', function (): void {
 });
 
 describe(InstallCommand::class, function (): void {
-    it('writes the detected platform command into every given file', function (): void {
-        $dir = sys_get_temp_dir().'/monocle-install-'.bin2hex(random_bytes(4));
-        mkdir($dir);
+    beforeEach(function (): void {
+        $this->dir = sys_get_temp_dir().'/monocle-install-'.bin2hex(random_bytes(4));
+        mkdir($this->dir);
+        @unlink(config_path('monocle.php'));
+    });
 
-        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$dir.'/.mcp.json', $dir.'/.ai/mcp/mcp.json']])
+    afterEach(function (): void {
+        exec('rm -rf '.escapeshellarg($this->dir));
+        @unlink(config_path('monocle.php'));
+    });
+
+    it('writes the detected platform command into every given file without prompting', function (): void {
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json', $this->dir.'/.ai/mcp/mcp.json'], '--no-interaction' => true])
             ->expectsOutputToContain('lerd php artisan mcp:start monocle')
             ->assertSuccessful();
 
-        $written = json_decode((string) file_get_contents($dir.'/.ai/mcp/mcp.json'), true);
+        $written = json_decode((string) file_get_contents($this->dir.'/.ai/mcp/mcp.json'), true);
 
         expect($written['mcpServers']['monocle'])->toBe(['command' => 'lerd', 'args' => ['php', 'artisan', 'mcp:start', 'monocle']])
-            ->and(file_exists($dir.'/.mcp.json'))->toBeTrue();
+            ->and(file_exists($this->dir.'/.mcp.json'))->toBeTrue()
+            ->and(file_exists(config_path('monocle.php')))->toBeFalse();
+    });
 
-        exec('rm -rf '.escapeshellarg($dir));
+    it('publishes the config from flags when asked', function (): void {
+        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--publish' => true, '--disk' => ['media'], '--driver' => 'cache', '--limit' => '42', '--no-interaction' => true])
+            ->expectsOutputToContain('config/monocle.php')
+            ->assertSuccessful();
+
+        $config = include config_path('monocle.php');
+
+        expect($config['storage']['limit'])->toBe(42)
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class]['disks'])->toBe(['media']);
+    });
+
+    it('asks for every choice interactively and publishes the result', function (): void {
+        $publisher = app(ExeQue\Monocle\Install\ConfigPublisher::class);
+        $lensOptions = [];
+
+        foreach ($publisher->lensesIn() as $class) {
+            $lensOptions[$class] = app($class)->key().' - '.substr($class, (int) strrpos($class, '\\') + 1);
+        }
+
+        $this->artisan('monocle:install', ['--file' => [$this->dir.'/.mcp.json']])
+            ->expectsChoice('Which lenses should record?', [ExeQue\Monocle\Lenses\RequestLens::class, ExeQue\Monocle\Lenses\DatabaseLens::class], $lensOptions)
+            ->expectsChoice('Record Storage operations on which disks?', ['*'], ['*' => 'All disks', ...array_combine(array_keys(config('filesystems.disks')), array_keys(config('filesystems.disks')))])
+            ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
+            ->expectsQuestion('How many captures should be kept?', '75')
+            ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd php artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
+            ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)', '.ai/mcp/mcp.json' => 'Laravel Boost source (.ai/mcp/mcp.json)'])
+            ->expectsConfirmation('Publish config/monocle.php with these choices?', 'yes')
+            ->expectsOutputToContain('herd php artisan mcp:start monocle')
+            ->assertSuccessful();
+
+        $config = include config_path('monocle.php');
+
+        expect($config['storage']['limit'])->toBe(75)
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBeTrue()
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->toBeFalse()
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class])->toBeFalse()
+            ->and(json_decode((string) file_get_contents(base_path('.mcp.json')), true)['mcpServers']['monocle']['command'])->toBe('herd');
+
+        @unlink(base_path('.mcp.json'));
     });
 
     it('does not write in dry-run mode', function (): void {
-        $file = sys_get_temp_dir().'/monocle-install-'.bin2hex(random_bytes(4)).'.json';
+        $file = $this->dir.'/dry.json';
         config(['monocle.storage.file.path' => base_path('storage/monocle')]);
 
-        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$file], '--dry-run' => true])
-            ->expectsOutputToContain('would be created')
+        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$file], '--publish' => true, '--dry-run' => true, '--no-interaction' => true])
+            ->expectsOutputToContain('config/monocle.php')
+            ->expectsOutputToContain('dry.json')
             ->expectsOutputToContain('.gitignore')
             ->assertSuccessful();
 
-        expect(file_exists($file))->toBeFalse();
+        expect(file_exists($file))->toBeFalse()
+            ->and(file_exists(config_path('monocle.php')))->toBeFalse();
     });
 });

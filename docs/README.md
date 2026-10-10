@@ -20,7 +20,7 @@ Also published at [exeque.github.io/laravel-monocle](https://exeque.github.io/la
 | `Monocle::enabled()`, production safety | [Installation](installation.md#enabling-monocle) |
 | `monocle-list`, `monocle-show`, `monocle-rows`, `monocle-queries`, `monocle-trace` | [For AI agents](agents.md#tools) |
 | `X-Monocle-Id`, `Server-Timing`, `X-Monocle-Label` | [For AI agents](agents.md#response-headers) |
-| `monocle:install`, platform detection | [Installation](installation.md#registering-the-mcp-server) |
+| `monocle:install`, platform detection | [Installation](installation.md#installing) |
 | `Monocle::span()`, `measure()`, `mark()`, `meta()`, `label()` | [Spans and metadata](spans.md) |
 | Looking a span up by key | [Spans and metadata](spans.md#handing-a-span-over) |
 | `Monocle::register()`, `disable()`, `enable()` | [Configuration](configuration.md#lenses) |

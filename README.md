@@ -10,8 +10,7 @@ Monocle is built from **lenses**: discrete classes that each hook into the frame
 
 ```bash
 composer require --dev exeque/laravel-monocle
-php artisan monocle:install          # registers the MCP server in .mcp.json (detects Sail, Lerd, Herd or plain PHP)
-php artisan vendor:publish --tag=monocle-config   # optional
+php artisan monocle:install          # interactive: pick lenses, disks, storage and MCP clients; publishes config/monocle.php
 ```
 
 Monocle records only outside production and only when `app.debug` is on. Override at runtime from a service provider:

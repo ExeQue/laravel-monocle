@@ -12,6 +12,7 @@ use ExeQue\Monocle\Console\QueriesCommand;
 use ExeQue\Monocle\Console\RowsCommand;
 use ExeQue\Monocle\Console\ShowCommand;
 use ExeQue\Monocle\Console\TraceCommand;
+use ExeQue\Monocle\Install\ConfigPublisher;
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +26,7 @@ final class MonocleServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/monocle.php', 'monocle');
 
         $this->app->singleton(StoreManager::class);
+        $this->app->bind(ConfigPublisher::class, fn (): ConfigPublisher => new ConfigPublisher(__DIR__.'/../config/monocle.php'));
         $this->app->singleton(Eyepiece::class);
         $this->app->singleton(LensRegistry::class);
         $this->app->singleton(MonocleManager::class);

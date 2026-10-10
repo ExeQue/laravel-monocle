@@ -4,43 +4,61 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Console;
 
+use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Install\ConfigPublisher;
 use ExeQue\Monocle\Install\GitignoreWriter;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
 use Illuminate\Console\Command;
+
+use function Laravel\Prompts\form;
+
 use Symfony\Component\Console\Input\InputOption;
 
+/**
+ * Interactive install: pick lenses, disks, storage and MCP clients, publish a
+ * config that reflects the choices and register the MCP server. Every answer
+ * has a flag, so --no-interaction works for scripts.
+ */
 final class InstallCommand extends Command
 {
+    private const array CLIENT_FILES = [
+        '.mcp.json' => 'Claude Code / Codex (.mcp.json)',
+        '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)',
+        '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)',
+        '.ai/mcp/mcp.json' => 'Laravel Boost source (.ai/mcp/mcp.json)',
+    ];
+
     protected $name = 'monocle:install';
 
-    protected $description = 'Register the Monocle MCP server in your MCP client config (.mcp.json) with platform detection for Sail, Lerd, Herd and plain PHP';
+    protected $description = 'Set up Monocle: choose lenses, disks and storage, publish config/monocle.php and register the MCP server (Sail, Lerd, Herd or plain PHP detected)';
 
-    public function handle(McpConfigWriter $writer, GitignoreWriter $gitignore): int
+    public function handle(McpConfigWriter $mcp, GitignoreWriter $gitignore, ConfigPublisher $publisher): int
     {
         $basePath = $this->laravel->basePath();
-        $platform = $this->option('platform')
-            ? Platform::from((string) $this->option('platform'))
-            : Platform::detect($basePath);
+        $choices = $this->input->isInteractive() ? $this->askChoices($publisher) : $this->choicesFromOptions($publisher);
 
+        $platform = Platform::from($choices['platform']);
         $server = (string) $this->laravel->make('config')->get('monocle.mcp.server', 'monocle');
         $command = $platform->mcpCommand($basePath, $server);
+        $dryRun = (bool) $this->option('dry-run');
 
-        $this->components->info(sprintf(
-            'Platform: %s - command: %s %s',
-            $platform->value,
-            $command['command'],
-            implode(' ', $command['args']),
-        ));
+        $this->components->info(sprintf('Platform: %s - command: %s %s', $platform->value, $command['command'], implode(' ', $command['args'])));
 
-        foreach ((array) $this->option('file') as $file) {
-            $path = str_starts_with($file, '/') ? $file : $basePath.'/'.preg_replace('#^\./#', '', $file);
-            $result = $writer->write($path, $server, $command, (bool) $this->option('dry-run'));
-
-            $this->components->twoColumnDetail($file, $this->option('dry-run') ? "would be {$result}" : $result);
+        if ($choices['publish']) {
+            $result = $publisher->publish($this->laravel->configPath('monocle.php'), $choices, $dryRun);
+            $this->components->twoColumnDetail('config/monocle.php', $dryRun ? "would be {$result}" : $result);
         }
 
-        $this->ignoreStorage($gitignore, $basePath);
+        foreach ($choices['files'] as $file) {
+            $path = str_starts_with($file, '/') ? $file : $basePath.'/'.preg_replace('#^\./#', '', $file);
+            $result = $mcp->write($path, $server, $command, $dryRun);
+            $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
+        }
+
+        if ($choices['driver'] === 'file') {
+            $this->ignoreStorage($gitignore, $basePath, $dryRun);
+        }
 
         $this->newLine();
         $this->components->bulletList([
@@ -52,16 +70,89 @@ final class InstallCommand extends Command
     }
 
     /**
-     * The file store writes JSON into the project; keep it out of version control.
+     * @return array{lenses: list<class-string>, disks: list<string>, driver: string, limit: int, platform: string, files: list<string>, publish: bool}
      */
-    private function ignoreStorage(GitignoreWriter $gitignore, string $basePath): void
+    private function askChoices(ConfigPublisher $publisher): array
     {
-        $config = $this->laravel->make('config');
+        $lenses = $this->lensOptions($publisher);
+        $detected = Platform::detect($this->laravel->basePath());
+        $disks = array_keys((array) $this->laravel->make('config')->get('filesystems.disks', []));
+        $platforms = [];
 
-        if ($config->get('monocle.storage.driver', 'file') !== 'file') {
-            return;
+        foreach (Platform::cases() as $platform) {
+            $platforms[$platform->value] = $this->platformLabel($platform);
         }
 
+        $answers = form()
+            ->intro('Monocle setup')
+            ->multiselect('Which lenses should record?', $lenses, array_keys($lenses), scroll: 12, required: true, hint: 'Everything else in config/monocle.php keeps its defaults.', name: 'lenses')
+            ->multiselect('Record Storage operations on which disks?', ['*' => 'All disks', ...array_combine($disks, $disks)], [], hint: 'Wildcards can be added in the config later.', name: 'disks')
+            ->select('Where should captures be stored?', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'], 'file', name: 'driver')
+            ->text('How many captures should be kept?', default: '200', validate: fn (string $value): ?string => ctype_digit($value) && (int) $value > 0 ? null : 'Enter a positive number.', name: 'limit')
+            ->select('How does your MCP client start PHP?', $platforms, $this->option('platform') ?: $detected->value, name: 'platform')
+            ->multiselect('Register the MCP server in', self::CLIENT_FILES, $this->option('file') ?: ['.mcp.json'], required: true, name: 'files')
+            ->confirm('Publish config/monocle.php with these choices?', true, name: 'publish')
+            ->submit();
+
+        return [
+            'lenses' => array_values($answers['lenses']),
+            'disks' => in_array('*', $answers['disks'], true) ? ['*'] : array_values($answers['disks']),
+            'driver' => (string) $answers['driver'],
+            'limit' => (int) $answers['limit'],
+            'platform' => (string) $answers['platform'],
+            'files' => array_values($answers['files']),
+            'publish' => (bool) $answers['publish'],
+        ];
+    }
+
+    /**
+     * @return array{lenses: list<class-string>, disks: list<string>, driver: string, limit: int, platform: string, files: list<string>, publish: bool}
+     */
+    private function choicesFromOptions(ConfigPublisher $publisher): array
+    {
+        return [
+            'lenses' => $publisher->lensesIn(),
+            'disks' => array_values(array_filter((array) $this->option('disk'))),
+            'driver' => (string) ($this->option('driver') ?: 'file'),
+            'limit' => (int) ($this->option('limit') ?: 200),
+            'platform' => (string) ($this->option('platform') ?: Platform::detect($this->laravel->basePath())->value),
+            'files' => array_values((array) $this->option('file')) ?: ['.mcp.json'],
+            'publish' => (bool) $this->option('publish'),
+        ];
+    }
+
+    /**
+     * @return array<class-string, string>
+     */
+    private function lensOptions(ConfigPublisher $publisher): array
+    {
+        $options = [];
+
+        foreach ($publisher->lensesIn() as $class) {
+            /** @var Lens $lens */
+            $lens = $this->laravel->make($class);
+            $options[$class] = $lens->key().' - '.substr($class, (int) strrpos($class, '\\') + 1);
+        }
+
+        return $options;
+    }
+
+    private function platformLabel(Platform $platform): string
+    {
+        return match ($platform) {
+            Platform::Sail => 'Laravel Sail (vendor/bin/sail artisan ...)',
+            Platform::Lerd => 'Lerd (lerd php artisan ...)',
+            Platform::Herd => 'Laravel Herd (herd php artisan ...)',
+            Platform::Php => 'Plain PHP (absolute php binary)',
+        };
+    }
+
+    /**
+     * The file store writes JSON into the project; keep it out of version control.
+     */
+    private function ignoreStorage(GitignoreWriter $gitignore, string $basePath, bool $dryRun): void
+    {
+        $config = $this->laravel->make('config');
         $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
         $base = rtrim($basePath, '/').'/';
 
@@ -69,16 +160,20 @@ final class InstallCommand extends Command
             return;
         }
 
-        $result = $gitignore->add($base.'.gitignore', substr($path, strlen($base)), (bool) $this->option('dry-run'));
+        $result = $gitignore->add($base.'.gitignore', substr($path, strlen($base)), $dryRun);
 
-        $this->components->twoColumnDetail('.gitignore', $this->option('dry-run') ? "would be {$result}" : $result);
+        $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
     }
 
     protected function getOptions(): array
     {
         return [
             new InputOption('platform', null, InputOption::VALUE_REQUIRED, 'Override detection: sail|lerd|herd|php'),
-            new InputOption('file', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'MCP config file(s) to write, relative to the project root', ['.mcp.json']),
+            new InputOption('file', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'MCP config file(s) to write, relative to the project root (default .mcp.json)'),
+            new InputOption('publish', null, InputOption::VALUE_NONE, 'Publish config/monocle.php (non-interactive runs skip it unless this is set)'),
+            new InputOption('disk', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Disk name or wildcard to record Storage operations on (repeatable)'),
+            new InputOption('driver', null, InputOption::VALUE_REQUIRED, 'Storage driver for captures: file|cache'),
+            new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'How many captures to keep'),
             new InputOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be written without touching files'),
         ];
     }
