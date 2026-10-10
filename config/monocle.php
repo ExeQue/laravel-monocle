@@ -3,9 +3,12 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Lenses\CacheLens;
+use ExeQue\Monocle\Lenses\CommandLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
+use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RequestLens;
+use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
 return [
@@ -39,6 +42,9 @@ return [
 
     'lenses' => [
         RequestLens::class => true,
+        CommandLens::class => true,
+        QueueLens::class => true,
+        ScheduleLens::class => true,
         MiddlewareLens::class => true,
         DatabaseLens::class => [
             'slow_ms' => 70,

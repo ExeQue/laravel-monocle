@@ -67,6 +67,28 @@ Summary: hits, misses, hit rate, writes, forgets, total ms and the five hottest 
 
 Options: `values` (false) - also store the values themselves.
 
+## QueueLens
+
+Section `jobs` plus entries of type `job`. Two sides:
+
+**Dispatch side** - every queued job is a row on the entry that dispatched it: `job`, `connection`, `queue`, `delay`, `job_id`, `batch_id`, `chained` (remaining chain length) and `sync` (ran inline). The payload gets a `monocle` key carrying the dispatching entry's `parent_id` and `trace_id`, so the link survives the queue.
+
+**Worker side** - every processed job becomes its own entry: name is the job class, status `processed`, `failed` or `exception`, `parent_id`/`trace_id` from the payload. Section `job` has class, connection, queue, `job_id`, `attempts`, `max_tries`, `batch_id`, `chained_remaining`, `payload_bytes` and, on failure, `exception` (class, message, file). Everything the job did - queries, cache, spans - is recorded on that entry. `monocle-trace` walks the whole tree.
+
+Jobs that run inline (the `sync` connection, `dispatchSync()`, `dispatchNow()`) become spans of kind `job` inside the current entry instead. A bus pipe records non-queueable commands too.
+
+Long-running workers themselves (`queue:work`, `horizon`) are excluded as commands; their jobs are not.
+
+## CommandLens
+
+Section `command` plus entries of type `command`. Every artisan command run becomes an entry named `artisan <command>` with status = exit code and a `command` section: `name`, `arguments`, `options` (masked), `exit_code`. Phase spans `bootstrap` (from `LARAVEL_START`) and `command`.
+
+A command invoked while another entry is active - `Artisan::call()` inside a request or a command - becomes a span of kind `command` with `exit_code` instead. Commands matching `monocle.except.commands` (Monocle's own, Boost, workers, the scheduler loop) are never recorded.
+
+## ScheduleLens
+
+Section `scheduled_tasks` on the `schedule:run` entry: one row per task event with `command`, `expression`, `description`, `outcome` (`starting`, `finished`, `finished_in_background`, `skipped`, `failed`), `runtime_ms` and `exception`. Tasks run as subprocesses, so what they did themselves lands in their own command entries.
+
 ## Lenses on the way
 
-Eloquent model counts, Redis commands, events, log entries, views (timed per render), mail and notifications, outgoing HTTP calls, dispatched jobs with trace propagation, exceptions, authorization checks, Livewire components, filesystem operations (per disk, opt-in), `laravel/ai` agents, steps and tool calls, `dump()`/`dd()` captures, the application's own MCP servers, and scheduled tasks. Each arrives as its own lens with its own section; the agent discovers them through `available_sections` in `monocle-show`.
+Eloquent model counts, Redis commands, events, log entries, views (timed per render), mail and notifications, outgoing HTTP calls, exceptions, authorization checks, Livewire components, filesystem operations (per disk, opt-in), `laravel/ai` agents, steps and tool calls, `dump()`/`dd()` captures and the application's own MCP servers. Each arrives as its own lens with its own section; the agent discovers them through `available_sections` in `monocle-show`.

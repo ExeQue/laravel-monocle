@@ -24,7 +24,7 @@ Also published at [exeque.github.io/laravel-monocle](https://exeque.github.io/la
 | `Monocle::span()`, `measure()`, `mark()`, `meta()`, `label()` | [Spans and metadata](spans.md) |
 | Looking a span up by key | [Spans and metadata](spans.md#handing-a-span-over) |
 | `Monocle::register()`, `disable()`, `enable()` | [Configuration](configuration.md#lenses) |
-| `Lens`, `Configurable`, `SummarizesEntry` | [Writing a lens](writing-a-lens.md) |
+| `Lens`, `Configurable`, `Summarizable` | [Writing a lens](writing-a-lens.md) |
 | `Recorder::push()`, `set()`, `span()` | [Writing a lens](writing-a-lens.md#the-recorder) |
 | `Monocle::extendStore()`, the `Store` contract | [Storage](storage.md#custom-stores) |
 | Masking secrets, `PartialMask` | [Configuration](configuration.md#masking) |

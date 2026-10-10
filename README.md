@@ -37,7 +37,7 @@ Add the MCP server (done by `monocle:install`) and the agent gets:
 | `monocle-show` | Summary: time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), trace links, and a description of every available section. Add `sections=[timeline, queries, ...]`. |
 | `monocle-rows` | Paginated, filterable rows of one section with `where`, `sort`, `fields` projection and `verbose`. |
 | `monocle-queries` | Queries grouped by shape, caller, table or transaction. |
-| `monocle-trace` | Every entry in the same trace (request → dispatched jobs). |
+| `monocle-trace` | Every entry in the same trace: the request or command that started it and every job it dispatched, with depth and offsets. |
 | `monocle-clear` | Empty the ring buffer before reproducing a scenario. |
 
 Every response carries `X-Monocle-Id` and `Server-Timing` headers, so an agent that curls the app can jump straight to `monocle-show id=...`. Every recorded row has an `origin` (user-land `file:line` and a short call chain) so the agent can open the code that triggered it.
@@ -93,24 +93,18 @@ Monocle::extendStore('redis-stream', fn ($app, array $config) => new MyStore(...
 
 ```php
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 
-final class MailgunLens implements Lens, SummarizesEntry
+final class MailgunLens implements Lens, Summarizable
 {
-    private Recorder $recorder;
-
     public function key(): string { return 'mailgun'; }
 
     public function description(): string { return 'Outgoing Mailgun API calls with endpoint, status and duration.'; }
 
     public function boot(Application $app, Recorder $recorder): void
     {
-        $this->recorder = $recorder;
-        $app['events']->listen(MailgunCalled::class, fn ($e) => $recorder->push('mailgun', ['endpoint' => $e->endpoint, 'duration' => $e->ms]));
+        $recorder->listen(MailgunCalled::class, fn ($e) => $recorder->push('mailgun', ['endpoint' => $e->endpoint, 'duration' => $e->ms]));
     }
-
-    public function finalize(Entry $entry): void {}
-    public function reset(): void {}
 
     public function summarize(Entry $entry): array
     {
@@ -119,7 +113,7 @@ final class MailgunLens implements Lens, SummarizesEntry
 }
 ```
 
-`push()` adds `time` and `origin` automatically. Implement `Configurable` to receive the options array from config.
+`push()` adds `time` and `origin` automatically. Opt into more lifecycle with `Configurable`, `Finalizable`, `Resettable` and `Summarizable`. See [Writing a lens](docs/writing-a-lens.md).
 
 ## Development
 

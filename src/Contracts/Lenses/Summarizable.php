@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Contracts;
+namespace ExeQue\Monocle\Contracts\Lenses;
 
 use ExeQue\Monocle\Data\Entry;
 
-interface SummarizesEntry
+interface Summarizable
 {
     /**
      * Contribute totals and warnings to the entry summary.

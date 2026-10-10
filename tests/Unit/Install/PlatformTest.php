@@ -121,7 +121,7 @@ describe(GitignoreWriter::class, function (): void {
         $writer = new GitignoreWriter();
 
         expect($writer->add($this->file, 'storage/monocle'))->toBe('added')
-            ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n/storage/monocle/\n")
+            ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n\n" . GitignoreWriter::COMMENT . "\n/storage/monocle/\n")
             ->and($writer->add($this->file, '/storage/monocle/'))->toBe('unchanged')
             ->and($writer->add($this->file, 'storage/monocle', dryRun: true))->toBe('unchanged');
     });
@@ -130,6 +130,6 @@ describe(GitignoreWriter::class, function (): void {
         expect((new GitignoreWriter())->add($this->file, 'storage/monocle', dryRun: true))->toBe('added')
             ->and(file_exists($this->file))->toBeFalse()
             ->and((new GitignoreWriter())->add($this->file, 'storage/monocle'))->toBe('added')
-            ->and(file_get_contents($this->file))->toBe("/storage/monocle/\n");
+            ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT . "\n/storage/monocle/\n");
     });
 });

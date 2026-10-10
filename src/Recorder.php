@@ -151,6 +151,35 @@ final class Recorder
     }
 
     /**
+     * Register an event listener whose failures are swallowed and logged, so a
+     * bug in a lens never reaches the application.
+     *
+     * @param  class-string|string  $event
+     */
+    public function listen(string $event, Closure $handler): void
+    {
+        $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler): void {
+            try {
+                $handler(...$arguments);
+            } catch (Throwable $e) {
+                $this->reportFailure($e);
+            }
+        });
+    }
+
+    /**
+     * The innermost open span, if any.
+     */
+    public function currentSpan(): ?Span
+    {
+        if ($this->entry === null || $this->stack === []) {
+            return null;
+        }
+
+        return $this->entry->spans[end($this->stack)] ?? null;
+    }
+
+    /**
      * Create a span handle. Names are free; pass a key to look up an open span
      * from elsewhere without holding the object.
      */

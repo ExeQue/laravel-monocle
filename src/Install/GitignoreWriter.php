@@ -11,6 +11,8 @@ use RuntimeException;
  */
 final class GitignoreWriter
 {
+    public const string COMMENT = '# Monocle profiler entries (see config/monocle.php)';
+
     /**
      * @return 'added'|'unchanged'
      */
@@ -30,8 +32,9 @@ final class GitignoreWriter
         }
 
         $contents = $existing === '' || str_ends_with($existing, "\n") ? $existing : $existing . "\n";
+        $contents .= $existing === '' ? '' : "\n";
 
-        if (file_put_contents($file, $contents . $line . "\n") === false) {
+        if (file_put_contents($file, $contents . self::COMMENT . "\n" . $line . "\n") === false) {
             throw new RuntimeException("Could not write [{$file}].");
         }
 

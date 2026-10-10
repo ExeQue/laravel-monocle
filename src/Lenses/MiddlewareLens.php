@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use Closure;
-use ExeQue\Monocle\Contracts\Configurable;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use ExeQue\Monocle\Recorder;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Events\RouteMatched;
@@ -27,7 +26,7 @@ use Throwable;
  * ponytail: closure middleware and instances created outside the container
  * are not timed.
  */
-final class MiddlewareLens implements Configurable, Lens, SummarizesEntry
+final class MiddlewareLens implements Configurable, Lens, Summarizable
 {
     private Application $app;
 
@@ -72,21 +71,13 @@ final class MiddlewareLens implements Configurable, Lens, SummarizesEntry
             }
         });
 
-        $app->make(Dispatcher::class)->listen(RouteMatched::class, function (RouteMatched $event): void {
+        $recorder->listen(RouteMatched::class, function (RouteMatched $event): void {
             foreach ($event->route->gatherMiddleware() as $middleware) {
                 foreach ($this->resolveNames($middleware) as $class) {
                     $this->wrap($class, isset($this->global[$class]) ? 'global' : 'route');
                 }
             }
         });
-    }
-
-    public function finalize(Entry $entry): void
-    {
-    }
-
-    public function reset(): void
-    {
     }
 
     public function summarize(Entry $entry): array

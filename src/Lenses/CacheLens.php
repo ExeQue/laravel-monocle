@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses;
 
-use ExeQue\Monocle\Contracts\Configurable;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Recorder;
 use Illuminate\Cache\Events\CacheEvent;
@@ -20,7 +21,6 @@ use Illuminate\Cache\Events\KeyWriteFailed;
 use Illuminate\Cache\Events\KeyWritten;
 use Illuminate\Cache\Events\RetrievingKey;
 use Illuminate\Cache\Events\WritingKey;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Throwable;
 
@@ -28,7 +28,7 @@ use Throwable;
  * Records cache hits, misses, writes and forgets with durations measured from
  * the matching start events.
  */
-final class CacheLens implements Configurable, Lens, SummarizesEntry
+final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 {
     private Recorder $recorder;
 
@@ -56,29 +56,23 @@ final class CacheLens implements Configurable, Lens, SummarizesEntry
     {
         $this->recorder = $recorder;
 
-        $events = $app->make(Dispatcher::class);
-
         foreach ([RetrievingKey::class, WritingKey::class, ForgettingKey::class] as $start) {
-            $events->listen($start, function (CacheEvent $event): void {
+            $recorder->listen($start, function (CacheEvent $event): void {
                 $this->pending[$this->pendingKey($event)] = $this->recorder->now();
             });
         }
 
-        $events->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
-        $events->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
-        $events->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
-        $events->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
-        $events->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
-        $events->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
-        $events->listen(CacheFlushed::class, function (CacheFlushed $event): void {
+        $recorder->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
+        $recorder->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
+        $recorder->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
+        $recorder->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
+        $recorder->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
+        $recorder->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
+        $recorder->listen(CacheFlushed::class, function (CacheFlushed $event): void {
             if ($this->recorder->recording()) {
                 $this->recorder->push('cache', ['type' => 'flush', 'key' => null, 'store' => $event->storeName, 'duration' => null]);
             }
         });
-    }
-
-    public function finalize(Entry $entry): void
-    {
     }
 
     public function reset(): void

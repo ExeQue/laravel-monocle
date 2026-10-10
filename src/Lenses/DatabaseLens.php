@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses;
 
-use ExeQue\Monocle\Contracts\Configurable;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Recorder;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
@@ -22,7 +23,7 @@ use Throwable;
  * Records every executed query with its shape, duplicates and transaction,
  * and wraps transactions in spans.
  */
-final class DatabaseLens implements Configurable, Lens, SummarizesEntry
+final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     private Recorder $recorder;
 
@@ -61,12 +62,10 @@ final class DatabaseLens implements Configurable, Lens, SummarizesEntry
     {
         $this->recorder = $recorder;
 
-        $events = $app->make(Dispatcher::class);
-
-        $events->listen(QueryExecuted::class, $this->onQuery(...));
-        $events->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
-        $events->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
-        $events->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
+        $recorder->listen(QueryExecuted::class, $this->onQuery(...));
+        $recorder->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
+        $recorder->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
+        $recorder->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
     }
 
     public function finalize(Entry $entry): void
@@ -195,9 +194,11 @@ final class DatabaseLens implements Configurable, Lens, SummarizesEntry
 
     private function endTransaction(string $connection, string $outcome): void
     {
-        $span = array_pop($this->transactions[$connection]);
+        if (empty($this->transactions[$connection])) {
+            return;
+        }
 
-        $span?->stop(['outcome' => $outcome]);
+        array_pop($this->transactions[$connection])->stop(['outcome' => $outcome]);
     }
 
     private function rawSql(QueryExecuted $event): ?string

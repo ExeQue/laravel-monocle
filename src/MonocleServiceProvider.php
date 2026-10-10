@@ -21,7 +21,7 @@ final class MonocleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__ . '/../config/lens.php', 'monocle');
+        $this->mergeConfigFrom(__DIR__ . '/../config/monocle.php', 'monocle');
 
         $this->app->singleton(StoreManager::class);
         $this->app->singleton(Recorder::class);
@@ -31,7 +31,7 @@ final class MonocleServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->publishes([__DIR__ . '/../config/lens.php' => $this->app->configPath('monocle.php')], 'monocle-config');
+        $this->publishes([__DIR__ . '/../config/monocle.php' => $this->app->configPath('monocle.php')], 'monocle-config');
 
         if ($this->app->runningInConsole()) {
             $this->commands([

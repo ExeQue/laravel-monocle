@@ -1,0 +1,181 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ExeQue\Monocle\Lenses;
+
+use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Recorder;
+use Illuminate\Console\Events\CommandFinished;
+use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Str;
+use Symfony\Component\Console\Input\InputInterface;
+
+/**
+ * Artisan commands become entries of type command; a command invoked while
+ * another entry is active (Artisan::call inside a request or a command)
+ * becomes a span instead.
+ */
+final class CommandLens implements Finalizable, Lens, Resettable
+{
+    private Recorder $recorder;
+
+    private bool $usedLaravelStart = false;
+
+    /** @var list<Span> open nested command spans */
+    private array $spans = [];
+
+    private ?Span $phase = null;
+
+    public function key(): string
+    {
+        return 'command';
+    }
+
+    public function description(): string
+    {
+        return 'Artisan command facts for entries of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job entries.';
+    }
+
+    public function boot(Application $app, Recorder $recorder): void
+    {
+        $this->recorder = $recorder;
+
+        // The Laravel command events are bridged from Symfony's only once the
+        // kernel has been asked to; most applications do this during bootstrap,
+        // but it is cheap and idempotent to make sure.
+        if ($app->bound(ConsoleKernel::class)) {
+            $kernel = $app->make(ConsoleKernel::class);
+
+            if (method_exists($kernel, 'rerouteSymfonyCommandEvents')) {
+                $kernel->rerouteSymfonyCommandEvents();
+            }
+        }
+
+        $recorder->listen(CommandStarting::class, $this->onStarting(...));
+        $recorder->listen(CommandFinished::class, $this->onFinished(...));
+    }
+
+    public function finalize(Entry $entry): void
+    {
+        $this->phase?->stop();
+        $this->phase = null;
+    }
+
+    public function reset(): void
+    {
+        $this->spans = [];
+        $this->phase = null;
+    }
+
+    private function onStarting(CommandStarting $event): void
+    {
+        if ($this->isExcepted($event->command, $event->input)) {
+            return;
+        }
+
+        $arguments = $this->arguments($event->input);
+        $options = $this->recorder->masker()->inputs($this->options($event->input));
+
+        if ($this->recorder->active() !== null) {
+            if (! $this->recorder->recording()) {
+                return;
+            }
+
+            $this->spans[] = $this->recorder->span($event->command, 'command')->start([
+                'arguments' => $arguments,
+                'options' => $options,
+            ]);
+
+            return;
+        }
+
+        $startedAt = null;
+
+        if (! $this->usedLaravelStart && defined('LARAVEL_START')) {
+            $startedAt = LARAVEL_START;
+            $this->usedLaravelStart = true;
+        }
+
+        $this->recorder->start(EntryType::Command, $startedAt);
+        $this->recorder->describe(name: 'artisan ' . $event->command);
+        $this->recorder->set('command', [
+            'name' => $event->command,
+            'arguments' => $arguments,
+            'options' => $options,
+        ]);
+
+        if ($startedAt !== null) {
+            $bootstrap = $this->recorder->span('bootstrap', 'phase');
+            $this->recorder->startSpan($bootstrap, origin: false);
+            $bootstrap->start = 0.0;
+            $bootstrap->stop();
+        }
+
+        $this->phase = $this->recorder->span('command', 'phase');
+        $this->recorder->startSpan($this->phase, origin: false);
+        $this->phase->parentId = null;
+    }
+
+    private function onFinished(CommandFinished $event): void
+    {
+        if ($this->isExcepted($event->command, $event->input)) {
+            return;
+        }
+
+        if ($this->spans !== []) {
+            array_pop($this->spans)->stop(['exit_code' => $event->exitCode]);
+
+            return;
+        }
+
+        $entry = $this->recorder->active();
+
+        if ($entry === null || $entry->type !== EntryType::Command) {
+            return;
+        }
+
+        $this->recorder->describe(status: (string) $event->exitCode);
+        $this->recorder->set('command', ['exit_code' => $event->exitCode]);
+        $this->recorder->finalize();
+    }
+
+    private function isExcepted(string $command, InputInterface $input): bool
+    {
+        $withArguments = trim($command . ' ' . implode(' ', array_map('strval', array_filter(
+            array_values(array_diff_key($this->arguments($input), ['command' => true])),
+            fn (mixed $value): bool => is_scalar($value),
+        ))));
+
+        foreach ((array) $this->recorder->config('except.commands', []) as $pattern) {
+            if (Str::is($pattern, $command) || Str::is($pattern, $withArguments)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function arguments(InputInterface $input): array
+    {
+        return array_filter($input->getArguments(), fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function options(InputInterface $input): array
+    {
+        return array_filter($input->getOptions(), fn (mixed $value): bool => $value !== null && $value !== false && $value !== []);
+    }
+}

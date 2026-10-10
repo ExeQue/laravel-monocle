@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Contracts;
 
-use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Recorder;
 use Illuminate\Contracts\Foundation\Application;
 
+/**
+ * The minimum a lens provides. Opt into more lifecycle through the companion
+ * contracts: Configurable, Finalizable, Resettable, Summarizable.
+ */
 interface Lens
 {
     /**
@@ -17,22 +20,13 @@ interface Lens
 
     /**
      * One or two sentences for the agent: what this lens records and which
-     * fields matter. Shown next to the section key in monocle-show.
+     * fields matter. Shown in the MCP server instructions and in monocle-show.
      */
     public function description(): string;
 
     /**
-     * Hook into the framework however the lens needs to. Called once per process.
+     * Hook into the framework however the lens needs to. Called once per
+     * process, only when Monocle and the lens are enabled.
      */
     public function boot(Application $app, Recorder $recorder): void;
-
-    /**
-     * Flush buffered data into the entry right before it is stored.
-     */
-    public function finalize(Entry $entry): void;
-
-    /**
-     * Forget per-entry state between entries in long-running processes.
-     */
-    public function reset(): void;
 }

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle;
 
-use ExeQue\Monocle\Contracts\Configurable;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use Illuminate\Contracts\Foundation\Application;
@@ -139,24 +141,28 @@ final class LensRegistry
     }
 
     /**
-     * @return list<SummarizesEntry>
+     * @return list<Summarizable>
      */
     public function summarizers(): array
     {
-        return array_values(array_filter($this->booted, fn (Lens $lens): bool => $lens instanceof SummarizesEntry));
+        return array_values(array_filter($this->booted, fn (Lens $lens): bool => $lens instanceof Summarizable));
     }
 
     public function finalize(Entry $entry): void
     {
         foreach ($this->booted as $lens) {
-            $lens->finalize($entry);
+            if ($lens instanceof Finalizable) {
+                $lens->finalize($entry);
+            }
         }
     }
 
     public function reset(): void
     {
         foreach ($this->booted as $lens) {
-            $lens->reset();
+            if ($lens instanceof Resettable) {
+                $lens->reset();
+            }
         }
     }
 

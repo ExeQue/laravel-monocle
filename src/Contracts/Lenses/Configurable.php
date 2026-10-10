@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Contracts;
+namespace ExeQue\Monocle\Contracts\Lenses;
 
 interface Configurable
 {

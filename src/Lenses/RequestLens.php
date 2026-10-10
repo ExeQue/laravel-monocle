@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\EntryType;
 use ExeQue\Monocle\Recorder;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ use Throwable;
  * Owns the HTTP entry lifecycle: starts it, records request/response facts,
  * lays down the phase spans and persists at terminate.
  */
-final class RequestLens implements Lens, SummarizesEntry
+final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 {
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
@@ -68,13 +69,10 @@ final class RequestLens implements Lens, SummarizesEntry
             }
         });
 
-        /** @var Dispatcher $events */
-        $events = $app->make(Dispatcher::class);
-
-        $events->listen(Routing::class, $this->onRouting(...));
-        $events->listen(RouteMatched::class, $this->onRouteMatched(...));
-        $events->listen(PreparingResponse::class, $this->onPreparingResponse(...));
-        $events->listen(RequestHandled::class, $this->onRequestHandled(...));
+        $recorder->listen(Routing::class, $this->onRouting(...));
+        $recorder->listen(RouteMatched::class, $this->onRouteMatched(...));
+        $recorder->listen(PreparingResponse::class, $this->onPreparingResponse(...));
+        $recorder->listen(RequestHandled::class, $this->onRequestHandled(...));
 
         $app->terminating(function (): void {
             if ($this->recorder->active() === null) {

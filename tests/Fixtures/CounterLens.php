@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Fixtures;
 
-use ExeQue\Monocle\Contracts\Configurable;
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\SummarizesEntry;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Recorder;
 use Illuminate\Contracts\Foundation\Application;
@@ -15,7 +17,7 @@ use Illuminate\Contracts\Foundation\Application;
  * Minimal custom lens used to prove the plugin API: pushes a row per
  * CounterEvent, honours options and contributes to the summary.
  */
-final class CounterLens implements Configurable, Lens, SummarizesEntry
+final class CounterLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     public static int $booted = 0;
 
