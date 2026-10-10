@@ -238,6 +238,10 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     private function isExcepted(Request $request): bool
     {
+        if ($this->onlyExceptedLivewire($request)) {
+            return true;
+        }
+
         $dashboard = trim((string) $this->eyepiece->config('dashboard.path', '_monocle'), '/');
 
         foreach ([$dashboard, $dashboard.'/*', ...(array) $this->eyepiece->config('except.paths', [])] as $pattern) {
@@ -247,6 +251,31 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
         }
 
         return false;
+    }
+
+    /**
+     * A Livewire update where every component matches except.livewire, such as
+     * a dashboard polling itself (Pulse).
+     */
+    private function onlyExceptedLivewire(Request $request): bool
+    {
+        $patterns = (array) $this->eyepiece->config('except.livewire', []);
+        $components = $request->isJson() || $request->has('components') ? $request->input('components') : null;
+
+        if ($patterns === [] || ! is_array($components) || $components === []) {
+            return false;
+        }
+
+        foreach ($components as $component) {
+            $snapshot = json_decode((string) ($component['snapshot'] ?? ''), true);
+            $name = $snapshot['memo']['name'] ?? null;
+
+            if (! is_string($name) || ! Str::is($patterns, $name)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function recordRequest(Request $request): void

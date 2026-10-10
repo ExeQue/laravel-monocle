@@ -86,6 +86,7 @@ return [
             'slow_ms' => 70,
             'n_plus_one_threshold' => 3,
             'bindings' => true,
+            'ignore_tables' => ['telescope_*', 'pulse_*'],
         ],
         CacheLens::class => [
             'values' => false,
@@ -130,8 +131,10 @@ return [
     |--------------------------------------------------------------------------
     |
     | Requests whose path matches one of these patterns, and console commands
-    | whose name matches, are never recorded. Monocle's own MCP server is
-    | listed here; the dashboard is excluded on its own.
+    | whose name matches, are never recorded, nor are Livewire updates whose
+    | components all match `livewire` (dashboards polling themselves).
+    | Monocle's own MCP server is listed here; the dashboard is excluded on
+    | its own.
     |
     */
 
@@ -147,6 +150,7 @@ return [
             'package:discover', 'horizon*', 'pulse:check', 'pulse:work', 'reverb:start', 'reverb:restart',
             'octane:start', 'octane:status', 'nightwatch:agent', 'health:schedule-check-heartbeat', 'health:queue-check-heartbeat',
         ],
+        'livewire' => ['pulse.*'],
     ],
 
     /*

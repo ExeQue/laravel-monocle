@@ -38,6 +38,17 @@ describe(DatabaseLens::class, function (): void {
             ->and($rows[1]['driver'])->toBe('sqlite');
     });
 
+    it('leaves out queries that only touch ignored tables', function (): void {
+        DB::statement('create table telescope_entries (id integer primary key, content text)');
+        DB::table('telescope_entries')->insert(['content' => 'x']);
+        DB::table('things')->join('telescope_entries', 'things.id', '=', 'telescope_entries.id')->get();
+        DB::table('things')->get();
+
+        $tables = array_values(array_filter(array_column(app(Eyepiece::class)->finalize()->rows('queries'), 'tables')));
+
+        expect($tables)->toBe([['things', 'telescope_entries'], ['things']]);
+    });
+
     it('wraps transactions in spans and tags queries with them', function (): void {
         DB::transaction(function (): void {
             DB::table('things')->insert(['name' => 'in-tx']);

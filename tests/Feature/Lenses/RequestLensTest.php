@@ -216,6 +216,19 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture()?->name)->toBe('POST /livewire-abc123/update');
     });
 
+    it('does not record Livewire updates made only by excepted components', function (): void {
+        Route::post('livewire/update', fn () => 'ok');
+        $component = fn (string $name): array => ['snapshot' => json_encode(['data' => [], 'memo' => ['id' => 'x', 'name' => $name]]), 'updates' => [], 'calls' => []];
+
+        $this->postJson('/livewire/update', ['components' => [$component('pulse.usage'), $component('pulse.queues')]])->assertOk();
+
+        expect(latestCapture())->toBeNull();
+
+        $this->postJson('/livewire/update', ['components' => [$component('pulse.usage'), $component('cart')]])->assertOk();
+
+        expect(latestCapture()?->name)->toBe('POST /livewire/update');
+    });
+
     it('does not record broadcast channel authorization by default', function (): void {
         Route::post('/broadcasting/auth', fn () => 'ok');
 

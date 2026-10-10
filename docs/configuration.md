@@ -46,7 +46,7 @@ Requests and commands that are never recorded:
 ],
 ```
 
-Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization and long-running commands such as queue workers, Reverb, Octane and Pulse. Livewire updates are still recorded, and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
+Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization and long-running commands such as queue workers, Reverb, Octane and Pulse. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
 
 ## Masking
 

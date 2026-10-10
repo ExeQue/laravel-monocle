@@ -18,6 +18,7 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Database\Events\TransactionRolledBack;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -31,6 +32,9 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
     private float $slowMs = 70.0;
 
     private int $nPlusOneThreshold = 3;
+
+    /** @var list<string> Queries touching only these tables (wildcards allowed) are not recorded. */
+    private array $ignoreTables = ['telescope_*', 'pulse_*'];
 
     private bool $bindings = true;
 
@@ -57,6 +61,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         $this->slowMs = (float) ($options['slow_ms'] ?? $this->slowMs);
         $this->nPlusOneThreshold = (int) ($options['n_plus_one_threshold'] ?? $this->nPlusOneThreshold);
         $this->bindings = (bool) ($options['bindings'] ?? $this->bindings);
+        $this->ignoreTables = array_values((array) ($options['ignore_tables'] ?? $this->ignoreTables));
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -153,9 +158,15 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
             return;
         }
 
+        $sql = $event->sql;
+        $tables = $this->tables($sql);
+
+        if ($tables !== [] && $this->ignoreTables !== [] && array_filter($tables, fn (string $table): bool => ! Str::is($this->ignoreTables, $table)) === []) {
+            return;
+        }
+
         $this->counter++;
 
-        $sql = $event->sql;
         $bindings = $this->bindings ? $event->bindings : [];
         $hash = md5($sql.'|'.json_encode($event->bindings));
         $shape = $this->shape($sql);
@@ -171,7 +182,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
             'driver' => $this->driver($event),
             'duration' => $duration,
             'type' => $this->type($sql),
-            'tables' => $this->tables($sql),
+            'tables' => $tables,
             'shape' => $shape,
             'shape_hash' => substr(md5($shape), 0, 8),
             'transaction_id' => $open === [] ? null : end($open)->id,
