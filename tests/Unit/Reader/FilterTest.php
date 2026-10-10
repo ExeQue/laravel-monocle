@@ -17,6 +17,7 @@ describe(Filter::class, function (): void {
         'has_errors' => false,
         'trace_id' => 't1',
         'parent_id' => null,
+        'counts' => ['queries' => 3],
     ], $overrides);
 
     it('matches on type, uri substring and status', function () use ($row): void {
@@ -31,6 +32,12 @@ describe(Filter::class, function (): void {
             ->and(Filter::fromArray(['min_duration_ms' => 200])->matches($row()))->toBeFalse()
             ->and(Filter::fromArray(['label' => 'baseline'])->matches($row(['label' => 'baseline'])))->toBeTrue()
             ->and(Filter::fromArray(['has_errors' => true])->matches($row()))->toBeFalse();
+    });
+
+    it('requires rows in every listed section', function () use ($row): void {
+        expect(Filter::fromArray(['has' => ['queries']])->matches($row()))->toBeTrue()
+            ->and(Filter::fromArray(['has' => ['queries', 'exceptions']])->matches($row()))->toBeFalse()
+            ->and(Filter::fromArray(['has' => ['cache']])->matches($row(['counts' => ['cache' => 0]])))->toBeFalse();
     });
 
     it('understands relative since expressions', function () use ($row): void {

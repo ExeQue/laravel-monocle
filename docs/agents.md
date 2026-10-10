@@ -31,6 +31,7 @@ Recent entries, newest first.
 | `since` | unix timestamp, ISO date or relative like `15m`, `2h` |
 | `label` | entries labelled via `X-Monocle-Label` or `Monocle::label()` |
 | `has_errors` | only 5xx, failures or recorded exceptions |
+| `has` | only entries where these sections recorded rows, e.g. `["exceptions"]` or `["ai"]` |
 | `offset`, `limit` | pagination (default 20) |
 
 Each row: `id`, `type`, `name`, `status`, `duration`, `started_at`, `label`, `parent_id`, `trace_id`, `counts` per section, `has_errors`.

@@ -18,6 +18,7 @@ Every MCP tool has an artisan twin that prints the same JSON, so the data is ava
 
 ```bash
 php artisan monocle:list --uri=/orders --min-duration-ms=300 --since=15m
+php artisan monocle:list --has=exceptions --has=queries   # entries where those lenses recorded rows
 php artisan monocle:show                       # summary of the latest entry
 php artisan monocle:show --section=timeline --kind=middleware
 php artisan monocle:show --section=queries --section=cache --limit=10

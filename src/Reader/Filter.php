@@ -19,6 +19,8 @@ final class Filter
         public readonly ?bool $hasErrors = null,
         public readonly ?string $traceId = null,
         public readonly ?string $parentId = null,
+        /** @var list<string> Sections that must contain at least one row. */
+        public readonly array $has = [],
         public readonly int $offset = 0,
         public readonly int $limit = 20,
     ) {
@@ -39,6 +41,7 @@ final class Filter
             hasErrors: isset($input['has_errors']) ? filter_var($input['has_errors'], FILTER_VALIDATE_BOOL) : null,
             traceId: self::string($input['trace_id'] ?? null),
             parentId: self::string($input['parent_id'] ?? null),
+            has: array_values(array_filter(array_map('strval', (array) ($input['has'] ?? [])))),
             offset: max(0, (int) ($input['offset'] ?? 0)),
             limit: max(1, min(500, (int) ($input['limit'] ?? 20))),
         );
@@ -83,6 +86,12 @@ final class Filter
 
         if ($this->parentId !== null && ($row['parent_id'] ?? null) !== $this->parentId) {
             return false;
+        }
+
+        foreach ($this->has as $section) {
+            if ((int) ($row['counts'][$section] ?? 0) === 0) {
+                return false;
+            }
         }
 
         return true;

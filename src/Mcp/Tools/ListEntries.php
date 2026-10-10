@@ -37,6 +37,7 @@ final class ListEntries extends Tool
             'since' => $schema->string()->description('Only entries started after this: unix timestamp, ISO date or relative like "15m", "2h".'),
             'label' => $schema->string()->description('Only entries carrying this label (set via the X-Monocle-Label request header or Monocle::label()).'),
             'has_errors' => $schema->boolean()->description('Only entries with 5xx status, failures or recorded exceptions.'),
+            'has' => $schema->array()->items($schema->string())->description('Only entries where these sections (lenses) recorded at least one row, e.g. ["queries"] or ["exceptions"].'),
             ...$this->paginationSchema($schema, 20),
         ];
     }
