@@ -35,9 +35,19 @@ final readonly class CapturesController
 
         $result = $this->viewfinder->show(['id' => $capture->id, 'sections' => ['summary']]);
 
+        $route = $capture->section('request')['route'] ?? [];
+        $command = $capture->section('command');
+
         return response()->json($result + [
             'timeline' => $timeline->present($capture),
             'editor' => $links->enabled(),
+            'context' => [
+                'route' => $route['name'] ?? null,
+                'action' => $route['action'] ?? null,
+                'action_link' => $timeline->link($route['action'] ?? null),
+                'command_class' => $command['class'] ?? null,
+                'command_link' => $timeline->link($command['class'] ?? null),
+            ],
         ]);
     }
 

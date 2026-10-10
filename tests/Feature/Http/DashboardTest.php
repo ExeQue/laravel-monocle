@@ -116,6 +116,8 @@ describe('dashboard', function (): void {
             $query = $find($result['timeline'], 'db');
 
             expect($result['summary']['name'])->toBe('GET /things')
+                ->and($result['context']['route'])->toBeNull()
+                ->and($result['context']['action'])->toBe('Closure')
                 ->and($result['editor'])->toBeFalse()
                 ->and($handle)->not->toBeNull()
                 ->and($find($handle['children'], 'db'))->not->toBeNull()

@@ -15,8 +15,10 @@ use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputInterface;
+use Throwable;
 
 /**
  * Artisan commands become captures of type command; a command invoked while
@@ -31,6 +33,8 @@ final class CommandLens implements Finalizable, Lens, Resettable
 
     /** @var list<Span> open nested command spans */
     private array $spans = [];
+
+    private Application $app;
 
     private ?Span $phase = null;
 
@@ -47,6 +51,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
     public function boot(Application $app, Eyepiece $eyepiece): void
     {
         $this->eyepiece = $eyepiece;
+        $this->app = $app;
 
         // The Laravel command events are bridged from Symfony's only once the
         // kernel has been asked to; most applications do this during bootstrap,
@@ -90,6 +95,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
             }
 
             $this->spans[] = $this->eyepiece->span($event->command, 'command')->start([
+                'class' => $this->commandClass($event->command),
                 'arguments' => $arguments,
                 'options' => $options,
             ]);
@@ -108,6 +114,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
         $this->eyepiece->describe(name: 'artisan '.$event->command);
         $this->eyepiece->set('command', [
             'name' => $event->command,
+            'class' => $this->commandClass($event->command),
             'arguments' => $arguments,
             'options' => $options,
         ]);
@@ -145,6 +152,20 @@ final class CommandLens implements Finalizable, Lens, Resettable
         $this->eyepiece->describe(status: (string) $event->exitCode);
         $this->eyepiece->set('command', ['exit_code' => $event->exitCode]);
         $this->eyepiece->finalize();
+    }
+
+    /**
+     * The class behind a command name; null for closure commands.
+     */
+    private function commandClass(string $name): ?string
+    {
+        try {
+            $command = $this->app->make(ConsoleKernel::class)->all()[$name] ?? null;
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $command === null || $command instanceof ClosureCommand ? null : $command::class;
     }
 
     private function isExcepted(string $command, InputInterface $input): bool

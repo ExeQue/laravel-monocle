@@ -305,6 +305,8 @@ Alpine.data('monocle', (config) => ({
 
   changesTable(changes) { return changesTable(changes); },
 
+  linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },
+
   /** One item of a response capture card. */
   cardValue(value, key) {
     if (Array.isArray(value) && value.length && value.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(value);

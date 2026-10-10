@@ -49,10 +49,17 @@ describe(CommandLens::class, function (): void {
         $capture = latestCapture();
         $summary = app(ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture);
 
-        expect($capture->sections)->not->toHaveKey('request')
+        expect($capture->section('command')['class'])->toBeNull()
+            ->and($capture->sections)->not->toHaveKey('request')
             ->and($capture->health['open_spans_at_finalize'])->toBe(0)
             ->and($summary['warnings'])->toBe([])
             ->and($summary['totals']['memory_peak_mb'])->toBeGreaterThan(0);
+    });
+
+    it('records the class behind a command', function (): void {
+        Artisan::call('env');
+
+        expect(latestCapture()->section('command')['class'])->toBe(Illuminate\Foundation\Console\EnvironmentCommand::class);
     });
 
     it('records nested commands as spans inside the active capture', function () use ($count): void {

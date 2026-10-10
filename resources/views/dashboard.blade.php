@@ -85,11 +85,14 @@
                 <header class="flex flex-wrap items-baseline gap-x-4 gap-y-2.5">
                     <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]" x-text="summary.name"></h2>
                     <span class="font-mono text-xs" :class="statusClass(summary.status)" x-text="summary.type === 'command' && summary.status !== null ? 'exit ' + summary.status : (summary.status ?? '')"></span>
+                    <span class="rounded-full border border-line px-2 font-mono text-xs text-muted" x-show="capture.context?.route" x-text="capture.context?.route" title="Route name"></span>
                     <span class="rounded-full border border-dashed border-brass px-2 text-xs text-brass" x-show="summary.label" x-text="'label: ' + summary.label"></span>
                 </header>
                 <div class="flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13px] text-muted">
                     <span><b class="font-semibold text-fg tabular-nums" x-text="ms(summary.totals?.duration_ms ?? model?.duration)"></b> total</span>
                     <span x-text="summary.type"></span>
+                    <span class="font-mono text-xs [overflow-wrap:anywhere]" x-show="capture.context?.action && capture.context.action !== 'Closure'" x-html="linkHtml(capture.context?.action, capture.context?.action_link)"></span>
+                    <span class="font-mono text-xs [overflow-wrap:anywhere]" x-show="capture.context?.command_class" x-html="linkHtml(capture.context?.command_class, capture.context?.command_link)"></span>
                     <span class="font-mono text-xs" x-text="capture.id"></span>
                     <span x-text="summary.started_at ? ago(summary.started_at) : ''"></span>
                 </div>
