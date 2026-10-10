@@ -74,7 +74,7 @@ Alpine.data('monocle', (config) => ({
   error: null,
   confirmClear: false,
   listOpen: false,
-  copied: false,
+  copied: null,
   responseView: 'pretty',
   wide: true,
 
@@ -318,20 +318,35 @@ Alpine.data('monocle', (config) => ({
 
   changesTable(changes) { return changesTable(changes); },
 
-  async copy(text) {
+  async copy(text, what = 'id') {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
       const range = document.createRange();
-      const node = [...document.querySelectorAll('.select-all')].find((el) => el.textContent === text);
-      if (!node) return;
+      const node = document.createElement('textarea');
+      node.value = text;
+      document.body.append(node);
       range.selectNodeContents(node);
+      node.select();
       getSelection().removeAllRanges();
       getSelection().addRange(range);
       document.execCommand('copy');
+      node.remove();
     }
-    this.copied = true;
-    setTimeout(() => { this.copied = false; }, 1500);
+    this.copied = what;
+    setTimeout(() => { if (this.copied === what) this.copied = null; }, 1500);
+  },
+
+  /** A prompt for the coding agent to look into this capture through the Monocle MCP server. */
+  get agentPrompt() {
+    const s = this.summary;
+    const lines = [
+      `Use the Monocle MCP server to look into capture ${this.capture.id}: ${s.name} (${s.type}${s.status != null ? `, status ${s.status}` : ''}, ${ms(s.totals?.duration_ms)}).`,
+      `Start with monocle-show id=${this.capture.id}, then dig into the sections that matter with monocle-rows and monocle-queries.`,
+    ];
+    if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));
+    lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
+    return lines.join('\n');
   },
 
   linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },
