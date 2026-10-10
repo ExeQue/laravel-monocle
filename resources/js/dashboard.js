@@ -139,6 +139,7 @@ Alpine.data('monocle', (config) => ({
       const capture = await this.fetchJson(`${this.api}/${encodeURIComponent(id)}`);
       this.capture = capture;
       this.model = { tree: indexTree(capture.timeline), duration: capture.summary?.totals?.duration_ms ?? this.duration(capture) };
+      if (!['overview', 'timeline'].includes(this.tab) && !this.tabs.some((t) => t.key === this.tab)) this.tab = 'overview';
       history.replaceState(null, '', `#${id}/${this.tab}`);
       this.openTab(this.tab);
     } catch (e) {
@@ -255,7 +256,7 @@ Alpine.data('monocle', (config) => ({
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
       tabs.push({ key: s.key, label: humanize(s.key), count: s.rows, description: s.description });
     }
-    tabs.push({ key: 'trace', label: 'Trace' });
+    if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
   },
 
