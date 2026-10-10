@@ -232,8 +232,9 @@ Alpine.data('monocle', (config) => ({
     const counts = this.capture.summary?.counts ?? {};
     const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
     const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key && s.rows !== 0);
-    if (has('request')) tabs.push({ key: 'request', label: 'Request' });
-    if (has('session')) tabs.push({ key: 'session', label: 'Session' });
+    const isRequest = this.summary.type === 'request';
+    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request' });
+    if (isRequest && has('session')) tabs.push({ key: 'session', label: 'Session' });
     if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
     const sections = (this.capture.available_sections ?? []).filter((s) => !SKIP_SECTIONS.includes(s.key) && s.rows);
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
