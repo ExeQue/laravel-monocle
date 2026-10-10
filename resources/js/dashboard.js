@@ -65,8 +65,12 @@ Alpine.data('monocle', (config) => ({
   error: null,
   confirmClear: false,
   listOpen: false,
+  wide: true,
 
   init() {
+    const wide = matchMedia('(min-width: 861px)');
+    this.wide = wide.matches;
+    wide.addEventListener('change', (e) => { this.wide = e.matches; });
     this.popover = setupPopover(this.$refs.detail, () => this.model);
     const fromHash = location.hash.replace(/^#/, '').split('/');
     if (fromHash[0]) { this.selectedId = fromHash[0]; this.tab = fromHash[1] || 'overview'; }
@@ -127,6 +131,7 @@ Alpine.data('monocle', (config) => ({
     this.tab = tab;
     this.tabData = null;
     history.replaceState(null, '', `#${this.selectedId}/${tab}`);
+    this.$nextTick(() => this.$refs.tabs?.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }));
     if (tab === 'timeline') return this.renderTimeline();
     if (tab === 'overview') return;
     this.tabLoading = true;

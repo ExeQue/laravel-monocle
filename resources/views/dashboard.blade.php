@@ -26,7 +26,8 @@
             <span><span class="font-medium">Captures</span> <span class="text-muted" x-text="'(' + total + ')'"></span></span>
             <svg class="size-4 text-brass transition-transform duration-200" :class="listOpen && 'rotate-180'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>
         </button>
-        <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3" :class="capture && !listOpen ? 'max-[860px]:hidden' : ''">
+        <div class="flex min-h-0 flex-1 flex-col" x-show="wide || !capture || listOpen" x-collapse>
+        <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3">
             <input class="w-full rounded-md border border-line bg-bg px-2.5 py-2 text-fg" id="monocle-search" type="search" placeholder="Filter by path or name" aria-label="Filter captures" x-model.debounce.300ms="filters.q">
             <div class="flex flex-wrap gap-1.5" role="group" aria-label="Capture type">
                 <template x-for="type in [['', 'All'], ['request', 'Requests'], ['job', 'Jobs'], ['command', 'Commands'], ['mcp', 'MCP']]" :key="type[0]">
@@ -44,7 +45,7 @@
                 </span>
             </div>
         </div>
-        <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain" :class="capture && !listOpen ? 'max-[860px]:hidden' : ''">
+        <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <template x-for="c in captures" :key="c.id">
                 <button type="button" class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 border-b border-line px-4 py-2.5 text-left hover:bg-sunk aria-[current=true]:bg-brass-soft aria-[current=true]:shadow-[inset_3px_0_0_var(--brass)]" @click="select(c.id)" :aria-current="c.id === selectedId">
                     <span :class="cls.type" x-text="c.type"></span>
@@ -61,6 +62,7 @@
             </template>
             <p class="m-4" :class="cls.empty" x-show="!captures.length && !error">No captures yet. Open a page, run a job or a command, and it shows up here.</p>
             <p class="m-4" :class="cls.empty" x-show="error" x-text="error"></p>
+        </div>
         </div>
     </aside>
 
@@ -84,9 +86,9 @@
                     <span x-show="summary.children?.length">Dispatched <button type="button" :class="cls.link" @click="openTab('trace')" x-text="summary.children?.length + ' job(s)'"></button></span>
                 </div>
 
-                <nav class="scroll-quiet flex gap-0.5 overflow-x-auto border-b border-line" role="tablist">
+                <nav class="scroll-quiet flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b border-line" role="tablist" x-ref="tabs">
                     <template x-for="t in tabs" :key="t.key">
-                        <button type="button" class="flex items-baseline gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
+                        <button type="button" class="flex shrink-0 snap-start items-baseline gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
                             <span x-text="t.label"></span><span class="font-mono text-[11px] text-muted" x-show="t.count" x-text="t.count"></span>
                         </button>
                     </template>
