@@ -100,14 +100,17 @@ final class ViewsLens implements Configurable, Lens, Summarizable
         arsort($repeats);
         $spent = [];
 
+        $library = [];
+
         foreach ($rows as $row) {
             $spent[$row['view']] = ($spent[$row['view']] ?? 0.0) + (float) ($row['duration'] ?? 0);
+            $library[$row['view']] = str_starts_with((string) ($row['path'] ?? ''), 'vendor/');
         }
 
         $warnings = [];
 
         foreach ($repeats as $view => $count) {
-            if ($count >= $this->repeatThreshold && $spent[$view] >= $this->repeatMs) {
+            if ($count >= $this->repeatThreshold && $spent[$view] >= $this->repeatMs && ! $library[$view]) {
                 $warnings[] = sprintf('View %s rendered %d times, %.1f ms in all.', $view, $count, $spent[$view]);
             }
         }

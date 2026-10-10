@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\Origin;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
@@ -98,11 +99,13 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
             $total += $duration;
             $byType[$row['type'] ?? 'other'] = ($byType[$row['type'] ?? 'other'] ?? 0) + 1;
 
-            if ($row['slow'] ?? false) {
+            $fromLibrary = Origin::fromLibrary(is_array($row['origin'] ?? null) ? $row['origin'] : null);
+
+            if (($row['slow'] ?? false) && ! $fromLibrary) {
                 $slow[] = $row;
             }
 
-            if (($row['duplicate_of'] ?? null) !== null) {
+            if (($row['duplicate_of'] ?? null) !== null && ! $fromLibrary) {
                 $duplicates++;
             }
 
@@ -127,7 +130,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
 
         foreach ($shapes as $shape => $info) {
             if ($info['count'] >= $this->nPlusOneThreshold) {
-                $origin = is_array($info['origin']) ? ($info['origin']['file'] ?? '?').':'.($info['origin']['line'] ?? '?') : 'unknown origin';
+                $origin = Origin::describe(is_array($info['origin']) ? $info['origin'] : null) ?? 'unknown origin';
                 $warnings[] = sprintf('Possible N+1: %d x %s (%s)', $info['count'], $this->truncate($shape), $origin);
             }
         }

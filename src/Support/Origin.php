@@ -47,7 +47,7 @@ final class Origin
 
             $call = self::callOf($trace[$index + 1] ?? null);
 
-            if (str_starts_with((string) ($trace[$index + 1]['class'] ?? ''), 'ExeQue\\Monocle\\')) {
+            if (str_starts_with((string) ($trace[$index + 1]['class'] ?? ''), 'ExeQue\\Monocle\\') || self::isOwn($file)) {
                 continue;
             }
 
@@ -146,7 +146,7 @@ final class Origin
     {
         $file = str_replace('\\', '/', $file);
 
-        if (str_contains($file, '/exeque/laravel-monocle/')) {
+        if (str_contains($file, '/exeque/laravel-monocle/') || self::isOwn($file)) {
             return true;
         }
 
@@ -157,6 +157,43 @@ final class Origin
         }
 
         return false;
+    }
+
+    /**
+     * Monocle's own source, wherever the package is installed (vendor/ or a
+     * path repository next to the project).
+     */
+    private static function isOwn(string $file): bool
+    {
+        return str_starts_with(str_replace('\\', '/', $file), str_replace('\\', '/', dirname(__DIR__)).'/');
+    }
+
+    /**
+     * Whether the operation came from library code alone, with no code of the
+     * application on the way.
+     *
+     * @param  array<string, mixed>|null  $origin
+     */
+    public static function fromLibrary(?array $origin): bool
+    {
+        return ($origin['vendor'] ?? false) === true;
+    }
+
+    /**
+     * "file:line via Class->method" for warnings.
+     *
+     * @param  array<string, mixed>|null  $origin
+     */
+    public static function describe(?array $origin): ?string
+    {
+        if ($origin === null || ! isset($origin['file'])) {
+            return null;
+        }
+
+        $where = $origin['file'].(isset($origin['line']) ? ':'.$origin['line'] : '');
+        $via = is_array($origin['via'] ?? null) ? ($origin['via']['call'] ?? $origin['via']['file'] ?? null) : null;
+
+        return $via === null ? $where : $where.' via '.$via;
     }
 
     private static function relative(string $file, string $basePath): string

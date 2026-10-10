@@ -57,6 +57,23 @@ describe(Origin::class, function (): void {
             ->and($origin)->not->toHaveKey('vendor');
     });
 
+    it('skips Monocle\'s own source wherever the package is installed', function (): void {
+        $own = dirname(__DIR__, 3).'/src/Lenses/Middleware/TimedMiddleware.php';
+
+        $origin = Origin::capture('/app', 3, [], [
+            ['file' => $own, 'line' => 40, 'class' => 'Illuminate\\Pipeline\\Pipeline', 'type' => '->', 'function' => 'handle'],
+            ['file' => '/app/app/Http/Middleware/Locale.php', 'line' => 12, 'class' => 'X', 'type' => '->', 'function' => 'y'],
+        ]);
+
+        expect($origin['file'])->toBe('app/Http/Middleware/Locale.php');
+    });
+
+    it('describes an origin for warnings with the library call it went through', function (): void {
+        expect(Origin::describe(['file' => 'a.php', 'line' => 3, 'via' => ['call' => 'Lib->go']]))->toBe('a.php:3 via Lib->go')
+            ->and(Origin::describe(['file' => 'a.php']))->toBe('a.php')
+            ->and(Origin::describe(null))->toBeNull();
+    });
+
     it('maps compiled blade files back to their source', function (): void {
         $base = sys_get_temp_dir().'/monocle-origin-'.bin2hex(random_bytes(4));
         $compiledDir = $base.'/storage/framework/views';

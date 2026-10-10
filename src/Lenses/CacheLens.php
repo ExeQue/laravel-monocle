@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\Origin;
 use Illuminate\Cache\Events\CacheEvent;
 use Illuminate\Cache\Events\CacheFlushed;
 use Illuminate\Cache\Events\CacheHit;
@@ -151,11 +152,12 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         $warnings = [];
 
         foreach ($reads as $read) {
-            if ($read['count'] < $this->repeatThreshold || $read['ms'] < $this->repeatMs) {
+            if ($read['count'] < $this->repeatThreshold || $read['ms'] < $this->repeatMs || Origin::fromLibrary(is_array($read['origin']) ? $read['origin'] : null)) {
                 continue;
             }
 
-            $where = is_array($read['origin']) && isset($read['origin']['file']) ? ' from '.$read['origin']['file'].(isset($read['origin']['line']) ? ':'.$read['origin']['line'] : '') : '';
+            $origin = Origin::describe(is_array($read['origin']) ? $read['origin'] : null);
+            $where = $origin === null ? '' : ' from '.$origin;
             $warnings[] = sprintf('Cache key %s read %d times (%.1f ms)%s; remember it for the request with Cache::memo() or once().', $read['key'], $read['count'], $read['ms'], $where);
         }
 

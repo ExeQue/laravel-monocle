@@ -8,6 +8,8 @@ Every row records when it happened and the `origin` - the file and line in your 
 
 Turn lenses on, off or change their options in [`config/monocle.php`](configuration.md#lenses).
 
+Warnings point at your code. Slow or repeated work that comes from a package on its own - a slow query a library runs, a package's middleware - is not flagged; possible N+1 queries are flagged wherever they come from.
+
 ## Request
 
 Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, and response status, size and headers. Responses with a capture for their route or content type are kept, both as the capture presents them and raw; other responses only have their size.

@@ -16,6 +16,7 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Routing\MiddlewareNameResolver;
 use Illuminate\Support\Str;
+use ReflectionClass;
 use Throwable;
 
 /**
@@ -86,12 +87,15 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
         $own = [];
         $warnings = [];
 
+        $classes = [];
+
         foreach ([...$requests, ...$capture->spansOfKind('middleware.response')] as $span) {
             $own[$span->name] = ($own[$span->name] ?? 0.0) + ($span->duration() ?? 0.0);
+            $classes[$span->name] ??= $span->meta['class'] ?? null;
         }
 
         foreach ($own as $name => $ms) {
-            if ($ms >= $this->slowMs) {
+            if ($ms >= $this->slowMs && ! $this->isLibrary($classes[$name] ?? null)) {
                 $warnings[] = sprintf('Middleware %s spent %.1f ms of its own time.', $name, $ms);
             }
         }
@@ -109,6 +113,20 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
             ],
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Middleware shipped by a package; its time is not the application's to fix.
+     */
+    private function isLibrary(mixed $class): bool
+    {
+        if (! is_string($class) || ! class_exists($class)) {
+            return false;
+        }
+
+        $file = (new ReflectionClass($class))->getFileName();
+
+        return is_string($file) && str_contains(str_replace('\\', '/', $file), '/vendor/');
     }
 
     private function wrap(string $class, string $group): void
