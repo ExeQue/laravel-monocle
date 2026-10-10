@@ -88,12 +88,23 @@ describe(RequestLens::class, function (): void {
             ->and($cookies[config('session.cookie')])->not->toBe('session-id-value');
     });
 
-    it('leaves response bodies out when turned off', function (): void {
-        collect(app(ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens)->configure(['response_body' => false]);
+    it('keeps bodies only for the configured content types', function (): void {
+        $lens = collect(app(ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens);
         Route::get('/html', fn () => '<p>hi</p>');
+        Route::get('/problem', fn () => response('{"title":"x"}', 422, ['Content-Type' => 'application/problem+json; charset=utf-8']));
 
         $this->get('/html')->assertOk();
+        expect(latestCapture()->section('request')['response_body'])->toBeNull();
 
+        $this->get('/problem')->assertStatus(422);
+        expect(latestCapture()->section('request')['response_body'])->toBe('{"title":"x"}');
+
+        $lens->configure(['response_types' => ['text/*']]);
+        $this->get('/html')->assertOk();
+        expect(latestCapture()->section('request')['response_body'])->toBe('<p>hi</p>');
+
+        $lens->configure(['response_types' => []]);
+        $this->get('/problem')->assertStatus(422);
         expect(latestCapture()->section('request')['response_body'])->toBeNull();
     });
 

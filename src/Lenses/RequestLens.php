@@ -45,7 +45,8 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     private int $requestsInProcess = 0;
 
-    private bool $responseBody = true;
+    /** @var list<string> Content types (wildcards allowed) whose response body is kept. */
+    private array $responseTypes = ['application/json', 'application/*+json'];
 
     public function key(): string
     {
@@ -54,12 +55,12 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (text responses only), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (only for the content types in the lens option response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
     }
 
     public function configure(array $options): void
     {
-        $this->responseBody = (bool) ($options['response_body'] ?? $this->responseBody);
+        $this->responseTypes = array_values(array_map('strval', (array) ($options['response_types'] ?? $this->responseTypes)));
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -324,7 +325,7 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
             'response_bytes' => is_string($content) ? strlen($content) : null,
             'content_type' => $type === '' ? null : $type,
             'redirect' => $response->isRedirection() ? $response->headers->get('Location') : null,
-            'response_body' => $this->responseBody && is_string($content) && $content !== '' && $this->isText($type) ? $content : null,
+            'response_body' => is_string($content) && $content !== '' && $this->keepsBody($type) ? $content : null,
         ];
     }
 
@@ -349,11 +350,13 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     }
 
     /**
-     * Bodies worth reading: HTML, JSON, XML, plain text, JavaScript and CSS.
+     * Whether the response's content type is one the lens keeps bodies for.
      */
-    private function isText(string $contentType): bool
+    private function keepsBody(string $contentType): bool
     {
-        return preg_match('#^(text/|application/([\w.+-]*\+)?(json|xml|javascript)|image/svg\+xml)#i', $contentType) === 1;
+        $type = strtolower(trim(Str::before($contentType, ';')));
+
+        return $type !== '' && Str::is(array_map('strtolower', $this->responseTypes), $type);
     }
 
     /**

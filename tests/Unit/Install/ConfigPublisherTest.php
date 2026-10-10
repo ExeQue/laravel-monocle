@@ -47,7 +47,7 @@ describe(ConfigPublisher::class, function (): void {
     it('turns unchosen lenses off whether they are booleans or option arrays, keeping comments', function (): void {
         $rendered = $this->publisher->render(['lenses' => [RequestLens::class, CacheLens::class]]);
 
-        expect($rendered)->toContain("        RequestLens::class => [\n            'response_body' => true,\n        ],")
+        expect($rendered)->toContain("        RequestLens::class => [\n            'response_types' => ['application/json', 'application/*+json'],\n        ],")
             ->and($rendered)->toContain('        DatabaseLens::class => false,')
             ->and($rendered)->toContain('        EventsLens::class => false,')
             ->and($rendered)->not->toContain("'n_plus_one_threshold'")

@@ -10,9 +10,9 @@ Turn lenses on, off or change their options in [`config/monocle.php`](configurat
 
 ## Request
 
-Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size, headers and body, and peak memory. The body is kept for text responses (HTML, JSON, XML, text); others only have their size.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size, headers and body, and peak memory. The body is kept for the content types in `response_types`; other responses only have their size.
 
-Option: `response_body` (default `true`) - `false` leaves response bodies out.
+Option: `response_types` (default `['application/json', 'application/*+json']`) - content types whose response body is kept, wildcards allowed. `[]` keeps none.
 
 The timeline splits the request into phases:
 
