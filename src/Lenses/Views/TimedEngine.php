@@ -33,7 +33,7 @@ final class TimedEngine implements Engine
             return $this->inner->get($path, $data);
         }
 
-        $name = $this->viewName((string) $path);
+        $name = $this->viewName((string) $path, $data);
         $relative = $this->relative((string) $path);
         $keys = array_values(array_diff(array_keys($data), self::INTERNAL_KEYS));
 
@@ -78,7 +78,10 @@ final class TimedEngine implements Engine
         return $this->inner->{$method}(...$arguments);
     }
 
-    private function viewName(string $path): string
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function viewName(string $path, array $data): string
     {
         foreach (($this->viewPaths)() as $views) {
             $views = rtrim((string) $views, '/').'/';
@@ -88,7 +91,25 @@ final class TimedEngine implements Engine
             }
         }
 
-        return $this->stripExtension(basename($path));
+        $name = $this->stripExtension(basename($path));
+
+        // Inline templates (component render() strings, Blade::render()) are written
+        // to a hash-named file; name them after what rendered them instead.
+        if (preg_match('/^[0-9a-f]{32,40}$/', $name) !== 1) {
+            return $name;
+        }
+
+        $livewire = $data['__livewire'] ?? null;
+
+        if (is_object($livewire) && method_exists($livewire, 'getName')) {
+            return 'livewire:'.$livewire->getName();
+        }
+
+        if (is_string($data['componentName'] ?? null) && $data['componentName'] !== '') {
+            return '<x-'.$data['componentName'].'>';
+        }
+
+        return 'inline:'.substr($name, 0, 8);
     }
 
     private function stripExtension(string $name): string

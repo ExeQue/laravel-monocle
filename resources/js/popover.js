@@ -124,7 +124,7 @@ export function setupPopover(root, getModel) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.wf-click')) { e.preventDefault(); show(e.target); }
   });
   addEventListener('resize', close);
-  document.addEventListener('scroll', close, true);
+  document.addEventListener('scroll', (e) => { if (!pop.contains(e.target)) close(); }, true);
 
   return { close };
 }

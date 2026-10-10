@@ -268,10 +268,10 @@ td { overflow-wrap: anywhere; }
 }
 .rows:hover, .detail:hover, .waterfall:hover, .table-wrap:hover, .pop:hover,
 .rows:focus-within, .detail:focus-within {
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--brass) transparent;
 }
 .rows::-webkit-scrollbar, .detail::-webkit-scrollbar, .waterfall::-webkit-scrollbar, .table-wrap::-webkit-scrollbar, .pop::-webkit-scrollbar { width: 8px; height: 8px; }
 .rows::-webkit-scrollbar-track, .detail::-webkit-scrollbar-track, .waterfall::-webkit-scrollbar-track, .table-wrap::-webkit-scrollbar-track, .pop::-webkit-scrollbar-track { background: transparent; }
 .rows::-webkit-scrollbar-thumb, .detail::-webkit-scrollbar-thumb, .waterfall::-webkit-scrollbar-thumb, .table-wrap::-webkit-scrollbar-thumb, .pop::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
-.rows:hover::-webkit-scrollbar-thumb, .detail:hover::-webkit-scrollbar-thumb, .waterfall:hover::-webkit-scrollbar-thumb, .table-wrap:hover::-webkit-scrollbar-thumb, .pop:hover::-webkit-scrollbar-thumb { background: var(--line); }
-.rows::-webkit-scrollbar-thumb:hover, .detail::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.rows:hover::-webkit-scrollbar-thumb, .detail:hover::-webkit-scrollbar-thumb, .waterfall:hover::-webkit-scrollbar-thumb, .table-wrap:hover::-webkit-scrollbar-thumb, .pop:hover::-webkit-scrollbar-thumb { background: var(--brass); }
+.rows::-webkit-scrollbar-thumb:hover, .detail::-webkit-scrollbar-thumb:hover, .waterfall::-webkit-scrollbar-thumb:hover, .table-wrap::-webkit-scrollbar-thumb:hover, .pop::-webkit-scrollbar-thumb:hover { background: var(--brass-2); }

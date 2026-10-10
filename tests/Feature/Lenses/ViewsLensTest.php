@@ -6,6 +6,7 @@ use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use ExeQue\Monocle\Lenses\ViewsLens;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -52,6 +53,18 @@ describe(ViewsLens::class, function (): void {
             ->and($summary['totals']['views_ms'])->toBe(round($parent->duration(), 3))
             ->and($summary['totals']['views_most_rendered'])->toBe(['partial' => 3, 'parent' => 1])
             ->and($summary['warnings'])->toBe(['View partial rendered 3 times.']);
+    });
+
+    it('names inline templates after the component that rendered them', function (): void {
+        Blade::component(Tests\Fixtures\Components\InlineGreeting::class, 'greeting');
+        Route::get('/inline', fn () => view('with-greeting')->render().Blade::render('{{ $n }}', ['n' => 1]));
+
+        $this->get('/inline')->assertOk()->assertSee('Hi');
+
+        $names = array_column(latestCapture()->rows('views'), 'view');
+
+        expect($names)->toContain('<x-greeting>')
+            ->and(collect($names)->first(fn (string $name): bool => str_starts_with($name, 'inline:')))->toMatch('/^inline:[0-9a-f]{8}$/');
     });
 
     it('includes view data when configured and forwards other engine calls', function (): void {
