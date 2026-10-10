@@ -26,11 +26,12 @@ const TOTAL_GROUPS = [
   ['HTTP', (k) => k.startsWith('http_')],
   ['Files', (k) => k.startsWith('fs_')],
   ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification')],
+  ['Auth', (k) => k.startsWith('auth_')],
   ['Authorization', (k) => k.startsWith('authorization_')],
 ];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'auth', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {

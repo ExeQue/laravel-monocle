@@ -72,6 +72,10 @@ The timeline splits the request into phases:
 | `terminate` | work done after the response was sent |
 
 
+## Auth
+
+Section `auth`: who the request was authenticated as and how - the guard that resolved the user, logins, logouts, failed attempts and lockouts, registrations, verifications and password resets. With Laravel Sanctum, the token used, with its name and abilities. Credentials are recorded as the keys that were tried, never their values. The summary shows the user, failed attempts and lockouts.
+
 ## Session
 
 Section `session`: what the session held once the request was handled - the data (secret-looking keys and the CSRF token masked), what the request changed in it (each key with its value before and after), the keys flashed for the next request, the driver and a short hash of the session id.

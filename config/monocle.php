@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Lenses\AiLens;
+use ExeQue\Monocle\Lenses\AuthLens;
 use ExeQue\Monocle\Lenses\AuthorizationLens;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\CommandLens;
@@ -107,6 +108,7 @@ return [
         ],
         ExceptionsLens::class => true,
         AuthorizationLens::class => true,
+        AuthLens::class => true,
         LivewireLens::class => true,
         DumpLens::class => true,
         McpLens::class => true,
