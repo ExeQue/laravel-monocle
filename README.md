@@ -1,3 +1,5 @@
+<p align="center"><img src="art/cover.jpg" alt="Monocle - the Laravel profiler your coding agent reads" width="100%"></p>
+
 # Monocle
 
 Agent-focused request profiler for Laravel. Monocle records what the application did while handling a request, job or command - timing phases, every middleware, database queries, cache operations, filesystem and AI agent calls, plus spans you add yourself - and exposes it to AI coding agents through an MCP server, to humans through artisan commands, and later through a web dashboard.
