@@ -84,7 +84,7 @@
             <div class="flex min-w-0 flex-col gap-5">
                 <header class="flex flex-wrap items-baseline gap-x-4 gap-y-2.5">
                     <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]" x-text="summary.name"></h2>
-                    <span class="font-mono text-xs" :class="statusClass(summary.status)" x-text="summary.status ?? ''"></span>
+                    <span class="font-mono text-xs" :class="statusClass(summary.status)" x-text="summary.type === 'command' && summary.status !== null ? 'exit ' + summary.status : (summary.status ?? '')"></span>
                     <span class="rounded-full border border-dashed border-brass px-2 text-xs text-brass" x-show="summary.label" x-text="'label: ' + summary.label"></span>
                 </header>
                 <div class="flex flex-wrap gap-x-[18px] gap-y-1.5 text-[13px] text-muted">

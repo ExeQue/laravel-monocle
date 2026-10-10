@@ -10,7 +10,7 @@ Turn lenses on, off or change their options in [`config/monocle.php`](configurat
 
 ## Request
 
-Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size and headers, and peak memory. Responses with a capture for their route or content type are kept, both as the capture presents them and raw; other responses only have their size.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, and response status, size and headers. Responses with a capture for their route or content type are kept, both as the capture presents them and raw; other responses only have their size.
 
 Option: `capture.response_types` - content type (wildcards allowed) => capture. By default JSON responses are captured with `JsonCapture`. Add `'text/plain' => TextCapture::class` to keep plain text as it is, or remove an entry to stop keeping that type.
 

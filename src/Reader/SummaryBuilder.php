@@ -45,6 +45,7 @@ final class SummaryBuilder
     {
         $totals = [
             'duration_ms' => $capture->duration(),
+            'memory_peak_mb' => isset($capture->health['memory_peak_bytes']) ? round($capture->health['memory_peak_bytes'] / 1048576, 1) : null,
         ];
         $warnings = [];
 

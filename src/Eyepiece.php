@@ -331,15 +331,17 @@ final class Eyepiece
             $capture->endedAt = microtime(true);
             $capture->endedBy = $endedBy;
 
+            // Lenses close their own spans first; whatever is still open was forgotten.
+            $this->app->make(LensRegistry::class)->finalize($capture);
+
             foreach ($capture->spans as $span) {
                 if ($span->isOpen()) {
                     $this->stopSpan($span, 'finalize');
                 }
             }
 
-            $this->app->make(LensRegistry::class)->finalize($capture);
-
             $capture->health = [
+                'memory_peak_bytes' => memory_get_peak_usage(true),
                 'overhead_ms' => round($this->overheadNs / 1_000_000, 3),
                 'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
             ];

@@ -43,6 +43,18 @@ describe(CommandLens::class, function (): void {
             ->and(array_map(fn ($span): string => $span->name, $capture->spansOfKind('phase')))->toContain('command');
     });
 
+    it('closes its own phase and keeps request data out of command captures', function (): void {
+        Artisan::call('monocle-test:ping', ['name' => 'ada']);
+
+        $capture = latestCapture();
+        $summary = app(ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture);
+
+        expect($capture->sections)->not->toHaveKey('request')
+            ->and($capture->health['open_spans_at_finalize'])->toBe(0)
+            ->and($summary['warnings'])->toBe([])
+            ->and($summary['totals']['memory_peak_mb'])->toBeGreaterThan(0);
+    });
+
     it('records nested commands as spans inside the active capture', function () use ($count): void {
         $this->get('/call')->assertOk();
 

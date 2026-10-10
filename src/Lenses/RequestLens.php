@@ -103,10 +103,6 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     public function finalize(Capture $capture): void
     {
         $this->deriveControllerSpan($capture);
-
-        $capture->sections['request'] = array_merge($capture->section('request'), [
-            'memory_peak_bytes' => memory_get_peak_usage(true),
-        ]);
     }
 
     public function reset(): void
@@ -122,7 +118,6 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
         return [
             'totals' => [
-                'memory_peak_mb' => isset($request['memory_peak_bytes']) ? round($request['memory_peak_bytes'] / 1048576, 1) : null,
                 'response_bytes' => $request['response_bytes'] ?? null,
             ],
         ];

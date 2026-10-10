@@ -14,7 +14,7 @@ const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'va
 
 /** Totals grouped by subject: [heading, which keys belong]. Keys no group claims land under "Other". */
 const TOTAL_GROUPS = [
-  ['Request', (k) => ['duration_ms', 'memory_peak_mb', 'response_bytes'].includes(k) || k.startsWith('middleware_')],
+  ['Overall', (k) => ['duration_ms', 'memory_peak_mb', 'response_bytes'].includes(k) || k.startsWith('middleware_')],
   ['Database', (k) => k === 'queries' || k.startsWith('query') || k.startsWith('queries_') || ['slow_queries', 'duplicate_queries', 'transactions'].includes(k)],
   ['Cache', (k) => k.startsWith('cache_')],
   ['Redis', (k) => k.startsWith('redis_')],

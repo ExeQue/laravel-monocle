@@ -39,7 +39,7 @@ describe(RequestLens::class, function (): void {
             ->and($request['headers']['authorization'])->toBe('Bear****')
             ->and($request['status'])->toBe(200)
             ->and($request['response_bytes'])->toBeGreaterThan(0)
-            ->and($request['memory_peak_bytes'])->toBeGreaterThan(0)
+            ->and($capture->health['memory_peak_bytes'])->toBeGreaterThan(0)
             ->and($response->headers->get('X-Monocle-Id'))->toBe($capture->id)
             ->and($response->headers->get('Server-Timing'))->toContain('app;dur=');
     });
