@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Editor\EditorSettings;
 use ExeQue\Monocle\Install\BoostAgents;
 use ExeQue\Monocle\Install\ConfigPublisher;
 use ExeQue\Monocle\Install\GitignoreWriter;
@@ -68,15 +69,19 @@ final class InstallCommand extends Command
             $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
         }
 
-        if ($choices['driver'] === 'file') {
-            $this->ignoreStorage($gitignore, $ide, $basePath, $dryRun);
+        $this->ignoreFiles($gitignore, $ide, $basePath, $choices['driver'] === 'file', $dryRun);
+
+        $next = [
+            'Restart your MCP client so it picks up the new server.',
+            "Claude Code: add \"{$server}\" to enabledMcpjsonServers in .claude/settings.local.json if you use that allow-list.",
+        ];
+
+        if (! is_file($basePath.'/'.EditorSettings::FILE)) {
+            $next[] = "Run `{$platform->artisan()} monocle:editor` to open file paths from Monocle in your editor.";
         }
 
         $this->newLine();
-        $this->components->bulletList([
-            'Restart your MCP client so it picks up the new server.',
-            "Claude Code: add \"{$server}\" to enabledMcpjsonServers in .claude/settings.local.json if you use that allow-list.",
-        ]);
+        $this->components->bulletList($next);
 
         return self::SUCCESS;
     }
@@ -184,25 +189,25 @@ final class InstallCommand extends Command
     }
 
     /**
-     * The file store writes JSON into the project; keep it out of version
-     * control and out of the IDE's index.
+     * Keep the personal editor settings and, with the file store, the
+     * captures out of version control; keep the captures out of the IDE's
+     * index too.
      */
-    private function ignoreStorage(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $dryRun): void
+    private function ignoreFiles(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $fileStore, bool $dryRun): void
     {
         $config = $this->laravel->make('config');
         $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
         $base = rtrim($basePath, '/').'/';
+        $storage = $fileStore && str_starts_with($path, $base) ? substr($path, strlen($base)) : null;
 
-        if (! str_starts_with($path, $base)) {
+        $result = $gitignore->add($base.'.gitignore', array_filter([$storage === null ? null : $storage.'/', EditorSettings::FILE]), $dryRun);
+        $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
+
+        if ($storage === null) {
             return;
         }
 
-        $relative = substr($path, strlen($base));
-        $result = $gitignore->add($base.'.gitignore', $relative, $dryRun);
-
-        $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
-
-        foreach ($ide->apply($basePath, $relative, $dryRun) as $label => $outcome) {
+        foreach ($ide->apply($basePath, $storage, $dryRun) as $label => $outcome) {
             $this->components->twoColumnDetail($label, $outcome);
         }
     }

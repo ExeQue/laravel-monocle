@@ -58,6 +58,19 @@ enum Platform: string
     /**
      * @param  array<string, string|false>  $env
      */
+    /**
+     * How to run artisan on this platform, for instructions shown to the user.
+     */
+    public function artisan(): string
+    {
+        return match ($this) {
+            self::Sail => 'vendor/bin/sail artisan',
+            self::Lerd => 'lerd artisan',
+            self::Herd => 'herd php artisan',
+            self::Php => 'php artisan',
+        };
+    }
+
     private static function envStartsWith(array $env, string $prefix): bool
     {
         foreach (array_keys($env) as $key) {

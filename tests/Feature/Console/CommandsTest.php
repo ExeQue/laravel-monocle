@@ -163,6 +163,22 @@ describe(InstallCommand::class, function (): void {
         expect(json_decode((string) file_get_contents($this->dir.'/.vscode/settings.json'), true)['search.exclude'])->toBe(['storage/monocle/**' => true]);
     });
 
+    it('ignores the editor settings and recommends monocle:editor until they exist', function (): void {
+        config(['monocle.storage.file.path' => $this->dir.'/storage/monocle']);
+
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json'], '--no-interaction' => true])
+            ->expectsOutputToContain('lerd artisan monocle:editor')
+            ->assertSuccessful();
+
+        expect(file_get_contents($this->dir.'/.gitignore'))->toBe(ExeQue\Monocle\Install\GitignoreWriter::COMMENT."\n/storage/monocle/\n/.monocle.json\n");
+
+        file_put_contents($this->dir.'/.monocle.json', '{"editor":"zed"}');
+
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json'], '--no-interaction' => true])
+            ->doesntExpectOutputToContain('monocle:editor')
+            ->assertSuccessful();
+    });
+
     it('does not write in dry-run mode', function (): void {
         $file = $this->dir.'/dry.json';
         config(['monocle.storage.file.path' => $this->dir.'/storage/monocle']);

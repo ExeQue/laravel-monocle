@@ -38,7 +38,7 @@ trait ExcludesInAiTools
                 continue;
             }
 
-            $result = $writer->add($basePath.'/'.$file, $relativePath, $dryRun);
+            $result = $writer->add($basePath.'/'.$file, $relativePath.'/', $dryRun);
             $results["{$tool} ({$file})"] = $dryRun && $result === 'added' ? 'would be added' : $result;
         }
 

@@ -131,16 +131,16 @@ describe(GitignoreWriter::class, function (): void {
         file_put_contents($this->file, "/vendor\n.env");
         $writer = new GitignoreWriter();
 
-        expect($writer->add($this->file, 'storage/monocle'))->toBe('added')
+        expect($writer->add($this->file, 'storage/monocle/'))->toBe('added')
             ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n\n".GitignoreWriter::COMMENT."\n/storage/monocle/\n")
             ->and($writer->add($this->file, '/storage/monocle/'))->toBe('unchanged')
-            ->and($writer->add($this->file, 'storage/monocle', dryRun: true))->toBe('unchanged');
+            ->and($writer->add($this->file, 'storage/monocle/', dryRun: true))->toBe('unchanged');
     });
 
     it('creates the file when missing and respects dry-run', function (): void {
-        expect((new GitignoreWriter())->add($this->file, 'storage/monocle', dryRun: true))->toBe('added')
+        expect((new GitignoreWriter())->add($this->file, 'storage/monocle/', dryRun: true))->toBe('added')
             ->and(file_exists($this->file))->toBeFalse()
-            ->and((new GitignoreWriter())->add($this->file, 'storage/monocle'))->toBe('added')
+            ->and((new GitignoreWriter())->add($this->file, 'storage/monocle/'))->toBe('added')
             ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n");
     });
 });

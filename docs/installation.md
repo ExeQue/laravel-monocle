@@ -35,6 +35,8 @@ With file storage, the folder is also kept out of your tools - for the ones the 
 - left out of search and file watching in VS Code, Cursor and Windsurf
 - added to `.cursorignore`, `.codeiumignore`, `.codexignore`, `.aiignore` and `.aiexclude`, so AI tools do not read it
 
+`.monocle.json` (your editor settings, see below) is added to `.gitignore` as well.
+
 Restart your MCP client when the command is done. If you use Claude Code with an allow-list in `.claude/settings.local.json`, add `"monocle"` to `enabledMcpjsonServers`.
 
 Running the command again is safe: existing MCP servers and settings in the files are kept.
@@ -70,6 +72,49 @@ Any client that can start a local (stdio) MCP server works:
 ```
 
 To check the server, run `php artisan mcp:inspector monocle`.
+
+## Opening files in your editor
+
+```bash
+php artisan monocle:editor
+```
+
+Pick your editor and file paths and class names in Monocle become links that open them. The answers are saved in `.monocle.json` in the project root. Each developer has their own, so it is kept out of git.
+
+```json
+{
+    "editor": "phpstorm",
+    "paths": { "/var/www/html": "/home/you/code/project" }
+}
+```
+
+**`editor`** - `phpstorm`, `idea`, `vscode`, `cursor`, `windsurf`, `zed`, `sublime` or `nova`. Any other editor works with a URL template using `{file}` and `{line}`:
+
+```json
+{ "editor": "myeditor://open?file={file}&line={line}" }
+```
+
+**`paths`** - when PHP runs in a container (Sail, Lerd), the paths it sees differ from the ones on your machine. Map each container path to where it is for your editor. You are asked for this when it applies.
+
+**WSL** - when PHP runs under WSL, you are asked where your editor runs:
+
+| Editor runs | Links open |
+|---|---|
+| On Windows, project inside WSL | the file in the distro, e.g. `\\wsl.localhost\Ubuntu\home\...`; VS Code, Cursor and Windsurf open it in their WSL window |
+| Inside WSL | the Linux path |
+| On Windows, project on a Windows drive | the mapped Windows path, e.g. `C:/code/project` |
+
+The distro is saved as `"wsl": { "distro": "Ubuntu" }`. A URL template also gets `{distro}` and `{linux_file}`.
+
+Without `.monocle.json`, paths are shown as plain text.
+
+| Flag | Meaning |
+|---|---|
+| `--editor=` | editor name or URL template |
+| `--map=from:to` | a path mapping (repeatable) |
+| `--wsl=` | `windows`, `wsl` or `windows-drive` |
+| `--distro=` | the WSL distro holding the project |
+| `--dry-run` | show what would be written |
 
 ## Enabling Monocle
 
