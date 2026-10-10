@@ -34,6 +34,13 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 
     private bool $values = false;
 
+    private int $repeatThreshold = 3;
+
+    private int $counter = 0;
+
+    /** @var array<string, int> store|key => row number of its first read */
+    private array $firstRead = [];
+
     /** @var array<string, float> store|key => started at (ms) */
     private array $pending = [];
 
@@ -44,12 +51,13 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Cache operations: type (hit, miss, write, forget, flush, *_failed), key, store, tags, ttl, value_size_bytes and duration when the store emits start events. Values themselves only when the lens option values=true.';
+        return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, *_failed), key, store, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true.';
     }
 
     public function configure(array $options): void
     {
         $this->values = (bool) ($options['values'] ?? $this->values);
+        $this->repeatThreshold = (int) ($options['repeat_threshold'] ?? $this->repeatThreshold);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -78,6 +86,8 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
     public function reset(): void
     {
         $this->pending = [];
+        $this->counter = 0;
+        $this->firstRead = [];
     }
 
     public function summarize(Capture $capture): array
@@ -101,6 +111,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         $reads = $counts['hit'] + $counts['miss'];
 
         return [
+            'warnings' => $this->repeatWarnings($rows),
             'totals' => [
                 'cache_hits' => $counts['hit'],
                 'cache_misses' => $counts['miss'],
@@ -111,6 +122,40 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
             ],
         ];
+    }
+
+    /**
+     * The same key read again and again in one capture costs a round trip each
+     * time; remembering it for the request (Cache::memo(), once()) avoids that.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<string>
+     */
+    private function repeatWarnings(array $rows): array
+    {
+        $reads = [];
+
+        foreach ($rows as $row) {
+            if (in_array($row['type'] ?? null, ['hit', 'miss'], true) && isset($row['key'])) {
+                $read = &$reads[($row['store'] ?? '').'|'.$row['key']];
+                $read ??= ['key' => $row['key'], 'count' => 0, 'origin' => $row['origin'] ?? null];
+                $read['count']++;
+                unset($read);
+            }
+        }
+
+        $warnings = [];
+
+        foreach ($reads as $read) {
+            if ($read['count'] < $this->repeatThreshold) {
+                continue;
+            }
+
+            $where = is_array($read['origin']) && isset($read['origin']['file']) ? ' from '.$read['origin']['file'].(isset($read['origin']['line']) ? ':'.$read['origin']['line'] : '') : '';
+            $warnings[] = sprintf('Cache key %s read %d times%s; remember it for the request with Cache::memo() or once().', $read['key'], $read['count'], $where);
+        }
+
+        return $warnings;
     }
 
     /**
@@ -127,6 +172,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         unset($this->pending[$pendingKey]);
 
         $row = [
+            'n' => ++$this->counter,
             'type' => $type,
             'key' => $event->key,
             'store' => $event->storeName,
@@ -141,6 +187,11 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
             if ($this->values) {
                 $row['value'] = $extra['value'];
             }
+        }
+
+        if (in_array($type, ['hit', 'miss'], true)) {
+            $row['repeat_of'] = $this->firstRead[$pendingKey] ?? null;
+            $this->firstRead[$pendingKey] ??= $row['n'];
         }
 
         $this->eyepiece->push('cache', $row);

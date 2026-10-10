@@ -67,6 +67,7 @@ return [
         ],
         CacheLens::class => [
             'values' => false,
+            'repeat_threshold' => 3,
         ],
         EloquentLens::class => true,
         RedisLens::class => true,

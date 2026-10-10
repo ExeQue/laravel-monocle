@@ -294,6 +294,13 @@ final readonly class TimelinePresenter
             'call' => $origin['call'] ?? null,
             'call_link' => $this->link($origin['call'] ?? null),
             'vendor' => $origin['vendor'] ?? false,
+            'via' => is_array($origin['via'] ?? null) ? [
+                'file' => $origin['via']['file'] ?? null,
+                'line' => $origin['via']['line'] ?? null,
+                'call' => $origin['via']['call'] ?? null,
+                'link' => isset($origin['via']['file']) ? $this->links->file((string) $origin['via']['file'], isset($origin['via']['line']) ? (int) $origin['via']['line'] : null) : null,
+                'call_link' => $this->link($origin['via']['call'] ?? null),
+            ] : null,
             'link' => $this->links->file((string) $origin['file'], $line),
             'frames' => $frames,
         ];

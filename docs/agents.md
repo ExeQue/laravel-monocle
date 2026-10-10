@@ -10,7 +10,7 @@ Monocle lets a coding agent answer "what did the application do when I hit that 
 2. Find the capture with `monocle-list`, or take the id from the `X-Monocle-Id` response header.
 3. `monocle-show` shows where the time went, the totals and any warnings.
 4. Dig into a section with `monocle-rows` or `monocle-queries`.
-5. Every row has an `origin` - the `file:line` in your code that caused it. Fix the code, reproduce, and use `monocle-compare` to see the difference.
+5. Every row has an `origin` - the `file:line` in your code that caused it, and `via` - the library call it went through on the way, when there is one. Fix the code, reproduce, and use `monocle-compare` to see the difference.
 
 The agent learns which sections exist (queries, cache, views, ...) and what they contain as soon as it connects, so it can go straight to the right one.
 

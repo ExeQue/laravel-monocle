@@ -39,7 +39,9 @@ Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true).
 
 ## Cache
 
-Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. The summary shows the hit rate and the most used keys.
+Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys, and warns when one key is read often - remember such a value for the request with `Cache::memo()` or `once()`.
+
+Option: `repeat_threshold` (default 3) - reads of one key before a warning.
 
 Option: `values` (false) - also record the cached values.
 

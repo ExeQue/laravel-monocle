@@ -44,6 +44,19 @@ describe(Origin::class, function (): void {
         ])->and(Origin::capture($base, 3, [], [$frame('exeque/laravel-monocle/src/Eyepiece.php', 'X')]))->toBeNull();
     });
 
+    it('adds the library call that did the work on the way to user-land code', function (): void {
+        $origin = Origin::capture('/app', 3, [], [
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/Cache/Repository.php', 'line' => 5, 'class' => 'Illuminate\\Cache\\Repository', 'type' => '->', 'function' => 'get'],
+            ['file' => '/app/vendor/gehrisandro/tailwind-merge-php/src/TailwindMerge.php', 'line' => 81, 'class' => 'TailwindMerge\\TailwindMerge', 'type' => '->', 'function' => 'merge'],
+            ['file' => '/app/resources/views/button.blade.php', 'line' => 12, 'class' => 'Illuminate\\View\\ComponentAttributeBag', 'type' => '->', 'function' => 'twMerge'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php', 'line' => 9, 'class' => 'X', 'type' => '->', 'function' => 'y'],
+        ]);
+
+        expect($origin['file'])->toBe('resources/views/button.blade.php')
+            ->and($origin['via'])->toBe(['file' => 'vendor/gehrisandro/tailwind-merge-php/src/TailwindMerge.php', 'line' => 81, 'call' => 'Illuminate\\View\\ComponentAttributeBag->twMerge'])
+            ->and($origin)->not->toHaveKey('vendor');
+    });
+
     it('maps compiled blade files back to their source', function (): void {
         $base = sys_get_temp_dir().'/monocle-origin-'.bin2hex(random_bytes(4));
         $compiledDir = $base.'/storage/framework/views';

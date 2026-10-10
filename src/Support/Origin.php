@@ -7,9 +7,10 @@ namespace ExeQue\Monocle\Support;
 /**
  * Finds the user-land call site that triggered a recorded operation and a
  * short call chain above it. Vendor and Monocle frames are skipped; compiled
- * Blade files are mapped back to their .blade.php source. When no user-land
- * code is involved, the first library call outside the database, cache and
- * event plumbing is reported instead, marked as vendor.
+ * Blade files are mapped back to their .blade.php source. The library call
+ * that did the work on the way there (outside the database, cache and event
+ * plumbing) is added as "via"; when no user-land code is involved at all, that
+ * library call is reported instead, marked as vendor.
  */
 final class Origin
 {
@@ -29,7 +30,7 @@ final class Origin
     /**
      * @param  list<string>  $includeVendor
      * @param  list<array<string, mixed>>|null  $trace  the backtrace to read; the current one when null
-     * @return array{file: string|null, line: int|null, call: string|null, frames: list<array{file: string, line: int|null, call: string|null}>, vendor?: true}|null
+     * @return array{file: string|null, line: int|null, call: string|null, frames: list<array{file: string, line: int|null, call: string|null}>, vendor?: true, via?: array{file: string, line: int|null, call: string|null}}|null
      */
     public static function capture(string $basePath, int $frames = 5, array $includeVendor = [], ?array $trace = null): ?array
     {
@@ -51,7 +52,7 @@ final class Origin
             }
 
             if (self::isVendor($file, $basePath, $includeVendor)) {
-                if ($library === null && ! self::isPlumbing($file)) {
+                if ($kept === [] && $library === null && ! self::isPlumbing($file)) {
                     $library = ['file' => self::relative($file, $basePath), 'line' => $frame['line'] ?? null, 'call' => $call, 'frames' => [], 'vendor' => true];
                 }
 
@@ -87,13 +88,18 @@ final class Origin
         }
 
         $first = array_shift($kept);
-
-        return [
+        $origin = [
             'file' => $first['file'],
             'line' => $first['line'],
             'call' => $first['call'],
             'frames' => $kept,
         ];
+
+        if ($library !== null) {
+            $origin['via'] = ['file' => $library['file'], 'line' => $library['line'], 'call' => $library['call']];
+        }
+
+        return $origin;
     }
 
     /**

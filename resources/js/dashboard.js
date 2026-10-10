@@ -219,13 +219,16 @@ Alpine.data('monocle', (config) => ({
     const rows = this.tabData?.rows ?? [];
     const keys = [];
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n' && k !== '_links') keys.push(k);
-    return keys.filter((k) => k !== 'origin').slice(0, 7).concat(keys.includes('origin') ? ['origin'] : []);
+    const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
+    const used = keys.filter((k) => rows.some((row) => !blank(row[k])));
+    return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
   cell(row, key) {
     const v = row[key];
-    if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) : '';
+    if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${maybeLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
     if (key === 'duration' && typeof v === 'number') return esc(ms(v));
+    if ((key === 'repeat_of' || key === 'duplicate_of') && v) return `<span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">${key === 'repeat_of' ? 'repeat' : 'duplicate'} of #${esc(v)}</span>`;
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;

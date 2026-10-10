@@ -217,7 +217,7 @@
                             <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="cls.th" x-text="col"></th></template></tr></thead>
                             <tbody>
                                 <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
-                                    <tr><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
+                                    <tr :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
                                 </template>
                             </tbody>
                         </table>

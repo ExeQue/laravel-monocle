@@ -12,6 +12,7 @@ const originHtml = (o) => !o || !o.file ? '' : `
   <div class="${SEC}"><div class="${K}">Origin</div>
     <div class="font-mono text-xs text-brass [overflow-wrap:anywhere]">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
     ${o.call ? `<div class="${SUB} font-mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
+    ${o.via ? `<div class="${SUB}">via <span class="font-mono">${maybeLink(o.via.call ?? o.via.file, o.via.call_link ?? o.via.link)}</span> <span class="font-mono">(${maybeLink(o.via.file + (o.via.line ? ':' + o.via.line : ''), o.via.link)})</span></div>` : ''}
     ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
