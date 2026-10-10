@@ -16,7 +16,7 @@ const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'va
 const TOTAL_GROUPS = [
   ['Overall', (k) => ['duration_ms', 'memory_peak_mb', 'response_bytes'].includes(k) || k.startsWith('middleware_')],
   ['Database', (k) => k === 'queries' || k.startsWith('query') || k.startsWith('queries_') || ['slow_queries', 'duplicate_queries', 'transactions'].includes(k)],
-  ['Cache', (k) => k.startsWith('cache_')],
+  ['Cache', (k) => k.startsWith('cache_') || k === 'response_cache'],
   ['Redis', (k) => k.startsWith('redis_')],
   ['Views', (k) => k.startsWith('views_')],
   ['Models', (k) => k.startsWith('models_')],
@@ -32,7 +32,7 @@ const TOTAL_GROUPS = [
 ];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {

@@ -80,6 +80,10 @@ Section `auth`: who the request was authenticated as and how - the guard that re
 
 Section `features` (with [Laravel Pennant](https://laravel.com/docs/pennant)): every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined is flagged, since it quietly resolves to false.
 
+## Response cache
+
+Section `response_cache` (with [spatie/laravel-responsecache](https://github.com/spatie/laravel-responsecache)): whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit is flagged: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.
+
 ## Session
 
 Section `session`: what the session held once the request was handled - the data (secret-looking keys and the CSRF token masked), what the request changed in it (each key with its value before and after), the keys flashed for the next request, the driver and a short hash of the session id.

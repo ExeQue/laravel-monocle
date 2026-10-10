@@ -26,6 +26,7 @@ use ExeQue\Monocle\Lenses\Request\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\RequestLens;
+use ExeQue\Monocle\Lenses\ResponseCacheLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
@@ -111,6 +112,7 @@ return [
         AuthorizationLens::class => true,
         AuthLens::class => true,
         FeatureFlagsLens::class => true,
+        ResponseCacheLens::class => true,
         LivewireLens::class => true,
         DumpLens::class => true,
         McpLens::class => true,
