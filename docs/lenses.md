@@ -45,7 +45,7 @@ Option: `values` (false) - also record the cached values.
 
 ## Eloquent
 
-Sections `models` and `model_changes`: how many models of each class were retrieved, created, updated and deleted, and the changed attributes of every write. Hidden attributes are left out.
+Sections `models` and `model_changes`: how many models of each class were retrieved, created, updated and deleted, and every write with each changed attribute as `field`, `from` and `to`. Hidden attributes are left out.
 
 ## Redis
 

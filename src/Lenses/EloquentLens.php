@@ -32,7 +32,7 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Eloquent activity: one row per model class and action (retrieved, created, updated, deleted, restored, forceDeleted) with a count. Writes are also listed individually in the model_changes section with the model key and the changed attributes (hidden attributes left out).';
+        return 'Eloquent activity: one row per model class and action (retrieved, created, updated, deleted, restored, forceDeleted) with a count. Writes are also listed individually in the model_changes section with the model key and changes: one {field, from, to} per changed attribute (hidden attributes left out).';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -115,16 +115,41 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
     }
 
     /**
-     * @return array<string, mixed>
+     * One entry per changed attribute with its value before and after. The
+     * "updated" event fires before the model syncs its original values, so
+     * getOriginal() still holds what was there before. Hidden attributes are
+     * left out.
+     *
+     * @return list<array{field: string, from: mixed, to: mixed}>
      */
     private function changes(Model $model, string $action): array
     {
-        $attributes = match ($action) {
-            'created' => $model->getAttributes(),
-            'updated' => $model->getChanges(),
-            default => [],
+        $fields = match ($action) {
+            'created' => array_map(fn (mixed $value): array => [null, $value], $model->getAttributes()),
+            'deleted', 'forceDeleted' => array_map(fn (mixed $value): array => [$value, null], $model->getAttributes()),
+            default => $this->beforeAndAfter($model),
         };
 
-        return array_diff_key($attributes, array_flip($model->getHidden()));
+        $changes = [];
+
+        foreach (array_diff_key($fields, array_flip($model->getHidden())) as $field => [$from, $to]) {
+            $changes[] = ['field' => (string) $field, 'from' => $from, 'to' => $to];
+        }
+
+        return $changes;
+    }
+
+    /**
+     * @return array<string, array{0: mixed, 1: mixed}>
+     */
+    private function beforeAndAfter(Model $model): array
+    {
+        $fields = [];
+
+        foreach ($model->getChanges() as $field => $value) {
+            $fields[$field] = [$model->getOriginal($field), $value];
+        }
+
+        return $fields;
     }
 }

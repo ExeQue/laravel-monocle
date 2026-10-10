@@ -33,9 +33,10 @@ describe(EloquentLens::class, function (): void {
             ->and($counts['deleted']['count'])->toBe(1)
             ->and($counts['retrieved']['model'])->toBe(Thing::class)
             ->and(array_column($changes, 'action'))->toBe(['created', 'created', 'updated', 'deleted'])
-            ->and($changes[0]['changes'])->toMatchArray(['name' => 'a'])
-            ->and($changes[0]['changes'])->not->toHaveKey('secret')
-            ->and($changes[2]['changes'])->toBe(['name' => 'c'])
+            ->and($changes[0]['changes'])->toContain(['field' => 'name', 'from' => null, 'to' => 'a'])
+            ->and(array_column($changes[0]['changes'], 'field'))->not->toContain('secret')
+            ->and($changes[2]['changes'])->toBe([['field' => 'name', 'from' => 'a', 'to' => 'c']])
+            ->and($changes[3]['changes'])->toContain(['field' => 'name', 'from' => 'c', 'to' => null])
             ->and($changes[3]['key'])->toBe($thing->id)
             ->and($changes[0]['origin']['file'])->toContain('EloquentLensTest.php');
     });

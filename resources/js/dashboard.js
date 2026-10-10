@@ -15,7 +15,7 @@ const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'va
 const KEY_TOTALS = ['duration_ms', 'queries', 'query_ms', 'cache_hit_rate', 'views_rendered', 'models_retrieved', 'redis_commands', 'memory_peak_mb', 'response_bytes', 'tokens_total', 'jobs_dispatched'];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {
@@ -26,6 +26,9 @@ const theme = {
   },
 };
 theme.set(theme.get());
+
+/** A {field, from, to} list as a small table. */
+const changesTable = (changes) => `<table class="w-full border-collapse text-xs"><thead><tr>${['Field', 'From', 'To'].map((h) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 font-mono">${esc(c.field)}</td><td class="px-1.5 py-0.5 font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
 
 Alpine.data('monocle', (config) => ({
   api: config.api,
@@ -214,6 +217,7 @@ Alpine.data('monocle', (config) => ({
     const v = row[key];
     if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) : '';
     if (key === 'duration' && typeof v === 'number') return esc(ms(v));
+    if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
     return row._links?.[key] ? maybeLink(shown, row._links[key]) : esc(shown);
