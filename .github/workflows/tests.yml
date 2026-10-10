@@ -1,11 +1,11 @@
 name: Tests
 
 on:
-  # A branch with an open pull request would otherwise run twice per push.
+  # Only main: pushes to it, and pull requests that target it.
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main", "v1.x" ]
+    branches: [ "main" ]
 
 # The suite reads no secret and writes nothing back.
 permissions:
@@ -14,6 +14,10 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # Every run waits for a maintainer: the "tests" environment has required
+    # reviewers configured in the repository settings.
+    environment: tests
 
     strategy:
       fail-fast: false
@@ -48,6 +52,8 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
+
+    environment: tests
 
     name: Coverage
 
