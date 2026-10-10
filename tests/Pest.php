@@ -14,6 +14,10 @@ if (! class_exists(Laravel\Folio\Events\ViewMatched::class)) {
     require __DIR__.'/Fixtures/Stubs/FolioViewMatched.php';
 }
 
+if (! class_exists(Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent::class)) {
+    require __DIR__.'/Fixtures/Stubs/MediaLibraryEvents.php';
+}
+
 if (! class_exists(Laravel\Octane\Events\RequestReceived::class)) {
     require __DIR__.'/Fixtures/Stubs/OctaneRequestReceived.php';
 }

@@ -24,7 +24,7 @@ const TOTAL_GROUPS = [
   ['Jobs', (k) => k.startsWith('jobs_')],
   ['AI', (k) => k.startsWith('ai_') || k.startsWith('tokens')],
   ['HTTP', (k) => k.startsWith('http_')],
-  ['Files', (k) => k.startsWith('fs_')],
+  ['Files', (k) => k.startsWith('fs_') || k.startsWith('media_')],
   ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification')],
   ['Auth', (k) => k.startsWith('auth_')],
   ['Features', (k) => k.startsWith('features_')],
@@ -32,7 +32,7 @@ const TOTAL_GROUPS = [
 ];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'fs', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'fs', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {

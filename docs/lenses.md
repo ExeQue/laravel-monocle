@@ -192,6 +192,10 @@ FilesystemLens::class => ['disks' => ['media', 'uploads-*']],   // or ['*'] for 
 
 Plain PHP file functions like `file_put_contents()` are not recorded.
 
+## Media library
+
+Section `media` (with [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary)): media added to models - the model, collection, disk, file and size - and every conversion that ran, with its duration. Conversions also show on the timeline. Conversions that run during a request rather than on the queue are flagged.
+
 ## AI
 
 Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.

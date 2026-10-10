@@ -19,6 +19,7 @@ use ExeQue\Monocle\Lenses\LivewireLens;
 use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\McpLens;
+use ExeQue\Monocle\Lenses\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
@@ -114,6 +115,7 @@ return [
         AuthLens::class => true,
         FeatureFlagsLens::class => true,
         ResponseCacheLens::class => true,
+        MediaLibraryLens::class => true,
         LivewireLens::class => true,
         DumpLens::class => true,
         McpLens::class => true,
