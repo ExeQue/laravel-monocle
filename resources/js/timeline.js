@@ -188,7 +188,7 @@ export function renderTimeline(model, state) {
       <span class="${DUR}">${ms(n.e - n.s)}</span>
     </div>`;
 
-  const toggleCell = (id, open, depth, text) => `<button class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" data-toggle="${id}" data-open="${open}" aria-expanded="${open}" style="padding-left:${10 + depth * 12}px"><span class="inline-block text-[10px] text-brass transition-transform ${open ? 'rotate-90' : ''}" aria-hidden="true">▸</span>${text}</button>`;
+  const toggleCell = (id, open, depth, text) => `<button class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" data-toggle="${id}" data-open="${open}" aria-expanded="${open}" style="padding-left:${10 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform ${open ? 'rotate-90' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>${text}</button>`;
 
   const groupRow = (g) => {
     const from = Math.min(...g.members.map((m) => m.s));
