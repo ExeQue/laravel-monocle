@@ -74,6 +74,7 @@ Alpine.data('monocle', (config) => ({
   error: null,
   confirmClear: false,
   listOpen: false,
+  copied: false,
   responseView: 'pretty',
   wide: true,
 
@@ -316,6 +317,22 @@ Alpine.data('monocle', (config) => ({
   },
 
   changesTable(changes) { return changesTable(changes); },
+
+  async copy(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const range = document.createRange();
+      const node = [...document.querySelectorAll('.select-all')].find((el) => el.textContent === text);
+      if (!node) return;
+      range.selectNodeContents(node);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+      document.execCommand('copy');
+    }
+    this.copied = true;
+    setTimeout(() => { this.copied = false; }, 1500);
+  },
 
   linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },
 

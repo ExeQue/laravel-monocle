@@ -93,7 +93,13 @@
                     <span x-text="summary.type"></span>
                     <span class="font-mono text-xs [overflow-wrap:anywhere]" x-show="capture.context?.action && capture.context.action !== 'Closure'" x-html="linkHtml(capture.context?.action, capture.context?.action_link)"></span>
                     <span class="font-mono text-xs [overflow-wrap:anywhere]" x-show="capture.context?.command_class" x-html="linkHtml(capture.context?.command_class, capture.context?.command_link)"></span>
-                    <span class="font-mono text-xs" x-text="capture.id"></span>
+                    <span class="inline-flex items-center gap-1">
+                        <span class="font-mono text-xs select-all" x-text="capture.id"></span>
+                        <button type="button" class="rounded p-0.5 text-muted hover:text-brass" @click="copy(capture.id)" :title="copied ? 'Copied' : 'Copy id'" :aria-label="copied ? 'Copied' : 'Copy capture id'">
+                            <svg x-show="!copied" class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>
+                            <svg x-show="copied" x-cloak class="size-3.5 text-ok" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg>
+                        </button>
+                    </span>
                     <span x-text="summary.started_at ? ago(summary.started_at) : ''"></span>
                 </div>
                 <div class="flex flex-wrap gap-2 text-[13px]" x-show="summary.parent_id || summary.children?.length">
