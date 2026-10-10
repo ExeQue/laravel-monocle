@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Database\Eloquent\Model;
 
-covers(Recorder::class, Span::class, ExeQue\Monocle\MonocleManager::class, ExeQue\Monocle\Data\Entry::class);
+covers(Eyepiece::class, Span::class, ExeQue\Monocle\MonocleManager::class, ExeQue\Monocle\Data\Entry::class);
 
-describe(Recorder::class, function (): void {
+describe(Eyepiece::class, function (): void {
     beforeEach(function (): void {
-        $this->recorder = app(Recorder::class);
-        $this->recorder->start(EntryType::Request);
+        $this->eyepiece = app(Eyepiece::class);
+        $this->eyepiece->start(EntryType::Request);
     });
 
     describe('spans', function (): void {
@@ -25,7 +25,7 @@ describe(Recorder::class, function (): void {
             }
 
             expect(array_unique(array_map(fn (Span $span): string => $span->id, $spans)))->toHaveCount(10)
-                ->and($this->recorder->active()->spans)->toHaveCount(10);
+                ->and($this->eyepiece->active()->spans)->toHaveCount(10);
         });
 
         it('nests spans through the stack and allows unordered stops', function (): void {
@@ -76,7 +76,7 @@ describe(Recorder::class, function (): void {
 
         it('measures callbacks and returns their result', function (): void {
             $result = Monocle::measure('calc', fn (): int => 21 * 2, ['tag' => 'x']);
-            $span = array_values($this->recorder->active()->spans)[0];
+            $span = array_values($this->eyepiece->active()->spans)[0];
 
             expect($result)->toBe(42)
                 ->and($span->name)->toBe('calc')
@@ -87,7 +87,7 @@ describe(Recorder::class, function (): void {
         it('closes open spans at finalize and flags them', function (): void {
             Monocle::span('forgotten')->start();
 
-            $entry = $this->recorder->finalize();
+            $entry = $this->eyepiece->finalize();
 
             expect($entry->spans)->toHaveCount(1)
                 ->and(array_values($entry->spans)[0]->endedBy)->toBe('finalize')
@@ -99,58 +99,58 @@ describe(Recorder::class, function (): void {
         it('merges entry meta and stores a label', function (): void {
             Monocle::meta(['album' => 1])->meta(['album' => 2, 'user' => 9])->label('baseline');
 
-            $entry = $this->recorder->finalize();
+            $entry = $this->eyepiece->finalize();
 
             expect($entry->meta)->toBe(['album' => 2, 'user' => 9])
                 ->and($entry->label)->toBe('baseline');
         });
 
         it('attaches origin and time to pushed rows', function (): void {
-            $this->recorder->push('custom', ['value' => 1]);
+            $this->eyepiece->push('custom', ['value' => 1]);
 
-            $row = $this->recorder->active()->rows('custom')[0];
+            $row = $this->eyepiece->active()->rows('custom')[0];
 
             expect($row['time'])->toBeFloat()
                 ->and($row['origin']['file'])->toContain('RecorderTest.php');
         });
 
         it('skips origin when asked', function (): void {
-            $this->recorder->push('custom', ['value' => 1], origin: false);
+            $this->eyepiece->push('custom', ['value' => 1], origin: false);
 
-            expect($this->recorder->active()->rows('custom')[0])->not->toHaveKey('origin');
+            expect($this->eyepiece->active()->rows('custom')[0])->not->toHaveKey('origin');
         });
     });
 
     describe('lifecycle', function (): void {
         it('is a no-op without an active entry', function (): void {
-            $this->recorder->reset();
+            $this->eyepiece->reset();
 
             $span = Monocle::span('idle')->start()->stop();
             Monocle::meta(['x' => 1]);
 
             expect($span->start)->toBeNull()
-                ->and($this->recorder->active())->toBeNull()
+                ->and($this->eyepiece->active())->toBeNull()
                 ->and(Monocle::measure('m', fn (): string => 'ok'))->toBe('ok');
         });
 
         it('does not store discarded entries', function (): void {
-            $this->recorder->discard();
+            $this->eyepiece->discard();
 
-            expect($this->recorder->finalize())->toBeNull()
+            expect($this->eyepiece->finalize())->toBeNull()
                 ->and(latestEntry())->toBeNull();
         });
 
         it('stores finalized entries with duration and overhead', function (): void {
             Monocle::span('a')->start()->stop();
 
-            $entry = $this->recorder->finalize();
+            $entry = $this->eyepiece->finalize();
             $stored = latestEntry();
 
             expect($stored->id)->toBe($entry->id)
                 ->and($stored->duration())->toBeGreaterThan(0)
                 ->and($stored->health['overhead_ms'])->toBeGreaterThanOrEqual(0)
                 ->and($stored->endedBy)->toBe('normal')
-                ->and($this->recorder->active())->toBeNull();
+                ->and($this->eyepiece->active())->toBeNull();
         });
     });
 
@@ -169,11 +169,11 @@ describe(Recorder::class, function (): void {
         it('is off in production and in the test runner unless explicitly enabled', function (): void {
             config(['monocle.enabled' => null, 'app.debug' => true]);
 
-            expect($this->recorder->enabled())->toBeFalse();
+            expect($this->eyepiece->enabled())->toBeFalse();
 
             config(['monocle.enabled' => true]);
 
-            expect($this->recorder->enabled())->toBeTrue();
+            expect($this->eyepiece->enabled())->toBeTrue();
         });
     });
 });

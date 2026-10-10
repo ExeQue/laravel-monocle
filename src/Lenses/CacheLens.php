@@ -9,7 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Cache\Events\CacheEvent;
 use Illuminate\Cache\Events\CacheFlushed;
 use Illuminate\Cache\Events\CacheHit;
@@ -30,7 +30,7 @@ use Throwable;
  */
 final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 {
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private bool $values = false;
 
@@ -52,25 +52,25 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         $this->values = (bool) ($options['values'] ?? $this->values);
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         foreach ([RetrievingKey::class, WritingKey::class, ForgettingKey::class] as $start) {
-            $recorder->listen($start, function (CacheEvent $event): void {
-                $this->pending[$this->pendingKey($event)] = $this->recorder->now();
+            $eyepiece->listen($start, function (CacheEvent $event): void {
+                $this->pending[$this->pendingKey($event)] = $this->eyepiece->now();
             });
         }
 
-        $recorder->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
-        $recorder->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
-        $recorder->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
-        $recorder->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
-        $recorder->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
-        $recorder->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
-        $recorder->listen(CacheFlushed::class, function (CacheFlushed $event): void {
-            if ($this->recorder->recording()) {
-                $this->recorder->push('cache', ['type' => 'flush', 'key' => null, 'store' => $event->storeName, 'duration' => null]);
+        $eyepiece->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
+        $eyepiece->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
+        $eyepiece->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
+        $eyepiece->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
+        $eyepiece->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
+        $eyepiece->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
+        $eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
+            if ($this->eyepiece->recording()) {
+                $this->eyepiece->push('cache', ['type' => 'flush', 'key' => null, 'store' => $event->storeName, 'duration' => null]);
             }
         });
     }
@@ -118,7 +118,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
      */
     private function record(string $type, CacheEvent $event, array $extra = []): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
@@ -131,7 +131,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
             'key' => $event->key,
             'store' => $event->storeName,
             'tags' => $event->tags,
-            'duration' => $startedAt === null ? null : round($this->recorder->now() - $startedAt, 3),
+            'duration' => $startedAt === null ? null : round($this->eyepiece->now() - $startedAt, 3),
             'ttl' => $extra['ttl'] ?? null,
         ];
 
@@ -143,7 +143,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
             }
         }
 
-        $this->recorder->push('cache', $row);
+        $this->eyepiece->push('cache', $row);
     }
 
     private function pendingKey(CacheEvent $event): string

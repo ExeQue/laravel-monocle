@@ -11,7 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\EntryType;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
@@ -31,7 +31,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 {
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private Application $app;
 
@@ -53,10 +53,10 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input, files, auth user, status, response size and headers, peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
         $this->app = $app;
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         if (! $app->runningInConsole()) {
             $this->startEntry(defined('LARAVEL_START') ? LARAVEL_START : null);
@@ -64,23 +64,23 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         }
 
         $app->booted(function (): void {
-            if ($this->recorder->active() !== null) {
+            if ($this->eyepiece->active() !== null) {
                 $this->phase('middleware');
             }
         });
 
-        $recorder->listen(Routing::class, $this->onRouting(...));
-        $recorder->listen(RouteMatched::class, $this->onRouteMatched(...));
-        $recorder->listen(PreparingResponse::class, $this->onPreparingResponse(...));
-        $recorder->listen(RequestHandled::class, $this->onRequestHandled(...));
+        $eyepiece->listen(Routing::class, $this->onRouting(...));
+        $eyepiece->listen(RouteMatched::class, $this->onRouteMatched(...));
+        $eyepiece->listen(PreparingResponse::class, $this->onPreparingResponse(...));
+        $eyepiece->listen(RequestHandled::class, $this->onRequestHandled(...));
 
         $app->terminating(function (): void {
-            if ($this->recorder->active() === null) {
+            if ($this->eyepiece->active() === null) {
                 return;
             }
 
             $this->phase(null);
-            $this->recorder->finalize();
+            $this->eyepiece->finalize();
         });
     }
 
@@ -116,7 +116,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
     {
         $request = $event->request;
 
-        if ($this->recorder->active() === null || $this->requestsInProcess > 0) {
+        if ($this->eyepiece->active() === null || $this->requestsInProcess > 0) {
             $this->startEntry((float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
             $this->phase('middleware');
         }
@@ -124,7 +124,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->requestsInProcess++;
 
         if ($this->isExcepted($request)) {
-            $this->recorder->discard();
+            $this->eyepiece->discard();
 
             return;
         }
@@ -135,34 +135,34 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function onRouteMatched(RouteMatched $event): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
-        $this->routeMatchedAt = $this->recorder->now();
-        $this->recorder->set('request', $this->describeRoute($event->route));
+        $this->routeMatchedAt = $this->eyepiece->now();
+        $this->eyepiece->set('request', $this->describeRoute($event->route));
         $this->phase('handle');
     }
 
     private function onPreparingResponse(PreparingResponse $event): void
     {
         if ($this->routeMatchedAt !== null && $this->responsePreparedAt === null) {
-            $this->responsePreparedAt = $this->recorder->now();
+            $this->responsePreparedAt = $this->eyepiece->now();
         }
     }
 
     private function onRequestHandled(RequestHandled $event): void
     {
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
-        if ($entry === null || ! $this->recorder->recording()) {
+        if ($entry === null || ! $this->eyepiece->recording()) {
             return;
         }
 
         $response = $event->response;
 
-        $this->recorder->describe(status: (string) $response->getStatusCode());
-        $this->recorder->set('request', $this->describeResponse($response));
+        $this->eyepiece->describe(status: (string) $response->getStatusCode());
+        $this->eyepiece->set('request', $this->describeResponse($response));
         $this->phase('terminate');
 
         try {
@@ -176,7 +176,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
     private function startEntry(?float $startedAt): void
     {
         $this->reset();
-        $this->recorder->start(EntryType::Request, $startedAt);
+        $this->eyepiece->start(EntryType::Request, $startedAt);
     }
 
     /**
@@ -185,7 +185,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
      */
     private function phase(?string $name): void
     {
-        if ($this->recorder->active() === null) {
+        if ($this->eyepiece->active() === null) {
             return;
         }
 
@@ -196,9 +196,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             return;
         }
 
-        $span = $this->recorder->span($name, 'phase');
+        $span = $this->eyepiece->span($name, 'phase');
         $span->parent(null);
-        $this->recorder->startSpan($span, origin: false);
+        $this->eyepiece->startSpan($span, origin: false);
         $span->parentId = null;
 
         if ($name === 'bootstrap' || $name === 'middleware' && $this->firstPhase()) {
@@ -212,14 +212,14 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function firstPhase(): bool
     {
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
         return $entry !== null && count($entry->spansOfKind('phase')) === 1;
     }
 
     private function isExcepted(Request $request): bool
     {
-        foreach ((array) $this->recorder->config('except.paths', []) as $pattern) {
+        foreach ((array) $this->eyepiece->config('except.paths', []) as $pattern) {
             if ($request->is($pattern)) {
                 return true;
             }
@@ -230,9 +230,9 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function recordRequest(Request $request): void
     {
-        $masker = $this->recorder->masker();
+        $masker = $this->eyepiece->masker();
 
-        $this->recorder->describe(
+        $this->eyepiece->describe(
             name: $request->getMethod() . ' /' . ltrim($request->path(), '/'),
             label: $request->headers->get(self::LABEL_HEADER),
         );
@@ -250,7 +250,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             }
         }
 
-        $this->recorder->set('request', [
+        $this->eyepiece->set('request', [
             'method' => $request->getMethod(),
             'url' => $request->fullUrl(),
             'path' => '/' . ltrim($request->path(), '/'),
@@ -308,7 +308,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
         return [
             'status' => $response->getStatusCode(),
-            'response_headers' => $this->recorder->masker()->headers($response->headers->all()),
+            'response_headers' => $this->eyepiece->masker()->headers($response->headers->all()),
             'response_bytes' => is_string($content) ? strlen($content) : null,
             'content_type' => $response->headers->get('Content-Type'),
             'redirect' => $response->isRedirection() ? $response->headers->get('Location') : null,
@@ -395,7 +395,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
             kind: 'controller',
             parentId: $innermost?->id,
             key: null,
-            recorder: null,
+            eyepiece: null,
         );
 
         $controller->start = $start;

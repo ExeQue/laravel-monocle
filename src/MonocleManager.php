@@ -20,7 +20,7 @@ final class MonocleManager
     use Conditionable;
 
     public function __construct(
-        private readonly Recorder $recorder,
+        private readonly Eyepiece $eyepiece,
         private readonly LensRegistry $registry,
         private readonly StoreManager $stores,
     ) {
@@ -32,7 +32,7 @@ final class MonocleManager
      */
     public function span(?string $name = null, ?string $key = null): Span
     {
-        return $this->recorder->span($name, 'user', $key);
+        return $this->eyepiece->span($name, 'user', $key);
     }
 
     /**
@@ -46,7 +46,7 @@ final class MonocleManager
      */
     public function measure(string $name, Closure $callback, array $meta = []): mixed
     {
-        return $this->recorder->span($name)->meta($meta)->run($callback);
+        return $this->eyepiece->span($name)->meta($meta)->run($callback);
     }
 
     /**
@@ -56,7 +56,7 @@ final class MonocleManager
      */
     public function mark(string $name, array $meta = []): Span
     {
-        return $this->recorder->span($name, 'mark')->start($meta)->stop();
+        return $this->eyepiece->span($name, 'mark')->start($meta)->stop();
     }
 
     /**
@@ -66,21 +66,21 @@ final class MonocleManager
      */
     public function meta(array $meta): self
     {
-        $this->recorder->meta($meta);
+        $this->eyepiece->meta($meta);
 
         return $this;
     }
 
     public function label(string $label): self
     {
-        $this->recorder->describe(label: $label);
+        $this->eyepiece->describe(label: $label);
 
         return $this;
     }
 
     public function active(): ?Entry
     {
-        return $this->recorder->active();
+        return $this->eyepiece->active();
     }
 
     /**
@@ -92,14 +92,14 @@ final class MonocleManager
      */
     public function enabled(bool|Closure $enabled): self
     {
-        $this->recorder->setEnabled($enabled);
+        $this->eyepiece->setEnabled($enabled);
 
         return $this;
     }
 
     public function isEnabled(): bool
     {
-        return $this->recorder->enabled();
+        return $this->eyepiece->enabled();
     }
 
     /**
@@ -151,8 +151,8 @@ final class MonocleManager
         return $this;
     }
 
-    public function recorder(): Recorder
+    public function eyepiece(): Eyepiece
     {
-        return $this->recorder;
+        return $this->eyepiece;
     }
 }

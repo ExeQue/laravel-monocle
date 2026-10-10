@@ -11,8 +11,8 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Bus\Dispatcher as BusDispatcher;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -37,7 +37,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
 {
     public const string PAYLOAD_KEY = 'monocle';
 
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private Application $app;
 
@@ -54,19 +54,19 @@ final class QueueLens implements Lens, Resettable, Summarizable
         return 'Jobs dispatched by this entry: job class, connection, queue, delay, job_id, batch_id, chain length and whether it ran inline. Each queued job becomes its own entry (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
         $this->app = $app;
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         $this->registerPayloadHook();
         $this->registerSyncDispatchPipe($app);
 
-        $recorder->listen(JobQueued::class, $this->onQueued(...));
-        $recorder->listen(JobProcessing::class, $this->onProcessing(...));
-        $recorder->listen(JobProcessed::class, fn (JobProcessed $event) => $this->finish($event->job, 'processed'));
-        $recorder->listen(JobFailed::class, fn (JobFailed $event) => $this->fail($event->job, $event->exception, 'failed'));
-        $recorder->listen(JobExceptionOccurred::class, fn (JobExceptionOccurred $event) => $this->fail($event->job, $event->exception, 'exception', finish: true));
+        $eyepiece->listen(JobQueued::class, $this->onQueued(...));
+        $eyepiece->listen(JobProcessing::class, $this->onProcessing(...));
+        $eyepiece->listen(JobProcessed::class, fn (JobProcessed $event) => $this->finish($event->job, 'processed'));
+        $eyepiece->listen(JobFailed::class, fn (JobFailed $event) => $this->fail($event->job, $event->exception, 'failed'));
+        $eyepiece->listen(JobExceptionOccurred::class, fn (JobExceptionOccurred $event) => $this->fail($event->job, $event->exception, 'exception', finish: true));
     }
 
     public function reset(): void
@@ -98,11 +98,11 @@ final class QueueLens implements Lens, Resettable, Summarizable
     private function registerPayloadHook(): void
     {
         Queue::createPayloadUsing(static function (?string $connection, ?string $queue, array $payload): array {
-            // Resolved per call: the hook is process-wide while recorders are per application.
-            $recorder = Container::getInstance()->make(Recorder::class);
-            $entry = $recorder->active();
+            // Resolved per call: the hook is process-wide while eyepieces are per application.
+            $eyepiece = Container::getInstance()->make(Eyepiece::class);
+            $entry = $eyepiece->active();
 
-            if ($entry === null || ! $recorder->recording()) {
+            if ($entry === null || ! $eyepiece->recording()) {
                 return [];
             }
 
@@ -134,13 +134,13 @@ final class QueueLens implements Lens, Resettable, Summarizable
 
     private function onQueued(JobQueued $event): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
         $payload = is_string($event->payload) ? (array) json_decode($event->payload, true) : (array) $event->payload;
 
-        $this->recorder->push('jobs', [
+        $this->eyepiece->push('jobs', [
             'job' => $payload['displayName'] ?? (is_object($event->job) ? $event->job::class : (string) $event->job),
             'connection' => $event->connectionName,
             'queue' => $event->queue,
@@ -157,13 +157,13 @@ final class QueueLens implements Lens, Resettable, Summarizable
         $job = $event->job;
         $payload = $job->payload();
 
-        if ($this->recorder->active() !== null) {
-            if (! $this->recorder->recording()) {
+        if ($this->eyepiece->active() !== null) {
+            if (! $this->eyepiece->recording()) {
                 return;
             }
 
             // The sync queue fires no JobQueued event, so the dispatch row is written here.
-            $this->recorder->push('jobs', [
+            $this->eyepiece->push('jobs', [
                 'job' => $job->resolveName(),
                 'connection' => $event->connectionName,
                 'queue' => $job->getQueue(),
@@ -174,7 +174,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
                 'sync' => true,
             ]);
 
-            $span = $this->recorder->span($job->resolveName(), 'job');
+            $span = $this->eyepiece->span($job->resolveName(), 'job');
             $span->start([
                 'connection' => $event->connectionName,
                 'queue' => $job->getQueue(),
@@ -189,14 +189,14 @@ final class QueueLens implements Lens, Resettable, Summarizable
 
         $link = (array) ($payload[self::PAYLOAD_KEY] ?? []);
 
-        $this->recorder->start(
+        $this->eyepiece->start(
             EntryType::Job,
             parentId: $link['parent_id'] ?? null,
             traceId: $link['trace_id'] ?? null,
         );
 
-        $this->recorder->describe(name: $job->resolveName());
-        $this->recorder->set('job', [
+        $this->eyepiece->describe(name: $job->resolveName());
+        $this->eyepiece->set('job', [
             'class' => $job->resolveName(),
             'connection' => $event->connectionName,
             'queue' => $job->getQueue(),
@@ -220,17 +220,17 @@ final class QueueLens implements Lens, Resettable, Summarizable
             return;
         }
 
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
         if ($entry === null || $entry->type !== EntryType::Job) {
             return;
         }
 
         if ($entry->status === null || $status !== 'processed') {
-            $this->recorder->describe(status: $status);
+            $this->eyepiece->describe(status: $status);
         }
 
-        $this->recorder->finalize();
+        $this->eyepiece->finalize();
     }
 
     private function fail(Job $job, Throwable $exception, string $status, bool $finish = false): void
@@ -257,19 +257,19 @@ final class QueueLens implements Lens, Resettable, Summarizable
             return;
         }
 
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
         if ($entry === null || $entry->type !== EntryType::Job) {
             return;
         }
 
         if ($entry->status !== 'failed') {
-            $this->recorder->describe(status: $status);
-            $this->recorder->set('job', ['exception' => $info]);
+            $this->eyepiece->describe(status: $status);
+            $this->eyepiece->set('job', ['exception' => $info]);
         }
 
         if ($finish) {
-            $this->recorder->finalize();
+            $this->eyepiece->finalize();
         }
     }
 

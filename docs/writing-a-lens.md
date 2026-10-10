@@ -10,12 +10,12 @@ A lens is a class that hooks into the framework however it needs to and writes o
 namespace App\Monocle;
 
 use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
 final class StripeLens implements Lens
 {
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     public function key(): string
     {
@@ -27,12 +27,12 @@ final class StripeLens implements Lens
         return 'Stripe API calls: endpoint, HTTP status and duration. Failed calls carry the Stripe error code.';
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
-        $recorder->listen(StripeCallCompleted::class, function (StripeCallCompleted $event): void {
-            $this->recorder->push('stripe', [
+        $eyepiece->listen(StripeCallCompleted::class, function (StripeCallCompleted $event): void {
+            $this->eyepiece->push('stripe', [
                 'endpoint' => $event->endpoint,
                 'status' => $event->status,
                 'duration' => $event->milliseconds,
@@ -62,23 +62,23 @@ Lifecycle beyond that is opt-in through small companion contracts in `ExeQue\Mon
 
 Implement only what you use; `MiddlewareLens`, for instance, needs none of them.
 
-## The Recorder
+## The Eyepiece
 
-`Recorder` is the write API every lens uses:
+`Eyepiece` is the write API every lens uses:
 
 ```php
-$recorder->push('stripe', ['endpoint' => '/charges', 'duration' => 120.4]);   // append a row
-$recorder->push('stripe', [...], origin: false);                               // without stack capture
-$recorder->set('stripe_account', ['id' => 'acct_123']);                        // associative section, merged
-$recorder->span('stripe charge', 'stripe')->start()->stop();                   // spans with your own kind
-$recorder->now();                                                              // ms since the entry started
-$recorder->recording();                                                        // false while nothing or a discarded entry is active
-$recorder->masker()->inputs($payload);                                         // the configured mask
+$eyepiece->push('stripe', ['endpoint' => '/charges', 'duration' => 120.4]);   // append a row
+$eyepiece->push('stripe', [...], origin: false);                               // without stack capture
+$eyepiece->set('stripe_account', ['id' => 'acct_123']);                        // associative section, merged
+$eyepiece->span('stripe charge', 'stripe')->start()->stop();                   // spans with your own kind
+$eyepiece->now();                                                              // ms since the entry started
+$eyepiece->recording();                                                        // false while nothing or a discarded entry is active
+$eyepiece->masker()->inputs($payload);                                         // the configured mask
 ```
 
 `push()` adds `time` and `origin` for you and normalizes values. Calls made while no entry is active are ignored, so you do not need to guard for it, but checking `recording()` first saves the work when the event is frequent.
 
-`listen()` registers an event listener whose failures are caught and logged, and everything else the recorder does is wrapped the same way: an exception inside a lens is logged once and never reaches the application. Use `$recorder->listen()` rather than the event dispatcher directly.
+`listen()` registers an event listener whose failures are caught and logged, and everything else the eyepiece does is wrapped the same way: an exception inside a lens is logged once and never reaches the application. Use `$eyepiece->listen()` rather than the event dispatcher directly.
 
 ## Options
 
@@ -149,11 +149,11 @@ Monocle's own tests use [Orchestra Testbench](https://packages.tools/testbench).
 
 ```php
 config(['monocle.enabled' => true]);
-app(Recorder::class)->start(EntryType::Request);
+app(Eyepiece::class)->start(EntryType::Request);
 
 event(new StripeCallCompleted('/charges', 200, 120.4, null));
 
-$entry = app(Recorder::class)->finalize();
+$entry = app(Eyepiece::class)->finalize();
 
 expect($entry->rows('stripe'))->toHaveCount(1);
 ```

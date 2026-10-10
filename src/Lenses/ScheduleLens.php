@@ -7,7 +7,7 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
@@ -22,7 +22,7 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class ScheduleLens implements Lens, Summarizable
 {
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     public function key(): string
     {
@@ -34,15 +34,15 @@ final class ScheduleLens implements Lens, Summarizable
         return 'Scheduled tasks evaluated by schedule:run: command, cron expression, description, outcome (finished, failed, skipped), runtime_ms and the exception for failures.';
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
-        $recorder->listen(ScheduledTaskStarting::class, fn (ScheduledTaskStarting $event) => $this->record($event->task, 'starting'));
-        $recorder->listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $event) => $this->record($event->task, 'finished', ['runtime_ms' => round($event->runtime * 1000, 3)]));
-        $recorder->listen(ScheduledBackgroundTaskFinished::class, fn (ScheduledBackgroundTaskFinished $event) => $this->record($event->task, 'finished_in_background'));
-        $recorder->listen(ScheduledTaskSkipped::class, fn (ScheduledTaskSkipped $event) => $this->record($event->task, 'skipped'));
-        $recorder->listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => $this->record($event->task, 'failed', [
+        $eyepiece->listen(ScheduledTaskStarting::class, fn (ScheduledTaskStarting $event) => $this->record($event->task, 'starting'));
+        $eyepiece->listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $event) => $this->record($event->task, 'finished', ['runtime_ms' => round($event->runtime * 1000, 3)]));
+        $eyepiece->listen(ScheduledBackgroundTaskFinished::class, fn (ScheduledBackgroundTaskFinished $event) => $this->record($event->task, 'finished_in_background'));
+        $eyepiece->listen(ScheduledTaskSkipped::class, fn (ScheduledTaskSkipped $event) => $this->record($event->task, 'skipped'));
+        $eyepiece->listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => $this->record($event->task, 'failed', [
             'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
         ]));
     }
@@ -72,11 +72,11 @@ final class ScheduleLens implements Lens, Summarizable
      */
     private function record(Event $task, string $outcome, array $extra = []): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
-        $this->recorder->push('scheduled_tasks', [
+        $this->eyepiece->push('scheduled_tasks', [
             'command' => is_string($task->command) && $task->command !== '' ? $task->command : $task->getSummaryForDisplay(),
             'expression' => $task->getExpression(),
             'description' => $task->description,

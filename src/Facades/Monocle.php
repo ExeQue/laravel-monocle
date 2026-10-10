@@ -7,8 +7,8 @@ namespace ExeQue\Monocle\Facades;
 use Closure;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\MonocleManager;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static MonocleManager enable(string $lens)
  * @method static array lenses()
  * @method static MonocleManager extendStore(string $driver, Closure $factory)
- * @method static Recorder recorder()
+ * @method static Eyepiece eyepiece()
  * @method static MonocleManager when(mixed $value = null, callable $callback = null, callable $default = null)
  * @method static MonocleManager unless(mixed $value = null, callable $callback = null, callable $default = null)
  *

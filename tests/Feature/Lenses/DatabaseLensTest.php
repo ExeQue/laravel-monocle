@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DatabaseLens;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Support\Facades\DB;
 
 covers(DatabaseLens::class);
@@ -12,7 +12,7 @@ covers(DatabaseLens::class);
 describe(DatabaseLens::class, function (): void {
     beforeEach(function (): void {
         DB::statement('create table things (id integer primary key, name text)');
-        app(Recorder::class)->start(EntryType::Request);
+        app(Eyepiece::class)->start(EntryType::Request);
     });
 
     it('records queries with shape, type, tables and duplicates', function (): void {
@@ -21,7 +21,7 @@ describe(DatabaseLens::class, function (): void {
         DB::table('things')->where('id', 1)->first();
         DB::table('things')->where('id', 2)->first();
 
-        $entry = app(Recorder::class)->finalize();
+        $entry = app(Eyepiece::class)->finalize();
         $rows = $entry->rows('queries');
 
         expect($rows)->toHaveCount(4)
@@ -52,7 +52,7 @@ describe(DatabaseLens::class, function (): void {
         } catch (RuntimeException) {
         }
 
-        $entry = app(Recorder::class)->finalize();
+        $entry = app(Eyepiece::class)->finalize();
         $transactions = $entry->spansOfKind('db.transaction');
         $rows = $entry->rows('queries');
 
@@ -71,7 +71,7 @@ describe(DatabaseLens::class, function (): void {
             DB::table('things')->where('id', $id)->first();
         }
 
-        $entry = app(Recorder::class)->finalize();
+        $entry = app(Eyepiece::class)->finalize();
         $summary = $lens->summarize($entry);
 
         expect($summary['totals']['queries'])->toBe(3)

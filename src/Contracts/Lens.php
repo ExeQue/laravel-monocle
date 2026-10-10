@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Contracts;
 
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
 /**
@@ -28,5 +28,5 @@ interface Lens
      * Hook into the framework however the lens needs to. Called once per
      * process, only when Monocle and the lens are enabled.
      */
-    public function boot(Application $app, Recorder $recorder): void;
+    public function boot(Application $app, Eyepiece $eyepiece): void;
 }

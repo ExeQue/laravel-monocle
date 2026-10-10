@@ -82,7 +82,7 @@ final class LensRegistry
         return array_keys(array_filter($this->lenses(), fn (array|bool $options): bool => $options !== false));
     }
 
-    public function boot(Recorder $recorder): void
+    public function boot(Eyepiece $eyepiece): void
     {
         if ($this->isBooted) {
             return;
@@ -102,7 +102,7 @@ final class LensRegistry
                 $lens->configure($options);
             }
 
-            $lens->boot($this->app, $recorder);
+            $lens->boot($this->app, $eyepiece);
 
             $this->booted[] = $lens;
         }

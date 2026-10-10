@@ -22,7 +22,7 @@ use Throwable;
  * Lenses write through push()/set()/span(); nothing here may ever throw into
  * the application, so every write is wrapped and failures are logged once.
  */
-final class Recorder
+final class Eyepiece
 {
     private ?Entry $entry = null;
 
@@ -195,7 +195,7 @@ final class Recorder
             kind: $kind,
             parentId: null,
             key: $key,
-            recorder: $this->entry === null ? null : $this,
+            eyepiece: $this->entry === null ? null : $this,
         );
 
         if ($key !== null && $this->entry !== null) {

@@ -101,9 +101,9 @@ final class MailgunLens implements Lens, Summarizable
 
     public function description(): string { return 'Outgoing Mailgun API calls with endpoint, status and duration.'; }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $recorder->listen(MailgunCalled::class, fn ($e) => $recorder->push('mailgun', ['endpoint' => $e->endpoint, 'duration' => $e->ms]));
+        $eyepiece->listen(MailgunCalled::class, fn ($e) => $eyepiece->push('mailgun', ['endpoint' => $e->endpoint, 'duration' => $e->ms]));
     }
 
     public function summarize(Entry $entry): array

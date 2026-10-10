@@ -6,7 +6,7 @@ namespace ExeQue\Monocle\Lenses\Queue;
 
 use Closure;
 use ExeQue\Monocle\Enums\EntryType;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Throwable;
 
 /**
@@ -15,15 +15,15 @@ use Throwable;
  */
 final class SyncDispatchPipe
 {
-    public function __construct(private readonly Recorder $recorder)
+    public function __construct(private readonly Eyepiece $eyepiece)
     {
     }
 
     public function handle(object $command, Closure $next): mixed
     {
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
-        if ($entry === null || ! $this->recorder->recording()) {
+        if ($entry === null || ! $this->eyepiece->recording()) {
             return $next($command);
         }
 
@@ -33,13 +33,13 @@ final class SyncDispatchPipe
             return $next($command);
         }
 
-        $current = $this->recorder->currentSpan();
+        $current = $this->eyepiece->currentSpan();
 
         if ($current !== null && $current->kind === 'job' && $current->name === $command::class) {
             return $next($command);
         }
 
-        $span = $this->recorder->span($command::class, 'job')->start([
+        $span = $this->eyepiece->span($command::class, 'job')->start([
             'sync' => true,
             'via' => 'dispatchSync',
         ]);

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\EntryType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\ScheduleLens;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskSkipped;
@@ -15,7 +15,7 @@ covers(ScheduleLens::class);
 
 describe(ScheduleLens::class, function (): void {
     it('records task outcomes on the running entry and summarizes them', function (): void {
-        app(Recorder::class)->start(EntryType::Command);
+        app(Eyepiece::class)->start(EntryType::Command);
 
         $schedule = app(Schedule::class);
         $ok = $schedule->command('inspire')->everyMinute()->description('Daily wisdom');
@@ -27,7 +27,7 @@ describe(ScheduleLens::class, function (): void {
         event(new ScheduledTaskFailed($failed, new RuntimeException('disk full')));
         event(new ScheduledTaskSkipped($skipped));
 
-        $entry = app(Recorder::class)->finalize();
+        $entry = app(Eyepiece::class)->finalize();
         $rows = $entry->rows('scheduled_tasks');
 
         expect(array_column($rows, 'outcome'))->toBe(['starting', 'finished', 'failed', 'skipped'])

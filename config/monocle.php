@@ -2,13 +2,22 @@
 
 declare(strict_types=1);
 
+use ExeQue\Monocle\Lenses\AuthorizationLens;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\CommandLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
+use ExeQue\Monocle\Lenses\EloquentLens;
+use ExeQue\Monocle\Lenses\EventsLens;
+use ExeQue\Monocle\Lenses\ExceptionsLens;
+use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Lenses\LogLens;
+use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\QueueLens;
+use ExeQue\Monocle\Lenses\RedisLens;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
+use ExeQue\Monocle\Lenses\ViewsLens;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
 return [
@@ -54,6 +63,23 @@ return [
         CacheLens::class => [
             'values' => false,
         ],
+        EloquentLens::class => true,
+        RedisLens::class => true,
+        EventsLens::class => [
+            'ignore' => ['Illuminate\*', 'Laravel\*', 'Livewire\*', 'eloquent.*', 'composing:*', 'creating:*', 'bootstrapping:*', 'bootstrapped:*', 'locale.*'],
+        ],
+        LogLens::class => true,
+        ViewsLens::class => [
+            'engines' => ['blade', 'php', 'file'],
+            'data' => false,
+            'repeat_threshold' => 10,
+        ],
+        MailLens::class => true,
+        HttpClientLens::class => [
+            'bodies' => false,
+        ],
+        ExceptionsLens::class => true,
+        AuthorizationLens::class => true,
     ],
 
     /*

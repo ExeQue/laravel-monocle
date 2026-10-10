@@ -50,8 +50,8 @@ final class SummaryBuilder
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($entry);
-            $totals = array_merge($totals, $contribution['totals'] ?? []);
-            $warnings = array_merge($warnings, $contribution['warnings'] ?? []);
+            $totals = [...$totals, ...($contribution['totals'] ?? [])];
+            $warnings = [...$warnings, ...array_values($contribution['warnings'] ?? [])];
         }
 
         if (is_numeric($entry->status) && (int) $entry->status >= 500) {

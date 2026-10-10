@@ -24,7 +24,7 @@ final class MonocleServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/monocle.php', 'monocle');
 
         $this->app->singleton(StoreManager::class);
-        $this->app->singleton(Recorder::class);
+        $this->app->singleton(Eyepiece::class);
         $this->app->singleton(LensRegistry::class);
         $this->app->singleton(MonocleManager::class);
     }
@@ -47,17 +47,17 @@ final class MonocleServiceProvider extends ServiceProvider
 
         $this->registerMcpServer();
 
-        /** @var Recorder $recorder */
-        $recorder = $this->app->make(Recorder::class);
+        /** @var Eyepiece $eyepiece */
+        $eyepiece = $this->app->make(Eyepiece::class);
 
-        if (! $recorder->enabled()) {
+        if (! $eyepiece->enabled()) {
             return;
         }
 
-        $this->app->make(LensRegistry::class)->boot($recorder);
+        $this->app->make(LensRegistry::class)->boot($eyepiece);
 
-        register_shutdown_function(static function () use ($recorder): void {
-            $recorder->finalize('shutdown');
+        register_shutdown_function(static function () use ($eyepiece): void {
+            $eyepiece->finalize('shutdown');
         });
     }
 

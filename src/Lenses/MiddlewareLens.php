@@ -9,8 +9,8 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
-use ExeQue\Monocle\Recorder;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Routing\Events\RouteMatched;
@@ -30,7 +30,7 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
 {
     private Application $app;
 
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private ?Kernel $kernel = null;
 
@@ -57,10 +57,10 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
         $this->slowMs = (float) ($options['slow_ms'] ?? $this->slowMs);
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
         $this->app = $app;
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         $app->booted(function () use ($app): void {
             $this->kernel = $this->resolveKernel($app);
@@ -71,7 +71,7 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
             }
         });
 
-        $recorder->listen(RouteMatched::class, function (RouteMatched $event): void {
+        $eyepiece->listen(RouteMatched::class, function (RouteMatched $event): void {
             foreach ($event->route->gatherMiddleware() as $middleware) {
                 foreach ($this->resolveNames($middleware) as $class) {
                     $this->wrap($class, isset($this->global[$class]) ? 'global' : 'route');
@@ -120,7 +120,7 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
             inner: $inner instanceof TimedMiddleware ? $inner->inner() : $inner,
             class: $class,
             group: $group,
-            recorder: $this->recorder,
+            eyepiece: $this->eyepiece,
         ));
     }
 

@@ -11,7 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
@@ -25,7 +25,7 @@ use Throwable;
  */
 final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private float $slowMs = 70.0;
 
@@ -58,14 +58,14 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         $this->bindings = (bool) ($options['bindings'] ?? $this->bindings);
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
-        $recorder->listen(QueryExecuted::class, $this->onQuery(...));
-        $recorder->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
-        $recorder->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
-        $recorder->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
+        $eyepiece->listen(QueryExecuted::class, $this->onQuery(...));
+        $eyepiece->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
+        $eyepiece->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
+        $eyepiece->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
     }
 
     public function finalize(Entry $entry): void
@@ -146,7 +146,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
 
     private function onQuery(QueryExecuted $event): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
@@ -159,7 +159,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
 
-        $this->recorder->push('queries', [
+        $this->eyepiece->push('queries', [
             'n' => $this->counter,
             'sql' => $sql,
             'bindings' => $bindings,
@@ -181,12 +181,12 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
 
     private function onTransactionBeginning(TransactionBeginning $event): void
     {
-        if (! $this->recorder->recording()) {
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
         $depth = count($this->transactions[$event->connectionName] ?? []);
-        $span = $this->recorder->span('transaction' . ($depth > 0 ? ' (savepoint ' . $depth . ')' : ''), 'db.transaction');
+        $span = $this->eyepiece->span('transaction' . ($depth > 0 ? ' (savepoint ' . $depth . ')' : ''), 'db.transaction');
         $span->start(['connection' => $event->connectionName, 'level' => $depth + 1]);
 
         $this->transactions[$event->connectionName][] = $span;

@@ -10,7 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Data\Entry;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\EntryType;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
@@ -25,7 +25,7 @@ use Symfony\Component\Console\Input\InputInterface;
  */
 final class CommandLens implements Finalizable, Lens, Resettable
 {
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     private bool $usedLaravelStart = false;
 
@@ -44,9 +44,9 @@ final class CommandLens implements Finalizable, Lens, Resettable
         return 'Artisan command facts for entries of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job entries.';
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         // The Laravel command events are bridged from Symfony's only once the
         // kernel has been asked to; most applications do this during bootstrap,
@@ -59,8 +59,8 @@ final class CommandLens implements Finalizable, Lens, Resettable
             }
         }
 
-        $recorder->listen(CommandStarting::class, $this->onStarting(...));
-        $recorder->listen(CommandFinished::class, $this->onFinished(...));
+        $eyepiece->listen(CommandStarting::class, $this->onStarting(...));
+        $eyepiece->listen(CommandFinished::class, $this->onFinished(...));
     }
 
     public function finalize(Entry $entry): void
@@ -82,14 +82,14 @@ final class CommandLens implements Finalizable, Lens, Resettable
         }
 
         $arguments = $this->arguments($event->input);
-        $options = $this->recorder->masker()->inputs($this->options($event->input));
+        $options = $this->eyepiece->masker()->inputs($this->options($event->input));
 
-        if ($this->recorder->active() !== null) {
-            if (! $this->recorder->recording()) {
+        if ($this->eyepiece->active() !== null) {
+            if (! $this->eyepiece->recording()) {
                 return;
             }
 
-            $this->spans[] = $this->recorder->span($event->command, 'command')->start([
+            $this->spans[] = $this->eyepiece->span($event->command, 'command')->start([
                 'arguments' => $arguments,
                 'options' => $options,
             ]);
@@ -104,23 +104,23 @@ final class CommandLens implements Finalizable, Lens, Resettable
             $this->usedLaravelStart = true;
         }
 
-        $this->recorder->start(EntryType::Command, $startedAt);
-        $this->recorder->describe(name: 'artisan ' . $event->command);
-        $this->recorder->set('command', [
+        $this->eyepiece->start(EntryType::Command, $startedAt);
+        $this->eyepiece->describe(name: 'artisan ' . $event->command);
+        $this->eyepiece->set('command', [
             'name' => $event->command,
             'arguments' => $arguments,
             'options' => $options,
         ]);
 
         if ($startedAt !== null) {
-            $bootstrap = $this->recorder->span('bootstrap', 'phase');
-            $this->recorder->startSpan($bootstrap, origin: false);
+            $bootstrap = $this->eyepiece->span('bootstrap', 'phase');
+            $this->eyepiece->startSpan($bootstrap, origin: false);
             $bootstrap->start = 0.0;
             $bootstrap->stop();
         }
 
-        $this->phase = $this->recorder->span('command', 'phase');
-        $this->recorder->startSpan($this->phase, origin: false);
+        $this->phase = $this->eyepiece->span('command', 'phase');
+        $this->eyepiece->startSpan($this->phase, origin: false);
         $this->phase->parentId = null;
     }
 
@@ -136,15 +136,15 @@ final class CommandLens implements Finalizable, Lens, Resettable
             return;
         }
 
-        $entry = $this->recorder->active();
+        $entry = $this->eyepiece->active();
 
         if ($entry === null || $entry->type !== EntryType::Command) {
             return;
         }
 
-        $this->recorder->describe(status: (string) $event->exitCode);
-        $this->recorder->set('command', ['exit_code' => $event->exitCode]);
-        $this->recorder->finalize();
+        $this->eyepiece->describe(status: (string) $event->exitCode);
+        $this->eyepiece->set('command', ['exit_code' => $event->exitCode]);
+        $this->eyepiece->finalize();
     }
 
     private function isExcepted(string $command, InputInterface $input): bool
@@ -154,7 +154,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
             fn (mixed $value): bool => is_scalar($value),
         ))));
 
-        foreach ((array) $this->recorder->config('except.commands', []) as $pattern) {
+        foreach ((array) $this->eyepiece->config('except.commands', []) as $pattern) {
             if (Str::is($pattern, $command) || Str::is($pattern, $withArguments)) {
                 return true;
             }

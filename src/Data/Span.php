@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Data;
 
 use Closure;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 
 /**
@@ -33,7 +33,7 @@ final class Span
         public readonly string $kind,
         public ?string $parentId,
         public readonly ?string $key,
-        private readonly ?Recorder $recorder,
+        private readonly ?Eyepiece $eyepiece,
     ) {
     }
 
@@ -48,7 +48,7 @@ final class Span
             return $this;
         }
 
-        $this->recorder?->startSpan($this);
+        $this->eyepiece?->startSpan($this);
 
         return $this;
     }
@@ -65,10 +65,10 @@ final class Span
         }
 
         if ($this->start === null) {
-            $this->recorder?->startSpan($this);
+            $this->eyepiece?->startSpan($this);
         }
 
-        $this->recorder?->stopSpan($this);
+        $this->eyepiece?->stopSpan($this);
 
         return $this;
     }
@@ -158,7 +158,7 @@ final class Span
             kind: $data['kind'],
             parentId: $data['parent_id'] ?? null,
             key: $data['key'] ?? null,
-            recorder: null,
+            eyepiece: null,
         );
 
         $span->start = $data['start'] ?? null;

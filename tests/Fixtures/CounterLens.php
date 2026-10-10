@@ -10,7 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Entry;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
 /**
@@ -28,7 +28,7 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
     /** @var array<string, mixed> */
     public static array $options = [];
 
-    private Recorder $recorder;
+    private Eyepiece $eyepiece;
 
     public function key(): string
     {
@@ -45,13 +45,13 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
         self::$options = $options;
     }
 
-    public function boot(Application $app, Recorder $recorder): void
+    public function boot(Application $app, Eyepiece $eyepiece): void
     {
         self::$booted++;
-        $this->recorder = $recorder;
+        $this->eyepiece = $eyepiece;
 
         $app->make('events')->listen(CounterEvent::class, function (CounterEvent $event): void {
-            $this->recorder->push('counter', ['value' => $event->value]);
+            $this->eyepiece->push('counter', ['value' => $event->value]);
         });
     }
 

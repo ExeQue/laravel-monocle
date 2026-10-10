@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\EntryType;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use ExeQue\Monocle\LensRegistry;
-use ExeQue\Monocle\Recorder;
 use Tests\Fixtures\CounterEvent;
 use Tests\Fixtures\CounterLens;
 
@@ -27,7 +27,7 @@ describe(LensRegistry::class, function (): void {
 
     it('boots lenses from config, passes options and ignores disabled ones', function () use ($freshRegistry): void {
         $registry = $freshRegistry([CounterLens::class => ['threshold' => 2], DatabaseLens::class => false, CacheLens::class => true]);
-        $registry->boot(app(Recorder::class));
+        $registry->boot(app(Eyepiece::class));
 
         expect(CounterLens::$booted)->toBe(1)
             ->and(CounterLens::$options)->toBe(['threshold' => 2])
@@ -44,11 +44,11 @@ describe(LensRegistry::class, function (): void {
 
         expect($registry->lenses())->toBe([CounterLens::class => ['from' => 'facade'], CacheLens::class => false]);
 
-        $registry->boot(app(Recorder::class));
-        app(Recorder::class)->start(EntryType::Request);
+        $registry->boot(app(Eyepiece::class));
+        app(Eyepiece::class)->start(EntryType::Request);
         event(new CounterEvent(1));
         event(new CounterEvent(2));
-        $entry = app(Recorder::class)->finalize();
+        $entry = app(Eyepiece::class)->finalize();
 
         expect($entry->rows('counter'))->toHaveCount(2)
             ->and($entry->sections['counter_meta'])->toBe(['finalized' => true])
@@ -66,14 +66,14 @@ describe(LensRegistry::class, function (): void {
 
     it('refuses registrations after boot', function () use ($freshRegistry): void {
         $registry = $freshRegistry([]);
-        $registry->boot(app(Recorder::class));
+        $registry->boot(app(Eyepiece::class));
 
         expect(fn () => $registry->register(CounterLens::class))->toThrow(LensAlreadyBootedException::class);
     });
 
     it('exposes summarizers', function () use ($freshRegistry): void {
         $registry = $freshRegistry([CounterLens::class => true]);
-        $registry->boot(app(Recorder::class));
+        $registry->boot(app(Eyepiece::class));
 
         expect($registry->summarizers())->toHaveCount(1);
     });

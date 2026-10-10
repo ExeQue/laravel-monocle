@@ -1,0 +1,105 @@
+<?php
+
+declare(strict_types=1);
+
+namespace ExeQue\Monocle\Lenses\Views;
+
+use Closure;
+use ExeQue\Monocle\Eyepiece;
+use Illuminate\Contracts\View\Engine;
+
+/**
+ * Wraps a view engine so every render - including nested includes and
+ * components - becomes a `view` span and a row in the views section.
+ */
+final class TimedEngine implements Engine
+{
+    private const array INTERNAL_KEYS = ['__env', 'app', 'errors', '__currentLoopData', '__laravel_slots', '__data', '__path'];
+
+    public function __construct(
+        private readonly Engine $inner,
+        private readonly string $engine,
+        private readonly Eyepiece $eyepiece,
+        /** @var Closure(): list<string> */
+        private readonly Closure $viewPaths,
+        private readonly string $basePath,
+        private readonly bool $data = false,
+    ) {
+    }
+
+    public function get($path, array $data = []): string
+    {
+        if (! $this->eyepiece->recording()) {
+            return $this->inner->get($path, $data);
+        }
+
+        $name = $this->viewName((string) $path);
+        $relative = $this->relative((string) $path);
+        $keys = array_values(array_diff(array_keys($data), self::INTERNAL_KEYS));
+
+        $span = $this->eyepiece->span($name, 'view')->start([
+            'path' => $relative,
+            'engine' => $this->engine,
+            'data_keys' => $keys,
+        ]);
+
+        try {
+            return $this->inner->get($path, $data);
+        } finally {
+            $span->stop();
+
+            $row = [
+                'view' => $name,
+                'path' => $relative,
+                'engine' => $this->engine,
+                'duration' => $span->duration(),
+                'data_keys' => $keys,
+                'origin' => $span->origin,
+            ];
+
+            if ($this->data) {
+                $row['data'] = array_diff_key($data, array_flip(self::INTERNAL_KEYS));
+            }
+
+            $this->eyepiece->push('views', $row);
+        }
+    }
+
+    public function inner(): Engine
+    {
+        return $this->inner;
+    }
+
+    /**
+     * @param  array<int, mixed>  $arguments
+     */
+    public function __call(string $method, array $arguments): mixed
+    {
+        return $this->inner->{$method}(...$arguments);
+    }
+
+    private function viewName(string $path): string
+    {
+        foreach (($this->viewPaths)() as $views) {
+            $views = rtrim((string) $views, '/') . '/';
+
+            if (str_starts_with($path, $views)) {
+                return str_replace('/', '.', $this->stripExtension(substr($path, strlen($views))));
+            }
+        }
+
+        return $this->stripExtension(basename($path));
+    }
+
+    private function stripExtension(string $name): string
+    {
+        return preg_replace('/\.(blade\.php|php|html|css)$/', '', $name) ?? $name;
+    }
+
+    private function relative(string $path): string
+    {
+        $base = rtrim($this->basePath, '/') . '/';
+
+        return str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;
+    }
+}

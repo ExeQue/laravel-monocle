@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Middleware;
 
 use Closure;
-use ExeQue\Monocle\Recorder;
+use ExeQue\Monocle\Eyepiece;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -19,19 +19,19 @@ final class TimedMiddleware
         private readonly object $inner,
         private readonly string $class,
         private readonly string $group,
-        private readonly Recorder $recorder,
+        private readonly Eyepiece $eyepiece,
     ) {
     }
 
     public function handle(mixed $request, Closure $next, mixed ...$parameters): mixed
     {
-        $span = $this->recorder->span(Str::afterLast($this->class, '\\'), 'middleware');
+        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\'), 'middleware');
         $span->meta([
             'class' => $this->class,
             'parameters' => $parameters,
             'group' => $this->group,
         ]);
-        $this->recorder->startSpan($span, origin: false);
+        $this->eyepiece->startSpan($span, origin: false);
 
         $passed = false;
         $nextCalledAt = null;
@@ -41,18 +41,18 @@ final class TimedMiddleware
         try {
             $response = $this->inner->handle($request, function (mixed $passable) use ($next, &$passed, &$nextCalledAt, &$nextReturnedAt): mixed {
                 $passed = true;
-                $nextCalledAt = $this->recorder->now();
+                $nextCalledAt = $this->eyepiece->now();
 
                 try {
                     return $next($passable);
                 } finally {
-                    $nextReturnedAt = $this->recorder->now();
+                    $nextReturnedAt = $this->eyepiece->now();
                 }
             }, ...$parameters);
 
             return $response;
         } finally {
-            $end = $this->recorder->now();
+            $end = $this->eyepiece->now();
             $start = $span->start ?? $end;
 
             $span->stop([
@@ -72,9 +72,9 @@ final class TimedMiddleware
             return;
         }
 
-        $span = $this->recorder->span(Str::afterLast($this->class, '\\') . '::terminate', 'middleware.terminate');
+        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\') . '::terminate', 'middleware.terminate');
         $span->meta(['class' => $this->class]);
-        $this->recorder->startSpan($span, origin: false);
+        $this->eyepiece->startSpan($span, origin: false);
 
         try {
             $this->inner->terminate($request, $response);
