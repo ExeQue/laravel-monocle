@@ -4,3 +4,8 @@ composer.lock
 .phpunit.cache
 .phpunit.result.cache
 workbench/
+
+# VitePress
+node_modules/
+.vitepress/dist/
+.vitepress/cache/

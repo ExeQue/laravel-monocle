@@ -63,9 +63,11 @@ describe(InstallCommand::class, function (): void {
 
     it('does not write in dry-run mode', function (): void {
         $file = sys_get_temp_dir() . '/monocle-install-' . bin2hex(random_bytes(4)) . '.json';
+        config(['monocle.storage.file.path' => base_path('storage/monocle')]);
 
         $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$file], '--dry-run' => true])
             ->expectsOutputToContain('would be created')
+            ->expectsOutputToContain('.gitignore')
             ->assertSuccessful();
 
         expect(file_exists($file))->toBeFalse();

@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
+use ExeQue\Monocle\Install\GitignoreWriter;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
 
-covers(Platform::class, McpConfigWriter::class);
+covers(Platform::class, McpConfigWriter::class, GitignoreWriter::class);
 
 describe(Platform::class, function (): void {
     beforeEach(function (): void {
@@ -103,5 +104,32 @@ describe(McpConfigWriter::class, function (): void {
     it('does not write in dry-run mode', function (): void {
         expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []], dryRun: true))->toBe('created')
             ->and(file_exists($this->file))->toBeFalse();
+    });
+});
+
+describe(GitignoreWriter::class, function (): void {
+    beforeEach(function (): void {
+        $this->file = sys_get_temp_dir() . '/monocle-gitignore-' . bin2hex(random_bytes(4));
+    });
+
+    afterEach(function (): void {
+        @unlink($this->file);
+    });
+
+    it('appends the path once, normalizing slashes', function (): void {
+        file_put_contents($this->file, "/vendor\n.env");
+        $writer = new GitignoreWriter();
+
+        expect($writer->add($this->file, 'storage/monocle'))->toBe('added')
+            ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n/storage/monocle/\n")
+            ->and($writer->add($this->file, '/storage/monocle/'))->toBe('unchanged')
+            ->and($writer->add($this->file, 'storage/monocle', dryRun: true))->toBe('unchanged');
+    });
+
+    it('creates the file when missing and respects dry-run', function (): void {
+        expect((new GitignoreWriter())->add($this->file, 'storage/monocle', dryRun: true))->toBe('added')
+            ->and(file_exists($this->file))->toBeFalse()
+            ->and((new GitignoreWriter())->add($this->file, 'storage/monocle'))->toBe('added')
+            ->and(file_get_contents($this->file))->toBe("/storage/monocle/\n");
     });
 });

@@ -14,3 +14,7 @@
 /pint.json              export-ignore
 /workbench              export-ignore
 /testbench.yaml         export-ignore
+/.vitepress             export-ignore
+/docs                   export-ignore
+/package.json           export-ignore
+/package-lock.json      export-ignore

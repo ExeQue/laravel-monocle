@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Console;
 
+use ExeQue\Monocle\Install\GitignoreWriter;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
 use Illuminate\Console\Command;
@@ -15,7 +16,7 @@ final class InstallCommand extends Command
 
     protected $description = 'Register the Monocle MCP server in your MCP client config (.mcp.json) with platform detection for Sail, Lerd, Herd and plain PHP';
 
-    public function handle(McpConfigWriter $writer): int
+    public function handle(McpConfigWriter $writer, GitignoreWriter $gitignore): int
     {
         $basePath = $this->laravel->basePath();
         $platform = $this->option('platform')
@@ -39,6 +40,8 @@ final class InstallCommand extends Command
             $this->components->twoColumnDetail($file, $this->option('dry-run') ? "would be {$result}" : $result);
         }
 
+        $this->ignoreStorage($gitignore, $basePath);
+
         $this->newLine();
         $this->components->bulletList([
             'Restart your MCP client so it picks up the new server.',
@@ -46,6 +49,29 @@ final class InstallCommand extends Command
         ]);
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The file store writes JSON into the project; keep it out of version control.
+     */
+    private function ignoreStorage(GitignoreWriter $gitignore, string $basePath): void
+    {
+        $config = $this->laravel->make('config');
+
+        if ($config->get('monocle.storage.driver', 'file') !== 'file') {
+            return;
+        }
+
+        $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
+        $base = rtrim($basePath, '/') . '/';
+
+        if (! str_starts_with($path, $base)) {
+            return;
+        }
+
+        $result = $gitignore->add($base . '.gitignore', substr($path, strlen($base)), (bool) $this->option('dry-run'));
+
+        $this->components->twoColumnDetail('.gitignore', $this->option('dry-run') ? "would be {$result}" : $result);
     }
 
     protected function getOptions(): array

@@ -1,4 +1,4 @@
-<p align="center"><img src="art/cover.jpg" alt="Monocle - the Laravel profiler your coding agent reads" width="100%"></p>
+<p align="center"><img src="./art/cover.jpg" alt="Monocle - the Laravel profiler your coding agent reads" width="100%"></p>
 
 # Monocle
 
