@@ -34,7 +34,7 @@ final class InstallCommand extends Command
         ));
 
         foreach ((array) $this->option('file') as $file) {
-            $path = str_starts_with($file, '/') ? $file : $basePath . '/' . preg_replace('#^\./#', '', $file);
+            $path = str_starts_with($file, '/') ? $file : $basePath.'/'.preg_replace('#^\./#', '', $file);
             $result = $writer->write($path, $server, $command, (bool) $this->option('dry-run'));
 
             $this->components->twoColumnDetail($file, $this->option('dry-run') ? "would be {$result}" : $result);
@@ -63,13 +63,13 @@ final class InstallCommand extends Command
         }
 
         $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
-        $base = rtrim($basePath, '/') . '/';
+        $base = rtrim($basePath, '/').'/';
 
         if (! str_starts_with($path, $base)) {
             return;
         }
 
-        $result = $gitignore->add($base . '.gitignore', substr($path, strlen($base)), (bool) $this->option('dry-run'));
+        $result = $gitignore->add($base.'.gitignore', substr($path, strlen($base)), (bool) $this->option('dry-run'));
 
         $this->components->twoColumnDetail('.gitignore', $this->option('dry-run') ? "would be {$result}" : $result);
     }

@@ -190,7 +190,7 @@ final class Eyepiece
         }
 
         $span = new Span(
-            id: 's' . ++$this->spanCounter,
+            id: 's'.++$this->spanCounter,
             name: $name ?? $key ?? 'span',
             kind: $kind,
             parentId: null,
@@ -388,7 +388,7 @@ final class Eyepiece
 
     public function config(string $key, mixed $default = null): mixed
     {
-        return $this->app->make('config')->get('monocle.' . $key, $default);
+        return $this->app->make('config')->get('monocle.'.$key, $default);
     }
 
     private function measure(Closure $work): void
@@ -413,9 +413,9 @@ final class Eyepiece
         $this->reportedFailure = true;
 
         try {
-            $this->app->make('log')->warning('Monocle failed to record: ' . $e->getMessage(), [
+            $this->app->make('log')->warning('Monocle failed to record: '.$e->getMessage(), [
                 'exception' => $e::class,
-                'file' => $e->getFile() . ':' . $e->getLine(),
+                'file' => $e->getFile().':'.$e->getLine(),
             ]);
         } catch (Throwable) {
             // Logging itself is unavailable; stay silent rather than break the app.

@@ -72,7 +72,7 @@ final class TimedMiddleware
             return;
         }
 
-        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\') . '::terminate', 'middleware.terminate');
+        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\').'::terminate', 'middleware.terminate');
         $span->meta(['class' => $this->class]);
         $this->eyepiece->startSpan($span, origin: false);
 

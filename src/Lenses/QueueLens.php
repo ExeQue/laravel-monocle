@@ -239,7 +239,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
         $info = [
             'class' => $exception::class,
             'message' => $exception->getMessage(),
-            'file' => $exception->getFile() . ':' . $exception->getLine(),
+            'file' => $exception->getFile().':'.$exception->getLine(),
         ];
 
         if (isset($this->spans[$key])) {

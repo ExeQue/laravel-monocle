@@ -44,13 +44,13 @@ final class MailLens implements Lens, Resettable, Summarizable
         $this->eyepiece = $eyepiece;
 
         $eyepiece->listen(MessageSending::class, function (MessageSending $event): void {
-            $this->pending['mail:' . spl_object_id($event->message)] = $this->eyepiece->now();
+            $this->pending['mail:'.spl_object_id($event->message)] = $this->eyepiece->now();
         });
 
         $eyepiece->listen(MessageSent::class, function (MessageSent $event): void {
             $message = $event->message;
-            $started = $this->pending['mail:' . spl_object_id($message)] ?? null;
-            unset($this->pending['mail:' . spl_object_id($message)]);
+            $started = $this->pending['mail:'.spl_object_id($message)] ?? null;
+            unset($this->pending['mail:'.spl_object_id($message)]);
 
             if (! $this->eyepiece->recording() || ! $message instanceof Email) {
                 return;
@@ -132,6 +132,6 @@ final class MailLens implements Lens, Resettable, Summarizable
             $id = spl_object_id($notification);
         }
 
-        return 'notification:' . $id . '|' . $channel;
+        return 'notification:'.$id.'|'.$channel;
     }
 }

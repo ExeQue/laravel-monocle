@@ -12,7 +12,7 @@ use ExeQue\Monocle\LensRegistry;
 use Tests\Fixtures\CounterEvent;
 use Tests\Fixtures\CounterLens;
 
-covers(LensRegistry::class);
+covers(LensRegistry::class, LensAlreadyBootedException::class);
 
 describe(LensRegistry::class, function (): void {
     beforeEach(function (): void {

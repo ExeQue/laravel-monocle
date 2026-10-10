@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Storage;
 use Closure;
 use ExeQue\Monocle\Contracts\Store;
 use ExeQue\Monocle\Data\Capture;
+use InvalidArgumentException;
 use RuntimeException;
 
 /**
@@ -23,6 +24,11 @@ final class FileStore implements Store
         private readonly string $path,
         private readonly int $limit,
     ) {
+        // A relative or empty path would make the store operate on the working
+        // directory; refuse it rather than ever deleting files there.
+        if (trim($this->path, '/') === '' || ! str_starts_with($this->path, DIRECTORY_SEPARATOR)) {
+            throw new InvalidArgumentException("Monocle file storage needs an absolute path, got [{$this->path}].");
+        }
     }
 
     public function put(Capture $capture): void
@@ -72,9 +78,12 @@ final class FileStore implements Store
             return;
         }
 
-        foreach (glob($this->path . DIRECTORY_SEPARATOR . '*.json') ?: [] as $file) {
-            @unlink($file);
+        // Only what the index knows about is ours to delete.
+        foreach ($this->readIndex() as $row) {
+            @unlink($this->capturePath((string) $row['id']));
         }
+
+        @unlink($this->indexPath());
     }
 
     public function path(): string
@@ -87,7 +96,7 @@ final class FileStore implements Store
      */
     private function withLockedIndex(Closure $mutate): void
     {
-        $lock = fopen($this->path . DIRECTORY_SEPARATOR . 'index.lock', 'c');
+        $lock = fopen($this->path.DIRECTORY_SEPARATOR.'index.lock', 'c');
 
         if ($lock === false) {
             throw new RuntimeException("Monocle could not open the index lock in [{$this->path}].");
@@ -122,7 +131,7 @@ final class FileStore implements Store
 
     private function write(string $path, string $contents): void
     {
-        $temporary = $path . '.' . bin2hex(random_bytes(4)) . '.tmp';
+        $temporary = $path.'.'.bin2hex(random_bytes(4)).'.tmp';
 
         if (file_put_contents($temporary, $contents) === false || ! rename($temporary, $path)) {
             @unlink($temporary);
@@ -141,16 +150,16 @@ final class FileStore implements Store
             throw new RuntimeException("Monocle could not create the storage directory [{$this->path}].");
         }
 
-        file_put_contents($this->path . DIRECTORY_SEPARATOR . '.gitignore', "*\n!.gitignore\n");
+        file_put_contents($this->path.DIRECTORY_SEPARATOR.'.gitignore', "*\n!.gitignore\n");
     }
 
     private function capturePath(string $id): string
     {
-        return $this->path . DIRECTORY_SEPARATOR . basename($id) . '.json';
+        return $this->path.DIRECTORY_SEPARATOR.basename($id).'.json';
     }
 
     private function indexPath(): string
     {
-        return $this->path . DIRECTORY_SEPARATOR . 'index.json';
+        return $this->path.DIRECTORY_SEPARATOR.'index.json';
     }
 }

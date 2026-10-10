@@ -29,6 +29,6 @@ final class PartialMask
 
         $keep = min($this->visible, (int) floor(mb_strlen($value) * 0.25));
 
-        return mb_substr($value, 0, $keep) . '****';
+        return mb_substr($value, 0, $keep).'****';
     }
 }

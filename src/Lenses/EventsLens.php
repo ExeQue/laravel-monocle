@@ -137,7 +137,7 @@ final class EventsLens implements Configurable, Lens, Summarizable
         foreach ($raw as $listener) {
             $listeners[] = match (true) {
                 is_string($listener) => $listener,
-                is_array($listener) => (is_object($listener[0]) ? $listener[0]::class : (string) $listener[0]) . '@' . ($listener[1] ?? 'handle'),
+                is_array($listener) => (is_object($listener[0]) ? $listener[0]::class : (string) $listener[0]).'@'.($listener[1] ?? 'handle'),
                 $listener instanceof Closure => 'Closure',
                 is_object($listener) => $listener::class,
                 default => 'listener',

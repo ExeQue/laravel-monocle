@@ -94,7 +94,7 @@ final class Origin
         }
 
         if (isset($frame['class'])) {
-            return $frame['class'] . ($frame['type'] ?? '::') . $function;
+            return $frame['class'].($frame['type'] ?? '::').$function;
         }
 
         return $function;
@@ -105,7 +105,7 @@ final class Origin
      */
     private static function isVendor(string $file, string $basePath, array $includeVendor): bool
     {
-        if (! str_contains($file, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR)) {
+        if (! str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
             return false;
         }
 
@@ -120,7 +120,7 @@ final class Origin
 
     private static function relative(string $file, string $basePath): string
     {
-        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $basePath = rtrim($basePath, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
 
         if (str_starts_with($file, $basePath)) {
             return substr($file, strlen($basePath));

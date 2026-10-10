@@ -26,6 +26,6 @@ final class RecordingJob implements ShouldQueue
     {
         self::$handled++;
 
-        Cache::put('job:' . $this->label, true, 60);
+        Cache::put('job:'.$this->label, true, 60);
     }
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\LivewireLens;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\Counter;
@@ -44,7 +45,7 @@ describe(LivewireLens::class, function (): void {
         }
 
         // The exception escaped before the kernel terminated, so the capture is still open.
-        $exploded = app(ExeQue\Monocle\Eyepiece::class)->finalize() ?? latestCapture();
+        $exploded = app(Eyepiece::class)->finalize() ?? latestCapture();
         $rows = $exploded->rows('livewire');
 
         expect(collect($rows)->pluck('exception')->filter()->first()['message'])->toBe('component exploded');

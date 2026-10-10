@@ -81,7 +81,7 @@ final class TimedEngine implements Engine
     private function viewName(string $path): string
     {
         foreach (($this->viewPaths)() as $views) {
-            $views = rtrim((string) $views, '/') . '/';
+            $views = rtrim((string) $views, '/').'/';
 
             if (str_starts_with($path, $views)) {
                 return str_replace('/', '.', $this->stripExtension(substr($path, strlen($views))));
@@ -98,7 +98,7 @@ final class TimedEngine implements Engine
 
     private function relative(string $path): string
     {
-        $base = rtrim($this->basePath, '/') . '/';
+        $base = rtrim($this->basePath, '/').'/';
 
         return str_starts_with($path, $base) ? substr($path, strlen($base)) : $path;
     }

@@ -33,7 +33,7 @@ describe(AuthorizationLens::class, function (): void {
 
         expect(array_column($rows, 'ability'))->toBe(['view-report', 'view-report', 'publish', 'anything'])
             ->and(array_column($rows, 'allowed'))->toBe([true, false, false, true])
-            ->and($rows[0]['user'])->toBe(GenericUser::class . '#7')
+            ->and($rows[0]['user'])->toBe(GenericUser::class.'#7')
             ->and($rows[0]['arguments'])->toBe([1])
             ->and($rows[2]['message'])->toBe('Not an editor.')
             ->and($rows[3]['user'])->toBeNull()
@@ -43,8 +43,8 @@ describe(AuthorizationLens::class, function (): void {
 
         expect($summary['totals'])->toBe(['authorization_checks' => 4, 'authorization_denied' => 2])
             ->and($summary['warnings'])->toBe([
-                'Authorization denied: view-report for ' . GenericUser::class . '#7',
-                'Authorization denied: publish for ' . GenericUser::class . '#7',
+                'Authorization denied: view-report for '.GenericUser::class.'#7',
+                'Authorization denied: publish for '.GenericUser::class.'#7',
             ]);
     });
 

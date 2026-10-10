@@ -2,13 +2,16 @@
 
 declare(strict_types=1);
 
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
+use ExeQue\Monocle\MonocleManager;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
-covers(Eyepiece::class, Span::class, ExeQue\Monocle\MonocleManager::class, ExeQue\Monocle\Data\Capture::class);
+covers(Eyepiece::class, Span::class, MonocleManager::class, Capture::class);
 
 describe(Eyepiece::class, function (): void {
     beforeEach(function (): void {
@@ -151,6 +154,62 @@ describe(Eyepiece::class, function (): void {
                 ->and($stored->health['overhead_ms'])->toBeGreaterThanOrEqual(0)
                 ->and($stored->endedBy)->toBe('normal')
                 ->and($this->eyepiece->active())->toBeNull();
+        });
+    });
+
+    describe('safety', function (): void {
+        it('swallows and logs listener failures once', function (): void {
+            Log::spy();
+
+            $this->eyepiece->listen('monocle.test.boom', function (): void {
+                throw new RuntimeException('listener broke');
+            });
+
+            event('monocle.test.boom');
+            event('monocle.test.boom');
+
+            Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message): bool => str_contains($message, 'listener broke'));
+        });
+
+        it('exposes the innermost open span and relative times', function (): void {
+            expect($this->eyepiece->currentSpan())->toBeNull();
+
+            $outer = Monocle::span('outer')->start();
+
+            expect($this->eyepiece->currentSpan()?->id)->toBe($outer->id)
+                ->and($this->eyepiece->relative(microtime(true)))->toBeGreaterThanOrEqual(0)
+                ->and($this->eyepiece->config('storage.limit'))->toBe(10);
+        });
+
+        it('merges associative sections and ignores set() on list sections', function (): void {
+            $this->eyepiece->set('info', ['a' => 1]);
+            $this->eyepiece->set('info', ['b' => 2]);
+            $this->eyepiece->push('rows', ['x' => 1]);
+            $this->eyepiece->set('rows', ['replaced' => true]);
+
+            expect($this->eyepiece->active()->section('info'))->toBe(['a' => 1, 'b' => 2])
+                ->and($this->eyepiece->active()->sections['rows'])->toBe(['replaced' => true]);
+        });
+
+        it('builds the masker from config with a callable mask', function (): void {
+            config(['monocle.mask.using' => fn (mixed $value, string $key): string => "masked:{$key}"]);
+
+            expect($this->eyepiece->masker()->inputs(['password' => 'x'])['password'])->toBe('masked:password');
+        });
+
+        it('reports nothing when no capture is active', function (): void {
+            $this->eyepiece->reset();
+
+            expect($this->eyepiece->now())->toBe(0.0)
+                ->and($this->eyepiece->relative(microtime(true)))->toBe(0.0)
+                ->and($this->eyepiece->recording())->toBeFalse()
+                ->and($this->eyepiece->finalize())->toBeNull();
+
+            $this->eyepiece->push('x', ['a' => 1]);
+            $this->eyepiece->set('x', ['a' => 1]);
+            $this->eyepiece->describe(name: 'nothing');
+
+            expect($this->eyepiece->active())->toBeNull();
         });
     });
 

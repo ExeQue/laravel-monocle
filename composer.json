@@ -74,6 +74,7 @@
             "@prepare"
         ],
         "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
-        "prepare": "@php vendor/bin/testbench package:discover --ansi"
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "test:coverage": "vendor/bin/pest -p --coverage --min=90"
     }
 }

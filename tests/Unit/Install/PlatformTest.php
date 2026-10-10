@@ -10,25 +10,25 @@ covers(Platform::class, McpConfigWriter::class, GitignoreWriter::class);
 
 describe(Platform::class, function (): void {
     beforeEach(function (): void {
-        $this->base = sys_get_temp_dir() . '/monocle-platform-' . bin2hex(random_bytes(4));
-        mkdir($this->base . '/vendor/bin', 0777, true);
+        $this->base = sys_get_temp_dir().'/monocle-platform-'.bin2hex(random_bytes(4));
+        mkdir($this->base.'/vendor/bin', 0777, true);
     });
 
     afterEach(function (): void {
-        exec('rm -rf ' . escapeshellarg($this->base));
+        exec('rm -rf '.escapeshellarg($this->base));
     });
 
     it('prefers lerd when the project carries a .lerd.yaml', function (): void {
-        touch($this->base . '/.lerd.yaml');
-        touch($this->base . '/compose.yaml');
-        touch($this->base . '/vendor/bin/sail');
+        touch($this->base.'/.lerd.yaml');
+        touch($this->base.'/compose.yaml');
+        touch($this->base.'/vendor/bin/sail');
 
         expect(Platform::detect($this->base, ['HOME' => '/nowhere']))->toBe(Platform::Lerd);
     });
 
     it('detects sail from the binary plus a compose file', function (): void {
-        touch($this->base . '/compose.yaml');
-        touch($this->base . '/vendor/bin/sail');
+        touch($this->base.'/compose.yaml');
+        touch($this->base.'/vendor/bin/sail');
 
         expect(Platform::detect($this->base, ['HOME' => '/nowhere']))->toBe(Platform::Sail);
     });
@@ -38,9 +38,9 @@ describe(Platform::class, function (): void {
     });
 
     it('detects herd from the config directory in HOME', function (): void {
-        mkdir($this->base . '/home/.config/herd', 0777, true);
+        mkdir($this->base.'/home/.config/herd', 0777, true);
 
-        expect(Platform::detect($this->base, ['HOME' => $this->base . '/home']))->toBe(Platform::Herd);
+        expect(Platform::detect($this->base, ['HOME' => $this->base.'/home']))->toBe(Platform::Herd);
     });
 
     it('falls back to plain php', function (): void {
@@ -57,11 +57,11 @@ describe(Platform::class, function (): void {
 
 describe(McpConfigWriter::class, function (): void {
     beforeEach(function (): void {
-        $this->file = sys_get_temp_dir() . '/monocle-mcp-' . bin2hex(random_bytes(4)) . '/.mcp.json';
+        $this->file = sys_get_temp_dir().'/monocle-mcp-'.bin2hex(random_bytes(4)).'/.mcp.json';
     });
 
     afterEach(function (): void {
-        exec('rm -rf ' . escapeshellarg(dirname($this->file)));
+        exec('rm -rf '.escapeshellarg(dirname($this->file)));
     });
 
     it('creates the file, merges without touching other servers and is idempotent', function (): void {
@@ -109,7 +109,7 @@ describe(McpConfigWriter::class, function (): void {
 
 describe(GitignoreWriter::class, function (): void {
     beforeEach(function (): void {
-        $this->file = sys_get_temp_dir() . '/monocle-gitignore-' . bin2hex(random_bytes(4));
+        $this->file = sys_get_temp_dir().'/monocle-gitignore-'.bin2hex(random_bytes(4));
     });
 
     afterEach(function (): void {
@@ -121,7 +121,7 @@ describe(GitignoreWriter::class, function (): void {
         $writer = new GitignoreWriter();
 
         expect($writer->add($this->file, 'storage/monocle'))->toBe('added')
-            ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n\n" . GitignoreWriter::COMMENT . "\n/storage/monocle/\n")
+            ->and(file_get_contents($this->file))->toBe("/vendor\n.env\n\n".GitignoreWriter::COMMENT."\n/storage/monocle/\n")
             ->and($writer->add($this->file, '/storage/monocle/'))->toBe('unchanged')
             ->and($writer->add($this->file, 'storage/monocle', dryRun: true))->toBe('unchanged');
     });
@@ -130,6 +130,6 @@ describe(GitignoreWriter::class, function (): void {
         expect((new GitignoreWriter())->add($this->file, 'storage/monocle', dryRun: true))->toBe('added')
             ->and(file_exists($this->file))->toBeFalse()
             ->and((new GitignoreWriter())->add($this->file, 'storage/monocle'))->toBe('added')
-            ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT . "\n/storage/monocle/\n");
+            ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n");
     });
 });

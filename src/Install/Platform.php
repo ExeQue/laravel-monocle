@@ -23,7 +23,7 @@ enum Platform: string
     public static function detect(string $basePath, array $env = []): self
     {
         $env = $env === [] ? getenv() : $env;
-        $has = fn (string $file): bool => file_exists(rtrim($basePath, '/') . '/' . $file);
+        $has = fn (string $file): bool => file_exists(rtrim($basePath, '/').'/'.$file);
 
         if ($has('.lerd.yaml') || $has('.lerd') || self::envStartsWith($env, 'LERD_')) {
             return self::Lerd;
@@ -51,7 +51,7 @@ enum Platform: string
             self::Sail => ['command' => 'vendor/bin/sail', 'args' => ['artisan', 'mcp:start', $server]],
             self::Lerd => ['command' => 'lerd', 'args' => ['php', 'artisan', 'mcp:start', $server]],
             self::Herd => ['command' => 'herd', 'args' => ['php', 'artisan', 'mcp:start', $server]],
-            self::Php => ['command' => PHP_BINARY, 'args' => [rtrim($basePath, '/') . '/artisan', 'mcp:start', $server]],
+            self::Php => ['command' => PHP_BINARY, 'args' => [rtrim($basePath, '/').'/artisan', 'mcp:start', $server]],
         };
     }
 
@@ -84,6 +84,6 @@ enum Platform: string
 
         $home = $env['HOME'] ?? $env['USERPROFILE'] ?? null;
 
-        return is_string($home) && is_dir(str_replace('\\', '/', $home) . '/.config/herd');
+        return is_string($home) && is_dir(str_replace('\\', '/', $home).'/.config/herd');
     }
 }

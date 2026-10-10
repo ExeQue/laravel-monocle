@@ -47,6 +47,13 @@ final class ViewsLens implements Configurable, Lens, Summarizable
 
     public function boot(Application $app, Eyepiece $eyepiece): void
     {
+        // Other packages (Livewire, Volt) re-register the blade engine while
+        // booting, so the wrapping waits until every provider has booted.
+        $app->booted(fn () => $this->wrapEngines($app, $eyepiece));
+    }
+
+    private function wrapEngines(Application $app, Eyepiece $eyepiece): void
+    {
         /** @var EngineResolver $resolver */
         $resolver = $app->make('view.engine.resolver');
         $viewPaths = fn (): array => $app->make('view')->getFinder()->getPaths();

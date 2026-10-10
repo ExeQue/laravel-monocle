@@ -16,7 +16,7 @@ describe(MiddlewareLens::class, function (): void {
     beforeEach(function (): void {
         SleepAfter::$terminated = false;
 
-        Route::get('/timed', fn () => 'ok')->middleware([SleepBefore::class . ':5', SleepAfter::class]);
+        Route::get('/timed', fn () => 'ok')->middleware([SleepBefore::class.':5', SleepAfter::class]);
         Route::get('/aborted', fn () => 'never')->middleware([SleepBefore::class, Abort::class]);
     });
 
@@ -32,7 +32,7 @@ describe(MiddlewareLens::class, function (): void {
             ->and($before->meta['passed'])->toBeTrue()
             ->and($before->meta['parameters'])->toBe(['5'])
             ->and($before->meta['before_ms'])->toBeGreaterThanOrEqual(4)
-            ->and($before->meta['after_ms'])->toBeLessThan($before->meta['before_ms'])
+            ->and($before->meta['after_ms'])->toBeLessThan(4)
             ->and($after->meta['after_ms'])->toBeGreaterThanOrEqual(4)
             ->and($after->parentId)->toBe($before->id)
             ->and($before->meta['group'])->toBe('route');
@@ -65,8 +65,10 @@ describe(MiddlewareLens::class, function (): void {
         $this->get('/timed');
 
         $summary = $lens->summarize(latestCapture());
+        $sleepBefore = collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepBefore');
+        $own = (float) $sleepBefore->meta['before_ms'] + (float) $sleepBefore->meta['after_ms'];
 
         expect($summary['totals']['middleware_count'])->toBe(2)
-            ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $summary['totals']['middleware_self_ms'] - collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['after_ms'] - collect(latestCapture()->spansOfKind('middleware'))->firstWhere('name', 'SleepAfter')->meta['before_ms']));
+            ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $own));
     });
 });

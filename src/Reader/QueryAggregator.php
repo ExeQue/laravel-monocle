@@ -30,7 +30,7 @@ final class QueryAggregator
                     'max_ms' => 0.0,
                     'example' => $row['sql_with_bindings'] ?? $row['sql'] ?? null,
                     'origin' => is_array($row['origin'] ?? null)
-                        ? ($row['origin']['file'] ?? '?') . ':' . ($row['origin']['line'] ?? '?')
+                        ? ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?')
                         : null,
                     'connections' => [],
                 ];
@@ -68,7 +68,7 @@ final class QueryAggregator
     {
         return match ($by) {
             'caller' => [is_array($row['origin'] ?? null)
-                ? ($row['origin']['file'] ?? '?') . ':' . ($row['origin']['line'] ?? '?')
+                ? ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?')
                 : 'unknown'],
             'table' => ($row['tables'] ?? []) === [] ? ['(none)'] : array_values($row['tables']),
             'transaction' => [(string) ($row['transaction_id'] ?? '(none)')],

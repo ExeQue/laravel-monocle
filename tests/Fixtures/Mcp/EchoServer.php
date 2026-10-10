@@ -10,5 +10,5 @@ use Laravel\Mcp\Server\Attributes\Name;
 #[Name('echo-server')]
 final class EchoServer extends Server
 {
-    protected array $tools = [EchoTool::class];
+    protected array $tools = [EchoTool::class, StreamTool::class];
 }

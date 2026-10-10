@@ -26,7 +26,7 @@ describe(RowQuery::class, function (): void {
                 ->and($last['next_offset'])->toBeNull();
         });
 
-        it('clamps the limit to the maximum', function () use ($rows): void {
+        it('clamps the limit to the maximum', function (): void {
             expect(RowQuery::fromArray(['limit' => 10000])->limit)->toBe(RowQuery::MAX_LIMIT)
                 ->and(RowQuery::fromArray(['limit' => 0])->limit)->toBe(1);
         });

@@ -233,7 +233,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $masker = $this->eyepiece->masker();
 
         $this->eyepiece->describe(
-            name: $request->getMethod() . ' /' . ltrim($request->path(), '/'),
+            name: $request->getMethod().' /'.ltrim($request->path(), '/'),
             label: $request->headers->get(self::LABEL_HEADER),
         );
 
@@ -253,7 +253,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->eyepiece->set('request', [
             'method' => $request->getMethod(),
             'url' => $request->fullUrl(),
-            'path' => '/' . ltrim($request->path(), '/'),
+            'path' => '/'.ltrim($request->path(), '/'),
             'query' => $masker->inputs($request->query()),
             'input' => $masker->inputs($request->except(array_keys($request->query()))),
             'files' => $files,
@@ -277,7 +277,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $parameters = [];
 
         foreach ($route->parameters() as $name => $value) {
-            $parameters[$name] = is_object($value) ? $value::class . (method_exists($value, 'getKey') ? '#' . $value->getKey() : '') : $value;
+            $parameters[$name] = is_object($value) ? $value::class.(method_exists($value, 'getKey') ? '#'.$value->getKey() : '') : $value;
         }
 
         return [
@@ -338,18 +338,18 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
     private function serverTiming(Capture $capture): string
     {
-        $parts = ['app;dur=' . round($capture->duration(), 1)];
+        $parts = ['app;dur='.round($capture->duration(), 1)];
 
         foreach ($capture->spansOfKind('phase') as $span) {
             if ($span->duration() !== null) {
-                $parts[] = Str::slug($span->name) . ';dur=' . round($span->duration(), 1);
+                $parts[] = Str::slug($span->name).';dur='.round($span->duration(), 1);
             }
         }
 
         $db = array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $capture->rows('queries')));
 
         if ($db > 0) {
-            $parts[] = 'db;dur=' . round($db, 1);
+            $parts[] = 'db;dur='.round($db, 1);
         }
 
         return implode(', ', $parts);

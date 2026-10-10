@@ -46,23 +46,23 @@ describe('monocle:* commands', function (): void {
 
 describe(InstallCommand::class, function (): void {
     it('writes the detected platform command into every given file', function (): void {
-        $dir = sys_get_temp_dir() . '/monocle-install-' . bin2hex(random_bytes(4));
+        $dir = sys_get_temp_dir().'/monocle-install-'.bin2hex(random_bytes(4));
         mkdir($dir);
 
-        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$dir . '/.mcp.json', $dir . '/.ai/mcp/mcp.json']])
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$dir.'/.mcp.json', $dir.'/.ai/mcp/mcp.json']])
             ->expectsOutputToContain('lerd php artisan mcp:start monocle')
             ->assertSuccessful();
 
-        $written = json_decode((string) file_get_contents($dir . '/.ai/mcp/mcp.json'), true);
+        $written = json_decode((string) file_get_contents($dir.'/.ai/mcp/mcp.json'), true);
 
         expect($written['mcpServers']['monocle'])->toBe(['command' => 'lerd', 'args' => ['php', 'artisan', 'mcp:start', 'monocle']])
-            ->and(file_exists($dir . '/.mcp.json'))->toBeTrue();
+            ->and(file_exists($dir.'/.mcp.json'))->toBeTrue();
 
-        exec('rm -rf ' . escapeshellarg($dir));
+        exec('rm -rf '.escapeshellarg($dir));
     });
 
     it('does not write in dry-run mode', function (): void {
-        $file = sys_get_temp_dir() . '/monocle-install-' . bin2hex(random_bytes(4)) . '.json';
+        $file = sys_get_temp_dir().'/monocle-install-'.bin2hex(random_bytes(4)).'.json';
         config(['monocle.storage.file.path' => base_path('storage/monocle')]);
 
         $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$file], '--dry-run' => true])

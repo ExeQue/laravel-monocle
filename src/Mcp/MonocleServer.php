@@ -59,6 +59,6 @@ MARKDOWN;
             $lines[] = "- `{$key}`: {$description}";
         }
 
-        $this->instructions = self::INSTRUCTIONS . "\n" . implode("\n", $lines ?: ['- (no lenses enabled)']);
+        $this->instructions = self::INSTRUCTIONS."\n".implode("\n", $lines ?: ['- (no lenses enabled)']);
     }
 }

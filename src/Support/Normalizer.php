@@ -45,7 +45,7 @@ final class Normalizer
         }
 
         if ($value instanceof Model) {
-            return $value::class . '#' . $value->getKey();
+            return $value::class.'#'.$value->getKey();
         }
 
         if ($value instanceof BackedEnum) {
@@ -87,7 +87,7 @@ final class Normalizer
         }
 
         if (is_object($value)) {
-            return '[' . $value::class . ']';
+            return '['.$value::class.']';
         }
 
         return $value;

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Lenses\RequestLens;
+use ExeQue\Monocle\Reader\CaptureReader;
+use ExeQue\Monocle\Reader\Filter;
+use Illuminate\Auth\GenericUser;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 
 covers(RequestLens::class);
@@ -62,11 +66,35 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture())->toBeNull();
     });
 
+    it('records uploads, authenticated users, redirects and streamed responses', function (): void {
+        Route::post('/upload', fn () => redirect('/done'));
+        Route::get('/stream', fn () => response()->stream(function (): void {
+            echo 'chunk';
+        }));
+        Route::get('/me', fn () => auth()->user()?->getAuthIdentifier())->middleware('auth');
+
+        $this->post('/upload', ['photo' => UploadedFile::fake()->create('a.jpg', 12, 'image/jpeg')])->assertRedirect('/done');
+        $upload = latestCapture()->section('request');
+
+        expect($upload['files'])->toBe([['key' => 'photo', 'name' => 'a.jpg', 'size' => 12288, 'mime' => 'image/jpeg']])
+            ->and($upload['redirect'])->toContain('/done')
+            ->and($upload['status'])->toBe(302);
+
+        $this->get('/stream')->assertOk();
+
+        expect(latestCapture()->section('request')['response_bytes'])->toBeNull();
+
+        $user = new GenericUser(['id' => 9]);
+        $this->actingAs($user)->get('/me')->assertOk();
+
+        expect(latestCapture()->section('request')['auth'])->toBe(['class' => GenericUser::class, 'id' => 9]);
+    });
+
     it('records one capture per request in the same process', function (): void {
         $this->get('/ping/1');
         $this->get('/ping/2');
 
-        expect(app(ExeQue\Monocle\Reader\CaptureReader::class)->list(ExeQue\Monocle\Reader\Filter::fromArray([]))['total'])->toBe(2)
+        expect(app(CaptureReader::class)->list(Filter::fromArray([]))['total'])->toBe(2)
             ->and(latestCapture()->name)->toBe('GET /ping/2');
     });
 });

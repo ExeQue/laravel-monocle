@@ -3,16 +3,18 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use ExeQue\Monocle\Lenses\ViewsLens;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
+use Illuminate\View\Compilers\BladeCompiler;
 
 covers(ViewsLens::class, TimedEngine::class);
 
 describe(ViewsLens::class, function (): void {
     beforeEach(function (): void {
-        View::addLocation(__DIR__ . '/../../Fixtures/views');
+        View::addLocation(__DIR__.'/../../Fixtures/views');
 
         Route::get('/page', fn () => view('parent', ['title' => 'Hello', 'items' => ['a', 'b', 'c']]));
     });
@@ -55,7 +57,7 @@ describe(ViewsLens::class, function (): void {
     it('includes view data when configured and forwards other engine calls', function (): void {
         $lens = app(ViewsLens::class);
         $lens->configure(['data' => true, 'engines' => ['blade']]);
-        $lens->boot($this->app, app(ExeQue\Monocle\Eyepiece::class));
+        $lens->boot($this->app, app(Eyepiece::class));
 
         $this->get('/page');
 
@@ -64,7 +66,7 @@ describe(ViewsLens::class, function (): void {
 
         expect(collect($rows)->firstWhere('view', 'parent')['data']['title'])->toBe('Hello')
             ->and($engine)->toBeInstanceOf(TimedEngine::class)
-            ->and($engine->getCompiler())->toBeInstanceOf(Illuminate\View\Compilers\BladeCompiler::class)
+            ->and($engine->getCompiler())->toBeInstanceOf(BladeCompiler::class)
             ->and($engine->inner())->not->toBeInstanceOf(TimedEngine::class);
     });
 });

@@ -18,7 +18,7 @@ final class GitignoreWriter
      */
     public function add(string $file, string $line, bool $dryRun = false): string
     {
-        $line = '/' . trim($line, '/') . '/';
+        $line = '/'.trim($line, '/').'/';
         $existing = is_file($file) ? (string) file_get_contents($file) : '';
 
         foreach (preg_split('/\R/', $existing) ?: [] as $current) {
@@ -31,10 +31,10 @@ final class GitignoreWriter
             return 'added';
         }
 
-        $contents = $existing === '' || str_ends_with($existing, "\n") ? $existing : $existing . "\n";
+        $contents = $existing === '' || str_ends_with($existing, "\n") ? $existing : $existing."\n";
         $contents .= $existing === '' ? '' : "\n";
 
-        if (file_put_contents($file, $contents . self::COMMENT . "\n" . $line . "\n") === false) {
+        if (file_put_contents($file, $contents.self::COMMENT."\n".$line."\n") === false) {
             throw new RuntimeException("Could not write [{$file}].");
         }
 

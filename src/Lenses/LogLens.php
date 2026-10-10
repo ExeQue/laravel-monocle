@@ -85,7 +85,7 @@ final class LogLens implements Lens, Summarizable
                 $context[$key] = [
                     'class' => $value::class,
                     'message' => $value->getMessage(),
-                    'file' => $value->getFile() . ':' . $value->getLine(),
+                    'file' => $value->getFile().':'.$value->getLine(),
                 ];
             }
         }

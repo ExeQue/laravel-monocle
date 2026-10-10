@@ -8,10 +8,12 @@ use ExeQue\Monocle\Lenses\Mcp\TimedMethod;
 use ExeQue\Monocle\Lenses\McpLens;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
+use Illuminate\Testing\TestResponse;
 use Laravel\Mcp\Facades\Mcp;
 use Tests\Fixtures\Mcp\EchoServer;
 use Tests\Fixtures\Mcp\EchoTool;
 use Tests\Fixtures\Mcp\ExcludedServer;
+use Tests\Fixtures\Mcp\StreamTool;
 
 covers(McpLens::class, TimedMethod::class);
 
@@ -21,7 +23,7 @@ describe(McpLens::class, function (): void {
         Mcp::web('/mcp/excluded', ExcludedServer::class);
     });
 
-    $call = fn (string $path, array $arguments): Illuminate\Testing\TestResponse => test()->postJson($path, [
+    $call = fn (string $path, array $arguments): TestResponse => test()->postJson($path, [
         'jsonrpc' => '2.0',
         'id' => 1,
         'method' => 'tools/call',
@@ -51,6 +53,18 @@ describe(McpLens::class, function (): void {
 
         expect(latestCapture()->rows('mcp'))->toBe([])
             ->and((new McpLens())->summarize(latestCapture()))->toBe([]);
+    });
+
+    it('counts streamed chunks', function (): void {
+        app(Eyepiece::class)->reset();
+
+        EchoServer::tool(StreamTool::class, [])->assertOk();
+
+        $capture = latestCapture();
+
+        expect($capture->section('mcp')['streamed_chunks'])->toBe(2)
+            ->and($capture->section('mcp')['is_error'])->toBeFalse()
+            ->and($capture->spansOfKind('mcp')[0]->meta['chunks'])->toBe(2);
     });
 
     it('turns stdio calls into captures of their own', function (): void {

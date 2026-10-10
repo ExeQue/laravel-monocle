@@ -29,6 +29,6 @@ final class EchoTool extends Tool
             return Response::error('asked to fail');
         }
 
-        return Response::text('echo: ' . $request->get('text'));
+        return Response::text('echo: '.$request->get('text'));
     }
 }

@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Reader\CaptureReader;
+use Tests\TestCase;
 
-pest()->extend(Tests\TestCase::class)->in('Feature', 'Unit');
+pest()->extend(TestCase::class)->in('Feature', 'Unit');
 
 /**
  * The most recently stored capture, loaded from the configured store.

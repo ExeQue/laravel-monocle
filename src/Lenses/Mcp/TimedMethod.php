@@ -52,11 +52,11 @@ final class TimedMethod implements Errable, Method
 
         if ($ownCapture) {
             $this->eyepiece->start(CaptureType::Mcp);
-            $this->eyepiece->describe(name: trim("{$server}: {$request->method} " . ($facts['primitive'] ?? '')));
+            $this->eyepiece->describe(name: trim("{$server}: {$request->method} ".($facts['primitive'] ?? '')));
             $this->eyepiece->set('mcp', $facts);
         }
 
-        $span = $this->eyepiece->span(trim($request->method . ' ' . ($facts['primitive'] ?? '')), 'mcp')->start($facts);
+        $span = $this->eyepiece->span(trim($request->method.' '.($facts['primitive'] ?? '')), 'mcp')->start($facts);
         $chunks = 0;
 
         try {

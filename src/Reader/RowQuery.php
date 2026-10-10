@@ -141,7 +141,7 @@ final class RowQuery
         }
 
         if (! $this->verbose && isset($row['origin']) && is_array($row['origin']) && ! $this->requestsOriginField()) {
-            $row['origin'] = ($row['origin']['file'] ?? '?') . ':' . ($row['origin']['line'] ?? '?');
+            $row['origin'] = ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?');
         }
 
         return $row;

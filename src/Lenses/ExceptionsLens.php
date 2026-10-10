@@ -35,7 +35,7 @@ final class ExceptionsLens implements Lens, Summarizable
     public function boot(Application $app, Eyepiece $eyepiece): void
     {
         $this->eyepiece = $eyepiece;
-        $this->basePath = rtrim($app->basePath(), '/') . '/';
+        $this->basePath = rtrim($app->basePath(), '/').'/';
 
         $handler = $app->make(ExceptionHandler::class);
 
@@ -80,12 +80,12 @@ final class ExceptionsLens implements Lens, Summarizable
             'class' => $exception::class,
             'message' => $exception->getMessage(),
             'code' => $exception->getCode(),
-            'file' => $this->relative($exception->getFile()) . ':' . $exception->getLine(),
+            'file' => $this->relative($exception->getFile()).':'.$exception->getLine(),
             'frames' => $this->frames($exception),
             'previous' => $previous === null ? null : [
                 'class' => $previous::class,
                 'message' => $previous->getMessage(),
-                'file' => $this->relative($previous->getFile()) . ':' . $previous->getLine(),
+                'file' => $this->relative($previous->getFile()).':'.$previous->getLine(),
             ],
         ];
     }
@@ -104,8 +104,8 @@ final class ExceptionsLens implements Lens, Summarizable
                 continue;
             }
 
-            $call = isset($frame['class']) ? $frame['class'] . ($frame['type'] ?? '::') . $frame['function'] : ($frame['function'] ?? '');
-            $frames[] = $this->relative($file) . ':' . ($frame['line'] ?? '?') . ' ' . $call;
+            $call = isset($frame['class']) ? $frame['class'].($frame['type'] ?? '::').$frame['function'] : ($frame['function'] ?? '');
+            $frames[] = $this->relative($file).':'.($frame['line'] ?? '?').' '.$call;
 
             if (count($frames) >= 10) {
                 break;

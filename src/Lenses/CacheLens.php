@@ -148,7 +148,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 
     private function pendingKey(CacheEvent $event): string
     {
-        return ($event->storeName ?? '') . '|' . $event->key;
+        return ($event->storeName ?? '').'|'.$event->key;
     }
 
     private function size(mixed $value): ?int

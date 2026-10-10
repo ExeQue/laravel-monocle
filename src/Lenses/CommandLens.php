@@ -105,7 +105,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
         }
 
         $this->eyepiece->start(CaptureType::Command, $startedAt);
-        $this->eyepiece->describe(name: 'artisan ' . $event->command);
+        $this->eyepiece->describe(name: 'artisan '.$event->command);
         $this->eyepiece->set('command', [
             'name' => $event->command,
             'arguments' => $arguments,
@@ -149,7 +149,7 @@ final class CommandLens implements Finalizable, Lens, Resettable
 
     private function isExcepted(string $command, InputInterface $input): bool
     {
-        $withArguments = trim($command . ' ' . implode(' ', array_map('strval', array_filter(
+        $withArguments = trim($command.' '.implode(' ', array_map('strval', array_filter(
             array_values(array_diff_key($this->arguments($input), ['command' => true])),
             fn (mixed $value): bool => is_scalar($value),
         ))));

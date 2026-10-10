@@ -9,3 +9,9 @@ workbench/
 node_modules/
 .vitepress/dist/
 .vitepress/cache/
+
+# Stray store files if a store is ever pointed at the repository root
+/*.monocle.json
+/*.monocle.lock
+/index.json
+/index.lock

@@ -42,7 +42,7 @@ final class McpConfigWriter
                 $this->detectIndent($original),
             );
 
-            if (file_put_contents($file, $json . "\n") === false) {
+            if (file_put_contents($file, $json."\n") === false) {
                 throw new RuntimeException("Could not write [{$file}].");
             }
         }

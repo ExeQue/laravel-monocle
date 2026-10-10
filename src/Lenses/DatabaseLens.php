@@ -127,7 +127,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
 
         foreach ($shapes as $shape => $info) {
             if ($info['count'] >= $this->nPlusOneThreshold) {
-                $origin = is_array($info['origin']) ? ($info['origin']['file'] ?? '?') . ':' . ($info['origin']['line'] ?? '?') : 'unknown origin';
+                $origin = is_array($info['origin']) ? ($info['origin']['file'] ?? '?').':'.($info['origin']['line'] ?? '?') : 'unknown origin';
                 $warnings[] = sprintf('Possible N+1: %d x %s (%s)', $info['count'], $this->truncate($shape), $origin);
             }
         }
@@ -154,7 +154,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
 
         $sql = $event->sql;
         $bindings = $this->bindings ? $event->bindings : [];
-        $hash = md5($sql . '|' . json_encode($event->bindings));
+        $hash = md5($sql.'|'.json_encode($event->bindings));
         $shape = $this->shape($sql);
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
@@ -186,7 +186,7 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
         }
 
         $depth = count($this->transactions[$event->connectionName] ?? []);
-        $span = $this->eyepiece->span('transaction' . ($depth > 0 ? ' (savepoint ' . $depth . ')' : ''), 'db.transaction');
+        $span = $this->eyepiece->span('transaction'.($depth > 0 ? ' (savepoint '.$depth.')' : ''), 'db.transaction');
         $span->start(['connection' => $event->connectionName, 'level' => $depth + 1]);
 
         $this->transactions[$event->connectionName][] = $span;
@@ -258,6 +258,6 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
     {
         $sql = preg_replace('/\s+/', ' ', $sql) ?? $sql;
 
-        return strlen($sql) > $length ? substr($sql, 0, $length) . '...' : $sql;
+        return strlen($sql) > $length ? substr($sql, 0, $length).'...' : $sql;
     }
 }

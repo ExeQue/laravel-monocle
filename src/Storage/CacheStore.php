@@ -27,7 +27,7 @@ final class CacheStore implements Store
     {
         $this->cache->put($this->captureKey($capture->id), $capture->toArray(), $this->ttl);
 
-        $this->cache->lock(self::INDEX_KEY . ':lock', 2)->block(1, function () use ($capture): void {
+        $this->cache->lock(self::INDEX_KEY.':lock', 2)->block(1, function () use ($capture): void {
             $index = $this->index();
 
             array_unshift($index, Index::summarize($capture));
@@ -65,6 +65,6 @@ final class CacheStore implements Store
 
     private function captureKey(string $id): string
     {
-        return 'monocle:capture:' . $id;
+        return 'monocle:capture:'.$id;
     }
 }

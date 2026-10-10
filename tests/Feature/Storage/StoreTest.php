@@ -5,13 +5,14 @@ declare(strict_types=1);
 use ExeQue\Monocle\Contracts\Store;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Exceptions\InvalidStoreDriverException;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Storage\CacheStore;
 use ExeQue\Monocle\Storage\FileStore;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Cache;
 
-covers(FileStore::class, CacheStore::class, StoreManager::class);
+covers(FileStore::class, CacheStore::class, StoreManager::class, InvalidStoreDriverException::class);
 
 function makeCapture(string $id, ?string $parent = null, ?string $trace = null): Capture
 {
@@ -26,7 +27,7 @@ function makeCapture(string $id, ?string $parent = null, ?string $trace = null):
 
 describe('stores', function (): void {
     $drivers = [
-        'file' => fn (): Store => new FileStore(sys_get_temp_dir() . '/monocle-store-' . bin2hex(random_bytes(4)), 3),
+        'file' => fn (): Store => new FileStore(sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4)), 3),
         'cache' => fn (): Store => new CacheStore(Cache::store('array'), 3, 60),
     ];
 
@@ -67,12 +68,12 @@ describe('stores', function (): void {
     }
 
     it('writes a .gitignore into a fresh file store directory', function (): void {
-        $path = sys_get_temp_dir() . '/monocle-store-' . bin2hex(random_bytes(4));
+        $path = sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4));
         (new FileStore($path, 3))->put(makeCapture('a'));
 
-        expect(file_get_contents($path . '/.gitignore'))->toContain('*');
+        expect(file_get_contents($path.'/.gitignore'))->toContain('*');
 
-        exec('rm -rf ' . escapeshellarg($path));
+        exec('rm -rf '.escapeshellarg($path));
     });
 });
 
@@ -107,6 +108,6 @@ describe(StoreManager::class, function (): void {
     it('rejects unknown drivers', function (): void {
         config(['monocle.storage.driver' => 'nope']);
 
-        expect(fn () => (new StoreManager($this->app))->store())->toThrow(ExeQue\Monocle\Exceptions\InvalidStoreDriverException::class);
+        expect(fn () => (new StoreManager($this->app))->store())->toThrow(InvalidStoreDriverException::class);
     });
 });

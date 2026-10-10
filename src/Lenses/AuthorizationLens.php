@@ -45,7 +45,7 @@ final class AuthorizationLens implements Lens, Summarizable
             $this->eyepiece->push('authorization', [
                 'ability' => $ability,
                 'allowed' => $allowed,
-                'user' => $user === null ? null : $user::class . '#' . $user->getAuthIdentifier(),
+                'user' => $user === null ? null : $user::class.'#'.$user->getAuthIdentifier(),
                 'arguments' => Normalizer::normalize($arguments),
                 'message' => $result instanceof Response ? $result->message() : null,
             ]);

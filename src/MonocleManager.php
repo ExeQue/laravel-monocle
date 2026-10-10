@@ -6,9 +6,11 @@ namespace ExeQue\Monocle;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Store;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Storage\StoreManager;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Traits\Conditionable;
 
 /**
@@ -142,7 +144,7 @@ final class MonocleManager
     }
 
     /**
-     * @param  Closure(\Illuminate\Contracts\Foundation\Application, array<string, mixed>): \ExeQue\Monocle\Contracts\Store  $factory
+     * @param  Closure(Application, array<string, mixed>): Store  $factory
      */
     public function extendStore(string $driver, Closure $factory): self
     {

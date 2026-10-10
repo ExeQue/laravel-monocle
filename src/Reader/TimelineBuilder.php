@@ -68,7 +68,7 @@ final class TimelineBuilder
             if ($span->origin !== null) {
                 $row['origin'] = $verbose
                     ? $span->origin
-                    : ($span->origin['file'] ?? '?') . ':' . ($span->origin['line'] ?? '?');
+                    : ($span->origin['file'] ?? '?').':'.($span->origin['line'] ?? '?');
             }
 
             $rows[] = $row;
