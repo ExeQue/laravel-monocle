@@ -180,6 +180,39 @@ describe(RequestLens::class, function (): void {
         });
     });
 
+    it('uses the matched Folio page as the action', function (): void {
+        Route::get('/users/{id}', function () {
+            event(new Laravel\Folio\Events\ViewMatched(
+                new class (base_path('resources/views/pages/users/[id].blade.php'), ['id' => '4']) {
+                    public function __construct(public string $path, public array $data)
+                    {
+                    }
+
+                    public function name(): ?string
+                    {
+                        return 'users.show';
+                    }
+                },
+                (object) ['path' => base_path('resources/views/pages')],
+            ));
+
+            return 'page';
+        })->name('folio');
+
+        $this->get('/users/4')->assertOk();
+
+        $request = latestCapture()->section('request');
+
+        expect($request['route']['action'])->toBe('resources/views/pages/users/[id].blade.php')
+            ->and($request['route']['name'])->toBe('folio')
+            ->and($request['folio'])->toBe([
+                'page' => 'resources/views/pages/users/[id].blade.php',
+                'name' => 'users.show',
+                'mount_path' => base_path('resources/views/pages'),
+                'parameters' => ['id' => '4'],
+            ]);
+    });
+
     it('starts an Octane request before global middleware runs', function (): void {
         app(ExeQue\Monocle\Eyepiece::class)->reset();
         $request = Illuminate\Http\Request::create('/octane');

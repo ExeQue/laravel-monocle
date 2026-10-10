@@ -71,6 +71,7 @@ The timeline splits the request into phases:
 | `controller` | the controller itself |
 | `terminate` | work done after the response was sent |
 
+With Laravel Folio, the matched page file is shown as the action, with its name, mount path and parameters under `folio`.
 
 ## Auth
 

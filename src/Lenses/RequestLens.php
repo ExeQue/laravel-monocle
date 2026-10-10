@@ -35,6 +35,9 @@ use Throwable;
 final class RequestLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     /** Fired by Laravel Octane before global middleware, once per request in a long-lived worker. */
+    /** Fired by Laravel Folio when a page file matched the request. */
+    private const string FOLIO_MATCHED = 'Laravel\\Folio\\Events\\ViewMatched';
+
     private const string OCTANE_REQUEST = 'Laravel\\Octane\\Events\\RequestReceived';
 
     public const string LABEL_HEADER = 'X-Monocle-Label';
@@ -100,6 +103,10 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
                     $this->phase('middleware (request)');
                 }
             });
+        }
+
+        if (class_exists(self::FOLIO_MATCHED)) {
+            $eyepiece->listen(self::FOLIO_MATCHED, $this->onFolioPage(...));
         }
 
         $eyepiece->listen(Routing::class, $this->onRouting(...));
@@ -170,6 +177,31 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
         $this->routeMatchedAt = $this->eyepiece->now();
         $this->eyepiece->set('request', $this->describeRoute($event->route));
         $this->phase('handle');
+    }
+
+    /**
+     * A Folio page has no controller; the page file is the action.
+     */
+    private function onFolioPage(object $event): void
+    {
+        $capture = $this->eyepiece->active();
+
+        if ($capture === null || ! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $view = $event->matchedView;
+        $file = Str::after(str_replace('\\', '/', (string) $view->path), str_replace('\\', '/', base_path()).'/');
+
+        $this->eyepiece->set('request', [
+            'route' => [...($capture->section('request')['route'] ?? []), 'action' => $file],
+            'folio' => array_filter([
+                'page' => $file,
+                'name' => method_exists($view, 'name') ? $view->name() : null,
+                'mount_path' => $event->mountPath->path ?? $view->mountPath ?? null,
+                'parameters' => $view->data ?? [],
+            ], fn (mixed $value): bool => $value !== null && $value !== []),
+        ]);
     }
 
     private function onPreparingResponse(PreparingResponse $event): void
