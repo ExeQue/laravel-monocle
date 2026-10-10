@@ -107,9 +107,10 @@ final class LivewireLens implements Finalizable, Lens, Resettable, Summarizable
     public function finalize(Capture $capture): void
     {
         foreach ($this->components as $id => $component) {
-            $this->spans[$id] ?? null ? $this->spans[$id]->stop() : null;
+            $span = $this->spans[$id] ?? null;
+            $span?->stop();
 
-            $this->eyepiece->push('livewire', $component, origin: false);
+            $this->eyepiece->push('livewire', [...$component, 'duration' => $span?->duration()], origin: false);
         }
 
         $this->components = [];
@@ -170,6 +171,7 @@ final class LivewireLens implements Finalizable, Lens, Resettable, Summarizable
             'class' => $component::class,
             'id' => $id,
             'lifecycle' => $lifecycle,
+            'time' => $this->eyepiece->now(),
             'calls' => [],
             'updates' => [],
             'render_ms' => null,

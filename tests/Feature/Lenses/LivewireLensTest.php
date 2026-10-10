@@ -22,6 +22,8 @@ describe(LivewireLens::class, function (): void {
             ->and($rows[0]['render_ms'])->toBeFloat()
             ->and($rows[0]['html_bytes'])->toBeGreaterThan(0)
             ->and($rows[0]['calls'])->toBe([])
+            ->and($rows[0]['time'])->toBeLessThan($capture->duration())
+            ->and($rows[0]['duration'])->toBeNumeric()
             ->and($capture->spansOfKind('livewire'))->toHaveCount(1)
             ->and($capture->spansOfKind('livewire')[0]->isOpen())->toBeFalse();
     });
