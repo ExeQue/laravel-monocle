@@ -33,7 +33,7 @@ With file storage, the folder is also kept out of your tools - for the ones the 
 - added to `.gitignore`
 - excluded in PhpStorm and Zed
 - left out of search and file watching in VS Code, Cursor and Windsurf
-- added to `.cursorignore`, `.codeiumignore` and `.aiexclude`, so AI tools do not read it
+- added to `.cursorignore`, `.codeiumignore`, `.codexignore`, `.aiignore` and `.aiexclude`, so AI tools do not read it
 
 Restart your MCP client when the command is done. If you use Claude Code with an allow-list in `.claude/settings.local.json`, add `"monocle"` to `enabledMcpjsonServers`.
 

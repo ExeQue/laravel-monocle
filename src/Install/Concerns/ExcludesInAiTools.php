@@ -20,6 +20,8 @@ trait ExcludesInAiTools
     private array $aiIgnoreFiles = [
         '.cursorignore' => ['Cursor', ['.cursor']],
         '.codeiumignore' => ['Windsurf', ['.windsurf', '.codeium']],
+        '.codexignore' => ['Codex', ['.codex']],
+        '.aiignore' => ['JetBrains AI', ['.junie']],
         '.aiexclude' => ['Gemini', []],
     ];
 

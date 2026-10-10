@@ -125,17 +125,25 @@ describe(IdeExclusions::class, function (): void {
         it('adds the folder to the ignore files of tools the project uses', function (): void {
             mkdir($this->dir.'/.cursor');
             mkdir($this->dir.'/.windsurf');
+            mkdir($this->dir.'/.codex');
+            mkdir($this->dir.'/.junie');
             file_put_contents($this->dir.'/.aiexclude', "secrets/\n");
 
             expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe([
                 'Cursor (.cursorignore)' => 'added',
                 'Windsurf (.codeiumignore)' => 'added',
+                'Codex (.codexignore)' => 'added',
+                'JetBrains AI (.aiignore)' => 'added',
                 'Gemini (.aiexclude)' => 'added',
             ])->and(file_get_contents($this->dir.'/.cursorignore'))->toContain('/storage/monocle/')
+                ->and(file_get_contents($this->dir.'/.codexignore'))->toContain('/storage/monocle/')
+                ->and(file_get_contents($this->dir.'/.aiignore'))->toContain('/storage/monocle/')
                 ->and(file_get_contents($this->dir.'/.aiexclude'))->toStartWith("secrets/\n")
                 ->and($this->ide->apply($this->dir, 'storage/monocle'))->toBe([
                     'Cursor (.cursorignore)' => 'unchanged',
                     'Windsurf (.codeiumignore)' => 'unchanged',
+                    'Codex (.codexignore)' => 'unchanged',
+                    'JetBrains AI (.aiignore)' => 'unchanged',
                     'Gemini (.aiexclude)' => 'unchanged',
                 ]);
         });
