@@ -10,7 +10,7 @@ const pathOf = (n) => { const out = []; for (let p = n.parent; p; p = p.parent) 
 
 const originHtml = (o) => !o || !o.file ? '' : `
   <div class="${SEC}"><div class="${K}">Origin</div>
-    <div class="font-mono text-xs text-brass [overflow-wrap:anywhere]">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
+    <div class="font-mono text-xs text-brass break-all">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
     ${o.call ? `<div class="${SUB} font-mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
     ${o.via ? `<div class="${SUB}">via <span class="font-mono">${maybeLink(o.via.call ?? o.via.file, o.via.call_link ?? o.via.link)}</span> <span class="font-mono">(${maybeLink(o.via.file + (o.via.line ? ':' + o.via.line : ''), o.via.link)})</span></div>` : ''}
     ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
@@ -19,7 +19,7 @@ const originHtml = (o) => !o || !o.file ? '' : `
 function metaRows(meta) {
   const links = meta._links ?? {};
   return Object.entries(meta)
-    .filter(([k]) => k !== '_links')
+    .filter(([k, v]) => k !== '_links' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
     .map(([k, v]) => `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(fmtValue(v), links[k]) : esc(fmtValue(v))}</td></tr>`)
     .join('');
 }
@@ -77,6 +77,16 @@ export function setupPopover(root, getModel) {
     pop.innerHTML = html;
     pop.hidden = false;
     target = el;
+
+    // Narrow screens: a sheet along the bottom edge instead of a bubble next to the click.
+    if (innerWidth < 640) {
+      Object.assign(pop.style, { left: '0', right: '0', top: 'auto', bottom: '0', width: '100%', maxHeight: '70dvh', borderRadius: '12px 12px 0 0' });
+      pop.dataset.side = 'sheet';
+      pop.querySelector('[data-pop-close]')?.focus({ preventScroll: true });
+      return;
+    }
+
+    Object.assign(pop.style, { right: '', bottom: '', width: '', maxHeight: '', borderRadius: '' });
     const r = el.getBoundingClientRect();
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;

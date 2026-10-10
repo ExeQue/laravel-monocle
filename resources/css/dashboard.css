@@ -100,4 +100,5 @@
   }
   &[data-side="below"]::before { top: -6px; border-right: 0; border-bottom: 0; }
   &[data-side="above"]::before { bottom: -6px; border-left: 0; border-top: 0; }
+  &[data-side="sheet"]::before { display: none; }
 }
