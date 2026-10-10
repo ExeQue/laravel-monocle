@@ -43,6 +43,17 @@ describe(Platform::class, function (): void {
         expect(Platform::detect($this->base, ['HOME' => $this->base.'/home']))->toBe(Platform::Herd);
     });
 
+    it('detects herd from its php binary on macOS and Windows', function (string $binary): void {
+        expect(Platform::detect($this->base, ['HOME' => '/nowhere'], $binary))->toBe(Platform::Herd);
+    })->with([
+        'macOS' => '/Users/me/Library/Application Support/Herd/bin/php84',
+        'Windows' => 'C:\\Users\\me\\.config\\herd\\bin\\php84\\php.exe',
+    ]);
+
+    it('does not mistake a php binary for herd', function (): void {
+        expect(Platform::detect($this->base, ['HOME' => '/nowhere'], '/usr/bin/php-herdless'))->toBe(Platform::Php);
+    });
+
     it('falls back to plain php', function (): void {
         expect(Platform::detect($this->base, ['HOME' => '/nowhere']))->toBe(Platform::Php);
     });

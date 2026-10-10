@@ -20,7 +20,7 @@ enum Platform: string
      *
      * @param  array<string, string|false>  $env
      */
-    public static function detect(string $basePath, array $env = []): self
+    public static function detect(string $basePath, array $env = [], string $phpBinary = PHP_BINARY): self
     {
         $env = $env === [] ? getenv() : $env;
         $has = fn (string $file): bool => file_exists(rtrim($basePath, '/').'/'.$file);
@@ -35,7 +35,7 @@ enum Platform: string
             return self::Sail;
         }
 
-        if (self::herdInstalled($env)) {
+        if (self::herdInstalled($env, $phpBinary)) {
             return self::Herd;
         }
 
@@ -72,9 +72,10 @@ enum Platform: string
     /**
      * @param  array<string, string|false>  $env
      */
-    private static function herdInstalled(array $env): bool
+    private static function herdInstalled(array $env, string $phpBinary): bool
     {
-        if (str_contains(PHP_BINARY, 'Herd')) {
+        // macOS: ~/Library/Application Support/Herd/bin, Windows: %USERPROFILE%\.config\herd\bin
+        if (stripos(str_replace('\\', '/', $phpBinary), '/herd/') !== false) {
             return true;
         }
 
