@@ -31,7 +31,7 @@ describe(RequestLens::class, function (): void {
         expect($capture->name)->toBe('GET /ping/7')
             ->and($capture->status)->toBe('200')
             ->and($capture->label)->toBe('baseline')
-            ->and($phases)->toContain('middleware', 'routing', 'handle', 'terminate')
+            ->and($phases)->toContain('middleware (request)', 'routing', 'handle', 'terminate')
             ->and($request['route']['name'])->toBe('ping')
             ->and($request['route']['parameters'])->toBe(['id' => '7'])
             ->and($request['query']['token'])->toBe('abc****')

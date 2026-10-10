@@ -65,7 +65,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
         $app->booted(function (): void {
             if ($this->eyepiece->active() !== null) {
-                $this->phase('middleware');
+                $this->phase('middleware (request)');
             }
         });
 
@@ -118,7 +118,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
 
         if ($this->eyepiece->active() === null || $this->requestsInProcess > 0) {
             $this->startCapture((float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
-            $this->phase('middleware');
+            $this->phase('middleware (request)');
         }
 
         $this->requestsInProcess++;
@@ -201,7 +201,7 @@ final class RequestLens implements Finalizable, Lens, Resettable, Summarizable
         $this->eyepiece->startSpan($span, origin: false);
         $span->parentId = null;
 
-        if ($name === 'bootstrap' || $name === 'middleware' && $this->firstPhase()) {
+        if ($name === 'bootstrap' || $name === 'middleware (request)' && $this->firstPhase()) {
             $span->start = 0.0;
         }
 

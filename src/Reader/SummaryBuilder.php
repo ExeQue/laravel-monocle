@@ -30,7 +30,7 @@ final class SummaryBuilder
         'jobs_sync' => 'job',
     ];
 
-    private const array PHASES = ['bootstrap', 'middleware', 'routing', 'controller', 'response', 'terminate'];
+    private const array PHASES = ['bootstrap', 'middleware (request)', 'routing', 'controller', 'middleware (response)', 'response', 'terminate'];
 
     public function __construct(
         private readonly LensRegistry $registry,
@@ -106,9 +106,12 @@ final class SummaryBuilder
         $accounted = 0.0;
 
         foreach (self::PHASES as $phase) {
-            [$ms, $count] = $phase === 'middleware'
-                ? $this->middlewareSelfTime($capture)
-                : $this->spanTime($capture, $phase === 'controller' ? 'controller' : 'phase', $phase === 'controller' ? null : $phase);
+            [$ms, $count] = match ($phase) {
+                'middleware (request)' => $this->middlewareSelfTime($capture, 'before_ms'),
+                'middleware (response)' => $this->middlewareSelfTime($capture, 'after_ms'),
+                'controller' => $this->spanTime($capture, 'controller', null),
+                default => $this->spanTime($capture, 'phase', $phase),
+            };
 
             if ($count === 0) {
                 continue;
@@ -177,13 +180,13 @@ final class SummaryBuilder
     /**
      * @return array{0: float, 1: int}
      */
-    private function middlewareSelfTime(Capture $capture): array
+    private function middlewareSelfTime(Capture $capture, string $part): array
     {
         $ms = 0.0;
         $count = 0;
 
         foreach ($capture->spansOfKind('middleware') as $span) {
-            $ms += (float) ($span->meta['before_ms'] ?? 0) + (float) ($span->meta['after_ms'] ?? 0);
+            $ms += (float) ($span->meta[$part] ?? 0);
             $count++;
         }
 

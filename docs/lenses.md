@@ -17,7 +17,7 @@ The timeline splits the request into phases:
 | Phase | Covers |
 |---|---|
 | `bootstrap` | starting the framework |
-| `middleware` | global middleware |
+| `middleware (request)` | global middleware, before the request reaches the router |
 | `routing` | finding the route |
 | `handle` | route middleware, the controller and building the response |
 | `controller` | the controller itself |

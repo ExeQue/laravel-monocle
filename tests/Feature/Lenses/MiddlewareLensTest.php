@@ -5,12 +5,13 @@ declare(strict_types=1);
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
+use ExeQue\Monocle\Reader\SummaryBuilder;
 use Illuminate\Support\Facades\Route;
 use Tests\Fixtures\Middleware\Abort;
 use Tests\Fixtures\Middleware\SleepAfter;
 use Tests\Fixtures\Middleware\SleepBefore;
 
-covers(MiddlewareLens::class, TimedMiddleware::class);
+covers(MiddlewareLens::class, TimedMiddleware::class, SummaryBuilder::class);
 
 describe(MiddlewareLens::class, function (): void {
     beforeEach(function (): void {
@@ -57,6 +58,21 @@ describe(MiddlewareLens::class, function (): void {
             ->and($outerChildren['middleware.after']->start)->toBeGreaterThanOrEqual($inner->end)
             ->and($outerChildren['middleware.after']->end)->toBeLessThanOrEqual($outer->end)
             ->and($innerChildren['middleware.after']->duration())->toBeGreaterThanOrEqual(4);
+    });
+
+    it('splits middleware time into a request and a response phase', function (): void {
+        $this->get('/timed')->assertOk();
+
+        $spans = latestCapture()->spansOfKind('middleware');
+        $phases = array_column(app(SummaryBuilder::class)->breakdown(latestCapture())['phases'], 'ms', 'name');
+        $sum = fn (string $part): float => round(array_sum(array_map(fn (Span $span): float => (float) $span->meta[$part], $spans)), 3);
+
+        expect(array_keys($phases))->toContain('middleware (request)', 'controller', 'middleware (response)')
+            ->and($phases)->not->toHaveKey('middleware')
+            ->and($phases['middleware (request)'])->toBe($sum('before_ms'))
+            ->and($phases['middleware (response)'])->toBe($sum('after_ms'))
+            ->and($phases['middleware (request)'])->toBeGreaterThanOrEqual(4)
+            ->and($phases['middleware (response)'])->toBeGreaterThanOrEqual(4);
     });
 
     it('only records the before span when the middleware short-circuits', function () use ($byName): void {

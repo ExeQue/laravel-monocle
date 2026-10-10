@@ -40,7 +40,7 @@ Recent captures, newest first.
 
 One capture - the latest unless an `id` is given. By default it returns the summary:
 
-- **Time breakdown** - bootstrap, middleware, routing, controller and terminate, plus how much of it was database, cache, views, HTTP calls, filesystem, AI and so on.
+- **Time breakdown** - bootstrap, middleware (request), routing, controller, middleware (response) and terminate, plus how much of it was database, cache, views, HTTP calls, filesystem, AI and so on.
 - **Totals** - number of queries, cache hit rate, memory, tokens, ...
 - **Warnings** - slow queries, N+1 candidates, duplicate queries, slow middleware, errors and failures.
 - **Trace links** - the parent capture and any jobs it dispatched.
@@ -94,7 +94,7 @@ Each recorded response has:
 
 ```http
 X-Monocle-Id: 01a126fa-6f82-71f5-8387-75067ec20c61
-Server-Timing: app;dur=467.5, bootstrap;dur=51.9, middleware;dur=2.6, routing;dur=0.9, handle;dur=412.1, db;dur=16.8
+Server-Timing: app;dur=467.5, bootstrap;dur=51.9, middleware-request;dur=2.6, routing;dur=0.9, handle;dur=412.1, db;dur=16.8
 ```
 
 Send `X-Monocle-Label: <name>` with a request to label its capture. Find it again with `monocle-list label=<name>` or compare against it with `monocle-compare`.
