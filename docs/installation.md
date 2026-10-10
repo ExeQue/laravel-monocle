@@ -18,7 +18,7 @@ php artisan monocle:install
 3. **Storage** - keep captures as files in `storage/monocle` (recommended) or in your cache.
 4. **How many captures to keep** - older ones are removed automatically.
 5. **Platform** - how your MCP client starts PHP. Detected for you.
-6. **MCP clients** - which config files to add the `monocle` server to.
+6. **MCP clients** - where to add the `monocle` server. If your project uses [Laravel Boost](https://laravel.com/docs/boost), this defaults to every agent Boost is set up for, in the files and format each agent uses.
 7. **Publish** - write `config/monocle.php` with your answers.
 
 | Platform | Command written to the MCP config |
@@ -39,9 +39,11 @@ Every answer has a flag:
 ```bash
 php artisan monocle:install --no-interaction \
     --platform=sail \
-    --file=.mcp.json \
+    --file=boost \
     --publish --disk=media --driver=file --limit=200
 ```
+
+`--file=boost` adds the server to every Laravel Boost agent; any other value is a config file path, e.g. `--file=.mcp.json`. Without `--file`, Boost's agents are used when the project has a `boost.json`, otherwise `.mcp.json`.
 
 Use `--dry-run` to see what would be written.
 

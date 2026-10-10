@@ -59,11 +59,11 @@ describe(InstallCommand::class, function (): void {
     });
 
     it('writes the detected platform command into every given file without prompting', function (): void {
-        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json', $this->dir.'/.ai/mcp/mcp.json'], '--no-interaction' => true])
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json', $this->dir.'/.cursor/mcp.json'], '--no-interaction' => true])
             ->expectsOutputToContain('lerd artisan mcp:start monocle')
             ->assertSuccessful();
 
-        $written = json_decode((string) file_get_contents($this->dir.'/.ai/mcp/mcp.json'), true);
+        $written = json_decode((string) file_get_contents($this->dir.'/.cursor/mcp.json'), true);
 
         expect($written['mcpServers']['monocle'])->toBe(['command' => 'lerd', 'args' => ['artisan', 'mcp:start', 'monocle']])
             ->and(file_exists($this->dir.'/.mcp.json'))->toBeTrue()
@@ -95,7 +95,7 @@ describe(InstallCommand::class, function (): void {
             ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
             ->expectsQuestion('How many captures should be kept?', '75')
             ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
-            ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)', '.ai/mcp/mcp.json' => 'Laravel Boost source (.ai/mcp/mcp.json)'])
+            ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'yes')
             ->expectsOutputToContain('herd php artisan mcp:start monocle')
             ->assertSuccessful();
@@ -107,6 +107,49 @@ describe(InstallCommand::class, function (): void {
             ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->toBeFalse()
             ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class])->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
+    });
+
+    it('registers with every Laravel Boost agent by default when boost.json exists', function (): void {
+        file_put_contents($this->dir.'/boost.json', json_encode(['agents' => ['claude_code', 'copilot', 'codex']]));
+
+        $this->artisan('monocle:install', ['--platform' => 'sail', '--no-interaction' => true])
+            ->expectsOutputToContain('Boost: claude_code')
+            ->expectsOutputToContain('Boost: copilot')
+            ->expectsOutputToContain('Boost: codex')
+            ->assertSuccessful();
+
+        $claude = json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true);
+        $vscode = json_decode((string) file_get_contents($this->dir.'/.vscode/mcp.json'), true);
+        $codex = (string) file_get_contents($this->dir.'/.codex/config.toml');
+
+        expect($claude['mcpServers']['monocle'])->toMatchArray(['command' => 'vendor/bin/sail', 'args' => ['artisan', 'mcp:start', 'monocle']])
+            ->and($vscode['servers']['monocle']['command'])->toBe('vendor/bin/sail')
+            ->and($codex)->toContain('[mcp_servers.monocle]')
+            ->and($codex)->toContain('mcp:start');
+    });
+
+    it('offers the Boost agents first and preselects them interactively', function (): void {
+        file_put_contents($this->dir.'/boost.json', json_encode(['agents' => ['claude_code']]));
+
+        $publisher = app(ExeQue\Monocle\Install\ConfigPublisher::class);
+        $lensOptions = [];
+
+        foreach ($publisher->lensesIn() as $class) {
+            $lensOptions[$class] = app($class)->key().' - '.substr($class, (int) strrpos($class, '\\') + 1);
+        }
+
+        $this->artisan('monocle:install')
+            ->expectsChoice('Which lenses should record?', array_keys($lensOptions), $lensOptions)
+            ->expectsChoice('Record Storage operations on which disks?', [], ['*' => 'All disks', ...array_combine(array_keys(config('filesystems.disks')), array_keys(config('filesystems.disks')))])
+            ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
+            ->expectsQuestion('How many captures should be kept?', '200')
+            ->expectsChoice('How does your MCP client start PHP?', 'php', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
+            ->expectsChoice('Register the MCP server in', ['boost'], ['boost' => 'Laravel Boost agents (claude_code)', '.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
+            ->expectsConfirmation('Publish config/monocle.php with these choices?', 'no')
+            ->expectsOutputToContain('Boost: claude_code')
+            ->assertSuccessful();
+
+        expect(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers'])->toHaveKey('monocle');
     });
 
     it('does not write in dry-run mode', function (): void {
