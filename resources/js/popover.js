@@ -35,7 +35,7 @@ function nodeDetails(model, n) {
   const rows = metaRows(meta);
   return `
     <div class="flex items-center gap-2"><i class="${cls.swatch}" style="background:${colorOf(n)}"></i><span class="${cls.type}">${esc(n.kind)}</span><button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
-    <div class="font-semibold [overflow-wrap:anywhere]">${esc(describe(n))}</div>
+    <div class="font-semibold [overflow-wrap:anywhere]">${esc(d.sql ? [meta.type ?? 'query', ...(meta.tables ?? [])].join(' ') : describe(n))}</div>
     ${path.length ? `<div class="text-[11.5px] text-muted [overflow-wrap:anywhere]">${path.map(esc).join(' <span class="text-brass">›</span> ')}</div>` : ''}
     <div class="grid grid-cols-[repeat(auto-fill,minmax(80px,1fr))] gap-2">
       <div class="grid gap-0.5"><span class="${K}">Duration</span><b class="tabular-nums">${ms(dur)}</b></div>

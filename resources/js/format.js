@@ -23,6 +23,7 @@ export const maybeLink = (text, link, extra = '') => (link
 
 export const fmtValue = (v) => {
   if (v === null || v === undefined) return '';
+  if (Array.isArray(v) && v.every((x) => x === null || typeof x !== 'object')) return v.join(', ');
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v);
 };
