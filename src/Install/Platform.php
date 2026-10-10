@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Install;
 
 /**
- * How the MCP client should start `artisan mcp:start lens` on this machine.
+ * How the MCP client should start `artisan mcp:start monocle` on this machine.
  */
 enum Platform: string
 {

@@ -109,7 +109,7 @@ return [
 
     'except' => [
         'paths' => ['_monocle', '_monocle/*', '__clockwork', '__clockwork/*', '_debugbar/*', 'horizon', 'horizon/*'],
-        'commands' => ['monocle:*', 'mcp:start lens', 'boost:*', 'queue:work', 'queue:listen', 'horizon*', 'schedule:work'],
+        'commands' => ['monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'horizon*', 'schedule:work'],
     ],
 
     /*
