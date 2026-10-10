@@ -246,7 +246,8 @@ final class Eyepiece
 
     /**
      * Append a row to a section. The user-land origin is attached unless the
-     * lens supplied one or opted out.
+     * lens supplied one or opted out. Rows are pushed once the operation has
+     * finished, so a row with a duration gets the time it started.
      *
      * @param  array<string, mixed>  $row
      */
@@ -257,7 +258,7 @@ final class Eyepiece
                 return;
             }
 
-            $row['time'] ??= $this->now();
+            $row['time'] ??= round($this->now() - (is_numeric($row['duration'] ?? null) ? (float) $row['duration'] : 0.0), 3);
 
             if ($origin && ! array_key_exists('origin', $row)) {
                 $row['origin'] = $this->origin();

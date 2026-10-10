@@ -117,6 +117,15 @@ describe(Eyepiece::class, function (): void {
                 ->and($row['origin']['file'])->toContain('EyepieceTest.php');
         });
 
+        it('dates a row with a duration back to when the operation started', function (): void {
+            usleep(20_000);
+            $before = $this->eyepiece->now();
+            $this->eyepiece->push('custom', ['duration' => 15.0]);
+
+            expect($this->eyepiece->active()->rows('custom')[0]['time'])->toBeLessThanOrEqual($before - 15.0 + 1.0)
+                ->toBeGreaterThanOrEqual($before - 15.0);
+        });
+
         it('skips origin when asked', function (): void {
             $this->eyepiece->push('custom', ['value' => 1], origin: false);
 
