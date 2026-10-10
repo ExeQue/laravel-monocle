@@ -48,7 +48,7 @@ describe(Platform::class, function (): void {
     });
 
     it('builds the mcp command per platform', function (): void {
-        expect(Platform::Lerd->mcpCommand('/app'))->toBe(['command' => 'lerd', 'args' => ['php', 'artisan', 'mcp:start', 'monocle']])
+        expect(Platform::Lerd->mcpCommand('/app'))->toBe(['command' => 'lerd', 'args' => ['artisan', 'mcp:start', 'monocle']])
             ->and(Platform::Sail->mcpCommand('/app'))->toBe(['command' => 'vendor/bin/sail', 'args' => ['artisan', 'mcp:start', 'monocle']])
             ->and(Platform::Herd->mcpCommand('/app'))->toBe(['command' => 'herd', 'args' => ['php', 'artisan', 'mcp:start', 'monocle']])
             ->and(Platform::Php->mcpCommand('/app')['args'])->toBe(['/app/artisan', 'mcp:start', 'monocle']);

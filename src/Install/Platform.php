@@ -49,7 +49,7 @@ enum Platform: string
     {
         return match ($this) {
             self::Sail => ['command' => 'vendor/bin/sail', 'args' => ['artisan', 'mcp:start', $server]],
-            self::Lerd => ['command' => 'lerd', 'args' => ['php', 'artisan', 'mcp:start', $server]],
+            self::Lerd => ['command' => 'lerd', 'args' => ['artisan', 'mcp:start', $server]],
             self::Herd => ['command' => 'herd', 'args' => ['php', 'artisan', 'mcp:start', $server]],
             self::Php => ['command' => PHP_BINARY, 'args' => [rtrim($basePath, '/').'/artisan', 'mcp:start', $server]],
         };

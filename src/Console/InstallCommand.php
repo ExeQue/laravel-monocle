@@ -141,7 +141,7 @@ final class InstallCommand extends Command
     {
         return match ($platform) {
             Platform::Sail => 'Laravel Sail (vendor/bin/sail artisan ...)',
-            Platform::Lerd => 'Lerd (lerd php artisan ...)',
+            Platform::Lerd => 'Lerd (lerd artisan ...)',
             Platform::Herd => 'Laravel Herd (herd php artisan ...)',
             Platform::Php => 'Plain PHP (absolute php binary)',
         };

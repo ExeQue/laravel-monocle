@@ -65,7 +65,7 @@ When the file store is chosen, its directory (`/storage/monocle/`) is added to `
 
 | Detected | Signal | Command written |
 |---|---|---|
-| Lerd | `.lerd.yaml` or `.lerd` in the project, or a `LERD_*` environment variable | `lerd php artisan mcp:start monocle` |
+| Lerd | `.lerd.yaml` or `.lerd` in the project, or a `LERD_*` environment variable | `lerd artisan mcp:start monocle` |
 | Sail | `vendor/bin/sail` plus a compose file, or `LARAVEL_SAIL=1` | `vendor/bin/sail artisan mcp:start monocle` |
 | Herd | Herd installed (`/Applications/Herd.app` or `~/.config/herd`) | `herd php artisan mcp:start monocle` |
 | Plain PHP | nothing above | `<php binary> <project>/artisan mcp:start monocle` |
