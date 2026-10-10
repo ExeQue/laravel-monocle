@@ -34,6 +34,9 @@ use Throwable;
  */
 final class RequestLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
 {
+    /** Fired by Laravel Octane before global middleware, once per request in a long-lived worker. */
+    private const string OCTANE_REQUEST = 'Laravel\\Octane\\Events\\RequestReceived';
+
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
     private Eyepiece $eyepiece;
@@ -89,6 +92,15 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
                 $this->phase('middleware (request)');
             }
         });
+
+        if (class_exists(self::OCTANE_REQUEST)) {
+            $eyepiece->listen(self::OCTANE_REQUEST, function (object $event): void {
+                if ($this->eyepiece->active() === null) {
+                    $this->startCapture((float) ($event->request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
+                    $this->phase('middleware (request)');
+                }
+            });
+        }
 
         $eyepiece->listen(Routing::class, $this->onRouting(...));
         $eyepiece->listen(RouteMatched::class, $this->onRouteMatched(...));

@@ -180,6 +180,18 @@ describe(RequestLens::class, function (): void {
         });
     });
 
+    it('starts an Octane request before global middleware runs', function (): void {
+        app(ExeQue\Monocle\Eyepiece::class)->reset();
+        $request = Illuminate\Http\Request::create('/octane');
+
+        event(new Laravel\Octane\Events\RequestReceived(app(), app(), $request));
+
+        $capture = app(ExeQue\Monocle\Eyepiece::class)->active();
+
+        expect($capture?->type)->toBe(ExeQue\Monocle\Enums\CaptureType::Request)
+            ->and(array_column(array_map(fn ($span) => $span->toArray(), $capture->spans), 'name'))->toBe(['middleware (request)']);
+    });
+
     it('masks matching input keys', function (): void {
         $this->post('/login', ['email' => 'a@b.c', 'password' => 'hunter22hunter22']);
 
