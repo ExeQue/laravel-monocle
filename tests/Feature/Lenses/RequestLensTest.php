@@ -66,6 +66,14 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture())->toBeNull();
     });
 
+    it('does not record Boost browser log uploads by default', function (): void {
+        Route::post('/_boost/browser-logs', fn () => 'ok');
+
+        $this->post('/_boost/browser-logs')->assertOk();
+
+        expect(latestCapture())->toBeNull();
+    });
+
     it('records uploads, authenticated users, redirects and streamed responses', function (): void {
         Route::post('/upload', fn () => redirect('/done'));
         Route::get('/stream', fn () => response()->stream(function (): void {
