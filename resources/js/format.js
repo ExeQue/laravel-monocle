@@ -14,7 +14,9 @@ export const ago = (startedAt) => {
   return Math.round(s / 86400) + 'd ago';
 };
 
-export const humanize = (key) => String(key).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json', 'mb', 'kb', 'ms', 'ai', 'mcp', 'http']);
+
+export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link
