@@ -2,10 +2,10 @@
 
 # Spans and metadata
 
-Everything goes through the `Monocle` facade. There is no global helper.
+Everything goes through the `Monocle` facade. There is no global helper. The package registers `Monocle` as a global class alias, so `use Monocle;` is all you need; the full class is `ExeQue\Monocle\Facades\Monocle`.
 
 ```php
-use ExeQue\Monocle\Facades\Monocle;
+use Monocle;
 ```
 
 ## Measuring your own code

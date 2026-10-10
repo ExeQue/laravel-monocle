@@ -18,7 +18,7 @@ php artisan monocle:install          # interactive: pick lenses, disks, storage 
 Monocle records only outside production and only when `app.debug` is on. Override at runtime from a service provider:
 
 ```php
-use ExeQue\Monocle\Facades\Monocle;
+use Monocle;
 
 public function register(): void
 {
@@ -49,7 +49,7 @@ The same data is available on the command line: `monocle:list`, `monocle:show`, 
 ## Your own spans and metadata
 
 ```php
-use ExeQue\Monocle\Facades\Monocle;
+use Monocle;
 
 $span = Monocle::span('import photos')->start(['album' => $album->id]);
 // ...

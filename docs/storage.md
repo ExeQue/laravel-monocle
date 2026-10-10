@@ -45,7 +45,7 @@ interface Store
 `ExeQue\Monocle\Storage\Index::summarize($capture)` builds the summary row the readers expect. Then either point `driver` at the class name (it is resolved through the container) or register a named driver:
 
 ```php
-use ExeQue\Monocle\Facades\Monocle;
+use Monocle;
 
 Monocle::extendStore('redis-stream', fn ($app, array $config) => new RedisStreamStore(
     $app['redis']->connection(),

@@ -35,7 +35,7 @@ MONOCLE_ENABLED=true
 
 ```php
 // Any service provider's register() method - decided at runtime
-use ExeQue\Monocle\Facades\Monocle;
+use Monocle;
 
 public function register(): void
 {
