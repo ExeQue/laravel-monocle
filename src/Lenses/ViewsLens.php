@@ -28,6 +28,8 @@ final class ViewsLens implements Configurable, Lens, Summarizable
 
     private int $repeatThreshold = 10;
 
+    private float $repeatMs = 20.0;
+
     public function key(): string
     {
         return 'views';
@@ -43,6 +45,7 @@ final class ViewsLens implements Configurable, Lens, Summarizable
         $this->engines = array_values((array) ($options['engines'] ?? $this->engines));
         $this->data = (bool) ($options['data'] ?? $this->data);
         $this->repeatThreshold = (int) ($options['repeat_threshold'] ?? $this->repeatThreshold);
+        $this->repeatMs = (float) ($options['repeat_ms'] ?? $this->repeatMs);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -95,11 +98,17 @@ final class ViewsLens implements Configurable, Lens, Summarizable
 
         $repeats = array_count_values(array_column($rows, 'view'));
         arsort($repeats);
+        $spent = [];
+
+        foreach ($rows as $row) {
+            $spent[$row['view']] = ($spent[$row['view']] ?? 0.0) + (float) ($row['duration'] ?? 0);
+        }
+
         $warnings = [];
 
         foreach ($repeats as $view => $count) {
-            if ($count >= $this->repeatThreshold) {
-                $warnings[] = "View {$view} rendered {$count} times.";
+            if ($count >= $this->repeatThreshold && $spent[$view] >= $this->repeatMs) {
+                $warnings[] = sprintf('View %s rendered %d times, %.1f ms in all.', $view, $count, $spent[$view]);
             }
         }
 

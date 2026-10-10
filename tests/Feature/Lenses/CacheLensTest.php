@@ -66,14 +66,19 @@ describe(CacheLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('cache');
         $lens = new CacheLens();
+        $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 0]);
 
         expect(array_column($rows, 'n'))->toBe([1, 2, 3, 4, 5])
             ->and(array_column($rows, 'repeat_of', 'n'))->toBe([2 => null, 3 => 2, 4 => null, 5 => 2])
             ->and($lens->summarize($capture)['warnings'])->toHaveCount(1)
-            ->and($lens->summarize($capture)['warnings'][0])->toStartWith('Cache key a read 3 times from ')->toContain('CacheLensTest.php:')
+            ->and($lens->summarize($capture)['warnings'][0])->toMatch('/^Cache key a read 3 times \([\d.]+ ms\) from /')->toContain('CacheLensTest.php:')
             ->and($lens->summarize($capture)['warnings'][0])->toEndWith('Cache::memo() or once().');
 
         $lens->configure(['repeat_threshold' => 4]);
+
+        expect($lens->summarize($capture)['warnings'])->toBe([]);
+
+        $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 10_000]);
 
         expect($lens->summarize($capture)['warnings'])->toBe([]);
     });

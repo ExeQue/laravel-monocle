@@ -51,14 +51,14 @@ describe(ConfigPublisher::class, function (): void {
             ->and($rendered)->toContain('        DatabaseLens::class => false,')
             ->and($rendered)->toContain('        EventsLens::class => false,')
             ->and($rendered)->not->toContain("'n_plus_one_threshold'")
-            ->and($rendered)->toContain("        CacheLens::class => [\n            'values' => false,\n            'repeat_threshold' => 3,\n        ],")
+            ->and($rendered)->toContain("        CacheLens::class => [\n            'values' => false,\n            'repeat_threshold' => 5,\n            'repeat_ms' => 5,\n        ],")
             ->and($rendered)->toContain('| Lenses');
 
         $config = loadRenderedConfig($rendered);
 
         expect($config['lenses'][DatabaseLens::class])->toBeFalse()
             ->and($config['lenses'][EventsLens::class])->toBeFalse()
-            ->and($config['lenses'][CacheLens::class])->toBe(['values' => false, 'repeat_threshold' => 3]);
+            ->and($config['lenses'][CacheLens::class])->toBe(['values' => false, 'repeat_threshold' => 5, 'repeat_ms' => 5]);
     });
 
     it('writes disks, driver and limit', function (): void {

@@ -48,7 +48,7 @@ Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true).
 
 Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys, and warns when one key is read often - remember such a value for the request with `Cache::memo()` or `once()`.
 
-Option: `repeat_threshold` (default 3) - reads of one key before a warning.
+Options: `repeat_threshold` (default 5) and `repeat_ms` (default 5) - a key read at least this often, taking at least this long in all, gives a warning.
 
 Option: `values` (false) - also record the cached values.
 
@@ -74,7 +74,7 @@ Section `log`: everything written to the log, with level and context. Errors are
 
 Section `views`: every rendered view and component with its duration and the names of the variables passed to it. Nested views appear nested in the timeline, so a partial rendered in a loop is easy to spot.
 
-Options: `data` (false) - also record the variable values; `repeat_threshold` (10) - warn when a view is rendered this many times.
+Options: `data` (false) - also record the variable values; `repeat_threshold` (10) and `repeat_ms` (20) - warn when a view is rendered at least this often and takes at least this long in all.
 
 ## Mail and notifications
 

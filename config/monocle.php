@@ -71,7 +71,8 @@ return [
         ],
         CacheLens::class => [
             'values' => false,
-            'repeat_threshold' => 3,
+            'repeat_threshold' => 5,
+            'repeat_ms' => 5,
         ],
         EloquentLens::class => true,
         RedisLens::class => true,
@@ -83,6 +84,7 @@ return [
             'engines' => ['blade', 'php', 'file'],
             'data' => false,
             'repeat_threshold' => 10,
+            'repeat_ms' => 20,
         ],
         MailLens::class => true,
         HttpClientLens::class => [

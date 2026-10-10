@@ -34,7 +34,9 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
 
     private bool $values = false;
 
-    private int $repeatThreshold = 3;
+    private int $repeatThreshold = 5;
+
+    private float $repeatMs = 5.0;
 
     private int $counter = 0;
 
@@ -58,6 +60,7 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
     {
         $this->values = (bool) ($options['values'] ?? $this->values);
         $this->repeatThreshold = (int) ($options['repeat_threshold'] ?? $this->repeatThreshold);
+        $this->repeatMs = (float) ($options['repeat_ms'] ?? $this->repeatMs);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -138,8 +141,9 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         foreach ($rows as $row) {
             if (in_array($row['type'] ?? null, ['hit', 'miss'], true) && isset($row['key'])) {
                 $read = &$reads[($row['store'] ?? '').'|'.$row['key']];
-                $read ??= ['key' => $row['key'], 'count' => 0, 'origin' => $row['origin'] ?? null];
+                $read ??= ['key' => $row['key'], 'count' => 0, 'ms' => 0.0, 'origin' => $row['origin'] ?? null];
                 $read['count']++;
+                $read['ms'] += (float) ($row['duration'] ?? 0);
                 unset($read);
             }
         }
@@ -147,12 +151,12 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
         $warnings = [];
 
         foreach ($reads as $read) {
-            if ($read['count'] < $this->repeatThreshold) {
+            if ($read['count'] < $this->repeatThreshold || $read['ms'] < $this->repeatMs) {
                 continue;
             }
 
             $where = is_array($read['origin']) && isset($read['origin']['file']) ? ' from '.$read['origin']['file'].(isset($read['origin']['line']) ? ':'.$read['origin']['line'] : '') : '';
-            $warnings[] = sprintf('Cache key %s read %d times%s; remember it for the request with Cache::memo() or once().', $read['key'], $read['count'], $where);
+            $warnings[] = sprintf('Cache key %s read %d times (%.1f ms)%s; remember it for the request with Cache::memo() or once().', $read['key'], $read['count'], $read['ms'], $where);
         }
 
         return $warnings;

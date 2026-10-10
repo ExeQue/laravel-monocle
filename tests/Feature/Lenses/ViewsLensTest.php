@@ -41,7 +41,7 @@ describe(ViewsLens::class, function (): void {
 
     it('summarizes with top-level time only and warns about repeated partials', function (): void {
         $lens = new ViewsLens();
-        $lens->configure(['repeat_threshold' => 3]);
+        $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 0]);
 
         $this->get('/page');
 
@@ -52,7 +52,12 @@ describe(ViewsLens::class, function (): void {
         expect($summary['totals']['views_rendered'])->toBe(4)
             ->and($summary['totals']['views_ms'])->toBe(round($parent->duration(), 3))
             ->and($summary['totals']['views_most_rendered'])->toBe(['partial' => 3, 'parent' => 1])
-            ->and($summary['warnings'])->toBe(['View partial rendered 3 times.']);
+            ->and($summary['warnings'])->toHaveCount(1)
+            ->and($summary['warnings'][0])->toMatch('/^View partial rendered 3 times, [\d.]+ ms in all\.$/');
+
+        $lens->configure(['repeat_ms' => 10_000]);
+
+        expect($lens->summarize($capture)['warnings'])->toBe([]);
     });
 
     it('names inline templates after the component that rendered them', function (): void {
