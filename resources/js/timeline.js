@@ -113,7 +113,7 @@ export const phaseIndex = {};
 /**
  * Render the timeline of a capture. model = { tree (from indexTree), duration }, state = { open, shut, kinds } (Sets).
  */
-const COLUMNS = 'grid grid-cols-[190px_minmax(0,1fr)_76px] items-center';
+const COLUMNS = 'grid grid-cols-[110px_minmax(0,1fr)_60px] items-center sm:grid-cols-[190px_minmax(0,1fr)_76px]';
 const ROW = `wf-row ${COLUMNS} h-[26px] border-b border-line text-[12.5px] last:border-b-0 hover:bg-sunk`;
 const NAME = 'flex items-baseline gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap';
 const KIND = 'font-mono text-[10px] text-muted';
@@ -271,7 +271,7 @@ export function renderTimeline(model, kinds) {
       </div>
       ${kinds.size ? '' : `<div class="flex gap-3.5 text-[13px]"><button type="button" class="${cls.link}" @click="tlAll(true)">Expand all</button><button type="button" class="${cls.link}" @click="tlAll(false)">Collapse all</button></div>`}
     </div>
-    <div class="scroll-quiet overflow-x-auto rounded-md border border-line bg-panel"><div class="min-w-[640px]">
+    <div class="scroll-quiet overflow-x-auto rounded-md border border-line bg-panel"><div class="min-w-[520px] sm:min-w-[640px]">
       <div class="${COLUMNS} h-7 border-b border-line font-mono text-[11px] text-muted"><span class="pl-2.5"></span><div class="relative h-full">${ticks}</div><span class="pr-2.5 text-right">time</span></div>
       ${body}
     </div></div>`;

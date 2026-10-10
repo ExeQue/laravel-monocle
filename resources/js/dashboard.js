@@ -64,6 +64,7 @@ Alpine.data('monocle', (config) => ({
   theme: theme.get(),
   error: null,
   confirmClear: false,
+  listOpen: false,
 
   init() {
     this.popover = setupPopover(this.$refs.detail, () => this.model);
@@ -99,6 +100,7 @@ Alpine.data('monocle', (config) => ({
 
   async select(id, tab = 'overview') {
     this.popover.close();
+    this.listOpen = false;
     this.selectedId = id;
     this.tab = tab;
     this.timelineState = { open: new Set(), shut: new Set(), kinds: new Set() };

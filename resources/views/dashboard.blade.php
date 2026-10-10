@@ -22,7 +22,11 @@
                 </template>
             </div>
         </div>
-        <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3">
+        <button type="button" class="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 text-left text-[13px] min-[861px]:hidden" x-show="capture" @click="listOpen = !listOpen" :aria-expanded="listOpen">
+            <span><span class="font-medium">Captures</span> <span class="text-muted" x-text="'(' + total + ')'"></span></span>
+            <svg class="size-4 text-brass transition-transform duration-200" :class="listOpen && 'rotate-180'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>
+        </button>
+        <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3" :class="capture && !listOpen ? 'max-[860px]:hidden' : ''">
             <input class="w-full rounded-md border border-line bg-bg px-2.5 py-2 text-fg" id="monocle-search" type="search" placeholder="Filter by path or name" aria-label="Filter captures" x-model.debounce.300ms="filters.q">
             <div class="flex flex-wrap gap-1.5" role="group" aria-label="Capture type">
                 <template x-for="type in [['', 'All'], ['request', 'Requests'], ['job', 'Jobs'], ['command', 'Commands'], ['mcp', 'MCP']]" :key="type[0]">
@@ -40,7 +44,7 @@
                 </span>
             </div>
         </div>
-        <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div class="scroll-quiet min-h-0 flex-1 overflow-y-auto overscroll-contain" :class="capture && !listOpen ? 'max-[860px]:hidden' : ''">
             <template x-for="c in captures" :key="c.id">
                 <button type="button" class="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-x-2.5 gap-y-1 border-b border-line px-4 py-2.5 text-left hover:bg-sunk aria-[current=true]:bg-brass-soft aria-[current=true]:shadow-[inset_3px_0_0_var(--brass)]" @click="select(c.id)" :aria-current="c.id === selectedId">
                     <span :class="cls.type" x-text="c.type"></span>
