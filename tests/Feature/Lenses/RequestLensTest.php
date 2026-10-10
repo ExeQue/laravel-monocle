@@ -10,7 +10,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 
-covers(RequestLens::class);
+covers(ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class, RequestLens::class);
 
 describe(RequestLens::class, function (): void {
     beforeEach(function (): void {
@@ -51,14 +51,14 @@ describe(RequestLens::class, function (): void {
         $this->postJson('/json', ['name' => 'x', 'password' => 'secret-value'])->assertOk();
         $request = latestCapture()->section('request');
 
-        expect($request['response_body'])->toBe('{"ok":true}')
+        expect($request['response_capture'])->toBe(['capture' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'cards' => [['title' => 'JSON', 'subtitle' => null, 'items' => ['ok' => true]]], 'raw' => '{"ok":true}'])
             ->and($request['content_type'])->toBe('application/json')
             ->and($request['input']['name'])->toBe('x')
             ->and($request['input']['password'])->not->toBe('secret-value');
 
         $this->get('/binary')->assertOk();
 
-        expect(latestCapture()->section('request')['response_body'])->toBeNull()
+        expect(latestCapture()->section('request')['response_capture'])->toBeNull()
             ->and(latestCapture()->section('request')['response_bytes'])->toBe(4);
     });
 
@@ -94,18 +94,49 @@ describe(RequestLens::class, function (): void {
         Route::get('/problem', fn () => response('{"title":"x"}', 422, ['Content-Type' => 'application/problem+json; charset=utf-8']));
 
         $this->get('/html')->assertOk();
-        expect(latestCapture()->section('request')['response_body'])->toBeNull();
+        expect(latestCapture()->section('request')['response_capture'])->toBeNull();
 
         $this->get('/problem')->assertStatus(422);
-        expect(latestCapture()->section('request')['response_body'])->toBe('{"title":"x"}');
+        expect(latestCapture()->section('request')['response_capture']['cards'][0]['items'])->toBe(['title' => 'x'])
+            ->and(latestCapture()->section('request')['response_capture']['raw'])->toBe('{"title":"x"}');
 
-        $lens->configure(['capture' => ['response_types' => ['text/*']]]);
+        $lens->configure(['capture' => ['response_types' => ['text/*' => ExeQue\Monocle\Lenses\Request\TextCapture::class]]]);
         $this->get('/html')->assertOk();
-        expect(latestCapture()->section('request')['response_body'])->toBe('<p>hi</p>');
+        expect(latestCapture()->section('request')['response_capture']['cards'][0]['items'])->toBe(['body' => '<p>hi</p>']);
 
         $lens->configure(['capture' => ['response_types' => []]]);
         $this->get('/problem')->assertStatus(422);
-        expect(latestCapture()->section('request')['response_body'])->toBeNull();
+        expect(latestCapture()->section('request')['response_capture'])->toBeNull();
+    });
+
+    it('shows a Livewire update as one card per component instead of the raw body', function (): void {
+        Route::post('/livewire/update', fn () => response()->json(['components' => [[
+            'snapshot' => json_encode(['data' => ['count' => 2, 'items' => [['a', 'b'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'effects' => ['html' => '<div>2</div>', 'dispatches' => [['name' => 'counted']], 'returns' => [2]],
+        ]]]))->name('default-livewire.update');
+
+        $this->postJson('/livewire/update', ['components' => [[
+            'snapshot' => json_encode(['data' => ['count' => 1, 'items' => [['a'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'updates' => ['step' => 1],
+            'calls' => [['method' => 'increment', 'params' => [1], 'metadata' => []], ['method' => '__dispatch', 'params' => ['refresh', []], 'metadata' => []]],
+        ]]])->assertOk();
+
+        $request = latestCapture()->section('request');
+        $card = $request['response_capture']['cards'][0];
+
+        expect($request['response_capture']['raw'])->toStartWith('{"components":')
+            ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class)
+            ->and($card['title'])->toBe('counter')
+            ->and($card['subtitle'])->toBe('abc')
+            ->and($card['items']['calls'])->toBe(['increment(1)', 'dispatch refresh'])
+            ->and($card['items']['updates'])->toBe(['step' => 1])
+            ->and($card['items']['changes'])->toBe([
+                ['field' => 'count', 'from' => 1, 'to' => 2],
+                ['field' => 'items.1', 'from' => null, 'to' => 'b'],
+            ])
+            ->and($card['items']['dispatched'])->toBe(['counted'])
+            ->and($card['items']['returns'])->toBe([2])
+            ->and($card['items']['html_bytes'])->toBe(12);
     });
 
     it('masks matching input keys', function (): void {

@@ -247,7 +247,33 @@
                                         </template>
                                     </tbody></table>
                                 </div>
-                                <pre class="scroll-quiet m-0 max-h-[480px] overflow-auto rounded-md border border-line bg-panel p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]" x-show="request.response_body" x-text="body(request.response_body, request.content_type)"></pre>
+                                <div class="flex gap-1.5" x-show="request.response_capture?.raw">
+                                    <template x-for="v in [['pretty', 'Pretty'], ['raw', 'Raw']]" :key="v[0]">
+                                        <button type="button" :class="cls.chip" @click="responseView = v[0]" :aria-pressed="responseView === v[0]" x-text="v[1]"></button>
+                                    </template>
+                                </div>
+                                <pre class="scroll-quiet m-0 max-h-[480px] overflow-auto rounded-md border border-line bg-panel p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]" x-show="responseView === 'raw' && request.response_capture?.raw" x-text="body(request.response_capture?.raw, request.content_type)"></pre>
+                                <template x-if="request.response_capture && responseView === 'pretty'">
+                                    <div class="grid gap-3">
+                                        <template x-for="(card, i) in request.response_capture.cards" :key="i">
+                                            <div class="overflow-hidden rounded-md border border-line bg-panel">
+                                                <div class="flex flex-wrap items-baseline gap-x-2 border-b border-line bg-sunk px-3 py-2">
+                                                    <b class="text-[13px]" x-text="card.title"></b>
+                                                    <span class="font-mono text-[11px] text-muted" x-text="card.subtitle ?? ''"></span>
+                                                </div>
+                                                <dl class="m-0">
+                                                    <template x-for="[k, v] in Object.entries(card.items ?? {})" :key="k">
+                                                        <div class="grid gap-1 border-b border-line px-3 py-2 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-3">
+                                                            <dt class="text-xs text-muted" x-text="humanize(k)"></dt>
+                                                            <dd class="m-0 min-w-0 font-mono text-xs [overflow-wrap:anywhere]" x-html="cardValue(v, k)"></dd>
+                                                        </div>
+                                                    </template>
+                                                    <p class="m-0 px-3 py-2 text-xs text-muted" x-show="!Object.keys(card.items ?? {}).length">Nothing happened in this component.</p>
+                                                </dl>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                     </template>

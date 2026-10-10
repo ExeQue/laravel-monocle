@@ -10,9 +10,49 @@ Turn lenses on, off or change their options in [`config/monocle.php`](configurat
 
 ## Request
 
-Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size, headers and body, and peak memory. The body is kept for the content types in `capture.response_types`; other responses only have their size.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size and headers, and peak memory. Responses with a capture for their route or content type are kept, both as the capture presents them and raw; other responses only have their size.
 
-Option: `capture.response_types` (default `['application/json', 'application/*+json']`) - content types whose response body is kept, wildcards allowed. `[]` keeps none.
+Option: `capture.response_types` - content type (wildcards allowed) => capture. By default JSON responses are captured with `JsonCapture`. Add `'text/plain' => TextCapture::class` to keep plain text as it is, or remove an entry to stop keeping that type.
+
+### Response captures
+
+Some responses read better as something other than their raw body. Map a route name (wildcards allowed) to a class implementing `ExeQue\Monocle\Contracts\ResponseCapture` under `capture.routes`; it takes precedence over the content type capture. The dashboard shows the capture and the raw body side by side. Livewire updates come set up: one card per component with the methods it called, the properties that changed and the events it dispatched.
+
+```php
+RequestLens::class => [
+    'capture' => [
+        'response_types' => [
+            'application/json' => JsonCapture::class,
+            'application/*+json' => JsonCapture::class,
+        ],
+        'routes' => [
+            '*livewire.update' => LivewireUpdateCapture::class,
+            'api.orders.*' => OrderResponseCapture::class,
+        ],
+    ],
+],
+```
+
+```php
+use ExeQue\Monocle\Contracts\ResponseCapture;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+final class OrderResponseCapture implements ResponseCapture
+{
+    public function capture(Request $request, Response $response): ?array
+    {
+        $order = json_decode($response->getContent(), true);
+
+        return [[
+            'title' => 'Order '.$order['number'],
+            'items' => ['status' => $order['status'], 'lines' => count($order['lines'])],
+        ]];
+    }
+}
+```
+
+Each card has a `title`, an optional `subtitle` and named `items`. A list of `field`/`from`/`to` entries shows as a table of changes. Return `null` when the response is not one the capture understands; nothing is kept then.
 
 The timeline splits the request into phases:
 

@@ -20,6 +20,8 @@ use ExeQue\Monocle\Lenses\McpLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
+use ExeQue\Monocle\Lenses\Request\JsonCapture;
+use ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
@@ -58,7 +60,13 @@ return [
     'lenses' => [
         RequestLens::class => [
             'capture' => [
-                'response_types' => ['application/json', 'application/*+json'],
+                'response_types' => [
+                    'application/json' => JsonCapture::class,
+                    'application/*+json' => JsonCapture::class,
+                ],
+                'routes' => [
+                    '*livewire.update' => LivewireUpdateCapture::class,
+                ],
             ],
         ],
         SessionLens::class => true,

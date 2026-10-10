@@ -9,10 +9,12 @@ use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
@@ -45,8 +47,11 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     private int $requestsInProcess = 0;
 
-    /** @var list<string> Content types (wildcards allowed) whose response body is kept. */
-    private array $responseTypes = ['application/json', 'application/*+json'];
+    /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
+    private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class];
+
+    /** @var array<string, class-string<ResponseCapture>> Route name pattern => capture. */
+    private array $routeCaptures = [];
 
     public function key(): string
     {
@@ -55,12 +60,13 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers and body (only for the content types in the lens option capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
     }
 
     public function configure(array $options): void
     {
-        $this->responseTypes = array_values(array_map('strval', (array) ($options['capture']['response_types'] ?? $this->responseTypes)));
+        $this->responseTypes = (array) ($options['capture']['response_types'] ?? $this->responseTypes);
+        $this->routeCaptures = (array) ($options['capture']['routes'] ?? $this->routeCaptures);
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
@@ -172,7 +178,10 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
         $response = $event->response;
 
         $this->eyepiece->describe(status: (string) $response->getStatusCode());
-        $this->eyepiece->set('request', [...$this->describeResponse($response), 'cookies' => $this->cookies($event->request)]);
+        $described = [...$this->describeResponse($response), 'cookies' => $this->cookies($event->request)];
+        $described['response_capture'] = $this->captureResponse($event->request, $response);
+
+        $this->eyepiece->set('request', $described);
         $this->phase('terminate');
 
         try {
@@ -325,7 +334,6 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
             'response_bytes' => is_string($content) ? strlen($content) : null,
             'content_type' => $type === '' ? null : $type,
             'redirect' => $response->isRedirection() ? $response->headers->get('Location') : null,
-            'response_body' => is_string($content) && $content !== '' && $this->keepsBody($type) ? $content : null,
         ];
     }
 
@@ -350,13 +358,55 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     }
 
     /**
-     * Whether the response's content type is one the lens keeps bodies for.
+     * The response as presented by the capture registered for its route or,
+     * failing that, for its content type. Null when neither applies.
+     *
+     * @return array{capture: string, cards: list<array<string, mixed>>, raw: string|null}|null
      */
-    private function keepsBody(string $contentType): bool
+    private function captureResponse(Request $request, Response $response): ?array
     {
-        $type = strtolower(trim(Str::before($contentType, ';')));
+        $route = $request->route()?->getName();
+        $type = strtolower(trim(Str::before((string) $response->headers->get('Content-Type'), ';')));
 
-        return $type !== '' && Str::is(array_map('strtolower', $this->responseTypes), $type);
+        $class = ($route === null ? null : $this->match($this->routeCaptures, $route))
+            ?? ($type === '' ? null : $this->match($this->responseTypes, $type));
+
+        if ($class === null) {
+            return null;
+        }
+
+        try {
+            $capture = $this->app->make($class);
+            $cards = $capture instanceof ResponseCapture ? $capture->capture($request, $response) : null;
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($cards === null) {
+            return null;
+        }
+
+        try {
+            $raw = $response->getContent();
+        } catch (Throwable) {
+            $raw = null;
+        }
+
+        return ['capture' => $class, 'cards' => $cards, 'raw' => is_string($raw) ? $raw : null];
+    }
+
+    /**
+     * @param  array<string, class-string<ResponseCapture>>  $captures  pattern => capture
+     */
+    private function match(array $captures, string $subject): ?string
+    {
+        foreach ($captures as $pattern => $class) {
+            if (Str::is(strtolower((string) $pattern), strtolower($subject))) {
+                return $class;
+            }
+        }
+
+        return null;
     }
 
     /**

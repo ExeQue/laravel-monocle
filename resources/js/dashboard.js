@@ -51,7 +51,7 @@ const hiddenNames = {
 };
 
 /** A {field, from, to} list as a small table. */
-const changesTable = (changes) => `<table class="w-full border-collapse text-xs"><thead><tr>${['Field', 'From', 'To'].map((h) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 font-mono">${esc(c.field)}</td><td class="px-1.5 py-0.5 font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
+const changesTable = (changes) => `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]">${esc(c.field)}</td><td class="px-1.5 py-0.5 align-top font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 align-top font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
 
 Alpine.data('monocle', (config) => ({
   api: config.api,
@@ -74,6 +74,7 @@ Alpine.data('monocle', (config) => ({
   error: null,
   confirmClear: false,
   listOpen: false,
+  responseView: 'pretty',
   wide: true,
 
   init() {
@@ -302,6 +303,16 @@ Alpine.data('monocle', (config) => ({
   },
 
   changesTable(changes) { return changesTable(changes); },
+
+  /** One item of a response capture card. */
+  cardValue(value, key) {
+    if (Array.isArray(value) && value.length && value.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(value);
+    if (key.endsWith('_bytes') && typeof value === 'number') return esc(this.totalValue([key, value]));
+    if (key === 'body' && typeof value === 'string') return `<pre class="m-0 max-h-96 overflow-auto whitespace-pre-wrap">${esc(value)}</pre>`;
+    if (Array.isArray(value) && value.every((v) => v === null || typeof v !== 'object')) return value.map((v) => `<div>${esc(fmtValue(v))}</div>`).join('');
+    if (value && typeof value === 'object') return this.dot(value).map(([k, v]) => `<div><span class="text-muted">${esc(k)}</span> ${esc(fmtValue(v))}</div>`).join('');
+    return esc(fmtValue(value));
+  },
 
   get request() { return this.tab === 'request' ? (this.tabData?.data ?? null) : null; },
   get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },
