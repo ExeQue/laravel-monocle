@@ -23,24 +23,33 @@ final class Normalizer
      * @param  array<array-key, mixed>  $values
      * @return array<array-key, mixed>
      */
-    public static function normalize(array $values, int $depth = 0): array
+    /**
+     * @param  array<int, true>  $path  ids of the objects being normalized on the way down
+     */
+    public static function normalize(array $values, int $depth = 0, array $path = []): array
     {
         $out = [];
 
         foreach ($values as $key => $value) {
-            $out[$key] = self::value($value, $depth);
+            $out[$key] = self::value($value, $depth, $path);
         }
 
         return $out;
     }
 
-    public static function value(mixed $value, int $depth = 0): mixed
+    /**
+     * Values nested deeper than 64 levels are cut off, and an object met again
+     * inside its own array form is marked as circular.
+     *
+     * @param  array<int, true>  $path  ids of the objects being normalized on the way down
+     */
+    public static function value(mixed $value, int $depth = 0, array $path = []): mixed
     {
         if ($value === null || is_scalar($value)) {
             return $value;
         }
 
-        if ($depth > 6) {
+        if ($depth >= 64) {
             return '[nested]';
         }
 
@@ -69,17 +78,21 @@ final class Normalizer
         }
 
         if (is_array($value)) {
-            return self::normalize($value, $depth + 1);
+            return self::normalize($value, $depth + 1, $path);
+        }
+
+        if (is_object($value) && isset($path[spl_object_id($value)])) {
+            return '[circular '.$value::class.']';
         }
 
         if ($value instanceof Arrayable) {
-            return self::normalize($value->toArray(), $depth + 1);
+            return self::normalize($value->toArray(), $depth + 1, $path + [spl_object_id($value) => true]);
         }
 
         if ($value instanceof JsonSerializable) {
             $serialized = $value->jsonSerialize();
 
-            return is_array($serialized) ? self::normalize($serialized, $depth + 1) : $serialized;
+            return is_array($serialized) ? self::normalize($serialized, $depth + 1, $path + [spl_object_id($value) => true]) : $serialized;
         }
 
         if ($value instanceof Stringable) {

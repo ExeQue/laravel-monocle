@@ -86,21 +86,48 @@ describe(Normalizer::class, function (): void {
             ->and($normalized['plain'])->toBe('[stdClass]');
     });
 
-    it('stops descending past a depth limit', function (): void {
+    it('keeps 64 levels of nesting and cuts off what goes deeper', function (): void {
         $deep = ['l' => 1];
 
-        for ($i = 0; $i < 10; $i++) {
+        for ($i = 0; $i < 70; $i++) {
             $deep = ['l' => $deep];
         }
 
-        $normalized = Normalizer::normalize($deep);
-        $cursor = $normalized;
+        $cursor = Normalizer::normalize($deep);
 
-        for ($i = 0; $i < 7; $i++) {
+        for ($i = 0; $i < 64; $i++) {
             $cursor = $cursor['l'];
         }
 
         expect($cursor)->toBe(['l' => '[nested]'])
             ->and(Normalizer::value('scalar'))->toBe('scalar');
     });
+
+    it('marks objects that lead back to themselves as circular', function (): void {
+        $loop = new class () implements Illuminate\Contracts\Support\Arrayable {
+            public ?object $other = null;
+
+            public function toArray(): array
+            {
+                return ['self' => $this, 'other' => $this->other];
+            }
+        };
+        $partner = new class () implements JsonSerializable {
+            public ?object $back = null;
+
+            public function jsonSerialize(): array
+            {
+                return ['back' => $this->back];
+            }
+        };
+        $loop->other = $partner;
+        $partner->back = $loop;
+
+        $normalized = Normalizer::normalize(['x' => $loop, 'again' => $loop]);
+
+        expect($normalized['x']['self'])->toStartWith('[circular ')
+            ->and($normalized['x']['other']['back'])->toStartWith('[circular ')
+            ->and($normalized['again'])->toBeArray();
+    });
+
 });
