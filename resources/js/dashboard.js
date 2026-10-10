@@ -344,6 +344,8 @@ Alpine.data('monocle', (config) => ({
       `Use the Monocle MCP server to look into capture ${this.capture.id}: ${s.name} (${s.type}${s.status != null ? `, status ${s.status}` : ''}, ${ms(s.totals?.duration_ms)}).`,
       `Start with monocle-show id=${this.capture.id}, then dig into the sections that matter with monocle-rows and monocle-queries.`,
     ];
+    const totals = this.totalGroups.map((g) => `- ${g.label}: ${g.items.map((t) => `${this.totalLabel(t[0], g.label).toLowerCase()} ${this.totalValue(t)}`).join(', ')}`);
+    if (totals.length) lines.push('', 'Totals:', ...totals);
     if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));
     lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
     return lines.join('\n');
