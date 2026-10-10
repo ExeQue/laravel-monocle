@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Install\IdeExclusions;
 
-covers(IdeExclusions::class);
+covers(
+    IdeExclusions::class,
+    ExeQue\Monocle\Install\Concerns\ExcludesInPhpStorm::class,
+    ExeQue\Monocle\Install\Concerns\ExcludesInVsCode::class,
+    ExeQue\Monocle\Install\Concerns\ExcludesInZed::class,
+    ExeQue\Monocle\Install\Concerns\ExcludesInAiTools::class,
+);
 
 describe(IdeExclusions::class, function (): void {
     beforeEach(function (): void {
