@@ -14,6 +14,7 @@ use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Reader\TimelineBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Laravel\Mcp\Server\Transport\FakeTransporter;
 
 covers(MonocleServer::class, ListEntries::class, ShowEntry::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearEntries::class, Presenter::class, SummaryBuilder::class, TimelineBuilder::class);
 
@@ -107,6 +108,18 @@ describe('MCP tools', function (): void {
         expect($result['entries'])->toHaveCount(1)
             ->and($result['entries'][0]['depth'])->toBe(0)
             ->and($result['entries'][0]['offset_ms'])->toBe(0.0);
+    });
+
+    it('lists every lens section with its description in the server instructions', function (): void {
+        $server = app(MonocleServer::class, ['transport' => new FakeTransporter()]);
+        $server->start();
+
+        $instructions = $server->createContext()->instructions;
+
+        expect($instructions)->toContain('`queries`: Every executed query')
+            ->and($instructions)->toContain('`cache`:')
+            ->and($instructions)->toContain('`middleware`:')
+            ->and($instructions)->toContain('monocle-list');
     });
 
     it('reports missing entries as errors and clears the store', function (): void {

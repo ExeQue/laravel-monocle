@@ -50,7 +50,7 @@ final class MiddlewareLens implements Configurable, Lens, SummarizesEntry
 
     public function description(): string
     {
-        return 'One timeline span per class-based middleware with before_ms (time until it called \$next), after_ms (time after \$next returned), passed (false when it short-circuited) and the HTTP status it returned instead. Use kinds=[middleware] on the timeline.';
+        return 'One timeline span per class-based middleware with before_ms (time until it called $next), after_ms (time after $next returned), passed (false when it short-circuited) and the HTTP status it returned instead. Use kinds=[middleware] on the timeline.';
     }
 
     public function configure(array $options): void

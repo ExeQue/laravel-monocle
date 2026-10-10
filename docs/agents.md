@@ -12,7 +12,7 @@ Monocle exists so that a coding agent can answer "what did the application actua
 4. Dig in with `monocle-rows` (any section, filtered and paginated), `monocle-queries` (grouped queries) or `monocle-show sections=[timeline]`.
 5. Every row carries `origin` - the user-land `file:line` that triggered it - so the agent opens the code, changes it, reproduces again and compares.
 
-The server's own instructions tell the agent this, so a bare "profile this request" usually leads to the right calls.
+The server's own instructions tell the agent this and list every enabled lens with its section key and a description of what it records, so the agent knows which sections exist before its first call. `monocle-show` repeats the list as `available_sections` with row counts for the entry at hand, and `monocle-list` rows carry `counts` per section.
 
 ## Tools
 

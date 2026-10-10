@@ -29,7 +29,7 @@ final class ShowEntry extends Tool
     {
         return [
             'id' => $schema->string()->description('Entry id from monocle-list or the X-Monocle-Id response header. Defaults to "latest".'),
-            'sections' => $schema->array()->items($schema->string())->description('Sections to include. Default ["summary"]. "timeline" and every recorded section name are valid; the response lists available_sections.'),
+            'sections' => $schema->array()->items($schema->string())->description('Sections to include. Default ["summary"]. "timeline" plus every lens section listed in the server instructions; the response also lists available_sections with descriptions and row counts.'),
             'limit' => $schema->integer()->description('Rows per included section (default 25).'),
             'kinds' => $schema->array()->items($schema->string())->description('For timeline: only spans of these kinds (phase, middleware, controller, user, db.transaction, ...).'),
             'verbose' => $schema->boolean()->description('Include full origin call chains.'),

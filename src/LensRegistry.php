@@ -120,15 +120,18 @@ final class LensRegistry
     }
 
     /**
-     * Section key => description for every booted lens.
+     * Section key => description for every enabled lens, whether or not the
+     * lenses have been booted in this process (the MCP server reads entries
+     * even when recording is off).
      *
      * @return array<string, string>
      */
     public function descriptions(): array
     {
         $descriptions = [];
+        $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
 
-        foreach ($this->booted as $lens) {
+        foreach ($lenses as $lens) {
             $descriptions[$lens->key()] = $lens->description();
         }
 
