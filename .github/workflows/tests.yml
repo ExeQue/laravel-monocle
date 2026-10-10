@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Runs from maintainers start right away. Pull requests from outside
+# contributors wait for a maintainer to approve the run - that is a
+# repository setting ("Require approval for all external contributors").
+#
 # The suite reads no secret and writes nothing back.
 permissions:
   contents: read
@@ -14,10 +18,6 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    # Every run waits for a maintainer: the "tests" environment has required
-    # reviewers configured in the repository settings.
-    environment: tests
 
     strategy:
       fail-fast: false
@@ -52,8 +52,6 @@ jobs:
 
   coverage:
     runs-on: ubuntu-latest
-
-    environment: tests
 
     name: Coverage
 
