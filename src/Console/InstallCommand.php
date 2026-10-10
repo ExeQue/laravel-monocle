@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Install\BoostAgents;
 use ExeQue\Monocle\Install\ConfigPublisher;
 use ExeQue\Monocle\Install\GitignoreWriter;
+use ExeQue\Monocle\Install\IdeExclusions;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
 use Illuminate\Console\Command;
@@ -36,7 +37,7 @@ final class InstallCommand extends Command
 
     protected $description = 'Set up Monocle: choose lenses, disks and storage, publish config/monocle.php and register the MCP server (Sail, Lerd, Herd or plain PHP detected)';
 
-    public function handle(McpConfigWriter $mcp, GitignoreWriter $gitignore, ConfigPublisher $publisher, BoostAgents $boost): int
+    public function handle(McpConfigWriter $mcp, GitignoreWriter $gitignore, ConfigPublisher $publisher, BoostAgents $boost, IdeExclusions $ide): int
     {
         $basePath = $this->laravel->basePath();
         $choices = $this->input->isInteractive() ? $this->askChoices($publisher, $boost) : $this->choicesFromOptions($publisher, $boost);
@@ -68,7 +69,7 @@ final class InstallCommand extends Command
         }
 
         if ($choices['driver'] === 'file') {
-            $this->ignoreStorage($gitignore, $basePath, $dryRun);
+            $this->ignoreStorage($gitignore, $ide, $basePath, $dryRun);
         }
 
         $this->newLine();
@@ -183,9 +184,10 @@ final class InstallCommand extends Command
     }
 
     /**
-     * The file store writes JSON into the project; keep it out of version control.
+     * The file store writes JSON into the project; keep it out of version
+     * control and out of the IDE's index.
      */
-    private function ignoreStorage(GitignoreWriter $gitignore, string $basePath, bool $dryRun): void
+    private function ignoreStorage(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $dryRun): void
     {
         $config = $this->laravel->make('config');
         $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
@@ -195,9 +197,14 @@ final class InstallCommand extends Command
             return;
         }
 
-        $result = $gitignore->add($base.'.gitignore', substr($path, strlen($base)), $dryRun);
+        $relative = substr($path, strlen($base));
+        $result = $gitignore->add($base.'.gitignore', $relative, $dryRun);
 
         $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
+
+        foreach ($ide->apply($basePath, $relative, $dryRun) as $label => $outcome) {
+            $this->components->twoColumnDetail($label, $outcome);
+        }
     }
 
     protected function getOptions(): array

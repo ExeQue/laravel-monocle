@@ -152,6 +152,17 @@ describe(InstallCommand::class, function (): void {
         expect(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers'])->toHaveKey('monocle');
     });
 
+    it('excludes the storage folder in the IDEs the project uses', function (): void {
+        mkdir($this->dir.'/.vscode');
+        config(['monocle.storage.file.path' => $this->dir.'/storage/monocle']);
+
+        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--no-interaction' => true])
+            ->expectsOutputToContain('VS Code (.vscode/settings.json)')
+            ->assertSuccessful();
+
+        expect(json_decode((string) file_get_contents($this->dir.'/.vscode/settings.json'), true)['search.exclude'])->toBe(['storage/monocle/**' => true]);
+    });
+
     it('does not write in dry-run mode', function (): void {
         $file = $this->dir.'/dry.json';
         config(['monocle.storage.file.path' => $this->dir.'/storage/monocle']);
