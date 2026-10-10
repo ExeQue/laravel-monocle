@@ -10,8 +10,8 @@
     <script defer src="{{ $assets['js'] }}"></script>
 </head>
 <body class="min-[861px]:h-dvh min-[861px]:overflow-hidden">
-<div class="grid min-h-dvh grid-cols-1 min-[861px]:h-dvh min-[861px]:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]" x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token()]))" x-cloak>
-    <aside class="flex min-h-0 min-w-0 flex-col border-b border-line bg-panel max-[860px]:max-h-[52vh] min-[861px]:overflow-hidden min-[861px]:border-r min-[861px]:border-b-0" aria-label="Captures">
+<div class="flex min-h-dvh flex-col min-[861px]:grid min-[861px]:h-dvh min-[861px]:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]" x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token()]))" x-cloak>
+    <aside class="flex min-h-0 min-w-0 shrink-0 flex-col border-b border-line bg-panel max-[860px]:max-h-[75dvh] min-[861px]:overflow-hidden min-[861px]:border-r min-[861px]:border-b-0" aria-label="Captures">
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line px-4 pt-[18px] pb-3.5">
             <img class="block shrink-0" src="{{ $assets['icon'] }}" width="26" height="26" alt="">
             <h1 class="m-0 text-lg font-bold tracking-[.01em]">Monocle</h1>
@@ -66,7 +66,7 @@
         </div>
     </aside>
 
-    <main class="scroll-quiet flex min-h-0 min-w-0 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
+    <main class="scroll-quiet flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
         <p :class="cls.empty" x-show="!capture">Select a capture.</p>
         <template x-if="capture">
             <div class="flex min-w-0 flex-col gap-5">
