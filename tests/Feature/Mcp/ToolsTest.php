@@ -33,7 +33,7 @@ describe('MCP tools', function (): void {
     beforeEach(function (): void {
         DB::statement('create table things (id integer primary key, name text)');
 
-        Route::get('/things', function () {
+        Route::name('things.index')->get('/things', function () {
             DB::table('things')->insert(['name' => 'a']);
 
             foreach ([1, 2, 3] as $id) {
@@ -54,7 +54,9 @@ describe('MCP tools', function (): void {
             ->and($result['rows'][0]['counts']['queries'])->toBe(4)
             ->and(toolJson(ListCaptures::class, ['type' => 'job'], 'list')['total'])->toBe(0)
             ->and(toolJson(ListCaptures::class, ['exclude' => ['/THINGS']], 'list')['total'])->toBe(0)
-            ->and(toolJson(ListCaptures::class, ['exclude' => ['/other']], 'list')['total'])->toBe(1);
+            ->and(toolJson(ListCaptures::class, ['exclude' => ['/other']], 'list')['total'])->toBe(1)
+            ->and(toolJson(ListCaptures::class, ['exclude' => ['things.index']], 'list')['total'])->toBe(0)
+            ->and($result['rows'][0]['route'])->toBe('things.index');
     });
 
     it('shows the summary with breakdown, warnings and section descriptions', function (): void {

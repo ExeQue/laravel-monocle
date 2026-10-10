@@ -31,6 +31,7 @@ final class Index
             'trace_id' => $capture->traceId,
             'type' => $capture->type->value,
             'name' => $capture->name,
+            'route' => $capture->section('request')['route']['name'] ?? null,
             'status' => $capture->status,
             'label' => $capture->label,
             'duration' => $capture->duration(),

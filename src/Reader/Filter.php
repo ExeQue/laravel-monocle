@@ -21,7 +21,7 @@ final class Filter
         public readonly ?string $parentId = null,
         /** @var list<string> Sections that must contain at least one row. */
         public readonly array $has = [],
-        /** @var list<string> Captures whose name contains any of these are left out. */
+        /** @var list<string> Captures whose name contains any of these, or whose route name is one of them, are left out. */
         public readonly array $exclude = [],
         public readonly int $offset = 0,
         public readonly int $limit = 20,
@@ -92,7 +92,7 @@ final class Filter
         }
 
         foreach ($this->exclude as $part) {
-            if (str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($part))) {
+            if (str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($part)) || ($row['route'] ?? null) === $part) {
                 return false;
             }
         }

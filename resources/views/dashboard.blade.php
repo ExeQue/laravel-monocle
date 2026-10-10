@@ -69,7 +69,7 @@
                         <span x-text="ago(c.started_at)"></span>
                     </span>
                 </button>
-                <button type="button" class="absolute right-3 bottom-2 rounded px-1.5 text-[11px] text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 max-[860px]:opacity-100" @click.stop="hide(c.name)" :title="'Hide ' + c.name" x-text="'hide ' + ({ request: 'route', command: 'command', job: 'job', mcp: 'call' }[c.type] ?? 'these')"></button>
+                <button type="button" class="absolute right-3 bottom-2 rounded px-1.5 text-[11px] text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 max-[860px]:opacity-100" @click.stop="hide(c.route ?? c.name)" :title="'Hide ' + (c.route ?? c.name)" x-text="'hide ' + ({ request: 'route', command: 'command', job: 'job', mcp: 'call' }[c.type] ?? 'these')"></button>
                 </div>
             </template>
             <p class="m-4" :class="cls.empty" x-show="!captures.length && !error">No captures yet. Open a page, run a job or a command, and it shows up here.</p>
