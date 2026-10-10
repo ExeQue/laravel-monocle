@@ -128,13 +128,13 @@ describe(RequestLens::class, function (): void {
             ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class)
             ->and($card['title'])->toBe('counter')
             ->and($card['subtitle'])->toBe('abc')
-            ->and($card['items']['calls'])->toBe(['increment(1)', 'dispatch refresh({"id":7})'])
+            ->and($card['items']['calls'])->toBe([['name' => 'increment', 'params' => [1]], ['name' => 'dispatch refresh', 'params' => ['id' => 7]]])
             ->and($card['items']['updates'])->toBe(['step' => 1])
             ->and($card['items']['changes'])->toBe([
                 ['field' => 'count', 'from' => 1, 'to' => 2],
                 ['field' => 'items.1', 'from' => null, 'to' => 'b'],
             ])
-            ->and($card['items']['dispatched'])->toBe(['counted({"by":2})', 'saved'])
+            ->and($card['items']['dispatched'])->toBe([['name' => 'counted', 'params' => ['by' => 2]], ['name' => 'saved', 'params' => null]])
             ->and($card['items']['returns'])->toBe([2])
             ->and($card['items']['html_bytes'])->toBe(12);
     });

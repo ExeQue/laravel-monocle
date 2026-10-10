@@ -308,6 +308,11 @@ Alpine.data('monocle', (config) => ({
   cardValue(value, key) {
     if (Array.isArray(value) && value.length && value.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(value);
     if (key.endsWith('_bytes') && typeof value === 'number') return esc(this.totalValue([key, value]));
+    if (Array.isArray(value) && value.length && value.every((v) => v && typeof v === 'object' && !Array.isArray(v))) {
+      const cols = [...new Set(value.flatMap((v) => Object.keys(v)))];
+      const cell = (v) => (v === null || v === undefined ? '<span class="text-muted">-</span>' : esc(typeof v === 'object' ? JSON.stringify(v) : String(v)));
+      return `<table class="w-full border-collapse text-xs"><thead><tr>${cols.map((c) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${esc(humanize(c))}</th>`).join('')}</tr></thead><tbody>${value.map((row) => `<tr class="border-t border-line">${cols.map((c) => `<td class="px-1.5 py-0.5 align-top [overflow-wrap:anywhere]">${cell(row[c])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
     if (key === 'body' && typeof value === 'string') return `<pre class="m-0 max-h-96 overflow-auto whitespace-pre-wrap">${esc(value)}</pre>`;
     if (Array.isArray(value) && value.every((v) => v === null || typeof v !== 'object')) return value.map((v) => `<div>${esc(fmtValue(v))}</div>`).join('');
     if (value && typeof value === 'object') return this.dot(value).map(([k, v]) => `<div><span class="text-muted">${esc(k)}</span> ${esc(fmtValue(v))}</div>`).join('');
