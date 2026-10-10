@@ -2,9 +2,9 @@
 
 # Writing a lens
 
-A lens is a class that hooks into the framework however it needs to and writes one section of the capture. Monocle's own lenses are written exactly like yours.
+A lens records something into its own section of the capture. Write one when you want Monocle to show something it does not record on its own - calls to a payment provider, a search index, an internal service.
 
-## The contract
+## A lens
 
 ```php
 namespace App\Monocle;
@@ -15,8 +15,6 @@ use Illuminate\Contracts\Foundation\Application;
 
 final class StripeLens implements Lens
 {
-    private Eyepiece $eyepiece;
-
     public function key(): string
     {
         return 'stripe';
@@ -24,15 +22,13 @@ final class StripeLens implements Lens
 
     public function description(): string
     {
-        return 'Stripe API calls: endpoint, HTTP status and duration. Failed calls carry the Stripe error code.';
+        return 'Stripe API calls: endpoint, HTTP status, duration and the Stripe error code for failed calls.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(StripeCallCompleted::class, function (StripeCallCompleted $event): void {
-            $this->eyepiece->push('stripe', [
+        $eyepiece->listen(StripeCallCompleted::class, function (StripeCallCompleted $event) use ($eyepiece): void {
+            $eyepiece->push('stripe', [
                 'endpoint' => $event->endpoint,
                 'status' => $event->status,
                 'duration' => $event->milliseconds,
@@ -43,46 +39,41 @@ final class StripeLens implements Lens
 }
 ```
 
-That is the whole required surface:
-
-| Method | Called |
+| Method | Purpose |
 |---|---|
-| `key()` | The section name. Also what the agent passes to `monocle-rows section=...`. |
-| `description()` | Shown to the agent in the server instructions and in `available_sections`. Say what the rows contain and which fields matter. |
-| `boot()` | Once per process, only when Monocle is enabled and the lens is enabled. Hook anything: events, container extensions, `Queue::createPayloadUsing()`, decorators. |
+| `key()` | The name of the section, e.g. `monocle-rows section=stripe`. |
+| `description()` | Tells the agent what the section contains. Mention the fields that matter. |
+| `boot()` | Called once when Monocle starts. Listen to events or hook in however you need to. |
 
-Lifecycle beyond that is opt-in through small companion contracts in `ExeQue\Monocle\Contracts\Lenses`:
-
-| Contract | Method | When |
-|---|---|---|
-| `Configurable` | `configure(array $options)` | Before `boot()`, with the options array from config |
-| `Finalizable` | `finalize(Capture $capture)` | Right before the capture is stored - flush buffers, derive spans |
-| `Resettable` | `reset()` | After every capture - forget per-capture state in long-running workers |
-| `Summarizable` | `summarize(Capture $capture): array` | When the summary is built - contribute totals and warnings |
-
-Implement only what you use; `MiddlewareLens`, for instance, needs none of them.
-
-## The Eyepiece
-
-`Eyepiece` is the write API every lens uses:
+Register it in `config/monocle.php`:
 
 ```php
-$eyepiece->push('stripe', ['endpoint' => '/charges', 'duration' => 120.4]);   // append a row
-$eyepiece->push('stripe', [...], origin: false);                               // without stack capture
-$eyepiece->set('stripe_account', ['id' => 'acct_123']);                        // associative section, merged
-$eyepiece->span('stripe charge', 'stripe')->start()->stop();                   // spans with your own kind
-$eyepiece->now();                                                              // ms since the capture started
-$eyepiece->recording();                                                        // false while nothing or a discarded capture is active
-$eyepiece->masker()->inputs($payload);                                         // the configured mask
+'lenses' => [
+    // ...
+    App\Monocle\StripeLens::class => true,
+],
 ```
 
-`push()` adds `time` and `origin` for you and normalizes values. Calls made while no capture is active are ignored, so you do not need to guard for it, but checking `recording()` first saves the work when the event is frequent.
+Or from a service provider's `register()` method:
 
-`listen()` registers an event listener whose failures are caught and logged, and everything else the eyepiece does is wrapped the same way: an exception inside a lens is logged once and never reaches the application. Use `$eyepiece->listen()` rather than the event dispatcher directly.
+```php
+Monocle::register(App\Monocle\StripeLens::class);
+```
+
+## Recording
+
+```php
+$eyepiece->push('stripe', ['endpoint' => '/charges', 'duration' => 120.4]);   // add a row
+$eyepiece->set('stripe_account', ['id' => 'acct_123']);                       // set key/value data
+$eyepiece->span('stripe charge', 'stripe')->start();                          // a span in the timeline
+$eyepiece->listen(SomeEvent::class, fn (SomeEvent $event) => ...);            // listen to an event
+```
+
+`push()` adds the time and the `origin` (the line in your code that caused it) for you. An exception thrown inside a lens is logged and never reaches your application.
 
 ## Options
 
-Implement `Configurable` to receive the array configured for your lens:
+Implement `Configurable` to receive options from the config:
 
 ```php
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
@@ -99,15 +90,12 @@ final class StripeLens implements Configurable, Lens
 ```
 
 ```php
-// config/monocle.php
-'lenses' => [
-    App\Monocle\StripeLens::class => ['slow_ms' => 300],
-],
+App\Monocle\StripeLens::class => ['slow_ms' => 300],
 ```
 
-## Contributing to the summary
+## Totals and warnings
 
-Implement `Summarizable` to add totals and warnings to `monocle-show`:
+Implement `Summarizable` to add to the summary in `monocle-show`:
 
 ```php
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -118,34 +106,18 @@ public function summarize(Capture $capture): array
     $failed = array_filter($rows, fn (array $row): bool => $row['error'] !== null);
 
     return [
-        'totals' => [
-            'stripe_calls' => count($rows),
-            'stripe_ms' => round(array_sum(array_column($rows, 'duration')), 3),
-        ],
-        'warnings' => $failed === [] ? [] : [count($failed) . ' Stripe call(s) failed.'],
+        'totals' => ['stripe_calls' => count($rows)],
+        'warnings' => $failed === [] ? [] : [count($failed).' Stripe call(s) failed.'],
     ];
 }
 ```
 
-Rows whose section is listed in the summary's category map (`queries`, `cache`, `redis`, `http`, `fs`, `mail`) also count towards the time breakdown when they carry a `duration`.
+## Before and after each capture
 
-## Registering
+- `Finalizable::finalize(Capture $capture)` - runs just before a capture is saved.
+- `Resettable::reset()` - runs after each capture, to clear anything you kept between events.
 
-Either in config or from a service provider's `register()`:
-
-```php
-Monocle::register(App\Monocle\StripeLens::class, ['slow_ms' => 300]);
-```
-
-Lenses are resolved through the container, so constructor injection works. Registering after Monocle has booted throws `LensAlreadyBootedException`; `register()` of a provider is early enough, `boot()` is not guaranteed to be.
-
-## Hooking without events
-
-Not everything fires events. Monocle's `MiddlewareLens` extends middleware classes in the container with a timing decorator; `QueueLens` adds a bus pipe and a payload hook; the planned `FilesystemLens` rebinds the filesystem manager to wrap Flysystem adapters. A lens may do the same - `boot()` receives the application, and it runs before the request is handled.
-
-## Testing a lens
-
-Monocle's own tests use [Orchestra Testbench](https://packages.tools/testbench). In an application, enable recording in the test and start a capture by hand:
+## Testing
 
 ```php
 config(['monocle.enabled' => true]);

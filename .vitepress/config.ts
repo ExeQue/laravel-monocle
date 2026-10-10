@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 // Everything links the same way on GitHub and on the site, so srcDir is the repository root.
 export default defineConfig({
   title: 'Monocle',
-  description: 'The Laravel profiler your coding agent reads: timing, queries, cache, filesystem and AI calls, exposed over MCP.',
+  description: 'A request profiler for Laravel, built for AI coding agents.',
   base: '/laravel-monocle/',
   lastUpdated: true,
   cleanUrls: true,

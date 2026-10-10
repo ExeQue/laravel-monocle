@@ -2,46 +2,53 @@
 
 # Configuration
 
+`monocle:install` writes `config/monocle.php` for you. To get the default file instead:
+
 ```bash
 php artisan vendor:publish --tag=monocle-config
 ```
 
-Everything Monocle does is driven by `config/monocle.php`. Nothing is hard-coded beyond the defaults in that file.
-
 ## `enabled`
 
-`null` (default) means: record outside `production` when `app.debug` is on, never inside the test runner. `true`/`false` force it. `MONOCLE_ENABLED` in `.env` sets it. A runtime `Monocle::enabled(bool|Closure)` from a service provider's `register()` wins over both. See [Installation](installation.md#enabling-monocle).
+`null` (default) records outside production when `APP_DEBUG` is on. Set `MONOCLE_ENABLED=true` or `false` in `.env` to force it, or decide at runtime - see [Installation](installation.md#enabling-monocle).
 
-## `lenses`
+## Lenses
 
-A map of lens class to `true` (defaults), `false` (off) or an options array:
+Each lens is listed with `true` (on), `false` (off) or an array of options:
 
 ```php
 'lenses' => [
-    RequestLens::class    => true,
-    MiddlewareLens::class => ['slow_ms' => 50],
-    DatabaseLens::class   => ['slow_ms' => 70, 'n_plus_one_threshold' => 3, 'bindings' => true],
-    CacheLens::class      => ['values' => false],
+    RequestLens::class  => true,
+    DatabaseLens::class => ['slow_ms' => 70, 'n_plus_one_threshold' => 3, 'bindings' => true],
+    CacheLens::class    => false,
     App\Monocle\StripeLens::class => ['slow_ms' => 300],
 ],
 ```
 
-Options reach the lens through `Configurable::configure()`. The same map can be changed at runtime, before Monocle boots:
+The options of each lens are described in [What gets recorded](lenses.md).
+
+You can also change lenses from a service provider's `register()` method:
 
 ```php
-Monocle::register(App\Monocle\StripeLens::class, ['slow_ms' => 300]);  // add or override options
-Monocle::disable(CacheLens::class);                                      // off regardless of config
-Monocle::enable(CacheLens::class);                                       // back on with its configured options
-Monocle::lenses();                                                       // the effective map
+Monocle::register(App\Monocle\StripeLens::class, ['slow_ms' => 300]);
+Monocle::disable(CacheLens::class);
+Monocle::enable(CacheLens::class);
 ```
-
-The facade is `Conditionable`: `Monocle::when($this->app->isLocal())->register(...)`.
 
 ## `except`
 
-Requests and commands that are never recorded. `paths` are matched with `Request::is()`; `commands` with `Str::is()` against the command name. The defaults exclude Monocle's own endpoints and MCP server, Boost, Horizon, Clockwork and Debugbar, and the long-running queue and scheduler workers (the jobs they run are recorded as captures of their own).
+Requests and commands that are never recorded:
 
-## `mask`
+```php
+'except' => [
+    'paths' => ['_monocle', '_monocle/*', 'horizon', 'horizon/*'],
+    'commands' => ['monocle:*', 'queue:work', 'horizon*'],
+],
+```
+
+Paths and command names support `*`. Jobs run by `queue:work` and Horizon are still recorded.
+
+## Masking
 
 ```php
 'mask' => [
@@ -51,7 +58,7 @@ Requests and commands that are never recorded. `paths` are matched with `Request
 ],
 ```
 
-`headers` are matched case-insensitively; `inputs` is a regex tested against input keys, recursively. `using` is an invokable class (or any callable) receiving `($value, $key)` and returning the masked value. The default `PartialMask` keeps the first characters visible - at most four and never more than a quarter of the value - so an agent can tell *which* token was sent without seeing it: `Bear****`, `hunt****`. `FullMask` replaces everything.
+The listed headers and any input whose name matches `inputs` are masked before they are stored. By default the first few characters stay visible, so you can tell which token was sent without seeing it: `Bear****`. Use `FullMask` to hide the whole value, or point `using` at your own class with an `__invoke($value, $key)` method.
 
 ## `origin`
 
@@ -59,11 +66,18 @@ Requests and commands that are never recorded. `paths` are matched with `Request
 'origin' => ['enabled' => true, 'frames' => 5, 'include_vendor' => []],
 ```
 
-Every row and span records the user-land call site. `frames` is how many extra frames of the call chain to keep. `include_vendor` lists path fragments inside `vendor/` that should count as your code (your own packages). Turning it off removes the stack capture entirely.
+Every row records the line in your code that caused it, plus up to `frames` more lines of the call chain. Code in `vendor/` is skipped; list your own packages in `include_vendor` to include them.
 
 ## `storage`
 
-See [Storage](storage.md). `driver` is `file` (default), `cache`, a class implementing `Store`, or a name registered with `Monocle::extendStore()`. `limit` is the ring buffer size in captures.
+```php
+'storage' => [
+    'driver' => env('MONOCLE_STORAGE', 'file'),
+    'limit' => 200,
+],
+```
+
+How many captures to keep and where. See [Storage](storage.md).
 
 ## `mcp`
 
@@ -71,4 +85,4 @@ See [Storage](storage.md). `driver` is `file` (default), `cache`, a class implem
 'mcp' => ['enabled' => true, 'server' => 'monocle', 'except_servers' => ['monocle', 'laravel-boost']],
 ```
 
-`enabled` registers the local MCP server; `server` is its handle (`mcp:start <server>`). `except_servers` names MCP servers that must never be recorded by the upcoming `McpLens` - Monocle's own and Boost's by default.
+`server` is the name used in `mcp:start monocle`. MCP servers listed in `except_servers` are not recorded.

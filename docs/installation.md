@@ -2,92 +2,52 @@
 
 # Installation
 
+Monocle needs PHP 8.4 and Laravel 13.
+
 ```bash
 composer require --dev exeque/laravel-monocle
-```
-
-The service provider is auto-discovered. Monocle needs PHP 8.4 and Laravel 13. [`laravel/mcp`](https://laravel.com/docs/mcp) comes with it; `laravel/ai` and `livewire/livewire` are optional and only matter for the lenses that record them.
-
-`monocle:install` (below) publishes a config tailored to your answers; `php artisan vendor:publish --tag=monocle-config` publishes the defaults untouched.
-
-## Enabling Monocle
-
-Monocle records only when it is enabled, and when it is not enabled it hooks nothing: no listeners, no container extensions, no middleware decoration. That is what makes it safe to keep in `require-dev` of an application that is also deployed.
-
-Out of the box it is enabled when both hold:
-
-- the application is **not** in the `production` environment, and
-- `app.debug` is `true`.
-
-It is never enabled inside the test runner unless you say so explicitly.
-
-Three ways to override that:
-
-```dotenv
-# .env - force on or off
-MONOCLE_ENABLED=true
-```
-
-```php
-// config/monocle.php
-'enabled' => env('MONOCLE_ENABLED'),   // null = the default rule above
-```
-
-```php
-// Any service provider's register() method - decided at runtime
-use Monocle;
-
-public function register(): void
-{
-    Monocle::enabled(fn () => ! $this->app->isProduction() && $this->app->hasDebugModeEnabled());
-}
-```
-
-The closure is evaluated once, when Monocle boots. A runtime override wins over config; config wins over the default rule.
-
-## Installing
-
-```bash
 php artisan monocle:install
 ```
 
-An interactive form walks through the setup and remembers nothing it does not write down:
+## Installing
 
-1. **Lenses** - every built-in lens, all selected; untick what you do not want recorded.
-2. **Disks** - which `Storage` disks the `FilesystemLens` should watch (`All disks` = `*`).
-3. **Storage** - `file` (default, shared by web, workers and the MCP server) or `cache`.
-4. **Ring buffer size** - how many captures to keep.
-5. **Platform** - how your MCP client starts PHP, pre-selected from detection (table below).
-6. **MCP clients** - which config files get the `monocle` server: `.mcp.json` (Claude Code, Codex), `.cursor/mcp.json`, `.vscode/mcp.json`, `.ai/mcp/mcp.json` (Boost's source, so `boost:update` keeps it).
-7. **Publish** - write `config/monocle.php` with those choices. The shipped config is edited in place, so every comment and option survives; lenses you unticked become `false`.
+`monocle:install` walks you through the setup:
 
-When the file store is chosen, its directory (`/storage/monocle/`) is added to `.gitignore` with a comment above it.
+1. **Lenses** - what to record. Everything is selected; untick what you do not need.
+2. **Disks** - which `Storage` disks to record operations on.
+3. **Storage** - keep captures as files in `storage/monocle` (recommended) or in your cache.
+4. **How many captures to keep** - older ones are removed automatically.
+5. **Platform** - how your MCP client starts PHP. Detected for you.
+6. **MCP clients** - which config files to add the `monocle` server to.
+7. **Publish** - write `config/monocle.php` with your answers.
 
-| Detected | Signal | Command written |
-|---|---|---|
-| Lerd | `.lerd.yaml` or `.lerd` in the project, or a `LERD_*` environment variable | `lerd artisan mcp:start monocle` |
-| Sail | `vendor/bin/sail` plus a compose file, or `LARAVEL_SAIL=1` | `vendor/bin/sail artisan mcp:start monocle` |
-| Herd | Herd installed (`/Applications/Herd.app` or `~/.config/herd`) | `herd php artisan mcp:start monocle` |
-| Plain PHP | nothing above | `<php binary> <project>/artisan mcp:start monocle` |
+| Platform | Command written to the MCP config |
+|---|---|
+| Laravel Sail | `vendor/bin/sail artisan mcp:start monocle` |
+| Lerd | `lerd artisan mcp:start monocle` |
+| Laravel Herd | `herd php artisan mcp:start monocle` |
+| Plain PHP | `php /path/to/project/artisan mcp:start monocle` |
 
-Every answer has a flag, so scripts and CI can run it without prompts:
+Restart your MCP client when the command is done. If you use Claude Code with an allow-list in `.claude/settings.local.json`, add `"monocle"` to `enabledMcpjsonServers`.
+
+Running the command again is safe: existing MCP servers and settings in the files are kept.
+
+### Without prompts
+
+Every answer has a flag:
 
 ```bash
 php artisan monocle:install --no-interaction \
     --platform=sail \
-    --file=.mcp.json --file=.ai/mcp/mcp.json \
-    --publish --disk=media --disk='uploads-*' --driver=file --limit=200
-
-php artisan monocle:install --dry-run            # show what would change
+    --file=.mcp.json \
+    --publish --disk=media --driver=file --limit=200
 ```
 
-Without `--publish` a non-interactive run only registers the MCP server. The MCP writer merges: other servers and keys are untouched, the file keeps its indentation, and running it again is a no-op.
+Use `--dry-run` to see what would be written.
 
-Then restart your MCP client. Claude Code users who keep an allow-list in `.claude/settings.local.json` add `"monocle"` to `enabledMcpjsonServers`.
+### Other MCP clients
 
-### Manually
-
-If your client is not file based, the server is a plain stdio MCP server:
+Any client that can start a local (stdio) MCP server works:
 
 ```json
 {
@@ -100,12 +60,27 @@ If your client is not file based, the server is a plain stdio MCP server:
 }
 ```
 
-Verify with the MCP inspector:
+To check the server, run `php artisan mcp:inspector monocle`.
 
-```bash
-php artisan mcp:inspector monocle
+## Enabling Monocle
+
+By default Monocle records when the application is **not** in production **and** `APP_DEBUG` is `true`. When it is not recording it does nothing at all, so it is safe to keep installed.
+
+Force it on or off in `.env`:
+
+```dotenv
+MONOCLE_ENABLED=true
 ```
 
-## Where the data lives
+Or decide in a service provider's `register()` method:
 
-Captures are written to `storage/monocle/` as JSON, newest 200 kept. A `.gitignore` is created in that directory. See [Storage](storage.md) to change the driver or the limit.
+```php
+use Monocle;
+
+public function register(): void
+{
+    Monocle::enabled(fn () => $this->app->isLocal());
+}
+```
+
+Monocle does not record while your test suite runs unless you enable it explicitly.

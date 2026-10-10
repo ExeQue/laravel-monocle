@@ -2,31 +2,27 @@
 
 # Documentation
 
-Also published at [exeque.github.io/laravel-monocle](https://exeque.github.io/laravel-monocle/), with navigation and search.
-
-- [Installation](installation.md) - Requiring the package, enabling it safely, registering the MCP server
-- [For AI agents](agents.md) - The MCP tools, the workflow an agent follows, response headers and `origin`
+- [Installation](installation.md) - Install, enable and connect your MCP client
+- [For AI agents](agents.md) - The MCP tools and how an agent uses them
 - [Artisan commands](commands.md) - The same data from the terminal
-- [What gets recorded](lenses.md) - Every built-in lens, its section and its options
-- [Spans and metadata](spans.md) - Measuring your own code and attaching metadata
-- [Writing a lens](writing-a-lens.md) - Recording data Monocle does not know about
-- [Configuration](configuration.md) - Every key in `config/monocle.php`
-- [Storage](storage.md) - The ring buffer, file and cache drivers, custom stores
+- [What gets recorded](lenses.md) - Every lens and what it records
+- [Spans and metadata](spans.md) - Measure your own code
+- [Writing a lens](writing-a-lens.md) - Record something Monocle does not know about
+- [Configuration](configuration.md) - Every option in `config/monocle.php`
+- [Storage](storage.md) - Where captures are kept
 
 ## Where things are
 
 | Looking for | Page |
 |---|---|
-| `Monocle::enabled()`, production safety | [Installation](installation.md#enabling-monocle) |
-| `monocle-list`, `monocle-show`, `monocle-rows`, `monocle-queries`, `monocle-trace` | [For AI agents](agents.md#tools) |
-| `X-Monocle-Id`, `Server-Timing`, `X-Monocle-Label` | [For AI agents](agents.md#response-headers) |
-| `monocle:install`, platform detection | [Installation](installation.md#installing) |
+| Turning Monocle on or off | [Installation](installation.md#enabling-monocle) |
+| `monocle:install` | [Installation](installation.md#installing) |
+| `monocle-list`, `monocle-show`, `monocle-rows`, ... | [For AI agents](agents.md#tools) |
+| `X-Monocle-Id`, `X-Monocle-Label` | [For AI agents](agents.md#headers) |
 | `Monocle::span()`, `measure()`, `mark()`, `meta()`, `label()` | [Spans and metadata](spans.md) |
-| Looking a span up by key | [Spans and metadata](spans.md#handing-a-span-over) |
-| `Monocle::register()`, `disable()`, `enable()` | [Configuration](configuration.md#lenses) |
-| `Lens`, `Configurable`, `Summarizable` | [Writing a lens](writing-a-lens.md) |
-| `Eyepiece::push()`, `set()`, `span()` | [Writing a lens](writing-a-lens.md#the-eyepiece) |
-| `Monocle::extendStore()`, the `Store` contract | [Storage](storage.md#custom-stores) |
-| Masking secrets, `PartialMask` | [Configuration](configuration.md#masking) |
-| Phases, the derived controller span | [What gets recorded](lenses.md#requestlens) |
-| N+1, duplicate and slow query warnings | [What gets recorded](lenses.md#databaselens) |
+| Stopping a span somewhere else | [Spans and metadata](spans.md#stopping-a-span-somewhere-else) |
+| Turning lenses on, off or adding your own | [Configuration](configuration.md#lenses) |
+| Masking secrets | [Configuration](configuration.md#masking) |
+| Recording `Storage` disks | [What gets recorded](lenses.md#filesystem) |
+| Request phases | [What gets recorded](lenses.md#request) |
+| N+1 and slow query warnings | [What gets recorded](lenses.md#database) |

@@ -2,120 +2,130 @@
 
 # What gets recorded
 
-An **capture** is one unit of work: an HTTP request, a queued job, an artisan command or an MCP call. It has a name, a status, a label, metadata, a tree of **spans** (timed intervals) and a number of **sections** (lists of rows). Each section is written by one **lens**.
+A **capture** is one request, queued job, artisan command or MCP call. Each capture has a timeline of timed **spans** and a number of **sections** with rows. Each section is filled by a **lens**.
 
-Every row gets `time` (milliseconds since the capture started) and `origin` (user-land file and line). Nothing is truncated or capped per capture; the only limit is how many captures the store keeps.
+Every row records when it happened and the `origin` - the file and line in your code that caused it.
 
-The lenses below ship with Monocle. Each is a class in `config/monocle.php` under `lenses`; set it to `false` to turn it off or to an array of options.
+Turn lenses on, off or change their options in [`config/monocle.php`](configuration.md#lenses).
 
-## RequestLens
+## Request
 
-Section `request`. Owns the HTTP capture: starts it, records what came in and went out, lays down the phase spans and persists at terminate.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookie names, IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, response status, size and headers, and peak memory.
 
-Recorded: method, url, path, query and input (masked), uploaded files (name, size, mime), headers (masked), cookie names, ip, user agent, ajax / Livewire / Precognition flags, locale, authenticated user (class and id), the matched route (name, action, uri, methods, parameters, middleware, domain), response status, headers, size, content type and redirect target, peak memory.
+The timeline splits the request into phases:
 
-Phase spans (kind `phase`, siblings at the root of the timeline):
-
-| Phase | From | To |
-|---|---|---|
-| `bootstrap` | `LARAVEL_START` | application booted |
-| `middleware` | booted | routing starts |
-| `routing` | `Routing` event | `RouteMatched` |
-| `handle` | `RouteMatched` | `RequestHandled` (route middleware, controller, response preparation) |
-| `terminate` | `RequestHandled` | terminating callbacks |
-
-A `controller` span (kind `controller`) is derived at finalize: from the moment the innermost middleware called `$next` until the response was first prepared. When a route middleware short-circuits there is no controller span.
-
-The response gets `X-Monocle-Id` and `Server-Timing` headers. `X-Monocle-Label` on the request labels the capture.
-
-## MiddlewareLens
-
-Spans of kind `middleware`, one per class-based middleware, nested like the onion they form. Each has `before_ms` (time until it called `$next`), `after_ms` (time after `$next` returned), `passed` (false when it short-circuited), `short_circuited_with` (the status it returned instead), `parameters` and `group` (`global` or `route`). Terminable middleware get a `middleware.terminate` span.
-
-It works by extending every middleware class in the container with a timing decorator; the pipeline resolves middleware through the container, so no middleware needs to change. Closure middleware is not timed.
-
-Options: `slow_ms` (default 50) - own time above this produces a warning.
-
-## DatabaseLens
-
-Section `queries`. One row per executed query:
-
-| Field | Meaning |
+| Phase | Covers |
 |---|---|
-| `n` | row number within the capture |
-| `sql`, `bindings`, `sql_with_bindings` | the statement as sent, its bindings, and the two merged for copy-paste |
-| `connection`, `driver` | connection name and driver |
-| `duration` | milliseconds |
-| `type` | `select`, `insert`, `update`, `delete` or `other` |
-| `tables` | tables named in the statement |
-| `shape`, `shape_hash` | the SQL with literals replaced by `?` and IN-lists collapsed, so repeated queries group together |
-| `transaction_id` | the `db.transaction` span the query ran in |
-| `slow` | `duration >= slow_ms` |
-| `duplicate_of` | row number of an earlier identical query (same SQL and bindings) |
+| `bootstrap` | starting the framework |
+| `middleware` | global middleware |
+| `routing` | finding the route |
+| `handle` | route middleware, the controller and building the response |
+| `controller` | the controller itself |
+| `terminate` | work done after the response was sent |
 
-Transactions become spans of kind `db.transaction` with `outcome` (`committed`, `rolled_back`, `left_open`) and nesting level for savepoints.
+## Middleware
 
-Summary warnings: the three slowest slow queries, the number of duplicates, and N+1 candidates (a select shape repeated at least `n_plus_one_threshold` times, with its origin).
+Every middleware is timed: the time spent before it passed the request on and after the response came back, whether it stopped the request (for example a redirect or a 403) and with which status. Middleware written as closures is not timed.
 
-Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true - set false to leave bindings out).
+Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
-## CacheLens
+## Database
 
-Section `cache`. One row per operation: `type` (`hit`, `miss`, `write`, `forget`, `flush`, `write_failed`, `forget_failed`), `key`, `store`, `tags`, `ttl`, `value_size_bytes` (serialized length) and `duration` where the store emits the start events Laravel provides.
+Section `queries`: every query with its SQL, bindings, a ready-to-run version with the values filled in, connection, duration, type (select, insert, ...), tables and the transaction it ran in.
 
-Summary: hits, misses, hit rate, writes, forgets, total ms and the five hottest keys.
+Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. Transactions appear in the timeline with their outcome (committed or rolled back).
 
-Options: `values` (false) - also store the values themselves.
+Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true).
 
-## QueueLens
+## Cache
 
-Section `jobs` plus captures of type `job`. Two sides:
+Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. The summary shows the hit rate and the most used keys.
 
-**Dispatch side** - every queued job is a row on the capture that dispatched it: `job`, `connection`, `queue`, `delay`, `job_id`, `batch_id`, `chained` (remaining chain length) and `sync` (ran inline). The payload gets a `monocle` key carrying the dispatching capture's `parent_id` and `trace_id`, so the link survives the queue.
+Option: `values` (false) - also record the cached values.
 
-**Worker side** - every processed job becomes its own capture: name is the job class, status `processed`, `failed` or `exception`, `parent_id`/`trace_id` from the payload. Section `job` has class, connection, queue, `job_id`, `attempts`, `max_tries`, `batch_id`, `chained_remaining`, `payload_bytes` and, on failure, `exception` (class, message, file). Everything the job did - queries, cache, spans - is recorded on that capture. `monocle-trace` walks the whole tree.
+## Eloquent
 
-Jobs that run inline (the `sync` connection, `dispatchSync()`, `dispatchNow()`) become spans of kind `job` inside the current capture instead. A bus pipe records non-queueable commands too.
+Sections `models` and `model_changes`: how many models of each class were retrieved, created, updated and deleted, and the changed attributes of every write. Hidden attributes are left out.
 
-Long-running workers themselves (`queue:work`, `horizon`) are excluded as commands; their jobs are not.
+## Redis
 
-## CommandLens
+Section `redis`: every Redis command with its parameters, connection and duration.
 
-Section `command` plus captures of type `command`. Every artisan command run becomes a capture named `artisan <command>` with status = exit code and a `command` section: `name`, `arguments`, `options` (masked), `exit_code`. Phase spans `bootstrap` (from `LARAVEL_START`) and `command`.
+## Events
 
-A command invoked while another capture is active - `Artisan::call()` inside a request or a command - becomes a span of kind `command` with `exit_code` instead. Commands matching `monocle.except.commands` (Monocle's own, Boost, workers, the scheduler loop) are never recorded.
+Section `events`: your application's events with their payload and listeners. Framework events are left out.
 
-## ScheduleLens
+Option: `ignore` - event names or patterns to leave out.
 
-Section `scheduled_tasks` on the `schedule:run` capture: one row per task event with `command`, `expression`, `description`, `outcome` (`starting`, `finished`, `finished_in_background`, `skipped`, `failed`), `runtime_ms` and `exception`. Tasks run as subprocesses, so what they did themselves lands in their own command captures.
+## Log
 
-## LivewireLens
+Section `log`: everything written to the log, with level and context. Errors are also listed as warnings.
 
-Section `livewire`, only when Livewire is installed. One row per component touched by the request: `component`, `class`, `id`, `lifecycle` (`mount` for the initial render, `update` for subsequent requests), `calls` (method, params, duration), `updates` (property path and value), `render_ms`, `html_bytes` and `exception`. Each component is also a `livewire` span in the timeline, so the views it renders nest under it.
+## Views
 
-## DumpLens
+Section `views`: every rendered view and component with its duration and the names of the variables passed to it. Nested views appear nested in the timeline, so a partial rendered in a loop is easy to spot.
 
-Section `dumps`. Every `dump()` and `dd()`: the value as text, its type, the label and `is_dd`. The value is still handed to whatever dumper was registered before, so the developer sees it as usual. `dd()` ends the process; the shutdown handler stores the capture with `ended_by: shutdown`, and the summary warns about it.
+Options: `data` (false) - also record the variable values; `repeat_threshold` (10) - warn when a view is rendered this many times.
 
-## McpLens
+## Mail and notifications
 
-Section `mcp` plus captures of type `mcp`. Records calls to the MCP servers the application itself exposes (not Monocle's own server, nor Boost's - see `monocle.mcp.except_servers`): `server`, JSON-RPC `method`, `primitive` (tool, resource or prompt name), `arguments`, `duration`, `is_error`, `streamed_chunks` and `exception`. Over HTTP (`Mcp::web()`) the call is a row and an `mcp` span on the request capture; over stdio (`Mcp::local()`) every JSON-RPC request becomes its own capture named `server: method primitive`.
+Section `mail`: sent mail with subject, recipients, attachments and size, and sent notifications with their channel and recipient.
 
-## FilesystemLens
+## HTTP client
 
-Section `fs`. Laravel fires no events for `Storage`, so this lens replaces the filesystem manager with one that wraps the Flysystem adapter of every disk selected in its options. Nothing is recorded until disks are named; wildcards work:
+Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Secrets in headers and query strings are masked.
+
+Option: `bodies` (false) - also record request and response bodies.
+
+## Queue
+
+Section `jobs`: jobs dispatched during the capture.
+
+Every queued job is recorded as its own capture when a worker runs it, linked to the request, command or job that dispatched it. Use `monocle-trace` to follow the chain. Jobs that run immediately (the `sync` connection or `dispatchSync()`) appear in the timeline of the capture that ran them.
+
+## Artisan commands
+
+Section `command`: every artisan command is recorded as its own capture, with its arguments, options (secrets masked) and exit code. A command called from somewhere else, like `Artisan::call()` inside a request, appears in that capture's timeline.
+
+## Scheduler
+
+Section `scheduled_tasks` on the `schedule:run` capture: each task with its schedule, outcome (finished, skipped or failed) and runtime.
+
+## Exceptions
+
+Section `exceptions`: every reported exception with its message, the lines of your code it passed through and the exception that caused it.
+
+## Authorization
+
+Section `authorization`: every gate and policy check - which ability, for which user, the result and the reason when one was given. Useful when a request ends in a 403.
+
+## Livewire
+
+Section `livewire`: every component in the request - whether it was mounted or updated, the methods called, properties changed, render time and any exception.
+
+## Dumps
+
+Section `dumps`: every `dump()` and `dd()` with the value and where it was called. You still see the output as usual.
+
+## MCP servers
+
+Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Calls to Monocle's own server are not recorded.
+
+## Filesystem
+
+Section `fs`: operations on `Storage` disks - reads, writes, deletes, copies, moves, listings and so on - with path, size, duration and failures.
+
+Nothing is recorded until you choose the disks:
 
 ```php
 // config/monocle.php
 FilesystemLens::class => ['disks' => ['media', 'uploads-*']],   // or ['*'] for every disk
 ```
 
-Rows: `disk`, `driver`, `op` (`read`, `readStream`, `write`, `writeStream`, `delete`, `deleteDirectory`, `createDirectory`, `fileExists`, `directoryExists`, `listContents`, `move`, `copy`, `mimeType`, `fileSize`, `lastModified`, `visibility`, `setVisibility`, `checksum`), `path`, `destination`, `bytes`, `duration`, `ok` and the `exception` on failure. Disks not selected are untouched; native `file_*` calls are not covered.
+Plain PHP file functions like `file_put_contents()` are not recorded.
 
-## AiLens
+## AI
 
-Section `ai`, only when `laravel/ai` is installed. One row per agent invocation: `agent`, `provider`, `model`, `prompt`, `response` (or `structured`), `streamed`, `steps`, `tool_calls`, `failed_tools`, `tokens` (input, output, cache_read, cache_write, reasoning), `status` (`ok`/`failed`), `exception` and `duration`.
+Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.
 
-The timeline carries the tree: an `ai.agent` span per invocation, `ai.step` children per provider round-trip (model, finish reason, tokens, provider time) and `ai.tool` children per tool call (arguments, result, tool time). An agent invoked from inside a tool nests under that tool's span. Prompts and responses are kept whole; set the lens option `max_text` to truncate them.
-
-The summary adds total tokens, calls per provider/model and warnings for failed agents and tools.
+Option: `max_text` (no limit) - shorten long prompts and responses.
