@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml } from './format.js';
+import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml, humanize } from './format.js';
 import { cls } from './classes.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
@@ -24,17 +24,22 @@ const placeholdersHtml = (sql) => `<div class="${SEC}">${codeBlock('Query with p
 function metaRows(meta) {
   const links = meta._links ?? {};
   return Object.entries(meta)
-    .filter(([k, v]) => k !== '_links' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
+    .filter(([k, v]) => k !== '_links' && k !== 'n' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
     .map(([k, v]) => {
-      const text = (k === 'duration' || k === 'time' || k.endsWith('_ms')) && typeof v === 'number' ? ms(v) : fmtValue(v);
+      const bytes = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? (n / 1024).toFixed(1) + ' KB' : n + ' B');
+      const text = typeof v !== 'number' ? fmtValue(v)
+        : k === 'duration' || k === 'time' || k.endsWith('_ms') ? ms(v)
+          : k === 'bytes' || k.endsWith('_bytes') || k === 'size' ? bytes(v)
+            : k === 'ttl' ? `${v} s` : fmtValue(v);
+      const label = esc(k === 'time' ? 'Started at' : humanize(k.replace(/_(bytes|ms)$/, '')));
       // Details show values in full (class names included), each with a copy button.
       // A plain map (rules per field, parameters, context) as a small nested table.
       if (v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v) && Object.keys(v).length && Object.values(v).every((x) => x === null || typeof x !== 'object' || Array.isArray(x))) {
-        return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 text-xs"><table class="border-collapse">${Object.entries(v).map(([field, x]) => `<tr class="group/copy"><td class="pr-3 align-top font-mono text-muted">${esc(field)}</td><td class="font-mono [overflow-wrap:anywhere]">${esc(Array.isArray(x) ? x.map(fmtValue).join(' | ') : k === 'rules' ? String(x).split('|').join(' | ') : fmtValue(x))}</td><td class="pl-2">${copyButton(Array.isArray(x) ? x.map(fmtValue).join('|') : fmtValue(x), `${k} ${field}`, { hover: true })}</td></tr>`).join('')}</table></td><td class="w-5 py-0.5 align-top">${copyButton(JSON.stringify(v), k)}</td></tr>`;
+        return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${label}</th><td class="py-0.5 text-xs"><table class="border-collapse">${Object.entries(v).map(([field, x]) => `<tr class="group/copy"><td class="pr-3 align-top font-mono text-muted">${esc(field)}</td><td class="font-mono [overflow-wrap:anywhere]">${esc(Array.isArray(x) ? x.map(fmtValue).join(' | ') : k === 'rules' ? String(x).split('|').join(' | ') : fmtValue(x))}</td><td class="pl-2">${copyButton(Array.isArray(x) ? x.map(fmtValue).join('|') : fmtValue(x), `${k} ${field}`, { hover: true })}</td></tr>`).join('')}</table></td><td class="w-5 py-0.5 align-top">${copyButton(JSON.stringify(v), k)}</td></tr>`;
       }
-      if (isThrowable(v)) return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 text-xs">${exceptionHtml(v, { full: true })}</td><td class="w-5 py-0.5 align-top">${copyButton(`${v.class}: ${v.message}`, k)}</td></tr>`;
+      if (isThrowable(v)) return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${label}</th><td class="py-0.5 text-xs">${exceptionHtml(v, { full: true })}</td><td class="w-5 py-0.5 align-top">${copyButton(`${v.class}: ${v.message}`, k)}</td></tr>`;
       const value = links[k] ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass" href="${esc(links[k])}">${esc(text)}</a>` : esc(text);
-      return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${value}</td><td class="w-5 py-0.5 align-top">${copyButton(text, k)}</td></tr>`;
+      return `<tr class="group"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${label}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${value}</td><td class="w-5 py-0.5 align-top">${copyButton(text, k)}</td></tr>`;
     })
     .join('');
 }
