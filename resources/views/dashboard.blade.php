@@ -965,7 +965,7 @@
                                             <td
                                                 :class="cls.td"
                                                 class="text-right font-mono text-xs tabular-nums"
-                                                x-text="ms(q.duration)"
+                                                x-text="q.duration == null ? '-' : ms(q.duration)"
                                             ></td>
                                         </tr>
                                     </template>
