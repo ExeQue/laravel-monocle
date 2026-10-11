@@ -1115,7 +1115,12 @@
                                         >
                                             <template x-for="col in tableColumns" :key="col"
                                                 ><td
-                                                    :class="[cls.td, numeric(col) && '!text-right tabular-nums']"
+                                                    :class="[
+                                                        cls.td,
+                                                        numeric(col) && '!text-right tabular-nums',
+                                                        longValue(row[col]) && '[overflow-wrap:anywhere]',
+                                                        col === 'origin' && 'min-w-56',
+                                                    ]"
                                                     x-html="cell(row, col)"
                                                 ></td
                                             ></template>

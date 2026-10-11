@@ -28,6 +28,7 @@ const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"
  * to a short hash; the full name shows in a tooltip.
  */
 export const classes = (text) => esc(text)
+  .replace(/(?<![\w.\/-])\/(?:[\w.-]+\/){2,}([\w.-]+\/[\w.-]+(?::\d+)?)/g, (full, tail) => shortened(full, tail))
   .replace(/(?<![\w/])storage\/framework\/views\/([0-9a-f]{8})[0-9a-f]*\.(?:blade\.)?php/g, (full, hash) => shortened(full, `compiled/${hash}`))
   .replace(/(?<![\w/])resources\/views\/([\w./-]+)/g, (full, rest) => shortened(full, rest))
   .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => shortened(full, base + line))

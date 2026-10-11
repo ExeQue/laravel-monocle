@@ -446,6 +446,11 @@ Alpine.data('monocle', (config) => ({
     return this.authRows.filter((r) => r.event !== 'authenticated');
   },
 
+  /** Values long enough to need breaking anywhere, like keys, SQL and paths. */
+  longValue(value) {
+    return typeof value === 'string' ? value.length > 24 : value !== null && typeof value === 'object';
+  },
+
   numeric(key) {
     return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
   },
