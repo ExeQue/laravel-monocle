@@ -32,7 +32,7 @@ const TOTAL_GROUPS = [
   ['Features', (k) => k.startsWith('features_')],
   ['Authorization', (k) => k.startsWith('authorization_')],
 ];
-const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
+const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 const TAB_ORDER = ['exceptions', 'validation', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
@@ -76,6 +76,7 @@ Alpine.data('monocle', (config) => ({
   tabLoading: false,
   groupBy: 'order',
   httpGroup: 'order',
+  modelChanges: [],
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
   foldable: [],
@@ -179,6 +180,9 @@ Alpine.data('monocle', (config) => ({
       this.queryRows = tab === 'queries' && this.groupBy !== 'order'
         ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
         : {};
+      this.modelChanges = tab === 'models'
+        ? (await this.fetchJson(`${base}/rows/model_changes?limit=500&verbose=1`)).rows ?? []
+        : [];
       this.authRows = tab === 'request' && this.summary.counts?.auth
         ? (await this.fetchJson(`${base}/rows/auth?limit=100&verbose=1`)).rows ?? []
         : [];
@@ -272,8 +276,11 @@ Alpine.data('monocle', (config) => ({
     const skip = isRequest ? [...SKIP_SECTIONS, 'auth'] : SKIP_SECTIONS;
     if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
     const sections = (this.capture.available_sections ?? []).filter((s) => !skip.includes(s.key) && s.rows);
+    // Model changes are shown in the Models tab, under the counts.
+    const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
+    if (changes && !sections.some((s) => s.key === 'models')) sections.push({ ...changes, key: 'models', rows: 0 });
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
-      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows, description: s.description });
+      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows || changes?.rows, description: s.description });
     }
     if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
@@ -418,8 +425,17 @@ Alpine.data('monocle', (config) => ({
   get request() { return this.tab === 'request' ? (this.tabData?.data ?? null) : null; },
   get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },
 
+  /** The tables in a generic tab: the tab's own rows, and model changes under the model counts. */
+  get tables() {
+    const own = { key: this.tab, title: null, rows: this.tabData?.rows ?? [] };
+    return this.tab === 'models' ? [own, { key: 'model_changes', title: 'Changes', rows: this.modelChanges }] : [own];
+  },
+
   get tableColumns() {
-    const rows = this.tabData?.rows ?? [];
+    return this.columnsOf(this.tabData?.rows ?? []);
+  },
+
+  columnsOf(rows) {
     const keys = [];
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n' && k !== '_links') keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);

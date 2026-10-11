@@ -1101,35 +1101,69 @@
                                             <td colspan="5" class="border-line bg-sunk/50 border-b px-3 py-0">
                                                 <div x-show="openGroups.includes(q.key)" x-collapse>
                                                     <template x-for="n in q.rows ?? []" :key="n">
-                                                        <div
-                                                            class="border-line hover:bg-sunk grid cursor-pointer grid-cols-[3rem_minmax(0,1fr)_auto] gap-x-3 border-b py-1.5 text-xs last:border-b-0"
-                                                            @click="rowPopover($event, queryRows[n] ?? {}, 'queries')"
-                                                        >
-                                                            <span
-                                                                class="text-muted font-mono tabular-nums"
-                                                                x-text="'#' + n"
-                                                            ></span>
-                                                            <div class="min-w-0">
-                                                                <code
-                                                                    class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                                    x-text="
-                                                                        queryRows[n]?.sql_with_bindings ??
-                                                                        queryRows[n]?.sql ??
-                                                                        '...'
-                                                                    "
-                                                                ></code>
-                                                                <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
+                                                        <div class="border-line border-b last:border-b-0">
+                                                            <div
+                                                                class="hover:bg-sunk grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 py-1.5 text-xs"
+                                                                @click="toggleQuery(n)"
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    class="text-muted inline-flex cursor-pointer items-start gap-1 font-mono tabular-nums"
+                                                                    :aria-expanded="openQueries.includes(n)"
+                                                                    :aria-label="(openQueries.includes(n)
+                                                                        ? 'Hide'
+                                                                        : 'Show') +
+                                                                    ' the details of query ' +
+                                                                    n"
+                                                                    @click.stop="toggleQuery(n)"
+                                                                >
+                                                                    <svg
+                                                                        class="text-brass mt-0.5 size-3 transition-transform duration-200"
+                                                                        :class="openQueries.includes(n) && 'rotate-90'"
+                                                                        viewBox="0 0 16 16"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        stroke-width="2"
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        aria-hidden="true"
+                                                                    >
+                                                                        <path d="M6 3.5 10.5 8 6 12.5" />
+                                                                    </svg>
+                                                                    <span x-text="'#' + n"></span>
+                                                                </button>
+                                                                <div class="min-w-0">
+                                                                    <code
+                                                                        class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                                        x-text="
+                                                                            queryRows[n]?.sql_with_bindings ??
+                                                                            queryRows[n]?.sql ??
+                                                                            '...'
+                                                                        "
+                                                                    ></code>
+                                                                    <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
+                                                                    <span
+                                                                        class="text-muted font-mono text-[11px]"
+                                                                        x-text="queryRows[n]?.connection ?? ''"
+                                                                    ></span>
+                                                                </div>
                                                                 <span
-                                                                    class="text-muted font-mono text-[11px]"
-                                                                    x-text="queryRows[n]?.connection ?? ''"
+                                                                    class="text-right whitespace-nowrap tabular-nums"
+                                                                    x-html="
+                                                                        queryRows[n]
+                                                                            ? cell(queryRows[n], 'duration')
+                                                                            : ''
+                                                                    "
                                                                 ></span>
                                                             </div>
-                                                            <span
-                                                                class="text-right whitespace-nowrap tabular-nums"
-                                                                x-html="
-                                                                    queryRows[n] ? cell(queryRows[n], 'duration') : ''
-                                                                "
-                                                            ></span>
+                                                            <div x-show="openQueries.includes(n)" x-collapse x-cloak>
+                                                                <div
+                                                                    class="pb-3 pl-[4.25rem]"
+                                                                    x-html="
+                                                                        queryRows[n] ? queryDetails(queryRows[n]) : ''
+                                                                    "
+                                                                ></div>
+                                                            </div>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -1342,42 +1376,53 @@
                                 </template>
                             </table>
                         </div>
-                        <div :class="cls.tableWrap" x-show="tabData?.rows?.length && ! httpGroups.length">
-                            <table class="w-full border-collapse text-[13px]">
-                                <thead>
-                                    <tr>
-                                        <template x-for="col in tableColumns" :key="col"
-                                            ><th
-                                                scope="col"
-                                                :class="[cls.th, numeric(col) && '!text-right']"
-                                                x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"
-                                            ></th
-                                        ></template>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
-                                        <tr
-                                            class="hover:bg-sunk cursor-pointer"
-                                            :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
-                                            @click="rowPopover($event, row, tab)"
-                                        >
-                                            <template x-for="col in tableColumns" :key="col"
-                                                ><td
-                                                    :class="[
-                                                        cls.td,
-                                                        numeric(col) && '!text-right tabular-nums',
-                                                        ! longValue(row[col]) && '![overflow-wrap:break-word]',
-                                                        col === 'origin' && 'min-w-56',
-                                                    ]"
-                                                    x-html="cell(row, col)"
-                                                ></td
-                                            ></template>
-                                        </tr>
-                                    </template>
-                                </tbody>
-                            </table>
-                        </div>
+                        <template x-for="t in httpGroups.length ? [] : tables" :key="t.key">
+                            <div class="mb-5 last:mb-0" x-show="t.rows.length">
+                                <h3
+                                    class="text-muted mb-2 text-xs font-semibold tracking-wide uppercase"
+                                    x-show="t.title"
+                                    x-text="t.title"
+                                ></h3>
+                                <div :class="cls.tableWrap">
+                                    <table class="w-full border-collapse text-[13px]">
+                                        <thead>
+                                            <tr>
+                                                <template x-for="col in columnsOf(t.rows)" :key="col"
+                                                    ><th
+                                                        scope="col"
+                                                        :class="[cls.th, numeric(col) && '!text-right']"
+                                                        x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"
+                                                    ></th
+                                                ></template>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="(row, i) in t.rows" :key="i">
+                                                <tr
+                                                    class="hover:bg-sunk cursor-pointer"
+                                                    :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
+                                                    @click="rowPopover($event, row, t.key)"
+                                                >
+                                                    <template x-for="col in columnsOf(t.rows)" :key="col"
+                                                        ><td
+                                                            :class="[
+                                                                cls.td,
+                                                                numeric(col) && '!text-right tabular-nums',
+                                                                ! longValue(row[col]) && '![overflow-wrap:break-word]',
+                                                                col === 'origin' && 'min-w-56',
+                                                                ['model', 'action', 'key', 'type'].includes(col) &&
+                                                                    'whitespace-nowrap',
+                                                            ]"
+                                                            x-html="cell(row, col)"
+                                                        ></td
+                                                    ></template>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </template>
                         <dl class="m-0 grid gap-1.5" x-show="tabData?.data">
                             <template x-for="[k, v] in Object.entries(tabData?.data ?? {})" :key="k">
                                 <div class="border-line grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-3 border-b py-1.5">

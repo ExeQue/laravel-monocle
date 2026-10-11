@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, classes } from './format.js';
+import { esc, ms, fmtValue, maybeLink } from './format.js';
 import { cls } from './classes.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
@@ -16,7 +16,12 @@ const originHtml = (o) => !o || !o.file ? '' : `
     ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
-const placeholdersHtml = (sql) => `<div class="${SEC}"><div class="${K}">Query with placeholders</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(sql)}</pre></div>`;
+/** A small button copying `text`; the click is handled in setupPopover. */
+const copyButton = (text, what) => `<button type="button" class="shrink-0 cursor-pointer rounded p-0.5 text-muted hover:text-brass focus-visible:text-brass" data-pop-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy"><svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3.5V9A1.5 1.5 0 0 0 4 10.5h1.5"/></svg></button>`;
+
+const codeBlock = (title, text) => `<div class="flex items-center justify-between gap-2"><div class="${K}">${title}</div>${copyButton(text, title.toLowerCase())}</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(text)}</pre>`;
+
+const placeholdersHtml = (sql) => `<div class="${SEC}">${codeBlock('Query with placeholders', sql)}</div>`;
 
 function metaRows(meta) {
   const links = meta._links ?? {};
@@ -24,7 +29,9 @@ function metaRows(meta) {
     .filter(([k, v]) => k !== '_links' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
     .map(([k, v]) => {
       const text = (k === 'duration' || k === 'time' || k.endsWith('_ms')) && typeof v === 'number' ? ms(v) : fmtValue(v);
-      return `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(text, links[k]) : classes(text)}</td></tr>`;
+      // Details show values in full (class names included), each with a copy button.
+      const value = links[k] ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass" href="${esc(links[k])}">${esc(text)}</a>` : esc(text);
+      return `<tr class="group"><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${value}</td><td class="w-5 py-0.5 align-top">${copyButton(text, k)}</td></tr>`;
     })
     .join('');
 }
@@ -45,7 +52,7 @@ function nodeDetails(model, n) {
       <div class="grid gap-0.5"><span class="${K}">Of total</span><b class="tabular-nums">${((dur / Math.max(model.duration, 0.001)) * 100).toFixed(1)} %</b></div>
       ${n.children.length ? `<div class="grid gap-0.5"><span class="${K}">Children</span><b class="tabular-nums">${n.children.length}</b></div>` : ''}
     </div>
-    ${d.sql ? `<div class="${SEC}"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(d.sql)}</pre></div>` : ''}
+    ${d.sql ? `<div class="${SEC}">${codeBlock('Query', d.sql)}</div>` : ''}
     ${d.placeholders ? placeholdersHtml(d.placeholders) : ''}
     ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${n.redis?.length ? `<div class="${SEC}"><div class="${K}">Redis commands</div>${n.redis.map((r) => `<div class="${SUB} font-mono">${esc(r.name)} <span class="tabular-nums">${ms(r.e - r.s)}</span></div>`).join('')}</div>` : ''}
@@ -61,7 +68,7 @@ export function rowDetails(row, section) {
   return `
     <div class="flex items-center gap-2"><span class="${cls.type}">${esc(section)}</span>${row.n ? `<span class="font-mono text-[11px] text-muted">#${esc(row.n)}</span>` : ''}<button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
     ${sql ? '' : `<div class="font-semibold [overflow-wrap:anywhere]">${esc(String(title))}</div>`}
-    ${sql ? `<div class="${SEC} border-t-0 pt-0"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(sql)}</pre></div>` : ''}
+    ${sql ? `<div class="${SEC} border-t-0 pt-0">${codeBlock('Query', sql)}</div>` : ''}
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
     ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${originHtml(row.origin)}`;
@@ -86,6 +93,23 @@ function phaseDetails(model, p) {
  * Click a timeline row, block or phase bar to open its details next to the
  * click. getModel() returns the timeline model of the open capture.
  */
+/** Copy a detail value and confirm on the button for a moment. */
+function copyValue(button) {
+  const done = () => {
+    button.dataset.tip = 'Copied';
+    button.classList.add('!text-ok');
+    setTimeout(() => { button.dataset.tip = 'Copy'; button.classList.remove('!text-ok'); }, 1200);
+  };
+  navigator.clipboard?.writeText(button.dataset.popCopy).then(done, () => {
+    const area = Object.assign(document.createElement('textarea'), { value: button.dataset.popCopy });
+    document.body.append(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+    done();
+  });
+}
+
 export function setupPopover(root, getModel) {
   const pop = document.createElement('div');
   pop.className = 'pop pop-arrow scroll-quiet fixed z-50 grid max-h-[min(70vh,520px)] w-[min(380px,calc(100vw-32px))] gap-2.5 overflow-auto rounded-lg border border-line bg-panel p-3.5 text-[13px] text-fg shadow-[0_12px_32px_rgba(0,0,0,.18),0_2px_6px_rgba(0,0,0,.08)]';
@@ -156,6 +180,8 @@ export function setupPopover(root, getModel) {
   document.addEventListener('click', (e) => {
     if (e.target.closest('.pop')) {
       if (e.target.closest('[data-pop-close]')) close();
+      const copy = e.target.closest('[data-pop-copy]');
+      if (copy) copyValue(copy);
       const jump = e.target.closest('[data-pop-node]');
       if (jump) {
         const el = root.querySelector(`[data-node="${jump.dataset.popNode}"]`);

@@ -8,9 +8,9 @@ Captures Monocle flagged show how many warnings they have. Filter the list by ty
 
 **Copy agent prompt** in the header copies a prompt for your coding agent: the capture, its totals, what Monocle flagged and how to dig in through the MCP server. Paste it into the agent to have it look into that request.
 
-The queries and HTTP tabs list calls in order or grouped: queries by query, caller, table or transaction, HTTP calls by endpoint, host, pool or status. Each group shows its count and timing and expands to the calls in it.
+The queries and HTTP tabs list calls in order or grouped: queries by query, caller, table or transaction, HTTP calls by endpoint, host, pool or status. Each group shows its count and timing and expands to the calls in it, and a query expands to its bindings and details in both views. Model changes are listed in the Models tab under the counts.
 
-Click a line on the timeline to see its details: the query with its values, the line of your code that caused it and the call chain leading there. With an editor set up (see [Installation](installation.md#opening-files-in-your-editor)), file paths and class names open in your editor.
+Click a line on the timeline or a row in a table to see its details: the query with its values, every field in full with a button to copy it, the line of your code that caused it and the call chain leading there. With an editor set up (see [Installation](installation.md#opening-files-in-your-editor)), file paths and class names open in your editor.
 
 ## Access
 
