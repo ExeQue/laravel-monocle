@@ -63,6 +63,7 @@ return [
     */
 
     'lenses' => [
+        // Laravel
         RequestLens::class => [
             'capture' => [
                 'response_types' => [
@@ -79,9 +80,7 @@ return [
             ],
         ],
         SessionLens::class => true,
-        CommandLens::class => true,
-        QueueLens::class => true,
-        ScheduleLens::class => true,
+        AuthLens::class => true,
         MiddlewareLens::class => true,
         DatabaseLens::class => [
             'slow_ms' => 70,
@@ -89,42 +88,56 @@ return [
             'bindings' => true,
             'ignore_tables' => ['telescope_*', 'pulse_*'],
         ],
+        EloquentLens::class => true,
         CacheLens::class => [
             'values' => false,
             'repeat_threshold' => 5,
             'repeat_ms' => 5,
         ],
-        EloquentLens::class => true,
         RedisLens::class => true,
-        EventsLens::class => [
-            'ignore' => ['Illuminate\*', 'Laravel\*', 'Livewire\*', 'eloquent.*', 'composing:*', 'creating:*', 'bootstrapping:*', 'bootstrapped:*', 'locale.*'],
-        ],
-        LogLens::class => true,
         ViewsLens::class => [
             'engines' => ['blade', 'php', 'file'],
             'data' => false,
             'repeat_threshold' => 10,
             'repeat_ms' => 20,
         ],
-        MailLens::class => true,
+        EventsLens::class => [
+            'ignore' => ['Illuminate\*', 'Laravel\*', 'Livewire\*', 'eloquent.*', 'composing:*', 'creating:*', 'bootstrapping:*', 'bootstrapped:*', 'locale.*'],
+        ],
+        QueueLens::class => true,
+        CommandLens::class => true,
+        ScheduleLens::class => true,
         HttpClientLens::class => [
             'bodies' => false,
         ],
-        ExceptionsLens::class => true,
-        AuthorizationLens::class => true,
-        AuthLens::class => true,
-        FeatureFlagsLens::class => true,
-        ResponseCacheLens::class => true,
-        MediaLibraryLens::class => true,
-        LivewireLens::class => true,
-        DumpLens::class => true,
-        McpLens::class => true,
+        MailLens::class => true,
         FilesystemLens::class => [
             'disks' => [],                          // disk names, wildcards allowed: ['media', 'uploads-*'] or ['*']
         ],
+        ExceptionsLens::class => true,
+        LogLens::class => true,
+        AuthorizationLens::class => true,
+        DumpLens::class => true,
+
+        // Livewire
+        LivewireLens::class => true,
+
+        // laravel/mcp
+        McpLens::class => true,
+
+        // laravel/ai
         AiLens::class => [
             'max_text' => null,                     // null = never truncate prompts and responses
         ],
+
+        // Laravel Pennant
+        FeatureFlagsLens::class => true,
+
+        // spatie/laravel-responsecache
+        ResponseCacheLens::class => true,
+
+        // spatie/laravel-medialibrary
+        MediaLibraryLens::class => true,
     ],
 
     /*
