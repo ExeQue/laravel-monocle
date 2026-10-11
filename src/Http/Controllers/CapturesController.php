@@ -57,6 +57,8 @@ final readonly class CapturesController
                 $captures->children($capture->id),
             ),
             'context' => [
+                // Only a GET request can be opened again from a link.
+                'url' => ($capture->section('request')['method'] ?? null) === 'GET' ? ($capture->section('request')['url'] ?? null) : null,
                 'route' => $route['name'] ?? null,
                 'action' => $route['action'] ?? null,
                 'action_link' => $timeline->link($route['action'] ?? null),

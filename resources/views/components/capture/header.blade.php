@@ -1,6 +1,17 @@
 {{-- The open capture's name, status, facts, copy buttons, trace links and section tabs. --}}
 <header class="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-    <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]" x-text="summary.name"></h2>
+    <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]">
+        <a
+            class="hover:text-brass"
+            x-show="capture.context?.url"
+            :href="capture.context?.url"
+            target="_blank"
+            rel="noopener"
+            data-tip="Open in a new window"
+            x-text="summary.name"
+        ></a>
+        <span x-show="! capture.context?.url" x-text="summary.name"></span>
+    </h2>
     <span
         class="font-mono text-xs"
         :class="statusClass(summary.status)"
