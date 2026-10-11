@@ -162,10 +162,24 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
             $origin = Origin::describe(is_array($row['origin'] ?? null) ? $row['origin'] : null);
             $where = $origin === null ? '' : ' from '.$origin;
-            $warnings[] = sprintf('Slow cache %s (%.1f ms): %s on %s%s', $row['type'] ?? 'call', $duration, $row['key'] ?? '?', $row['store'] ?? 'the default store', $where);
+            $warnings[] = sprintf('Slow cache %s (%.1f ms) on %s: %s%s', $row['type'] ?? 'call', $duration, $this->describeStore($row['store'] ?? null), $row['key'] ?? '?', $where);
         }
 
         return $warnings;
+    }
+
+    /**
+     * 'the "sessions" store (redis)', with the driver when the name does not say it.
+     */
+    private function describeStore(?string $store): string
+    {
+        if ($store === null) {
+            return 'the default store';
+        }
+
+        $driver = config("cache.stores.{$store}.driver");
+
+        return is_string($driver) && $driver !== $store ? "the \"{$store}\" store ({$driver})" : "the \"{$store}\" store";
     }
 
     /**

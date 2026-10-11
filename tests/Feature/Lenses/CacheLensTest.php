@@ -93,7 +93,13 @@ describe(CacheLens::class, function (): void {
         ];
         $lens = app(CacheLens::class);
 
-        expect($lens->summarize($capture)->warnings)->toBe(['Slow cache hit (34.2 ms): rates on redis']);
+        config(['cache.stores.sessions' => ['driver' => 'redis']]);
+        $capture->sections['cache'][] = ['n' => 3, 'type' => 'miss', 'key' => 'cart', 'store' => 'sessions', 'duration' => 25.0];
+
+        expect($lens->summarize($capture)->warnings)->toBe([
+            'Slow cache hit (34.2 ms) on the "redis" store: rates',
+            'Slow cache miss (25.0 ms) on the "sessions" store (redis): cart',
+        ]);
 
         $lens->configure(['slow_ms' => 50]);
 
