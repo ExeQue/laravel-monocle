@@ -8,6 +8,8 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Exceptions\MonocleExceptionInterface;
 use ExeQue\Monocle\Lenses\ValidationLens;
+use ExeQue\Monocle\Support\Concerns\Immutable;
+use ReflectionClass;
 use Symfony\Component\Finder\Finder;
 
 // Recording where a call came from is what a profiler does.
@@ -43,6 +45,27 @@ arch('core lenses do not depend on optional packages')
     ->expect('ExeQue\Monocle\Lenses')
     ->not->toUse(['Livewire', 'Inertia', 'Laravel\Ai', 'Laravel\Mcp', 'Laravel\Pennant', 'Spatie'])
     ->ignoring(['ExeQue\Monocle\Lenses\Packages', ValidationLens::class]);
+
+test('immutables are final readonly classes built only through their own methods', function (): void {
+    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src')->name('*.php');
+    $immutables = [];
+
+    foreach ($files as $file) {
+        $class = 'ExeQue\Monocle\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+
+        if (class_exists($class) && in_array(Immutable::class, class_uses($class), true)) {
+            $immutables[] = new ReflectionClass($class);
+        }
+    }
+
+    expect($immutables)->not->toBeEmpty();
+
+    foreach ($immutables as $immutable) {
+        expect($immutable->isFinal())->toBeTrue("{$immutable->name} is not final")
+            ->and($immutable->isReadOnly())->toBeTrue("{$immutable->name} is not readonly")
+            ->and($immutable->getConstructor()?->isPrivate())->toBeTrue("{$immutable->name} has no private constructor");
+    }
+});
 
 test('every lens implements Lens and Advises', function (): void {
     $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src/Lenses')->name('*Lens.php');

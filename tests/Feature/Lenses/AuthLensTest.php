@@ -124,6 +124,6 @@ describe(AuthLens::class, function (): void {
     });
 
     it('summarizes nothing when there was no authentication', function (): void {
-        expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

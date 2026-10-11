@@ -64,6 +64,6 @@ describe(LivewireLens::class, function (): void {
     it('summarizes nothing without components', function (): void {
         $this->get('/nothing-here');
 
-        expect(app(LivewireLens::class)->summarize(latestCapture()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(LivewireLens::class)->summarize(latestCapture()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

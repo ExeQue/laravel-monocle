@@ -53,6 +53,6 @@ describe(MailLens::class, function (): void {
     });
 
     it('summarizes nothing without mail', function (): void {
-        expect(app(MailLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(MailLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

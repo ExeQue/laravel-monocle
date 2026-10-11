@@ -188,6 +188,6 @@ describe(HttpClientLens::class, function (): void {
     });
 
     it('summarizes nothing without calls', function (): void {
-        expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

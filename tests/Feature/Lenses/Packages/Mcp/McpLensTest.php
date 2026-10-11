@@ -54,7 +54,7 @@ describe(McpLens::class, function (): void {
         $call('/mcp/excluded', ['text' => 'hi'])->assertOk();
 
         expect(latestCapture()->rows('mcp'))->toBe([])
-            ->and(app(McpLens::class)->summarize(latestCapture()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+            ->and(app(McpLens::class)->summarize(latestCapture()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 
     it('counts streamed chunks', function (): void {

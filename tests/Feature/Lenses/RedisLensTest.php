@@ -49,6 +49,6 @@ describe(RedisLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->rows('redis'))->toBe([])
-            ->and(app(RedisLens::class)->summarize($capture))->toEqual(new \ExeQue\Monocle\Data\Summary());
+            ->and(app(RedisLens::class)->summarize($capture))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

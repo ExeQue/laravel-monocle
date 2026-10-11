@@ -122,18 +122,19 @@
                 class="grid after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)]"
                 :data-label="t.label"
                 x-text="t.label"
-            ></span
-            ><span
-                class="min-w-5 rounded-full px-1.5 py-px text-center font-mono text-[10.5px] leading-4 tabular-nums"
-                :class="t.errors
-                    ? 'bg-bad-soft text-bad font-bold'
-                    : t.problems
-                      ? 'bg-warn-soft text-warn font-bold'
-                      : 'bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass'"
-                x-show="t.count"
-                x-text="t.count"
-                :data-tip="problemTip(t)"
             ></span>
+            <x-monocle::badge
+                count="t.count"
+                x-show="t.count"
+                ::class="
+                    t.errors
+                        ? 'bg-bad-soft text-bad font-bold'
+                        : t.problems
+                          ? 'bg-warn-soft text-warn font-bold'
+                          : 'bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass'
+                "
+                ::data-tip="problemTip(t)"
+            />
             <span
                 class="size-1.5 rounded-full"
                 :class="t.errors ? 'bg-bad' : 'bg-warn'"

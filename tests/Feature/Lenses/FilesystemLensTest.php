@@ -113,6 +113,6 @@ describe(FilesystemLens::class, function (): void {
     });
 
     it('summarizes nothing without operations', function (): void {
-        expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

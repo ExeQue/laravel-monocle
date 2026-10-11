@@ -43,6 +43,6 @@ describe(FeatureFlagsLens::class, function (): void {
     });
 
     it('summarizes nothing without flag checks', function (): void {
-        expect(app(FeatureFlagsLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(FeatureFlagsLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

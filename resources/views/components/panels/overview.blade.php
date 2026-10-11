@@ -55,11 +55,11 @@
     </div>
     <div class="grid min-w-0 content-start gap-6">
         <div x-data="{ open: true, all: false }">
-            <x-monocle::fold-heading
-                open="open"
-                count="problemList.length"
-                badge="summary.errors?.length ? 'bg-bad-soft text-bad' : 'bg-warn-soft text-warn'"
-            >Warnings</x-monocle::fold-heading>
+            <x-monocle::fold-heading open="open">
+                Warnings / Errors
+                <x-monocle::badge count="summary.warnings?.length ?? 0" class="bg-warn-soft text-warn" />
+                <x-monocle::badge count="summary.errors?.length ?? 0" class="bg-bad-soft text-bad" />
+            </x-monocle::fold-heading>
             <div class="grid gap-2" x-show="open && problemList.length" x-collapse>
                 <template x-for="p in problemList.slice(0, all ? undefined : 3)" :key="p.text">
                     <div
@@ -78,7 +78,7 @@
                     x-text="all ? 'Show less' : 'Show ' + (problemList.length - 3) + ' more'"
                 ></button>
             </div>
-            <p :class="cls.empty" x-show="! problemList.length">No warnings.</p>
+            <p :class="cls.empty" x-show="! problemList.length">No warnings or errors.</p>
         </div>
         <div x-data="{ open: true }">
             <x-monocle::fold-heading open="open">Totals</x-monocle::fold-heading>

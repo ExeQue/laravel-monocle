@@ -40,6 +40,6 @@ describe(LogLens::class, function (): void {
     it('summarizes nothing without log rows', function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
 
-        expect(app(LogLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(LogLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

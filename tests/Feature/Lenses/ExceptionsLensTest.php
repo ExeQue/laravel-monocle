@@ -47,6 +47,6 @@ describe(ExceptionsLens::class, function (): void {
 
         expect($capture->status)->toBe('404')
             ->and($capture->rows('exceptions'))->toBe([])
-            ->and(app(ExceptionsLens::class)->summarize($capture))->toEqual(new \ExeQue\Monocle\Data\Summary());
+            ->and(app(ExceptionsLens::class)->summarize($capture))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

@@ -133,6 +133,6 @@ describe(AiLens::class, function (): void {
         event(new PromptingAgent('inv-9', ($this->prompt)('inv-9')));
         app(Eyepiece::class)->start(CaptureType::Request);
 
-        expect(app(AiLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(AiLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

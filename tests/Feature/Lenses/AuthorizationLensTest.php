@@ -51,6 +51,6 @@ describe(AuthorizationLens::class, function (): void {
     });
 
     it('summarizes nothing without checks', function (): void {
-        expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
+        expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });
