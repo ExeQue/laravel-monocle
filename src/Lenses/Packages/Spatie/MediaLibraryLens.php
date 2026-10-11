@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Spatie;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -16,7 +17,7 @@ use Illuminate\Contracts\Foundation\Application;
  * that ran, each conversion as a span. Conversions that run during a
  * request instead of on the queue are a common cause of slow uploads.
  */
-final class MediaLibraryLens implements Lens, Summarizable
+final class MediaLibraryLens implements Advises, Lens, Summarizable
 {
     private const string ADDED = 'Spatie\\MediaLibrary\\MediaCollections\\Events\\MediaHasBeenAddedEvent';
 
@@ -34,6 +35,11 @@ final class MediaLibraryLens implements Lens, Summarizable
     public function description(): string
     {
         return 'spatie/laravel-medialibrary: event (added, conversion), media (Class#id), model it belongs to, collection, disk, file, size in bytes, and for conversions the conversion name, whether it is queued and its duration in ms.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when uploads are slow: media added and image conversions that ran during the request instead of on the queue.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

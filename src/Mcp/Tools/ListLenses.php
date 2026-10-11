@@ -15,7 +15,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
 #[Name('monocle-lenses')]
-#[Description('List the lenses enabled in this application: each section key you can pass to monocle-show and monocle-rows, with what it records.')]
+#[Description('List the lenses enabled in this application: each section key you can pass to monocle-show and monocle-rows, with when to look at it and what it records.')]
 final class ListLenses extends Tool
 {
     use RespondsWithJson;
@@ -27,9 +27,10 @@ final class ListLenses extends Tool
     public function handle(Request $request): Response
     {
         $lenses = [];
+        $advice = $this->registry->advice();
 
         foreach ($this->registry->descriptions() as $key => $description) {
-            $lenses[] = ['section' => $key, 'description' => $description];
+            $lenses[] = ['section' => $key, 'when' => $advice[$key] ?? null, 'description' => $description];
         }
 
         return $this->json(['lenses' => $lenses]);

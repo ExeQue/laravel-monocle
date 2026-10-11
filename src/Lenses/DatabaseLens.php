@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
@@ -25,7 +26,7 @@ use Throwable;
  * Records every executed query with its shape, duplicates and transaction,
  * and wraps transactions in spans.
  */
-final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
+final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -54,6 +55,11 @@ final class DatabaseLens implements Configurable, Finalizable, Lens, Resettable,
     public function description(): string
     {
         return 'Every executed query: sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query). Transactions are db.transaction spans in the timeline.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here first when a page is slow or does too much work: N+1 queries, slow and duplicate queries, each with the line that ran it.';
     }
 
     public function configure(array $options): void

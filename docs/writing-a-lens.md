@@ -112,6 +112,22 @@ public function summarize(Capture $capture): array
 }
 ```
 
+## Advice for agents
+
+The Monocle skill lists every lens with one sentence on when to look at it. Implement `Advises` to write that sentence yourself; otherwise the first sentence of `description()` is used.
+
+```php
+use ExeQue\Monocle\Contracts\Lenses\Advises;
+
+final class PaymentsLens implements Advises, Lens
+{
+    public function advice(): string
+    {
+        return 'Look here when a checkout fails or is slow: every call to the payment provider.';
+    }
+}
+```
+
 ## Before and after each capture
 
 - `Finalizable::finalize(Capture $capture)` - runs just before a capture is saved.

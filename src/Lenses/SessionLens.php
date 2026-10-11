@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Session\SnapshotsSession;
@@ -20,7 +21,7 @@ use Throwable;
  * changed in it. Values under keys that match the input masking pattern (the
  * CSRF token among them) are masked.
  */
-final class SessionLens implements Lens, Resettable
+final class SessionLens implements Advises, Lens, Resettable
 {
     private Eyepiece $eyepiece;
 
@@ -35,6 +36,11 @@ final class SessionLens implements Lens, Resettable
     public function description(): string
     {
         return 'Session contents after the request was handled: data (masked like input), changes (one {field, from, to} per dot-notated key the request added, changed or removed; from is null for new keys, to is null for removed ones), flash (keys flashed for the next request), the driver and a short hash of the session id.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when behaviour depends on session state, such as flash messages, intended URLs or wizard steps, and to see what the request changed in it.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

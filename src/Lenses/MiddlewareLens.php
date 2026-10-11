@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -27,7 +28,7 @@ use Throwable;
  * ponytail: closure middleware and instances created outside the container
  * are not timed.
  */
-final class MiddlewareLens implements Configurable, Lens, Summarizable
+final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
 {
     private Application $app;
 
@@ -51,6 +52,11 @@ final class MiddlewareLens implements Configurable, Lens, Summarizable
     public function description(): string
     {
         return 'Two timeline spans per class-based middleware: middleware.request (the work done before it called $next, with passed=false and the HTTP status when it short-circuited) and middleware.response (the work done once $next returned). Use kinds=[middleware] on the timeline.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when time goes before or after the controller, or when a request is redirected or rejected before it reaches it.';
     }
 
     public function configure(array $options): void

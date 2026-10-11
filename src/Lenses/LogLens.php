@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -16,7 +17,7 @@ use Throwable;
 /**
  * Log messages written during the capture, with level and context.
  */
-final class LogLens implements Lens, Summarizable
+final class LogLens implements Advises, Lens, Summarizable
 {
     private const array ERROR_LEVELS = ['emergency', 'alert', 'critical', 'error'];
 
@@ -30,6 +31,11 @@ final class LogLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Log captures written while handling the capture: level, message and context. Exceptions in the context are reduced to class, message and file:line.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for warnings and errors the application logged while handling the capture.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

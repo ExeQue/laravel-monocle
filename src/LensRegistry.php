@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
@@ -138,6 +139,26 @@ final class LensRegistry
         }
 
         return $descriptions;
+    }
+
+    /**
+     * Section key => when to look at it, for every enabled lens: its advice,
+     * or the first sentence of its description when it gives none.
+     *
+     * @return array<string, string>
+     */
+    public function advice(): array
+    {
+        $advice = [];
+        $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
+
+        foreach ($lenses as $lens) {
+            $advice[$lens->key()] = $lens instanceof Advises
+                ? $lens->advice()
+                : (preg_match('/^.+?[.!?](?=\s|$)/s', $lens->description(), $match) === 1 ? $match[0] : $lens->description());
+        }
+
+        return $advice;
     }
 
     /**

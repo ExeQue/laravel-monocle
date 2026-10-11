@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -21,7 +22,7 @@ use Throwable;
  * Outgoing HTTP client calls with masked headers and query, sizes, status
  * and duration.
  */
-final class HttpClientLens implements Configurable, Lens, Resettable, Summarizable
+final class HttpClientLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -38,6 +39,11 @@ final class HttpClientLens implements Configurable, Lens, Resettable, Summarizab
     public function description(): string
     {
         return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag and the exception for connection failures. Bodies only with the option bodies=true.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when an outgoing API call is slow, fails or sends the wrong data.';
     }
 
     public function configure(array $options): void

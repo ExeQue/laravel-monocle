@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -29,7 +30,7 @@ use Throwable;
  * Records cache hits, misses, writes and forgets with durations measured from
  * the matching start events.
  */
-final class CacheLens implements Configurable, Lens, Resettable, Summarizable
+final class CacheLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -55,6 +56,11 @@ final class CacheLens implements Configurable, Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, *_failed), key, store, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when data is stale or a page is slower than expected: misses, repeated reads of the same key and what was written.';
     }
 
     public function configure(array $options): void

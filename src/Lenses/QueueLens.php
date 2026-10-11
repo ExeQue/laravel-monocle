@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use DateTimeInterface;
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -33,7 +34,7 @@ use Throwable;
  * turns every processed job into its own capture linked to the capture that
  * dispatched it, or into a span when it runs inline inside another capture.
  */
-final class QueueLens implements Lens, Resettable, Summarizable
+final class QueueLens implements Advises, Lens, Resettable, Summarizable
 {
     public const string PAYLOAD_KEY = 'monocle';
 
@@ -55,6 +56,11 @@ final class QueueLens implements Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'Jobs dispatched by this capture: job class, connection, queue, delay, job_id, batch_id, chain length and whether it ran inline. Each queued job becomes its own capture (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to see which jobs a request dispatched and to which queue; follow them with monocle-trace.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

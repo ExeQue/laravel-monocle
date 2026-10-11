@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -20,7 +21,7 @@ use Illuminate\Contracts\Foundation\Application;
  * Scheduled tasks run by schedule:run, recorded on that command's capture.
  * Tasks run as subprocesses, so their own output lands in separate captures.
  */
-final class ScheduleLens implements Lens, Summarizable
+final class ScheduleLens implements Advises, Lens, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -32,6 +33,11 @@ final class ScheduleLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Scheduled tasks evaluated by schedule:run: command, cron expression, description, outcome (finished, failed, skipped), runtime_ms and the exception for failures.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when a scheduled task did not run, ran late or failed.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Ai;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -33,7 +34,7 @@ use Throwable;
  * tokens, prompt and response, nested agents linked through their parent
  * invocation.
  */
-final class AiLens implements Configurable, Lens, Resettable, Summarizable
+final class AiLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -59,6 +60,11 @@ final class AiLens implements Configurable, Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when an AI agent is slow, costly or answers wrongly: the prompt, each step, tool calls and tokens.';
     }
 
     public function configure(array $options): void

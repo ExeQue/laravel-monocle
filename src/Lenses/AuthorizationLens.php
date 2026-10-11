@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -17,7 +18,7 @@ use Illuminate\Contracts\Foundation\Application;
 /**
  * Every gate and policy check with its outcome, so a 403 explains itself.
  */
-final class AuthorizationLens implements Lens, Summarizable
+final class AuthorizationLens implements Advises, Lens, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -29,6 +30,11 @@ final class AuthorizationLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Gate and policy checks: ability, result (allowed/denied), the user it was checked for, the arguments (models as Class#id) and the denial message when a policy returned one.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to explain a 403 or a hidden button: which ability was checked, for whom, and the answer.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

@@ -30,10 +30,10 @@ Monocle records every request, queued job, artisan command and MCP call while it
 ## Sections
 
 @php
-    $lenses = rescue(fn () => app(\ExeQue\Monocle\LensRegistry::class)->descriptions(), [], false);
+    $lenses = rescue(fn () => app(\ExeQue\Monocle\LensRegistry::class)->advice(), [], false);
 @endphp
 @if ($lenses !== [])
-These lenses are enabled in this application. Each key is a section you can pass to `monocle-rows`:
+These lenses are enabled in this application. Each key is a section you can pass to `monocle-rows`; `monocle-lenses` lists the fields each one records.
 
 @foreach ($lenses as $key => $description)
 - `{!! $key !!}`: {!! $description !!}

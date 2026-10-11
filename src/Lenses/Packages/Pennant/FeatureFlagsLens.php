@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Pennant;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -16,7 +17,7 @@ use Illuminate\Contracts\Foundation\Application;
  * scope, the value it got and whether that came from storage or was resolved
  * just now. Explains why a request took one branch rather than another.
  */
-final class FeatureFlagsLens implements Lens, Summarizable
+final class FeatureFlagsLens implements Advises, Lens, Summarizable
 {
     /** Event class => what happened. */
     private const array EVENTS = [
@@ -37,6 +38,11 @@ final class FeatureFlagsLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Laravel Pennant feature flags: feature, scope (models as Class#id, null for global), value, and source - stored (read from storage), resolved (worked out now and stored), unknown (no such feature defined), updated or deleted.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when a request took an unexpected branch: which feature flags it checked and the value it got.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

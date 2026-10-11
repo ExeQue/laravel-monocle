@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -20,7 +21,7 @@ use Illuminate\Support\Str;
  * (wildcards allowed). Laravel fires no events for Storage, so the filesystem
  * manager is replaced with one that wraps those disks' adapters.
  */
-final class FilesystemLens implements Configurable, Lens, Summarizable
+final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
 {
     /** @var list<string> */
     private array $disks = [];
@@ -33,6 +34,11 @@ final class FilesystemLens implements Configurable, Lens, Summarizable
     public function description(): string
     {
         return 'Storage operations on the disks selected by the lens option disks (wildcards allowed): disk, driver, op (read, write, delete, fileExists, listContents, move, copy, ...), path, destination, bytes, duration, ok and the exception on failure. Native file_* calls are not covered.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when file uploads, downloads or Storage calls are slow or fail.';
     }
 
     public function configure(array $options): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
@@ -32,7 +33,7 @@ use Throwable;
  * Owns the HTTP capture lifecycle: starts it, records request/response facts,
  * lays down the phase spans and persists at terminate.
  */
-final class RequestLens implements Configurable, Finalizable, Lens, Resettable, Summarizable
+final class RequestLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
 {
     /** Fired by Laravel Octane before global middleware, once per request in a long-lived worker. */
     /** Fired by Laravel Folio when a page file matched the request. */
@@ -71,6 +72,11 @@ final class RequestLens implements Configurable, Finalizable, Lens, Resettable, 
     public function description(): string
     {
         return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+    }
+
+    public function advice(): string
+    {
+        return 'Start here to confirm what was asked and answered: route and action, payload, headers, cookies, status and, for JSON and Livewire, the response itself.';
     }
 
     public function configure(array $options): void

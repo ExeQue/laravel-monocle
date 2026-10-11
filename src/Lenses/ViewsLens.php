@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -19,7 +20,7 @@ use Throwable;
  * Times every view render by wrapping the view engines, so nested includes
  * and components show up as nested spans with real durations.
  */
-final class ViewsLens implements Configurable, Lens, Summarizable
+final class ViewsLens implements Advises, Configurable, Lens, Summarizable
 {
     /** @var list<string> */
     private array $engines = ['blade', 'php', 'file'];
@@ -38,6 +39,11 @@ final class ViewsLens implements Configurable, Lens, Summarizable
     public function description(): string
     {
         return 'Rendered views: view name, path, engine, duration and the keys of the data passed in (values only with the option data=true). Renders nest as view spans in the timeline, so an include inside a loop shows its repetition.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when rendering is slow: which views and components rendered, how often and how long they took.';
     }
 
     public function configure(array $options): void

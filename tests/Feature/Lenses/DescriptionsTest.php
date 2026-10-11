@@ -6,6 +6,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\LensRegistry;
 
 covers(
+    LensRegistry::class,
     ExeQue\Monocle\Lenses\Packages\Ai\AiLens::class,
     ExeQue\Monocle\Lenses\AuthorizationLens::class,
     ExeQue\Monocle\Lenses\CacheLens::class,
@@ -43,5 +44,21 @@ describe('lens descriptions', function (): void {
         }
 
         expect(app(LensRegistry::class)->descriptions())->toHaveKeys($keys);
+    });
+
+    it('advises the agent on when to look at every built-in lens, in one sentence', function (): void {
+        foreach (app(LensRegistry::class)->booted() as $lens) {
+            expect($lens)->toBeInstanceOf(ExeQue\Monocle\Contracts\Lenses\Advises::class)
+                ->and($lens->advice())->toEndWith('.')
+                ->and(substr_count($lens->advice(), '. '))->toBe(0, $lens::class.' gives more than one sentence');
+        }
+    });
+
+    it('falls back to the first sentence of the description for lenses without advice', function (): void {
+        $registry = new LensRegistry(app());
+        $registry->register(Tests\Fixtures\CounterLens::class);
+
+        expect($registry->advice()['counter'])->toBe('Counts CounterEvent dispatches.')
+            ->and($registry->advice()['queries'])->toStartWith('Look here first');
     });
 });

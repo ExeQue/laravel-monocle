@@ -97,7 +97,7 @@ describe(InstallCommand::class, function (): void {
         $skill = (string) file_get_contents(base_path('.claude/skills/laravel-monocle/SKILL.md'));
 
         expect($skill)->toStartWith("---\nname: laravel-monocle")
-            ->and($skill)->toContain('- `queries`: Every executed query')
+            ->and($skill)->toContain('- `queries`: Look here first when a page is slow')
             ->and($skill)->not->toContain('@foreach')
             ->and(file_get_contents(base_path('.agents/skills/laravel-monocle/SKILL.md')))->toBe($skill)
             ->and(file_exists(base_path('.cursor/skills/laravel-monocle/SKILL.md')))->toBeFalse()

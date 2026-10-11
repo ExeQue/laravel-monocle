@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -22,7 +23,7 @@ use Throwable;
 /**
  * Mail messages and notifications, with the time between sending and sent.
  */
-final class MailLens implements Lens, Resettable, Summarizable
+final class MailLens implements Advises, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -37,6 +38,11 @@ final class MailLens implements Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'Mail and notifications sent during the capture. Mail rows: mailable, subject, from/to/cc/bcc, attachments, body_bytes, duration. Notification rows: notification class, channel, notifiable (Class#id), response, duration.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to confirm which mails and notifications were sent, to whom, and whether they were queued.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

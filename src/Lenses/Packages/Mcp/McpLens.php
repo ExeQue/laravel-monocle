@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Mcp;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -27,7 +28,7 @@ use Laravel\Mcp\Server\Methods\ReadResource;
  * users. laravel/mcp resolves method handlers through the container, so the
  * handlers are decorated there. Monocle's own server and Boost's are skipped.
  */
-final class McpLens implements Lens, Summarizable
+final class McpLens implements Advises, Lens, Summarizable
 {
     private const array METHODS = [
         CallTool::class,
@@ -51,6 +52,11 @@ final class McpLens implements Lens, Summarizable
     public function description(): string
     {
         return "Calls to this application's own MCP servers: server, JSON-RPC method (tools/call, resources/read, ...), primitive (tool/resource/prompt name), arguments, duration, is_error and streamed_chunks. Over HTTP the call is part of the request capture; over stdio each call is its own capture of type mcp.";
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for calls to the application\'s own MCP servers: which tool ran, with what arguments and how long it took.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

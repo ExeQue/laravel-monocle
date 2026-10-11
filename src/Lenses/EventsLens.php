@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
@@ -20,7 +21,7 @@ use Illuminate\Support\Str;
  * Application events with their payload summary and the listeners that
  * handled them. Framework and Monocle internals are ignored by default.
  */
-final class EventsLens implements Configurable, Lens, Summarizable
+final class EventsLens implements Advises, Configurable, Lens, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -47,6 +48,11 @@ final class EventsLens implements Configurable, Lens, Summarizable
     public function description(): string
     {
         return 'Dispatched application events: event name/class, a summary of the payload, the listeners registered for it (class@method or Closure) and whether it broadcasts. Framework events are ignored; the ignore list is configurable.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to see which application events fired and which listeners handled them.';
     }
 
     public function configure(array $options): void

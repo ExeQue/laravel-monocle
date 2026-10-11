@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Counts model events per class and records every write with its changes.
  */
-final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
+final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summarizable
 {
     private const array ACTIONS = ['retrieved', 'created', 'updated', 'deleted', 'restored', 'forceDeleted'];
 
@@ -33,6 +34,11 @@ final class EloquentLens implements Finalizable, Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'Eloquent activity: one row per model class and action (retrieved, created, updated, deleted, restored, forceDeleted) with a count. Writes are also listed individually in the model_changes section with the model key and changes: one {field, from, to} per changed attribute (hidden attributes left out).';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to see how many models a request loaded and which attributes it changed, with old and new values.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

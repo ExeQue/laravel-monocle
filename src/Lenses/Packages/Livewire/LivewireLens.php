@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -22,7 +23,7 @@ use Throwable;
  * methods called on them, property updates, render time and exceptions. A
  * Livewire request otherwise looks like a bare `POST /livewire/update`.
  */
-final class LivewireLens implements Finalizable, Lens, Resettable, Summarizable
+final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -40,6 +41,11 @@ final class LivewireLens implements Finalizable, Lens, Resettable, Summarizable
     public function description(): string
     {
         return 'Livewire components touched by the request: component name and class, lifecycle (mount or update), the methods called with their params and duration, property updates, render_ms, html_bytes and any exception. Each component is also a livewire span in the timeline.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for Livewire components: which methods were called, which properties changed and how long rendering took.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -27,7 +28,7 @@ use Illuminate\Contracts\Foundation\Application;
  * user, logins, logouts, failed attempts and lockouts, and the Sanctum token
  * when one was used. Credentials are recorded as keys only.
  */
-final class AuthLens implements Lens, Summarizable
+final class AuthLens implements Advises, Lens, Summarizable
 {
     private const string SANCTUM_TOKEN = 'Laravel\\Sanctum\\Events\\TokenAuthenticated';
 
@@ -41,6 +42,11 @@ final class AuthLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Authentication: event (authenticated, attempting, login, failed, lockout, logout, registered, verified, password_reset, token), guard, user (Class#id), remember, the credential keys tried (never values) and, for Sanctum, the token id, name and abilities.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here to see who the request ran as and how, and for failed logins and lockouts.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

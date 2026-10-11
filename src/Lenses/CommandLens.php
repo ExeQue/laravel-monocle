@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Data\Capture;
@@ -25,7 +26,7 @@ use Throwable;
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead.
  */
-final class CommandLens implements Finalizable, Lens, Resettable
+final class CommandLens implements Advises, Finalizable, Lens, Resettable
 {
     private Eyepiece $eyepiece;
 
@@ -46,6 +47,11 @@ final class CommandLens implements Finalizable, Lens, Resettable
     public function description(): string
     {
         return 'Artisan command facts for captures of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for an artisan command\'s arguments, options and exit code.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

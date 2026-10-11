@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -20,7 +21,7 @@ use Symfony\Component\VarDumper\VarDumper;
  * still sees it. dd() exits the process; the shutdown handler stores the
  * capture anyway.
  */
-final class DumpLens implements Lens, Summarizable
+final class DumpLens implements Advises, Lens, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -37,6 +38,11 @@ final class DumpLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Values passed to dump() and dd(): the dumped value as text, its type, the label and whether it came from dd() (which ended the process - the capture is stored at shutdown with ended_by=shutdown).';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for values passed to dump() and dd().';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

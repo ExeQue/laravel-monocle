@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -16,7 +17,7 @@ use Throwable;
  * Every Redis command with its parameters, connection and duration. Turns on
  * the Redis manager's events itself.
  */
-final class RedisLens implements Lens, Summarizable
+final class RedisLens implements Advises, Lens, Summarizable
 {
     private Eyepiece $eyepiece;
 
@@ -28,6 +29,11 @@ final class RedisLens implements Lens, Summarizable
     public function description(): string
     {
         return 'Redis commands: command, parameters, connection and duration in ms. Includes the commands the cache and queue drivers issue when they use Redis.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here for Redis commands that do not go through the cache, such as locks, rate limiters and queues.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void

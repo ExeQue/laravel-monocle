@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Packages\Spatie;
 
 use ExeQue\Monocle\Contracts\Lens;
+use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
@@ -15,7 +16,7 @@ use Illuminate\Contracts\Foundation\Application;
  * cache. On a hit the controller never ran, so a change to it shows nothing
  * until the cache entry expires or is cleared.
  */
-final class ResponseCacheLens implements Lens, Summarizable
+final class ResponseCacheLens implements Advises, Lens, Summarizable
 {
     private const string NAMESPACE = 'Spatie\\ResponseCache\\Events\\';
 
@@ -29,6 +30,11 @@ final class ResponseCacheLens implements Lens, Summarizable
     public function description(): string
     {
         return 'spatie/laravel-responsecache: event (hit, miss, clearing, cleared, clearing_failed), for a hit the age of the cached response in seconds and its tags. On a hit the controller did not run.';
+    }
+
+    public function advice(): string
+    {
+        return 'Look here when a change does not show up: a hit means the whole response came from the cache and the controller did not run.';
     }
 
     public function boot(Application $app, Eyepiece $eyepiece): void
