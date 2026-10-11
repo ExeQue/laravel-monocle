@@ -52,7 +52,7 @@ These record something only when the package is installed; otherwise they do not
 | [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
 | [Prism](https://prismphp.com) | [Prism](#prism) | `prism` | text, structured, stream, embeddings, image and audio calls with tokens |
 | **Laravel** | | | |
-| [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
+| [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai`, `ai_tools` | agents, steps, tool calls with their time, and tokens |
 | [Laravel Folio](https://laravel.com/docs/folio) | part of [Request](#request), see [Folio](#folio) | `request` | the page file a request matched |
 | [Laravel Fortify](https://laravel.com/docs/fortify) | [Fortify](#fortify) | `auth` | two-factor challenges, failed and passed codes |
 | [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
@@ -348,7 +348,7 @@ Option: `max_text` (no limit) - shorten long prompts and responses.
 
 #### AI
 
-Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.
+Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool. Section `ai_tools`, on the same tab: one row per tool call - tool, agent, status, arguments, result or exception, and how long it took. The overview adds the time spent in tools and the number of tool calls.
 
 Error: an agent or tool call that failed.
 

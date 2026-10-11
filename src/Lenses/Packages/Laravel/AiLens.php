@@ -76,7 +76,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     public function description(): string
     {
-        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them.';
+        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them. Section ai_tools has one row per tool call: tool, class, agent, status, arguments, result (or exception) and duration.';
     }
 
     public function advice(): string
@@ -122,6 +122,9 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
             return Summary::make();
         }
 
+        $tools = $capture->rows('ai_tools');
+        $toolMs = array_sum(array_map(fn (array $tool): float => (float) ($tool['duration'] ?? 0), $tools));
+
         $tokens = self::NO_TOKENS;
         $ms = 0.0;
         $byModel = [];
@@ -152,6 +155,10 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
                 'ai_by_model' => $byModel,
             ])
             ->total('ai_calls', count($rows), 'calls')
+            ->when($tools !== [])
+            ->total('ai_tool_ms', round($toolMs, 3), 'in tools', Unit::Milliseconds)
+            ->when($tools !== [])
+            ->total('ai_tool_calls', count($tools), 'tool calls')
             ->errors(array_slice($warnings, 0, 5));
     }
 
@@ -306,20 +313,28 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     private function onToolInvoked(ToolInvoked $event): void
     {
-        $this->tools[$event->toolInvocationId]?->stop([
-            'result' => $this->text($this->resultText($event->result)),
+        $result = $this->text($this->resultText($event->result));
+
+        ($this->tools[$event->toolInvocationId] ?? null)?->stop([
+            'result' => $result,
             'status' => 'ok',
             'tool_ms' => round($event->time, 3),
         ]);
+
+        $this->recordTool($event->invocationId, $event->toolInvocationId, $event->tool, 'ok', $event->time, result: $result);
     }
 
     private function onToolFailed(ToolFailed $event): void
     {
-        $this->tools[$event->toolInvocationId]?->stop([
+        $exception = ThrowableChain::describe($event->exception);
+
+        ($this->tools[$event->toolInvocationId] ?? null)?->stop([
             'status' => 'failed',
-            'exception' => ThrowableChain::describe($event->exception),
+            'exception' => $exception,
             'tool_ms' => round($event->time, 3),
         ]);
+
+        $this->recordTool($event->invocationId, $event->toolInvocationId, $event->tool, 'failed', $event->time, exception: $exception);
 
         $agent = $this->agents[$event->invocationId] ?? null;
 
@@ -330,6 +345,37 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         $failedTools = [...($agent->meta['failed_tools'] ?? []), $this->toolName($event->tool)];
 
         $agent->meta(['failed_tools' => $failedTools]);
+    }
+
+    /**
+     * One row per tool call, so the calls and their time can be listed and
+     * sorted next to the agents that made them.
+     *
+     * @param  array<string, mixed>|null  $exception
+     */
+    private function recordTool(string $invocationId, string $toolInvocationId, object $tool, string $status, float $ms, ?string $result = null, ?array $exception = null): void
+    {
+        $span = $this->tools[$toolInvocationId] ?? null;
+        unset($this->tools[$toolInvocationId]);
+
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $agent = $this->agents[$invocationId] ?? null;
+
+        $this->eyepiece->push('ai_tools', [
+            'tool' => $this->toolName($tool),
+            'class' => $tool::class,
+            'agent' => $agent?->meta['agent'] ?? null,
+            'invocation_id' => $invocationId,
+            'tool_invocation_id' => $toolInvocationId,
+            'status' => $status,
+            'arguments' => $span?->meta['arguments'] ?? null,
+            'result' => $result,
+            'exception' => $exception,
+            'duration' => round($ms, 3),
+        ]);
     }
 
     /**
@@ -474,6 +520,16 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.ai')->format(['status' => 'status']);
+        return Presentation::table()
+            ->tab('monocle::tabs.ai')
+            ->format(['status' => 'status'])
+            ->includes([
+                'ai_tools' => Presentation::table()
+                    ->label('Tool calls')
+                    ->columns(['tool', 'agent', 'status', 'duration'])
+                    ->detailsOnly(['arguments', 'result', 'exception'])
+                    ->format(['tool' => 'code', 'status' => 'status'])
+                    ->groupBy(['tool' => 'by tool', 'agent' => 'by agent']),
+            ]);
     }
 }
