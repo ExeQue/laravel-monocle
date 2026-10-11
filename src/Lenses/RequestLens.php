@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses;
 
+use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
@@ -28,6 +29,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Laravel\Folio\Events\ViewMatched;
 use Laravel\Octane\Events\RequestReceived;
+use ReflectionFunction;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -380,7 +382,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         return [
             'route' => [
                 'name' => $route->getName(),
-                'action' => $route->getActionName(),
+                'action' => $this->actionName($route),
                 'uri' => $route->uri(),
                 'methods' => $route->methods(),
                 'parameters' => $parameters,
@@ -648,6 +650,22 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
                 $span->parentId = $controller->id;
             }
         }
+    }
+
+    /**
+     * Controller@method, or for a closure route where the closure is.
+     */
+    private function actionName(Route $route): string
+    {
+        $action = $route->getAction('uses');
+
+        if (! $action instanceof Closure) {
+            return $route->getActionName();
+        }
+
+        $function = new ReflectionFunction($action);
+
+        return 'Closure ('.Str::after(str_replace('\\', '/', (string) $function->getFileName()), str_replace('\\', '/', $this->app->basePath()).'/').':'.$function->getStartLine().')';
     }
 
     private function handlePhaseId(Capture $capture): ?string

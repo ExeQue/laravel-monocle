@@ -285,6 +285,11 @@ final readonly class TimelinePresenter
             return null;
         }
 
+        // A closure recorded as "Closure (path:line)" links to where it is written.
+        if (preg_match('/^Closure \((.+:\d+)\)$/', $value, $closure) === 1) {
+            return $this->link($closure[1]);
+        }
+
         if (preg_match('/^\\\\?([A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+)(?:(?:->|::|@)(\w+)(?:\(\))?|#[\w-]+)?$/', $value, $match) === 1) {
             return $this->links->class($match[1], ($match[2] ?? '') !== '' ? $match[2] : null);
         }

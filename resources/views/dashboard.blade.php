@@ -591,42 +591,18 @@
                                     </div>
                                 </div>
 
-                                <div>
-                                    <h3 :class="cls.sectionTitle">Payload</h3>
-                                    <div
-                                        :class="cls.tableWrap"
-                                        x-show="dot(request.query).length || dot(request.input).length"
-                                    >
+                                <div x-show="dot(request.query).length">
+                                    <h3 :class="cls.sectionTitle">Query</h3>
+                                    <div :class="cls.tableWrap" x-show="dot(request.query).length">
                                         <table class="w-full border-collapse text-[13px]">
-                                            <thead>
-                                                <tr>
-                                                    <th scope="col" :class="cls.th">Key</th>
-                                                    <th scope="col" :class="cls.th">Value</th>
-                                                    <th scope="col" :class="cls.th" class="max-sm:hidden">From</th>
-                                                </tr>
-                                            </thead>
                                             <tbody>
-                                                <template
-                                                    x-for="
-                                                        [k, v, from] in
-                                                        [
-                                                            ...dot(request.query).map((e) => [...e, 'query']),
-                                                            ...dot(request.input).map((e) => [...e, 'body']),
-                                                        ]
-                                                    "
-                                                    :key="from + k"
-                                                >
+                                                <template x-for="[k, v] in dot(request.query)" :key="k">
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="min-w-32 font-mono text-xs break-words"
-                                                        >
-                                                            <span x-text="k"></span
-                                                            ><span
-                                                                class="text-muted block text-[10px] sm:hidden"
-                                                                x-text="from"
-                                                            ></span>
-                                                        </td>
+                                                            class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
+                                                            x-text="k"
+                                                        ></td>
                                                         <td
                                                             :class="cls.td"
                                                             class="group/copy font-mono text-xs"
@@ -638,29 +614,55 @@
                                                                         ? JSON.stringify(v)
                                                                         : String(v),
                                                                     k,
-                                                                    { hover: true },
+                                                                    {
+                                                                        hover: true,
+                                                                    },
                                                                 )
                                                             "
-                                                        ></td>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="text-muted text-xs max-sm:hidden"
-                                                            x-text="from"
                                                         ></td>
                                                     </tr>
                                                 </template>
                                             </tbody>
                                         </table>
                                     </div>
-                                    <p
-                                        :class="cls.empty"
-                                        x-show="
-                                            ! dot(request.query).length &&
-                                            ! dot(request.input).length &&
-                                            ! request.files?.length
-                                        "
-                                    >
-                                        No query string or body.
+                                </div>
+
+                                <div>
+                                    <h3 :class="cls.sectionTitle">Payload</h3>
+                                    <div :class="cls.tableWrap" x-show="dot(request.input).length">
+                                        <table class="w-full border-collapse text-[13px]">
+                                            <tbody>
+                                                <template x-for="[k, v] in dot(request.input)" :key="k">
+                                                    <tr>
+                                                        <td
+                                                            :class="cls.td"
+                                                            class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
+                                                            x-text="k"
+                                                        ></td>
+                                                        <td
+                                                            :class="cls.td"
+                                                            class="group/copy font-mono text-xs"
+                                                            x-html="
+                                                                payloadValue(v) +
+                                                                ' ' +
+                                                                copyButton(
+                                                                    typeof v === 'object'
+                                                                        ? JSON.stringify(v)
+                                                                        : String(v),
+                                                                    k,
+                                                                    {
+                                                                        hover: true,
+                                                                    },
+                                                                )
+                                                            "
+                                                        ></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <p :class="cls.empty" x-show="! dot(request.input).length && ! request.files?.length">
+                                        No body.
                                     </p>
                                     <div class="mt-3" :class="cls.tableWrap" x-show="request.files?.length">
                                         <table class="w-full border-collapse text-[13px]">
@@ -707,7 +709,7 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
+                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>
@@ -731,7 +733,7 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
+                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>
@@ -771,7 +773,7 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
+                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>

@@ -10,6 +10,6 @@ use Workbench\App\Mcp\DemoServer;
 Route::middleware('auth:sanctum')->get('/api/me', fn (Request $request): array => [
     'id' => $request->user()->id,
     'email' => $request->user()->email,
-]);
+])->name('api.me');
 
-Mcp::web('/api/mcp/demo', DemoServer::class);
+Mcp::web('/api/mcp/demo', DemoServer::class)->name('api.mcp.demo');

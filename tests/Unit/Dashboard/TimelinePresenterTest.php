@@ -105,7 +105,8 @@ describe(TimelinePresenter::class, function (): void {
 
         expect($row['_links']['rules'])->toHaveKeys(['Closure (routes/web.php:57)', EditorLinks::class.' {"max":40}'])
             ->and($row['_links']['rules']['Closure (routes/web.php:57)'])->toBe('vscode://file/app/routes/web.php:57')
-            ->and($row['_links']['rules'])->not->toHaveKey('required');
+            ->and($row['_links']['rules'])->not->toHaveKey('required')
+            ->and($presenter->link('Closure (routes/web.php:12)'))->toBe('vscode://file/app/routes/web.php:12');
     });
 
     it('links nothing without an editor', function (): void {

@@ -44,7 +44,7 @@ const GROUPINGS = {
   filesystem: [['path', 'by path'], ['op', 'by operation'], ['disk', 'by disk']],
   jobs: [['job', 'by job'], ['queue', 'by queue']],
   mail: [['type', 'by type']],
-  authorization: [['ability', 'by ability'], ['result', 'by result']],
+  authorization: [['ability', 'by ability'], ['allowed', 'by outcome']],
   exceptions: [['class', 'by exception']],
   features: [['feature', 'by feature']],
   redis: [['command', 'by command']],
@@ -589,8 +589,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       host: (row) => host(row.url),
       pool: (row) => (row.pool == null ? 'not pooled' : `pool #${row.pool}`),
       status: (row) => (row.status == null ? 'no response' : String(row.status)),
-    }[this.tab === 'http' ? by : null] ?? ((row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by])));
-    const failed = (row) => row.failed === true || row.ok === false || row.passed === false || row.result === false || (typeof row.status === 'number' && row.status >= 400);
+      allowed: (row) => (row.allowed ? 'allowed' : 'denied'),
+    }[this.tab === 'http' || by === 'allowed' ? by : null] ?? ((row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by])));
+    const failed = (row) => row.failed === true || row.ok === false || row.passed === false || row.allowed === false || (typeof row.status === 'number' && row.status >= 400);
     const groups = new Map();
     (this.tabData?.rows ?? []).forEach((row, i) => {
       const key = keyOf(row);
@@ -752,6 +753,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (['context', 'payload', 'data', 'params', 'parameters'].includes(key) && v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v)) return Object.entries(v).map(([k, x]) => `<div><span class="text-muted">${esc(k)}</span> <span class="font-mono">${classes(fmtValue(x).slice(0, 120))}</span></div>`).join('');
     // Long or multi-line messages: the first line in the table, all of it in the details.
     if (key === 'message' && typeof v === 'string' && (v.includes('\n') || v.length > 160)) return `<span data-tip="${esc(v.slice(0, 600))}">${esc(v.split('\n')[0].slice(0, 160))}…</span>`;
+    if (key === 'allowed' && typeof v === 'boolean') return v ? '<span class="text-ok">allowed</span>' : '<span class="font-medium text-bad">denied</span>';
     if (key === 'ok' && typeof v === 'boolean') return v ? '<span class="text-ok">ok</span>' : '<span class="font-medium text-bad">failed</span>';
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;

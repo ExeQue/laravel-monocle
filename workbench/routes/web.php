@@ -38,9 +38,9 @@ use Workbench\App\Rules\Slug;
 
 $result = fn (string $title, mixed $output = null): View => view('result', ['title' => $title, 'output' => $output]);
 
-Route::view('/', 'index');
+Route::view('/', 'index')->name('home');
 
-Route::prefix('demo')->group(function () use ($result): void {
+Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
     Route::get('showcase', function (Request $request): View {
         $author = Monocle::measure('load author', fn (): User => Cache::remember(
             'demo:author',
@@ -135,19 +135,19 @@ Route::prefix('demo')->group(function () use ($result): void {
             'tags' => array_map(fn (int $i): string => 'tag '.$i, range(1, 15)),
             'posts' => Post::query()->withCount('comments')->limit(5)->get(),
         ]);
-    });
+    })->name('showcase');
 
     Route::get('database/n-plus-one', function () use ($result): View {
         $counts = Post::query()->get()->mapWithKeys(fn (Post $post): array => [$post->title => $post->comments->count()]);
 
         return $result('N+1', $counts);
-    });
+    })->name('database.n-plus-one');
 
     Route::get('database/slow', function () use ($result): View {
         $count = DB::selectOne('WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 1000000) SELECT count(*) AS total FROM n');
 
         return $result('Slow query', $count);
-    });
+    })->name('database.slow');
 
     Route::get('database/duplicate', function () use ($result): View {
         foreach (range(1, 3) as $ignored) {
@@ -155,7 +155,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         }
 
         return $result('Duplicate query', $user->name);
-    });
+    })->name('database.duplicate');
 
     Route::get('database/rollback', function () use ($result): View {
         DB::beginTransaction();
@@ -163,7 +163,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         DB::rollBack();
 
         return $result('Rolled back transaction', Post::query()->where('title', 'Never saved')->count().' posts titled "Never saved"');
-    });
+    })->name('database.rollback');
 
     Route::get('eloquent', function () use ($result): View {
         $post = Post::query()->create(['user_id' => User::query()->value('id'), 'title' => 'Draft', 'body' => 'First version.']);
@@ -171,7 +171,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         $post->delete();
 
         return $result('Model changes', 'Created, updated and deleted post #'.$post->id);
-    });
+    })->name('eloquent');
 
     Route::get('cache', function () use ($result): View {
         $missed = Cache::get('demo:missing');
@@ -184,19 +184,19 @@ Route::prefix('demo')->group(function () use ($result): void {
         }
 
         return $result('Cache', compact('missed', 'hit', 'settings'));
-    });
+    })->name('cache');
 
     Route::get('views', fn (): View => view('views-demo', [
         'tags' => array_map(fn (int $i): string => 'tag '.$i, range(1, 15)),
         'posts' => Post::query()->withCount('comments')->limit(5)->get(),
-    ]));
+    ]))->name('views');
 
-    Route::view('validation', 'validation');
-    Route::post('validation/form-request', fn (ContactRequest $request): View => $result('Validation passed', $request->validated()));
+    Route::view('validation', 'validation')->name('validation');
+    Route::post('validation/form-request', fn (ContactRequest $request): View => $result('Validation passed', $request->validated()))->name('validation.form-request');
     Route::get('validation/inline', fn (Request $request): View => $result('Inline validation passed', $request->validate([
         'name' => ['required', 'string'],
         'email' => ['required', 'email'],
-    ])));
+    ])))->name('validation.inline');
 
     Route::get('session', function (Request $request) use ($result): View {
         $request->session()->put('demo.last_visit', now()->toIso8601String());
@@ -204,16 +204,16 @@ Route::prefix('demo')->group(function () use ($result): void {
         $request->session()->flash('status', 'Flashed for the next request.');
 
         return $result('Session', $request->session()->get('demo'));
-    });
+    })->name('session');
 
     Route::post('auth/login', function (Request $request) {
         Auth::login(User::query()->where('email', 'ada@example.com')->firstOrFail());
         $request->session()->regenerate();
 
         return redirect('/');
-    });
+    })->name('auth.login');
 
-    Route::post('auth/failed', fn (): View => $result('Failed attempt', Auth::attempt(['email' => 'ada@example.com', 'password' => 'wrong-password']) ? 'Logged in?' : 'Wrong password, as expected.'));
+    Route::post('auth/failed', fn (): View => $result('Failed attempt', Auth::attempt(['email' => 'ada@example.com', 'password' => 'wrong-password']) ? 'Logged in?' : 'Wrong password, as expected.'))->name('auth.failed');
 
     Route::post('auth/logout', function (Request $request) {
         Auth::logout();
@@ -221,7 +221,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         $request->session()->regenerateToken();
 
         return redirect('/');
-    });
+    })->name('auth.logout');
 
     Route::get('auth/token', function (): View {
         $token = User::query()->where('email', 'ada@example.com')->firstOrFail()->createToken('demo')->plainTextToken;
@@ -233,37 +233,37 @@ Route::prefix('demo')->group(function () use ($result): void {
             'url' => '/api/me',
             'headers' => ['Accept' => 'application/json', 'Authorization' => 'Bearer '.$token],
         ]);
-    });
+    })->name('auth.token');
 
     Route::get('authorization/allowed', function () use ($result): View {
         Gate::authorize('read-docs');
 
         return $result('Allowed gate', 'read-docs was allowed.');
-    });
+    })->name('authorization.allowed');
 
     Route::get('authorization/denied', function () use ($result): View {
         Gate::authorize('delete-everything');
 
         return $result('Denied gate');
-    });
+    })->name('authorization.denied');
 
     Route::get('events', function () use ($result): View {
         PostPublished::dispatch(Post::query()->firstOrFail());
 
         return $result('Custom event', 'PostPublished dispatched.');
-    });
+    })->name('events');
 
     Route::get('queue', function () use ($result): View {
         ProcessReport::dispatch('monthly-sales');
 
         return $result('Dispatch a job', 'ProcessReport ran on the sync queue.');
-    });
+    })->name('queue');
 
     Route::get('queue/chain', function () use ($result): View {
         ImportBatch::dispatch();
 
         return $result('Job dispatching a job', 'ImportBatch dispatched ProcessReport.');
-    });
+    })->name('queue.chain');
 
     Route::get('queue/failing', function () use ($result): View {
         try {
@@ -273,7 +273,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         }
 
         return $result('Failing job', 'The job did not fail.');
-    });
+    })->name('queue.failing');
 
     Route::get('mail', function () use ($result): View {
         $user = User::query()->where('email', 'ada@example.com')->firstOrFail();
@@ -282,7 +282,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         $user->notify(new WelcomeNotification());
 
         return $result('Mail and notifications', 'Sent to the log mailer.');
-    });
+    })->name('mail');
 
     Route::get('http', function () use ($result): View {
         Http::fake([
@@ -294,7 +294,7 @@ Route::prefix('demo')->group(function () use ($result): void {
             'user' => Http::get('https://api.example.test/users/1')->json(),
             'broken' => Http::get('https://api.example.test/broken')->status(),
         ]);
-    });
+    })->name('http');
 
     Route::get('http/failures', function () use ($result): View {
         $outcomes = [];
@@ -313,7 +313,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         }
 
         return $result('Failed connections', $outcomes);
-    });
+    })->name('http.failures');
 
     Route::get('filesystem', function () use ($result): View {
         $disk = Storage::disk('demo');
@@ -323,7 +323,7 @@ Route::prefix('demo')->group(function () use ($result): void {
         $disk->delete('notes/hello.txt');
 
         return $result('Filesystem', compact('contents', 'exists'));
-    });
+    })->name('filesystem');
 
     Route::get('log', function () use ($result): View {
         Log::info('A demo info entry.', ['user' => Auth::id()]);
@@ -331,52 +331,52 @@ Route::prefix('demo')->group(function () use ($result): void {
         Log::error('A demo error entry.', ['reason' => 'just testing']);
 
         return $result('Log', 'Wrote three log entries.');
-    });
+    })->name('log');
 
     Route::get('exceptions/reported', function () use ($result): View {
         report(new RuntimeException('Reported but handled.'));
 
         return $result('Reported exception', 'The exception was reported and the request carried on.');
-    });
+    })->name('exceptions.reported');
 
-    Route::get('exceptions/thrown', fn () => throw new RuntimeException('Thrown on purpose.'));
+    Route::get('exceptions/thrown', fn () => throw new RuntimeException('Thrown on purpose.'))->name('exceptions.thrown');
 
     Route::get('dump', function () use ($result): View {
         ob_start();
         dump(['user' => 'Ada', 'roles' => ['admin', 'editor']]);
 
         return $result('dump()', 'Dumped a value.');
-    });
+    })->name('dump');
 
-    Route::get('middleware', fn (): View => $result('Slow middleware', 'Passed through SlowMiddleware.'))->middleware(SlowMiddleware::class);
+    Route::get('middleware', fn (): View => $result('Slow middleware', 'Passed through SlowMiddleware.'))->middleware(SlowMiddleware::class)->name('middleware');
 
     Route::get('artisan', function () use ($result): View {
         Artisan::call('demo:greet', ['name' => 'Ada', '--shout' => true]);
 
         return $result('Artisan::call()', Artisan::output());
-    });
+    })->name('artisan');
 
-    Route::view('livewire', 'livewire-demo');
+    Route::view('livewire', 'livewire-demo')->name('livewire');
 
     Route::get('inertia', fn () => Inertia::render('Dashboard', [
         'user' => ['name' => 'Ada'],
         'posts' => Post::query()->limit(3)->pluck('title'),
         'stats' => Inertia::defer(fn (): array => ['posts' => Post::query()->count()]),
-    ]));
+    ]))->name('inertia');
 
     Route::get('pennant', fn (): View => $result('Feature flags', [
         'new-dashboard' => Feature::active('new-dashboard'),
         'beta-checkout' => Feature::active('beta-checkout'),
         'undefined-feature' => Feature::active('undefined-feature'),
-    ]));
+    ]))->name('pennant');
 
-    Route::get('response-cache', fn (): View => $result('Cached response', 'Rendered at '.now()->toTimeString().'. Reload to get it from the cache.'))->middleware(CacheResponse::class);
+    Route::get('response-cache', fn (): View => $result('Cached response', 'Rendered at '.now()->toTimeString().'. Reload to get it from the cache.'))->middleware(CacheResponse::class)->name('response-cache');
 
     Route::get('response-cache/clear', function () use ($result): View {
         ResponseCache::clear();
 
         return $result('Clear the cache', 'The response cache was cleared.');
-    });
+    })->name('response-cache.clear');
 
     Route::get('media', function () use ($result): View {
         $path = tempnam(sys_get_temp_dir(), 'monocle').'.png';
@@ -390,13 +390,13 @@ Route::prefix('demo')->group(function () use ($result): void {
             ->toMediaCollection('photos');
 
         return $result('Add media', ['media' => $media->id, 'conversions' => $media->getGeneratedConversions()]);
-    });
+    })->name('media');
 
     Route::get('ai', function () use ($result): View {
         Greeter::fake(['Hello Ada, lovely to meet you!']);
 
         return $result('Agent call', (string) (new Greeter())->prompt('Say hi to Ada'));
-    });
+    })->name('ai');
 
     Route::get('mcp', fn (): View => view('fetch', [
         'title' => 'MCP tool call',
@@ -410,7 +410,7 @@ Route::prefix('demo')->group(function () use ($result): void {
             'method' => 'tools/call',
             'params' => ['name' => 'echo', 'arguments' => ['text' => 'hello monocle']],
         ],
-    ]));
+    ]))->name('mcp');
 
     Route::get('spans', function () use ($result): View {
         $span = Monocle::span('prepare report')->start();
@@ -420,5 +420,5 @@ Route::prefix('demo')->group(function () use ($result): void {
         $total = Monocle::measure('sum posts', fn (): int => Post::query()->count(), ['source' => 'demo']);
 
         return $result('Custom spans', ['posts' => $total]);
-    });
+    })->name('spans');
 });
