@@ -72,5 +72,22 @@
             </template>
             <li class="text-muted px-3 py-2 text-sm" x-show="! paletteItems.length">Nothing matches.</li>
         </ul>
+        <div class="border-line text-muted flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t px-4 py-2 text-xs">
+            @foreach ([['#', '#req', 'kind'], ['@', '@users', 'route'], ['$', '$live', 'section'], ['|', 'a | b', 'or']] as [$prefix, $example, $meaning])
+                <button
+                    type="button"
+                    class="hover:text-fg cursor-pointer"
+                    @click="palette.query = (palette.query.trim() ? palette.query.trim() + ' ' : '') + '{{ $prefix }}' + ('{{ $prefix }}' === '|' ? ' ' : ''); $nextTick(() => document.getElementById('monocle-palette-input')?.focus())"
+                >
+                    <kbd class="border-line text-fg rounded border px-1 font-mono">{{ $example }}</kbd>
+                    {{ $meaning }}
+                </button>
+            @endforeach
+            <span class="ml-auto flex items-center gap-3">
+                <span><kbd class="font-mono">↑↓</kbd> move</span>
+                <span><kbd class="font-mono">↵</kbd> open</span>
+                <span><kbd class="font-mono">esc</kbd> close</span>
+            </span>
+        </div>
     </div>
 </div>
