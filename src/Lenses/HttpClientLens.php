@@ -96,7 +96,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'status' => $status,
                 'response_headers' => $this->eyepiece->masker()->headers($event->response->headers()),
                 'response_bytes' => strlen($body),
-                'response_body' => $this->bodies && $capture === null ? $body : null,
+                'response_body' => $this->bodies && $capture === null ? $this->eyepiece->masker()->body($body, $event->response->header('Content-Type')) : null,
                 'response_capture' => $capture,
                 'duration' => $this->duration($pending['at'] ?? null, $event->response->handlerStats()),
                 'failed' => $status >= 400,
@@ -180,7 +180,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             'request_headers' => $masker->headers($request->headers()),
             'request_bytes' => strlen($request->body()),
             'request_payload' => $this->payload($request),
-            'request_body' => $this->bodies ? $request->body() : null,
+            'request_body' => $this->bodies ? $masker->body($request->body(), $request->header('Content-Type')[0] ?? null) : null,
         ];
     }
 
@@ -236,7 +236,9 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             return null;
         }
 
-        return $cards === null ? null : ['capture' => $class, 'cards' => $cards, 'raw' => $body];
+        $masker = $this->eyepiece->masker();
+
+        return $cards === null ? null : ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => $masker->body($body, $type)];
     }
 
     private function maskedUrl(string $url): string

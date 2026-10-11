@@ -81,4 +81,14 @@ describe(Masker::class, function (): void {
             ->and($masker->cookies(['remember_web_59ba' => 'secret', 'XSRF-TOKEN' => 'x', 'password_hint' => 'p', 'theme' => 'dark']))
             ->toBe(['remember_web_59ba' => '********', 'XSRF-TOKEN' => 'default', 'password_hint' => 'default', 'theme' => 'dark']);
     });
+
+    it('masks capture card items and json or form bodies like input', function (): void {
+        $masker = new Masker([], '/token|pass/i', new FullMask());
+
+        expect($masker->cards([['title' => 'JSON', 'items' => ['access_token' => 'abc', 'user' => ['name' => 'ada', 'password' => 'x']]]]))
+            ->toBe([['title' => 'JSON', 'items' => ['access_token' => '********', 'user' => ['name' => 'ada', 'password' => '********']]]])
+            ->and($masker->body('{"access_token":"abc","expires_in":3600}'))->toBe('{"access_token":"********","expires_in":3600}')
+            ->and($masker->body('grant_type=password&password=hunter2', 'application/x-www-form-urlencoded'))->toBe('grant_type=password&password=********')
+            ->and($masker->body('<p>token=abc</p>', 'text/html'))->toBe('<p>token=abc</p>');
+    });
 });

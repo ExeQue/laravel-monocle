@@ -107,6 +107,44 @@ final class Masker
     }
 
     /**
+     * Mask the items of response capture cards like input.
+     *
+     * @param  list<array<string, mixed>>  $cards
+     * @return list<array<string, mixed>>
+     */
+    public function cards(array $cards): array
+    {
+        return array_map(function (array $card): array {
+            if (is_array($card['items'] ?? null)) {
+                $card['items'] = $this->inputs($card['items']);
+            }
+
+            return $card;
+        }, $cards);
+    }
+
+    /**
+     * Mask a JSON or form-encoded body like input. Other bodies cannot be
+     * masked reliably and are returned as they are.
+     */
+    public function body(string $body, ?string $contentType = null): string
+    {
+        $decoded = json_decode($body, true);
+
+        if (is_array($decoded)) {
+            return (string) json_encode($this->inputs($decoded), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+
+        if ($contentType !== null && str_contains(strtolower($contentType), 'application/x-www-form-urlencoded')) {
+            parse_str($body, $fields);
+
+            return str_replace('%2A', '*', http_build_query($this->inputs($fields)));
+        }
+
+        return $body;
+    }
+
+    /**
      * @param  array<array-key, mixed>  $list
      * @return array<string, Closure>
      */

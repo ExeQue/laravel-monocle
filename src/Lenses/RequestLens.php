@@ -498,7 +498,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
             $raw = null;
         }
 
-        return ['capture' => $class, 'cards' => $cards, 'raw' => is_string($raw) ? $raw : null];
+        $masker = $this->eyepiece->masker();
+
+        return ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => is_string($raw) ? $masker->body($raw, $type) : null];
     }
 
     private function headerCapture(Response $response): ?string

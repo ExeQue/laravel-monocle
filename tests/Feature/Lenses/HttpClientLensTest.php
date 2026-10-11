@@ -38,6 +38,17 @@ describe(HttpClientLens::class, function (): void {
             ->and($row['response_body'])->toBeNull();
     });
 
+    it('masks secrets in captured responses and their raw body', function (): void {
+        Http::fake(['auth.example.com/*' => Http::response(['access_token' => 'abcdefghijklmnop', 'expires_in' => 3600], 200)]);
+
+        Http::asForm()->post('https://auth.example.com/oauth/token', ['grant_type' => 'client_credentials']);
+
+        $capture = app(Eyepiece::class)->finalize()->rows('http')[0]['response_capture'];
+
+        expect($capture['cards'][0]['items'])->toBe(['access_token' => 'abcd****', 'expires_in' => 3600])
+            ->and($capture['raw'])->toBe('{"access_token":"abcd****","expires_in":3600}');
+    });
+
     it('records every request sent in a pool', function (): void {
         Http::pool(fn ($pool) => [
             $pool->as('orders')->get('https://api.example.com/orders'),
