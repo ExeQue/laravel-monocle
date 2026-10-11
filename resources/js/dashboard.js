@@ -35,6 +35,22 @@ const TOTAL_GROUPS = [
 /** Table columns whose values are worth copying: keys, urls, names, paths, messages. */
 const COPY_COLUMNS = ['key', 'keys', 'url', 'path', 'destination', 'view', 'name', 'class', 'message', 'command', 'job', 'event', 'listener', 'ability', 'subject', 'to', 'from', 'tool', 'model', 'feature', 'component', 'prompt', 'response', 'text', 'file', 'id', 'uuid', 'job_id', 'batch_id', 'value', 'sql'];
 
+/** How each section's rows can be grouped, besides in order: [key, label]. */
+const GROUPINGS = {
+  http: [['endpoint', 'by endpoint'], ['host', 'by host'], ['pool', 'by pool'], ['status', 'by status']],
+  views: [['view', 'by view'], ['engine', 'by engine']],
+  cache: [['key', 'by key'], ['type', 'by operation'], ['store', 'by store']],
+  events: [['event', 'by event']],
+  filesystem: [['path', 'by path'], ['op', 'by operation'], ['disk', 'by disk']],
+  jobs: [['job', 'by job'], ['queue', 'by queue']],
+  mail: [['type', 'by type']],
+  authorization: [['ability', 'by ability'], ['result', 'by result']],
+  exceptions: [['class', 'by exception']],
+  features: [['feature', 'by feature']],
+  redis: [['command', 'by command']],
+  log: [['message', 'by message']],
+};
+
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 const TAB_ORDER = ['exceptions', 'validation', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
@@ -78,7 +94,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   tabData: null,
   tabLoading: false,
   groupBy: 'order',
-  httpGroup: 'order',
+  rowGroups: {},
   modelChanges: [],
   logLevels: [],
   openRows: [],
@@ -463,10 +479,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   },
 
   levelClass(level) {
-    return { debug: 'text-muted', warning: 'text-warn', error: 'text-bad', critical: 'text-bad', alert: 'text-bad', emergency: 'text-bad' }[level] ?? '';
+    return { debug: 'text-muted', info: 'text-[var(--c-http)]', notice: 'text-[var(--c-http)]', warning: 'text-warn', error: 'text-bad', critical: 'text-bad', alert: 'text-bad', emergency: 'text-bad' }[level] ?? '';
   },
 
   get tables() {
+    if (this.groups.length) return [];
     const rows = this.tabData?.rows ?? [];
     const own = { key: this.tab, title: null, rows: this.tab === 'log' && this.logLevels.length ? rows.filter((row) => this.logLevels.includes(row.level)) : rows };
     return this.tab === 'models' ? [own, { key: 'model_changes', title: 'Changes', rows: this.modelChanges }] : [own];
@@ -557,30 +574,43 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     </div>`;
   },
 
-  /** HTTP calls grouped by endpoint (ids in the path collapsed), host, pool or status. */
-  get httpGroups() {
-    if (this.tab !== 'http' || this.httpGroup === 'order') return [];
+  /** The groupings the open section offers, and the one picked. */
+  get groupings() { return GROUPINGS[this.tab] ?? []; },
+  get rowGroup() { return this.rowGroups[this.tab] ?? 'order'; },
+  setRowGroup(by) { this.rowGroups = { ...this.rowGroups, [this.tab]: by }; this.openGroups = []; },
+
+  /** Rows of the open section grouped by the picked grouping: count, failures and timing per group. */
+  get groups() {
+    const by = this.rowGroup;
+    if (by === 'order' || !this.groupings.length) return [];
     const host = (url) => { try { return new URL(url).host; } catch { return '?'; } };
-    const endpoint = (row) => `${row.method} ${String(row.url ?? '').split('?')[0].replace(/\/(\d+|[0-9a-f-]{32,36}|[0-9a-f]{24,})(?=\/|$)/gi, '/{id}')}`;
     const keyOf = {
-      endpoint,
+      endpoint: (row) => `${row.method} ${String(row.url ?? '').split('?')[0].replace(/\/(\d+|[0-9a-f-]{32,36}|[0-9a-f]{24,})(?=\/|$)/gi, '/{id}')}`,
       host: (row) => host(row.url),
       pool: (row) => (row.pool == null ? 'not pooled' : `pool #${row.pool}`),
       status: (row) => (row.status == null ? 'no response' : String(row.status)),
-    }[this.httpGroup];
+    }[this.tab === 'http' ? by : null] ?? ((row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by])));
+    const failed = (row) => row.failed === true || row.ok === false || row.passed === false || row.result === false || (typeof row.status === 'number' && row.status >= 400);
     const groups = new Map();
     (this.tabData?.rows ?? []).forEach((row, i) => {
       const key = keyOf(row);
       const g = groups.get(key) ?? { key, count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
       const ms = Number(row.duration ?? 0);
       g.count++;
-      g.failed += row.failed ? 1 : 0;
+      g.failed += failed(row) ? 1 : 0;
       g.total_ms += ms;
       g.max_ms = Math.max(g.max_ms, ms);
       g.rows.push(i);
       groups.set(key, g);
     });
-    return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms);
+    return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms || b.count - a.count);
+  },
+
+  /** A row inside a group, in one line: the columns that tell it apart from the rest of its group. */
+  memberLabel(row) {
+    if (this.tab === 'http') return `${row.method} ${row.url}`;
+    const skip = [this.rowGroup, 'duration', 'time', 'origin'];
+    return this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c)).slice(0, 2).map((c) => fmtValue(row[c])).filter(Boolean).join(' · ');
   },
 
   /** The details of an expanded row: HTTP calls get their own layout, other rows list every field. */
@@ -742,7 +772,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   },
 
   // Template helpers
-  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody,
+  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
   totalValue([k, v]) {

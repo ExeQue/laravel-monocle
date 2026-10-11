@@ -1325,30 +1325,15 @@
                     >
                         <div
                             class="text-muted mb-2.5 flex flex-wrap items-center gap-1.5 text-xs"
-                            x-show="tab === 'http'"
+                            x-show="groupings.length"
                         >
                             Show
-                            <template
-                                x-for="
-                                    g in
-                                    [
-                                        ['order', 'in order'],
-                                        ['endpoint', 'by endpoint'],
-                                        ['host', 'by host'],
-                                        ['pool', 'by pool'],
-                                        ['status', 'by status'],
-                                    ]
-                                "
-                                :key="g[0]"
-                            >
+                            <template x-for="g in [['order', 'in order'], ...groupings]" :key="g[0]">
                                 <button
                                     type="button"
                                     :class="cls.chip"
-                                    @click="
-                                        httpGroup = g[0];
-                                        openGroups = [];
-                                    "
-                                    :aria-pressed="httpGroup === g[0]"
+                                    @click="setRowGroup(g[0])"
+                                    :aria-pressed="rowGroup === g[0]"
                                     x-text="g[1]"
                                 ></button>
                             </template>
@@ -1381,19 +1366,33 @@
                                 </button>
                             </template>
                         </div>
-                        <div :class="cls.tableWrap" x-show="httpGroups.length">
+                        <div :class="cls.tableWrap" x-show="groups.length">
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>
                                     <tr>
-                                        <th scope="col" :class="cls.th" x-text="humanize(httpGroup)"></th>
+                                        <th
+                                            scope="col"
+                                            :class="cls.th"
+                                            x-text="
+                                                (groupings.find((g) => g[0] === rowGroup) ?? [, ''])[1]
+                                                    .replace(/^by /, '')
+                                                    .replace(/^./, (c) => c.toUpperCase())
+                                            "
+                                        ></th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Count</th>
-                                        <th scope="col" :class="[cls.th, '!text-right']">Failed</th>
+                                        <th
+                                            scope="col"
+                                            :class="[cls.th, '!text-right']"
+                                            x-show="groups.some((g) => g.failed)"
+                                        >
+                                            Failed
+                                        </th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Total</th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Avg</th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Max</th>
                                     </tr>
                                 </thead>
-                                <template x-for="g in httpGroups" :key="g.key">
+                                <template x-for="g in groups" :key="g.key">
                                     <tbody>
                                         <tr class="hover:bg-sunk cursor-pointer" @click="toggleGroup(g.key)">
                                             <td :class="cls.td">
@@ -1428,7 +1427,7 @@
                                                                 class="block font-mono text-xs [overflow-wrap:anywhere]"
                                                                 x-text="g.key"
                                                             ></code>
-                                                            <span x-html="copyButton(g.key, httpGroup, { hover: true })"></span>
+                                                            <span x-html="copyButton(g.key, rowGroup, { hover: true })"></span>
                                                         </span>
                                                         <span x-html="originHtml(g.origin)"></span>
                                                     </div>
@@ -1438,6 +1437,7 @@
                                             <td
                                                 :class="cls.td"
                                                 class="text-right tabular-nums"
+                                                x-show="groups.some((group) => group.failed)"
                                                 x-html="g.failed ? `<span class='text-bad'>${g.failed}</span>` : '0'"
                                             ></td>
                                             <td
@@ -1463,20 +1463,20 @@
                                                         <div class="border-line border-b last:border-b-0">
                                                             <div
                                                                 class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
-                                                                @click="toggleRow('http:' + i)"
+                                                                @click="toggleRow(tab + ':' + i)"
                                                             >
                                                                 <button
                                                                     type="button"
                                                                     class="inline-flex cursor-pointer items-start gap-1 font-mono tabular-nums"
-                                                                    :aria-expanded="openRows.includes('http:' + i)"
-                                                                    :aria-label="(openRows.includes('http:' + i)
+                                                                    :aria-expanded="openRows.includes(tab + ':' + i)"
+                                                                    :aria-label="(openRows.includes(tab + ':' + i)
                                                                         ? 'Hide'
-                                                                        : 'Show') + ' the details of this call'"
-                                                                    @click.stop="toggleRow('http:' + i)"
+                                                                        : 'Show') + ' the details of this row'"
+                                                                    @click.stop="toggleRow(tab + ':' + i)"
                                                                 >
                                                                     <svg
                                                                         class="text-brass size-3 transition-transform duration-200"
-                                                                        :class="openRows.includes('http:' + i) &&
+                                                                        :class="openRows.includes(tab + ':' + i) &&
                                                                         'rotate-90'"
                                                                         viewBox="0 0 16 16"
                                                                         fill="none"
@@ -1488,16 +1488,18 @@
                                                                     >
                                                                         <path d="M6 3.5 10.5 8 6 12.5" />
                                                                     </svg>
-                                                                    <span x-html="cell(tabData.rows[i], 'status')"></span>
+                                                                    <span
+                                                                        x-html="
+                                                                            tab === 'http'
+                                                                                ? cell(tabData.rows[i], 'status')
+                                                                                : '#' + (tabData.rows[i].n ?? i + 1)
+                                                                        "
+                                                                    ></span>
                                                                 </button>
                                                                 <div class="min-w-0">
                                                                     <code
                                                                         class="block font-mono [overflow-wrap:anywhere]"
-                                                                        x-text="
-                                                                            tabData.rows[i].method +
-                                                                            ' ' +
-                                                                            tabData.rows[i].url
-                                                                        "
+                                                                        x-html="classes(memberLabel(tabData.rows[i]))"
                                                                     ></code>
                                                                     <span x-html="cell(tabData.rows[i], 'origin')"></span>
                                                                 </div>
@@ -1507,15 +1509,15 @@
                                                                 ></span>
                                                             </div>
                                                             <div
-                                                                x-show="openRows.includes('http:' + i)"
+                                                                x-show="openRows.includes(tab + ':' + i)"
                                                                 x-collapse
                                                                 x-cloak
                                                             >
                                                                 <div
                                                                     class="grid max-w-[1200px] gap-2.5 pr-3 pb-3 pl-[5rem] text-[13px]"
                                                                     x-html="
-                                                                        openRows.includes('http:' + i)
-                                                                            ? details(tabData.rows[i], 'http')
+                                                                        openRows.includes(tab + ':' + i)
+                                                                            ? details(tabData.rows[i], tab)
                                                                             : ''
                                                                     "
                                                                 ></div>
@@ -1529,7 +1531,7 @@
                                 </template>
                             </table>
                         </div>
-                        <template x-for="t in httpGroups.length ? [] : tables" :key="t.key">
+                        <template x-for="t in tables" :key="t.key">
                             <div class="mb-5 last:mb-0" x-show="t.rows.length">
                                 <h3
                                     class="text-muted mb-2 text-xs font-semibold tracking-wide uppercase"
@@ -1655,7 +1657,7 @@
                             type="button"
                             class="mt-2.5"
                             :class="cls.link"
-                            x-show="tabData?.next_offset != null && ! httpGroups.length"
+                            x-show="tabData?.next_offset != null && ! groups.length"
                             @click="loadMore()"
                             x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"
                         ></button>
