@@ -97,3 +97,24 @@ document.addEventListener('click', (e) => {
   e.stopImmediatePropagation();
   copyFrom(button);
 }, true);
+
+/** Is this a recorded throwable ({class, message, previous?})? */
+export const isThrowable = (v) => !!v && typeof v === 'object' && !Array.isArray(v) && typeof v.class === 'string' && 'message' in v;
+
+/**
+ * A recorded throwable and the exceptions it wraps. Compact (tables): one line each,
+ * `Basename: message`, the full class name in a tooltip. Full (details): the full class
+ * name on a line of its own with the message under it, wrapped exceptions indented.
+ */
+export const exceptionHtml = (e, { limit = null, full = false } = {}) => {
+  const chain = [e, ...(Array.isArray(e.previous) ? e.previous : e.previous ? [e.previous] : [])];
+  return full ? chainBlocks(chain) : previousHtml(chain, limit, 0);
+};
+
+const chainBlocks = (chain) => `<div class="grid gap-2">${chain.map((x, i) => `<div class="group/copy grid gap-0.5 ${i ? 'border-l-2 border-line pl-3' : ''}" style="margin-left:${Math.min(i, 4) * 12}px"><span class="flex items-start gap-1.5">${x.link ? `<a class="font-mono underline decoration-brass underline-offset-2 hover:text-brass ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]" href="${esc(x.link)}">${esc(x.class)}</a>` : `<span class="font-mono ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]">${esc(x.class)}</span>`}${copyButton(`${x.class}: ${x.message ?? ''}`, i ? `wrapped exception ${i}` : 'exception', { hover: true })}</span><span class="[overflow-wrap:anywhere]">${esc(String(x.message ?? ''))}</span>${x.file ? `<span class="font-mono text-[11px] text-muted">${maybeLink(x.file, x.file_link)}</span>` : ''}</div>`).join('')}</div>`;
+
+/** Throwables as compact lines; from `nested` on they are indented under the first. */
+export const previousHtml = (chain, limit = null, nested = 1) => {
+  const text = (m) => { const s = String(m ?? ''); return limit && s.length > limit ? s.slice(0, limit) + '…' : s; };
+  return `<div class="grid gap-0.5">${chain.map((x, j) => ({ x, i: j + nested })).map(({ x, i }) => `<div class="${i ? 'pl-3 text-muted' : ''} [overflow-wrap:anywhere]">${i ? '<span aria-hidden="true">↳ </span>' : ''}${maybeLink(x.class, x.link, `font-mono ${i ? '' : 'text-bad'}`)}: ${esc(text(x.message))}</div>`).join('')}</div>`;
+};

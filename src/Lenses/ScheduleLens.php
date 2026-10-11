@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
@@ -49,7 +50,7 @@ final class ScheduleLens implements Advises, Lens, Summarizable
         $this->eyepiece->listen(ScheduledBackgroundTaskFinished::class, fn (ScheduledBackgroundTaskFinished $event) => $this->record($event->task, 'finished_in_background'));
         $this->eyepiece->listen(ScheduledTaskSkipped::class, fn (ScheduledTaskSkipped $event) => $this->record($event->task, 'skipped'));
         $this->eyepiece->listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => $this->record($event->task, 'failed', [
-            'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+            'exception' => ThrowableChain::describe($event->exception),
         ]));
     }
 

@@ -83,6 +83,19 @@ describe(TimelinePresenter::class, function (): void {
             ->and(array_column($pool['children'], 'name'))->toBe(['GET https://a.test/1', 'GET https://a.test/2']);
     });
 
+    it('links the classes of a recorded exception and the ones it wraps', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(new EditorSettings('vscode'), '/app'));
+        $row = $presenter->row(['exception' => [
+            'class' => TimelinePresenter::class,
+            'message' => 'outer',
+            'previous' => [['class' => EditorLinks::class, 'message' => 'inner', 'file' => 'app/X.php:3']],
+        ]]);
+
+        expect($row['exception']['link'])->toContain('TimelinePresenter.php:')
+            ->and($row['exception']['previous'][0]['link'])->toContain('EditorLinks.php:')
+            ->and($row['exception']['previous'][0]['file_link'])->toBe('vscode://file/app/app/X.php:3');
+    });
+
     it('links nothing without an editor', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
 

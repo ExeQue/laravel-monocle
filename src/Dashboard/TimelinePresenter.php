@@ -245,6 +245,14 @@ final readonly class TimelinePresenter
         $links = [];
 
         foreach ($meta as $key => $value) {
+            if ($this->isThrowable($value)) {
+                $meta[$key] = $value = $this->throwable($value);
+            }
+
+            if ($key === 'previous' && is_array($value) && array_is_list($value)) {
+                $meta[$key] = $value = array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $value);
+            }
+
             if (($link = $this->link($value)) !== null) {
                 $links[$key] = $link;
             }
@@ -323,6 +331,33 @@ final readonly class TimelinePresenter
         }
 
         return $this->meta($row);
+    }
+
+    /**
+     * A recorded throwable with editor links on its class and file, and on
+     * those of the exceptions it wraps.
+     *
+     * @param  array<string, mixed>  $throwable
+     * @return array<string, mixed>
+     */
+    private function throwable(array $throwable): array
+    {
+        $throwable['link'] = $this->link($throwable['class']);
+        $throwable['file_link'] = isset($throwable['file']) ? $this->link($throwable['file']) : null;
+
+        if (is_array($throwable['previous'] ?? null)) {
+            $throwable['previous'] = array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $throwable['previous']);
+        }
+
+        return $throwable;
+    }
+
+    /**
+     * @phpstan-assert-if-true array{class: string, message: mixed} $value
+     */
+    private function isThrowable(mixed $value): bool
+    {
+        return is_array($value) && is_string($value['class'] ?? null) && array_key_exists('message', $value);
     }
 
     /**

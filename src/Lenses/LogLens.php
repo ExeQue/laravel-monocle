@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Log\Events\MessageLogged;
 use Throwable;
 
@@ -89,11 +90,7 @@ final class LogLens implements Advises, Lens, Summarizable
     {
         foreach ($context as $key => $value) {
             if ($value instanceof Throwable) {
-                $context[$key] = [
-                    'class' => $value::class,
-                    'message' => $value->getMessage(),
-                    'file' => $value->getFile().':'.$value->getLine(),
-                ];
+                $context[$key] = ThrowableChain::describe($value, fn (string $file): string => $file);
             }
         }
 

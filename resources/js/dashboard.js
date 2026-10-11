@@ -1,7 +1,7 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
-import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton } from './format.js';
+import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from './format.js';
 import { cls, statusClass, httpStatusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
@@ -575,7 +575,7 @@ Alpine.data('monocle', (config) => ({
     return `<div class="grid gap-4">
       <div class="flex flex-wrap items-start gap-1.5 font-mono text-xs"><b>${esc(row.method ?? '')}</b><span class="[overflow-wrap:anywhere]">${esc(row.url ?? '')}</span>${copyButton(row.url ?? '', 'url')}</div>
       <dl class="m-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">${facts.map(([k, v, tone]) => `<div class="grid gap-0.5"><dt class="${label}">${k}</dt><dd class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere] ${tone ?? ''}">${esc(String(v))}</dd></div>`).join('')}</dl>
-      ${row.exception ? block('Exception', `<div class="grid gap-0.5 rounded-md border border-line bg-panel p-2.5 text-xs"><span class="font-mono text-bad">${esc(row.exception.class)}</span><span class="[overflow-wrap:anywhere]">${esc(row.exception.message)}</span></div>`, row.exception.message) : ''}
+      ${row.exception ? block('Exception', `<div class="rounded-md border border-line bg-panel p-2.5 text-xs">${exceptionHtml(row.exception, { full: true })}</div>`, [row.exception, ...(row.exception.previous ?? [])].map((x) => `${x.class}: ${x.message}`).join('\n')) : ''}
       <div class="grid gap-4 lg:grid-cols-2">
         ${block('Request headers', kvTable(this.headers(row.request_headers), 'request header'))}
         ${block('Response headers', kvTable(this.headers(row.response_headers), 'response header'))}
@@ -612,7 +612,8 @@ Alpine.data('monocle', (config) => ({
     if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
     if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
     if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
-    if (key === 'exception' && v && typeof v === 'object' && 'class' in v) return `<span class="font-mono text-bad">${esc(String(v.class).split('\\').pop())}</span> <span class="text-muted">${esc(String(v.message ?? '').slice(0, 140))}${String(v.message ?? '').length > 140 ? '…' : ''}</span>`;
+    if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
+    if (key === 'previous' && Array.isArray(v) && v.length && v.every(isThrowable)) return previousHtml(v, 140);
     if (key === 'type' && (v === 'miss' || v === 'failed')) return `<span class="font-medium text-warn">${esc(v)}</span>`;
     if ((key === 'repeat_of' || key === 'duplicate_of') && v) return `<span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">${key === 'repeat_of' ? 'repeat' : 'duplicate'} of #${esc(v)}</span>`;
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);

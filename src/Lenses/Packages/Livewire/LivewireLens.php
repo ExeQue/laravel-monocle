@@ -13,6 +13,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Livewire\Component;
 use Livewire\Livewire;
 use Throwable;
@@ -105,7 +106,7 @@ final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summ
 
         $this->hook('exception', function (mixed $target, Throwable $exception): void {
             if ($target instanceof Component && $this->track($target)) {
-                $this->components[$target->getId()]['exception'] = ['class' => $exception::class, 'message' => $exception->getMessage()];
+                $this->components[$target->getId()]['exception'] = ThrowableChain::describe($exception);
             }
         });
     }

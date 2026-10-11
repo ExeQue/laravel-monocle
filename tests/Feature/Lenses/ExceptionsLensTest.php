@@ -32,7 +32,7 @@ describe(ExceptionsLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['class' => RuntimeException::class, 'message' => 'kaboom', 'code' => 42])
             ->and($rows[0]['file'])->toContain('ExceptionsLensTest.php:')
             ->and($rows[0]['frames'])->toBeArray()
-            ->and($rows[0]['previous'])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause']);
+            ->and($rows[0]['previous'][0])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause']);
 
         $summary = app(ExceptionsLens::class)->summarize($capture);
 

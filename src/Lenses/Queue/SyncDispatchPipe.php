@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Lenses\Queue;
 use Closure;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Throwable;
 
 /**
@@ -48,7 +49,7 @@ final class SyncDispatchPipe
         try {
             return $next($command);
         } catch (Throwable $exception) {
-            $span->meta(['status' => 'exception', 'exception' => ['class' => $exception::class, 'message' => $exception->getMessage()]]);
+            $span->meta(['status' => 'exception', 'exception' => ThrowableChain::describe($exception)]);
 
             throw $exception;
         } finally {

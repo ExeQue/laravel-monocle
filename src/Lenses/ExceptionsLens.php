@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Throwable;
@@ -82,19 +83,15 @@ final class ExceptionsLens implements Advises, Lens, Summarizable
      */
     private function describe(Throwable $exception): array
     {
-        $previous = $exception->getPrevious();
+        $chain = ThrowableChain::describe($exception, $this->relative(...));
 
         return [
-            'class' => $exception::class,
-            'message' => $exception->getMessage(),
+            'class' => $chain['class'],
+            'message' => $chain['message'],
             'code' => $exception->getCode(),
-            'file' => $this->relative($exception->getFile()).':'.$exception->getLine(),
+            'file' => $chain['file'],
             'frames' => $this->frames($exception),
-            'previous' => $previous === null ? null : [
-                'class' => $previous::class,
-                'message' => $previous->getMessage(),
-                'file' => $this->relative($previous->getFile()).':'.$previous->getLine(),
-            ],
+            'previous' => $chain['previous'],
         ];
     }
 

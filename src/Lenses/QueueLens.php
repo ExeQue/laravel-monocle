@@ -14,6 +14,7 @@ use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Bus\Dispatcher as BusDispatcher;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -254,11 +255,7 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
     private function fail(Job $job, Throwable $exception, string $status, bool $finish = false): void
     {
         $key = $this->jobKey($job);
-        $info = [
-            'class' => $exception::class,
-            'message' => $exception->getMessage(),
-            'file' => $exception->getFile().':'.$exception->getLine(),
-        ];
+        $info = ThrowableChain::describe($exception, fn (string $file): string => $file);
 
         if (isset($this->spans[$key])) {
             $span = $this->spans[$key];

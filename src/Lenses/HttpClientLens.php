@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Batch;
 use Illuminate\Http\Client\Events\ConnectionFailed;
@@ -122,7 +123,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'response_capture' => null,
                 'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
                 'failed' => true,
-                'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+                'exception' => ThrowableChain::describe($event->exception),
                 // A connection that fails before the request is sent never fired RequestSending.
                 'pool' => $pending === null ? $this->pool() : $pending['pool'],
             ]);

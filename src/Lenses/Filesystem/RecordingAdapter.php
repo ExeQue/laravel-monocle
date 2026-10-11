@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses\Filesystem;
 
 use Closure;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\ThrowableChain;
 use League\Flysystem\CalculateChecksumFromStream;
 use League\Flysystem\ChecksumProvider;
 use League\Flysystem\Config;
@@ -180,7 +181,7 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
             return $result;
         } catch (Throwable $exception) {
             $row['ok'] = false;
-            $row['exception'] = ['class' => $exception::class, 'message' => $exception->getMessage()];
+            $row['exception'] = ThrowableChain::describe($exception);
 
             throw $exception;
         } finally {

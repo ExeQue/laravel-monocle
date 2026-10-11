@@ -13,6 +13,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Support\Str;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;
@@ -204,7 +205,7 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
         }
 
         $this->finishAgent($event->invocationId, 'failed', [
-            'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+            'exception' => ThrowableChain::describe($event->exception),
         ]);
     }
 
@@ -246,7 +247,7 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
     {
         $this->finishStep($event->invocationId, $event->stepNumber, [
             'status' => 'failed',
-            'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+            'exception' => ThrowableChain::describe($event->exception),
             'provider_ms' => round($event->time, 3),
         ]);
     }
@@ -283,7 +284,7 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
     {
         $this->tools[$event->toolInvocationId]?->stop([
             'status' => 'failed',
-            'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+            'exception' => ThrowableChain::describe($event->exception),
             'tool_ms' => round($event->time, 3),
         ]);
 

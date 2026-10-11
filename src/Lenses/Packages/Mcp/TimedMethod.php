@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Lenses\Packages\Mcp;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\ThrowableChain;
 use Generator;
 use Laravel\Mcp\Server\Contracts\Errable;
 use Laravel\Mcp\Server\Contracts\Method;
@@ -114,7 +115,7 @@ final class TimedMethod implements Errable, Method
             'duration' => $span->duration(),
             'is_error' => $isError,
             'streamed_chunks' => $chunks,
-            'exception' => $exception === null ? null : ['class' => $exception::class, 'message' => $exception->getMessage()],
+            'exception' => $exception === null ? null : ThrowableChain::describe($exception),
         ];
 
         if ($ownCapture) {

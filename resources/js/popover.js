@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, copyButton } from './format.js';
+import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml } from './format.js';
 import { cls } from './classes.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
@@ -28,6 +28,7 @@ function metaRows(meta) {
     .map(([k, v]) => {
       const text = (k === 'duration' || k === 'time' || k.endsWith('_ms')) && typeof v === 'number' ? ms(v) : fmtValue(v);
       // Details show values in full (class names included), each with a copy button.
+      if (isThrowable(v)) return `<tr class="group"><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 text-xs">${exceptionHtml(v, { full: true })}</td><td class="w-5 py-0.5 align-top">${copyButton(`${v.class}: ${v.message}`, k)}</td></tr>`;
       const value = links[k] ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass" href="${esc(links[k])}">${esc(text)}</a>` : esc(text);
       return `<tr class="group"><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${value}</td><td class="w-5 py-0.5 align-top">${copyButton(text, k)}</td></tr>`;
     })
@@ -59,13 +60,17 @@ function nodeDetails(model, n) {
 
 /** Everything about one row from a section table: every field in full, the query, the origin. */
 export function rowBody(row) {
-  const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash'].includes(k)));
+  // A row that is itself an exception (the exceptions section) leads with its chain.
+  const thrown = isThrowable(row) && Array.isArray(row.previous);
+  const hidden = ['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash', ...(thrown ? ['class', 'message', 'previous'] : [])];
+  const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !hidden.includes(k)));
   const rows = metaRows(meta);
   const sql = row.sql_with_bindings ?? row.sql;
   return `
+    ${thrown ? `<div class="${SEC} border-t-0 pt-0"><div class="flex items-center gap-1.5"><div class="${K}">Exception</div>${copyButton([row, ...row.previous].map((x) => `${x.class}: ${x.message}`).join('\n'), 'exception')}</div><div class="rounded-md border border-line bg-panel p-2.5 text-xs">${exceptionHtml(row, { full: true })}</div></div>` : ''}
     ${sql ? `<div class="${SEC} border-t-0 pt-0">${codeBlock('Query', sql)}</div>` : ''}
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
-    ${rows ? `<div class="${SEC} ${sql ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
+    ${rows ? `<div class="${SEC} ${sql || thrown ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${originHtml(row.origin)}`;
 }
 
