@@ -22,6 +22,7 @@
         "php": "^8.4",
         "illuminate/contracts": "^13.0",
         "illuminate/support": "^13.0",
+        "laravel/agent-detector": "^2.0",
         "laravel/boost": "^2.10",
         "laravel/mcp": "^1.0"
     },

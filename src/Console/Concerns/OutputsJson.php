@@ -4,11 +4,56 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Console\Concerns;
 
+use Closure;
+use Laravel\AgentDetector\AgentDetector;
+
+use function Laravel\Prompts\error;
+
 use Symfony\Component\Console\Input\InputOption;
 
-/** @internal */
+/**
+ * Agents (detected, or asked for with --json or --agent) get the same JSON
+ * the MCP tools return; people get the output rendered with Laravel Prompts.
+ *
+ * @internal
+ */
 trait OutputsJson
 {
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  Closure(array<string, mixed>): void  $forHumans
+     */
+    protected function respond(array $data, Closure $forHumans): int
+    {
+        if ($this->wantsJson()) {
+            return $this->outputJson($data);
+        }
+
+        if (isset($data['error'])) {
+            error((string) $data['error']);
+
+            return self::FAILURE;
+        }
+
+        $forHumans($data);
+
+        return self::SUCCESS;
+    }
+
+    protected function wantsJson(): bool
+    {
+        if ($this->option('json') || $this->option('agent') || $this->option('compact')) {
+            return true;
+        }
+
+        // Like laravel/pao: the test suite never counts as an agent.
+        if ($this->laravel->runningUnitTests()) {
+            return false;
+        }
+
+        return AgentDetector::detect()->isAgent;
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
@@ -31,6 +76,8 @@ trait OutputsJson
     protected function jsonOptions(): array
     {
         return [
+            new InputOption('json', null, InputOption::VALUE_NONE, 'JSON output, as the MCP tools return it (the default when an AI agent runs the command)'),
+            new InputOption('agent', null, InputOption::VALUE_NONE, 'Same as --json'),
             new InputOption('compact', null, InputOption::VALUE_NONE, 'Single-line JSON output'),
         ];
     }
