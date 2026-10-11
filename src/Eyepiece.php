@@ -139,17 +139,15 @@ final class Eyepiece
 
     private function buildMasker(?string $lens): Masker
     {
-        $headers = $this->configForLens('mask.headers', $lens);
         $inputs = $this->configForLens('mask.inputs', $lens);
-        $cookies = $this->configForLens('mask.cookies', $lens);
         $sessionCookie = (string) $this->app->make('config')->get('session.cookie');
 
         return new Masker(
-            headers: $this->masks($headers, 'mask.headers'),
+            headers: $this->masksForLens('mask.headers', $lens),
             pattern: array_values(array_filter($inputs, 'is_string')),
             mask: $this->resolveMask($this->config('mask.using', PartialMask::class), 'mask.using'),
             // The session cookie is always masked; a mask configured for it wins because it is matched first.
-            cookies: [...$this->masks($cookies, 'mask.cookies'), $sessionCookie],
+            cookies: [...$this->masksForLens('mask.cookies', $lens), $sessionCookie],
         );
     }
 
@@ -201,14 +199,17 @@ final class Eyepiece
     }
 
     /**
-     * @param  array<array-key, mixed>  $list  name => mask, or a plain name
-     * @return array<array-key, mixed>
+     * A mask list from the config for a lens, each named entry's mask resolved.
+     *
+     * @return array<array-key, mixed> name => mask object, or a plain name
      */
-    private function masks(array $list, string $path): array
+    private function masksForLens(string $key, ?string $lens): array
     {
+        $list = $this->configForLens($key, $lens);
+
         foreach ($list as $name => $mask) {
             if (is_string($name)) {
-                $list[$name] = $this->resolveMask($mask, "{$path}.{$name}");
+                $list[$name] = $this->resolveMask($mask, "{$key}.{$name}");
             }
         }
 
