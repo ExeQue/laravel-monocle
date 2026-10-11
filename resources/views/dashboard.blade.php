@@ -63,7 +63,7 @@
                     <span class="font-mono text-xs tabular-nums" x-text="ms(c.duration)"></span>
                     <span class="col-span-2 col-start-2 flex flex-wrap gap-2.5 text-xs text-muted">
                         <span class="font-mono" :class="statusClass(c.status)" x-text="c.status ?? ''"></span>
-                        <span x-show="c.counts?.queries" x-text="(c.counts?.queries ?? 0) + ' queries'"></span>
+                        <span x-show="c.counts?.queries" x-text="c.counts?.queries + (c.counts?.queries === 1 ? ' query' : ' queries')"></span>
                         <span x-show="c.has_errors" class="text-bad"><i class="inline-block size-[7px] rounded-full bg-bad"></i> error</span>
                         <span x-show="c.label" class="rounded-full border border-dashed border-brass px-2 text-brass" x-text="c.label"></span>
                         <span x-text="ago(c.started_at)"></span>
@@ -146,7 +146,7 @@
                                     <div class="grid grid-cols-[70px_minmax(0,1fr)] items-center gap-3 text-[13px] sm:grid-cols-[90px_minmax(0,1fr)_140px]">
                                         <span x-text="c.name"></span>
                                         <div class="h-2 overflow-hidden rounded bg-sunk"><span class="block h-full rounded" :style="`width:${(c.ms / maxCategory) * 100}%;background:${categoryColor(c.name)}`"></span></div>
-                                        <span class="col-start-2 font-mono text-xs text-muted tabular-nums sm:col-start-auto sm:text-right" x-text="ms(c.ms) + ' · ' + c.count + ' ops'"></span>
+                                        <span class="col-start-2 font-mono text-xs text-muted tabular-nums sm:col-start-auto sm:text-right" x-text="ms(c.ms) + ' · ' + c.count + (c.count === 1 ? ' op' : ' ops')"></span>
                                     </div>
                                 </template>
                             </div>
