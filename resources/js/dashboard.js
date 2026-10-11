@@ -794,10 +794,15 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
+  /** A total that counts failures, errors or misses and is above 0 shows in red. */
+  totalTone([k, v]) {
+    return typeof v === 'number' && v > 0 && /(failed|errors|exceptions|denied|warnings)$/.test(k) ? 'text-bad' : '';
+  },
+
   totalValue([k, v]) {
     if (k.endsWith('_ms')) return ms(v);
     if (k.endsWith('_rate')) return v + ' %';
-    if (k.endsWith('_bytes')) return v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : Math.round(v / 1024) + ' KB';
+    if (k.endsWith('_bytes')) return v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? Math.round(v / 1024) + ' KB' : v + ' B';
     if (k.endsWith('_mb')) return v + ' MB';
     return String(v);
   },

@@ -442,6 +442,7 @@
                                                         ></div>
                                                         <div
                                                             class="text-xl font-bold tabular-nums"
+                                                            :class="totalTone(t)"
                                                             x-text="totalValue(t)"
                                                         ></div>
                                                     </div>
