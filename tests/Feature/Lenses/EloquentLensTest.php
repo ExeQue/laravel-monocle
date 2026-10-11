@@ -63,15 +63,16 @@ describe(EloquentLens::class, function (): void {
             ->and($changes[1]['rolled_back'])->toBeTrue();
     });
 
-    it('summarizes retrieved totals and the busiest models', function (): void {
-        Thing::create(['name' => 'a']);
+    it('summarizes models retrieved, created, updated and deleted, and the busiest ones', function (): void {
+        $thing = Thing::create(['name' => 'a']);
+        $thing->update(['name' => 'b']);
+        Thing::create(['name' => 'c'])->delete();
         Thing::query()->get();
         Thing::query()->get();
 
         $summary = app(EloquentLens::class)->summarize(app(Eyepiece::class)->finalize());
 
-        expect($summary->totals['models_retrieved'])->toBe(2)
-            ->and($summary->totals['models_written'])->toBe(1)
+        expect($summary->totals)->toMatchArray(['models_retrieved' => 2, 'models_created' => 2, 'models_updated' => 1, 'models_deleted' => 1])
             ->and($summary->totals['models_top_retrieved'])->toBe([Thing::class => 2]);
     });
 

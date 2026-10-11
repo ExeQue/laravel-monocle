@@ -82,16 +82,19 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
 
     public function summarize(Capture $capture): Summary
     {
-        $retrieved = 0;
-        $written = 0;
+        $counts = ['retrieved' => 0, 'created' => 0, 'updated' => 0, 'deleted' => 0];
         $top = [];
 
         foreach ($capture->rows('models') as $row) {
-            if ($row['action'] === 'retrieved') {
-                $retrieved += $row['count'];
+            $action = match ($row['action']) {
+                'restored' => 'updated',
+                'forceDeleted' => 'deleted',
+                default => $row['action'],
+            };
+            $counts[$action] = ($counts[$action] ?? 0) + $row['count'];
+
+            if ($action === 'retrieved') {
                 $top[$row['model']] = ($top[$row['model']] ?? 0) + $row['count'];
-            } else {
-                $written += $row['count'];
             }
         }
 
@@ -101,8 +104,10 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
             ->totals([
                 'models_top_retrieved' => array_slice($top, 0, 3, true),
             ])
-            ->total('models_retrieved', $retrieved, 'retrieved')
-            ->total('models_written', $written, 'written');
+            ->total('models_retrieved', $counts['retrieved'], 'retrieved')
+            ->total('models_created', $counts['created'], 'created')
+            ->total('models_updated', $counts['updated'], 'updated')
+            ->total('models_deleted', $counts['deleted'], 'deleted');
     }
 
     private function record(string $action, mixed $model): void
