@@ -12,7 +12,7 @@
 <body class="min-[861px]:h-dvh min-[861px]:overflow-hidden">
     <div
         class="flex min-h-dvh flex-col min-[861px]:grid min-[861px]:h-dvh min-[861px]:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]"
-        x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token()]))"
+        x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token(), 'paths' => $paths]))"
         x-cloak
     >
         <aside

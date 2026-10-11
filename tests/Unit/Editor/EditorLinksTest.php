@@ -65,6 +65,13 @@ describe(EditorLinks::class, function (): void {
                 ->and(Editor::VsCode->toolboxLink('a.php', 1, 'x'))->toBeNull();
         });
 
+        it('makes Toolbox paths relative to the mapped project root, also outside the application', function () use ($links): void {
+            $workbench = $links('phpstorm', ['/var/www/html' => '/home/me/package'], base: '/var/www/html/vendor/orchestra/testbench-core/laravel', project: 'package');
+
+            expect($workbench->file('/var/www/html/workbench/routes/web.php', 57))->toBe('jetbrains://php-storm/navigate/reference?project=package&path=workbench/routes/web.php:56')
+                ->and($workbench->mappings())->toBe(['/var/www/html' => '/home/me/package']);
+        });
+
         it('fills a custom URL template', function () use ($links): void {
             expect($links('my://open?f={file}&l={line}')->file('app/X.php', 9))->toBe('my://open?f=/var/www/html/app/X.php&l=9')
                 ->and($links('my://{distro}/{linux_file}?w={file}:{line}', distro: 'Debian', base: '/srv')->file('a.php', 1))

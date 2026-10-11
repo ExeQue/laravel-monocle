@@ -1,7 +1,7 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
-import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from './format.js';
+import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml, usePathMappings } from './format.js';
 import { cls, statusClass, httpStatusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
@@ -60,7 +60,7 @@ const hiddenNames = {
 /** A {field, from, to} list as a small table. */
 const changesTable = (changes) => `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]">${esc(c.field)}</td><td class="px-1.5 py-0.5 align-top font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 align-top font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
 
-Alpine.data('monocle', (config) => ({
+Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   api: config.api,
   captures: [],
   total: 0,

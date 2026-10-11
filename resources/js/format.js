@@ -19,7 +19,21 @@ const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json'
 
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
-const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"><span aria-hidden="true">${short}</span><span class="sr-only select-none">${full}</span></span>`;
+/** Server paths as the developer's machine sees them, from the path mappings in .monocle.json. */
+const paths = { base: '', mappings: {} };
+
+export const usePathMappings = ({ base = '', mappings = {} } = {}) => Object.assign(paths, { base, mappings });
+
+/** A server path (absolute, or relative to the application) with the longest matching mapping applied. */
+export const hostPath = (path) => {
+  const absolute = path.startsWith('/') || !paths.base ? path : `${paths.base.replace(/\/$/, '')}/${path}`;
+  const prefix = Object.keys(paths.mappings).filter((p) => absolute === p || absolute.startsWith(p + '/')).sort((a, b) => b.length - a.length)[0];
+  return prefix === undefined ? path : paths.mappings[prefix] + absolute.slice(prefix.length);
+};
+
+const looksLikePath = (text) => /^\/?(?:[\w.-]+\/)+[\w.-]+(?::\d+)?$/.test(text);
+
+const shortened = (full, short) => `<span class="cursor-help" data-tip="${looksLikePath(full) ? hostPath(full) : full}"><span aria-hidden="true">${short}</span><span class="sr-only select-none">${full}</span></span>`;
 
 /**
  * Escaped text with every namespaced class name shortened to its basename,

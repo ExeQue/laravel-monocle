@@ -85,13 +85,53 @@ final readonly class EditorLinks
     }
 
     /**
-     * The path inside the project, or null for files outside it.
+     * The path inside the project, or null for files outside it. A path
+     * mapping names the project root in the editor, so a mapped path is
+     * relative to that; otherwise it is relative to the application.
      */
     private function relative(string $absolute): ?string
     {
+        $prefix = $this->mappedPrefix($absolute);
+
+        if ($prefix !== null) {
+            return ltrim(substr($absolute, strlen($prefix)), '/');
+        }
+
         $base = rtrim(str_replace('\\', '/', $this->basePath), '/').'/';
 
         return str_starts_with($absolute, $base) ? substr($absolute, strlen($base)) : null;
+    }
+
+    /**
+     * Path mappings, server prefix => editor prefix.
+     *
+     * @return array<string, string>
+     */
+    public function mappings(): array
+    {
+        $mappings = [];
+
+        foreach ($this->settings->paths ?? [] as $from => $to) {
+            $mappings[rtrim(str_replace('\\', '/', (string) $from), '/')] = rtrim(str_replace('\\', '/', (string) $to), '/');
+        }
+
+        return $mappings;
+    }
+
+    /**
+     * The longest server-side prefix of a path mapping that matches, if any.
+     */
+    private function mappedPrefix(string $path): ?string
+    {
+        $match = null;
+
+        foreach (array_keys($this->mappings()) as $prefix) {
+            if (($path === $prefix || str_starts_with($path, $prefix.'/')) && ($match === null || strlen($prefix) > strlen($match))) {
+                $match = $prefix;
+            }
+        }
+
+        return $match;
     }
 
     private function absolute(string $file): string

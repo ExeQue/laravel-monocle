@@ -11,6 +11,8 @@ on:
       - 'routes/**'
       - 'resources/**'
       - 'tests/**'
+      - 'workbench/**'
+      - 'testbench.yaml'
       - 'package.json'
       - 'package-lock.json'
       - 'vite.dashboard.config.js'
