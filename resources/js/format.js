@@ -41,16 +41,30 @@ const shortened = (full, short) => `<span class="cursor-help" data-tip="${looksL
  * (User:12), view paths to the part after resources/views and compiled views
  * to a short hash; the full name shows in a tooltip.
  */
-export const classes = (text) => esc(text)
-  .replace(/(?<![\w.\/-])\/(?:[\w.-]+\/){2,}([\w.-]+\/[\w.-]+(?::\d+)?)/g, (full, tail) => shortened(full, tail))
-  .replace(/(?<![\w/])storage\/framework\/views\/([0-9a-f]{8})[0-9a-f]*\.(?:blade\.)?php/g, (full, hash) => shortened(full, `compiled/${hash}`))
-  .replace(/(?<![\w/])resources\/views\/([\w./-]+)/g, (full, rest) => shortened(full, rest))
-  .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => shortened(full, base + line))
-  .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)(?:(-&gt;|::)(?!class\b)(\w+)(?![\w(]))?/g, (full, base, arrow, method) => {
-    const name = shortened(full.replace(/^\\/, '').replace(/(-&gt;|::)\w+$/, ''), base);
+export const classes = (text) => {
+  // Each replacement is parked behind a placeholder, so a later pattern never matches inside
+  // the markup (or the tooltip path) an earlier one produced.
+  const parked = [];
+  const park = (html) => `\u0000${parked.push(html) - 1}\u0000`;
+  const out = esc(text)
+    .replace(/(?<![\w.\/-])\/(?:[\w.-]+\/){2,}([\w.-]+\/[\w.-]+(?::\d+)?)/g, (full, tail) => park(shortened(full, classFile(tail) ?? tail)))
+    .replace(/(?<![\w/])storage\/framework\/views\/([0-9a-f]{8})[0-9a-f]*\.(?:blade\.)?php/g, (full, hash) => park(shortened(full, `compiled/${hash}`)))
+    .replace(/(?<![\w/])resources\/views\/([\w./-]+)/g, (full, rest) => park(shortened(full, rest)))
+    .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => park(shortened(full, base + line)))
+    .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)(?:(-&gt;|::)(?!class\b)(\w+)(?![\w(]))?/g, (full, base, arrow, method) => {
+      const name = shortened(full.replace(/^\\/, '').replace(/(-&gt;|::)\w+$/, ''), base);
 
-    return arrow ? `${name}${arrow}${method}()` : name;
-  });
+      return park(arrow ? `${name}${arrow}${method}()` : name);
+    });
+
+  return out.replace(/\u0000(\d+)\u0000/g, (m, i) => parked[Number(i)]);
+};
+
+/** "Filesystem/FilesystemAdapter.php:459" as "FilesystemAdapter:459" when it names a class file. */
+const classFile = (tail) => {
+  const match = /(?:^|\/)([A-Z]\w*)\.php(:\d+)?$/.exec(tail);
+  return match ? match[1] + (match[2] ?? '') : null;
+};
 
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link

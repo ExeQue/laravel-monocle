@@ -463,7 +463,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     // An exception code is nearly always 0; the column only shows when one is not.
     // A column that is false (or a code of 0) in every row says nothing; ids belong in the details.
-    let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0)));
+    let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0) && !(k === 'ok' && row[k] === true)));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
     used = used.filter((k) => k !== 'rolled_back');
     // HTTP calls read as "GET 200 https://...".
@@ -689,6 +689,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
     if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('');
     if (key === 'status' && typeof v === 'string') return `<span class="${statusClass(v)}">${esc(v)}</span>`;
+    if (key === 'ok' && typeof v === 'boolean') return v ? '<span class="text-ok">ok</span>' : '<span class="font-medium text-bad">failed</span>';
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
