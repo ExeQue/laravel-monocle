@@ -66,9 +66,11 @@ final class Eyepiece
      *
      * @param  bool|Closure(): bool  $enabled
      */
-    public function setEnabled(bool|Closure $enabled): void
+    public function setEnabled(bool|Closure $enabled): static
     {
         $this->enabledOverride = $enabled;
+
+        return $this;
     }
 
     public function enabled(): bool
@@ -223,9 +225,11 @@ final class Eyepiece
     /**
      * Drop the current capture instead of storing it.
      */
-    public function discard(): void
+    public function discard(): static
     {
         $this->discarded = true;
+
+        return $this;
     }
 
     /**
@@ -258,7 +262,7 @@ final class Eyepiece
      *
      * @param  class-string|string  $event
      */
-    public function listen(string $event, Closure $handler): void
+    public function listen(string $event, Closure $handler): static
     {
         $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler): void {
             try {
@@ -267,6 +271,8 @@ final class Eyepiece
                 $this->failed($e);
             }
         });
+
+        return $this;
     }
 
     /**
@@ -310,7 +316,7 @@ final class Eyepiece
     /**
      * @internal Called by Span::start().
      */
-    public function startSpan(Span $span, bool $origin = true): void
+    public function startSpan(Span $span, bool $origin = true): static
     {
         $this->measure(function () use ($span, $origin): void {
             if ($this->capture === null) {
@@ -327,12 +333,14 @@ final class Eyepiece
             $this->capture->spans[$span->id] = $span;
             $this->stack[] = $span->id;
         });
+
+        return $this;
     }
 
     /**
      * @internal Called by Span::stop().
      */
-    public function stopSpan(Span $span, string $endedBy = 'stop'): void
+    public function stopSpan(Span $span, string $endedBy = 'stop'): static
     {
         $this->measure(function () use ($span, $endedBy): void {
             $span->end = $this->now();
@@ -344,6 +352,8 @@ final class Eyepiece
                 unset($this->keyed[$span->key]);
             }
         });
+
+        return $this;
     }
 
     /**
@@ -353,9 +363,11 @@ final class Eyepiece
      *
      * @param  Closure(array<string, mixed>): array<string, mixed>  $modifier
      */
-    public function modify(string $section, Closure $modifier): void
+    public function modify(string $section, Closure $modifier): static
     {
         $this->modifiers[$section][] = $modifier;
+
+        return $this;
     }
 
     /**
@@ -365,7 +377,7 @@ final class Eyepiece
      *
      * @param  array<string, mixed>  $row
      */
-    public function push(string $section, array $row, bool $origin = true): void
+    public function push(string $section, array $row, bool $origin = true): static
     {
         $this->measure(function () use ($section, $row, $origin): void {
             if ($this->capture === null) {
@@ -384,6 +396,8 @@ final class Eyepiece
 
             $this->capture->sections[$section][] = Normalizer::normalize($row);
         });
+
+        return $this;
     }
 
     /**
@@ -391,7 +405,7 @@ final class Eyepiece
      *
      * @param  array<string, mixed>  $data
      */
-    public function set(string $section, array $data): void
+    public function set(string $section, array $data): static
     {
         $this->measure(function () use ($section, $data): void {
             if ($this->capture === null) {
@@ -403,29 +417,35 @@ final class Eyepiece
 
             $this->capture->sections[$section] = array_merge($existing, Normalizer::normalize($data));
         });
+
+        return $this;
     }
 
     /**
      * @param  array<string, mixed>  $meta
      */
-    public function meta(array $meta): void
+    public function meta(array $meta): static
     {
         if ($this->capture === null) {
-            return;
+            return $this;
         }
 
         $this->capture->meta = array_merge($this->capture->meta, Normalizer::normalize($meta));
+
+        return $this;
     }
 
-    public function describe(?string $name = null, ?string $status = null, ?string $label = null): void
+    public function describe(?string $name = null, ?string $status = null, ?string $label = null): static
     {
         if ($this->capture === null) {
-            return;
+            return $this;
         }
 
         $this->capture->name = $name ?? $this->capture->name;
         $this->capture->status = $status ?? $this->capture->status;
         $this->capture->label = $label ?? $this->capture->label;
+
+        return $this;
     }
 
     /**
@@ -481,7 +501,7 @@ final class Eyepiece
         }
     }
 
-    public function reset(): void
+    public function reset(): static
     {
         $this->capture = null;
         $this->stack = [];
@@ -494,6 +514,8 @@ final class Eyepiece
         if ($this->app->bound(LensRegistry::class)) {
             $this->app->make(LensRegistry::class)->reset();
         }
+
+        return $this;
     }
 
     /**
@@ -535,7 +557,7 @@ final class Eyepiece
      * capture and logged once per distinct failure. With throw_failures on
      * (Monocle's own tests) it is thrown instead.
      */
-    public function failed(Throwable $e): void
+    public function failed(Throwable $e): static
     {
         if ($this->config('throw_failures', false)) {
             throw $e;
@@ -550,7 +572,7 @@ final class Eyepiece
         $key = $failure['exception'].'@'.$failure['file'];
 
         if (isset($this->loggedFailures[$key])) {
-            return;
+            return $this;
         }
 
         $this->loggedFailures[$key] = true;
@@ -560,5 +582,7 @@ final class Eyepiece
         } catch (Throwable) {
             // Logging itself is unavailable; stay silent rather than break the app.
         }
+
+        return $this;
     }
 }
