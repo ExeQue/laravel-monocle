@@ -333,13 +333,18 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     this.palette.open = false;
   },
 
-  /** Tabs first, then captures; with a query, everything whose name holds its letters in order, closest first. */
+  /** Tabs first, then the latest capture of each type, then captures; with a query, everything whose name holds its letters in order, closest first. */
   get paletteItems() {
     const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', run: () => this.openTab(t.key) }));
     const captures = this.captures.map((c) => ({ id: `capture:${c.id}`, kind: shortType(c.type), label: c.name, hint: ago(c.started_at), run: () => this.select(c.id, this.tab) }));
+    // The list is newest first, so the first capture of a type is its latest.
+    const latestItems = [...new Set(this.captures.map((c) => c.type))].map((type) => {
+      const capture = this.captures.find((c) => c.type === type);
+      return { id: `latest:${type}`, kind: shortType(type), label: `Latest ${type === 'mcp' ? 'MCP call' : type}`, hint: capture.name, run: () => this.select(capture.id, this.tab) };
+    });
     const query = this.palette.query.trim().toLowerCase();
-    if (!query) return [...tabs, ...captures.slice(0, 8)];
-    return [...tabs, ...captures]
+    if (!query) return [...tabs, ...latestItems, ...captures.slice(0, 8)];
+    return [...tabs, ...latestItems, ...captures]
       .map((item) => ({ item, score: fuzzyScore(query, item.label.toLowerCase()) }))
       .filter((match) => match.score !== null)
       .sort((a, b) => a.score - b.score)
