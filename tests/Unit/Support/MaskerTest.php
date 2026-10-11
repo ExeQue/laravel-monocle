@@ -25,14 +25,14 @@ describe(PartialMask::class, function (): void {
 
 describe(AuthorizationMask::class, function (): void {
     it('keeps a known scheme and masks only the credentials', function (): void {
-        $mask = new AuthorizationMask();
+        $mask = new AuthorizationMask(['Basic', 'Bearer']);
 
         expect($mask('Bearer abcdefghijklmnopqrstuvwxyz', 'authorization'))->toBe('Bearer abcd****')
             ->and($mask('basic dXNlcjpwYXNzd29yZA==', 'authorization'))->toBe('basic dXNl****');
     });
 
     it('masks the whole value when the scheme is unknown or missing', function (): void {
-        $mask = new AuthorizationMask();
+        $mask = new AuthorizationMask(['Basic', 'Bearer']);
 
         expect($mask('Custom abcdefghijklmnopqrstuvwxyz', 'authorization'))->toBe('Cust****')
             ->and($mask('abcdefghijklmnop', 'authorization'))->toBe('abcd****')

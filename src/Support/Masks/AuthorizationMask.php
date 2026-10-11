@@ -17,7 +17,7 @@ final class AuthorizationMask
      * @param  list<string>  $schemes  matched case-insensitively
      */
     public function __construct(
-        private readonly array $schemes = ['Basic', 'Bearer', 'Digest', 'Token', 'Negotiate', 'NTLM', 'AWS4-HMAC-SHA256', 'Hawk'],
+        private readonly array $schemes,
         int $visible = 4,
     ) {
         $this->partial = new PartialMask($visible);
