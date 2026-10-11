@@ -9,6 +9,8 @@ use ExeQue\Monocle\Data\Capture;
 /**
  * Builds the summary row kept in the store index so listing, tracing and
  * filtering never need to load full captures.
+ *
+ * @internal
  */
 final class Index
 {

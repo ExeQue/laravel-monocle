@@ -14,6 +14,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-compare')]
 #[Description('Compare two captures: deltas of every numeric total, time per phase and category, query shapes that appeared or disappeared, and warnings and errors unique to each side. Use it to verify that a change made things better: label the first run (X-Monocle-Label or Monocle::label()), change the code, run again, compare.')]

@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Editor;
 
 /**
  * Editors Monocle can build "open this file" links for.
+ *
+ * @internal
  */
 enum Editor: string
 {

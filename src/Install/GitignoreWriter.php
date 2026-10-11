@@ -9,6 +9,8 @@ use RuntimeException;
 /**
  * Appends paths to a .gitignore under one comment, skipping paths an
  * equivalent line already covers.
+ *
+ * @internal
  */
 final class GitignoreWriter
 {

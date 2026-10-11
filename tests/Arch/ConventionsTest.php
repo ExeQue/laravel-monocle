@@ -95,3 +95,33 @@ test('every test file declares what it covers and mirrors its path in its namesp
             ->toMatch('/^covers\(/m');
     }
 });
+
+test('internal classes are marked @internal and public ones are not', function (): void {
+    $public = [
+        'ExeQue\Monocle\Facades\\',
+        'ExeQue\Monocle\Contracts\\',
+        'ExeQue\Monocle\Data\\',
+        'ExeQue\Monocle\Enums\\',
+        'ExeQue\Monocle\Exceptions\\',
+        'ExeQue\Monocle\Support\Masks\\',
+        'ExeQue\Monocle\MonocleManager',
+        'ExeQue\Monocle\Eyepiece',
+        'ExeQue\Monocle\Dashboard\Presentation',
+        'ExeQue\Monocle\Lenses\Request\JsonCapture',
+        'ExeQue\Monocle\Lenses\Request\TextCapture',
+        'ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture',
+        'ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture',
+    ];
+    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src')->name('*.php');
+
+    expect($files)->not->toBeEmpty();
+
+    foreach ($files as $file) {
+        $class = 'ExeQue\Monocle\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+        $isLens = str_starts_with($class, 'ExeQue\Monocle\Lenses\\') && str_ends_with($class, 'Lens');
+        $isPublic = $isLens || array_filter($public, fn (string $name): bool => $class === $name || (str_ends_with($name, '\\') && str_starts_with($class, $name))) !== [];
+        $isInternal = str_contains((string) (new ReflectionClass($class))->getDocComment(), '@internal');
+
+        expect($isInternal)->toBe(! $isPublic, $isPublic ? "{$class} is public API but marked @internal" : "{$class} is internal but not marked @internal");
+    }
+});

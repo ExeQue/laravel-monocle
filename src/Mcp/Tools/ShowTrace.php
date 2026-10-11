@@ -14,6 +14,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-trace')]
 #[Description('Show every capture in the same trace as the given one: the request/command that started it and all jobs it dispatched, with parent links, depth and start offsets.')]

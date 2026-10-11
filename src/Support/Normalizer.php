@@ -16,6 +16,8 @@ use UnitEnum;
 /**
  * Turns arbitrary values into something JSON-safe for storage: models become
  * "Class#id", enums their value, closures and resources a placeholder.
+ *
+ * @internal
  */
 final class Normalizer
 {

@@ -9,6 +9,7 @@ use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputArgument;
 
+/** @internal */
 final class TraceCommand extends Command
 {
     use OutputsJson;

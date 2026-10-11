@@ -7,6 +7,8 @@ namespace ExeQue\Monocle\Editor;
 /**
  * The developer's own editor settings, read from .monocle.json in the project
  * root.
+ *
+ * @internal
  */
 final readonly class EditorSettings
 {

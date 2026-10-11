@@ -17,6 +17,8 @@ use ExeQue\Monocle\Reader\TimelineBuilder;
 /**
  * One array-in, array-out API shared by the MCP tools, the artisan commands
  * and any future UI, so every front shows identical data.
+ *
+ * @internal
  */
 final class Viewfinder
 {

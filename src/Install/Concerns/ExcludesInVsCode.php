@@ -7,6 +7,8 @@ namespace ExeQue\Monocle\Install\Concerns;
 /**
  * Leaves a folder out of search and file watching in VS Code and its forks
  * (Cursor, Windsurf), which read the same settings file.
+ *
+ * @internal
  */
 trait ExcludesInVsCode
 {

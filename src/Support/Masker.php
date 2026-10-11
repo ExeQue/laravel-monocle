@@ -10,6 +10,8 @@ use Illuminate\Support\Str;
 /**
  * Masks secrets in headers and input before they reach storage. The actual
  * replacement is delegated to an invokable configured under `monocle.mask`.
+ *
+ * @internal
  */
 final class Masker
 {

@@ -17,6 +17,8 @@ use RuntimeException;
  *
  * ponytail: index is a single JSON document; switch to jsonl/append if limits
  * in the thousands ever make rewriting it measurable.
+ *
+ * @internal
  */
 final class FileStore implements Store
 {

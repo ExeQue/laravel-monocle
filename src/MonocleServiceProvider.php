@@ -26,6 +26,7 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Laravel\Mcp\Server\Registrar;
 
+/** @internal */
 final class MonocleServiceProvider extends ServiceProvider
 {
     public function register(): void

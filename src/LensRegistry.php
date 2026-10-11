@@ -19,6 +19,8 @@ use Illuminate\Contracts\Foundation\Application;
 /**
  * Resolves the effective lens list (config merged with runtime registrations)
  * and drives boot/finalize/reset across all enabled lenses.
+ *
+ * @internal
  */
 final class LensRegistry
 {

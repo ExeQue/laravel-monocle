@@ -8,6 +8,8 @@ use RuntimeException;
 
 /**
  * Marks a folder as excluded in the PhpStorm project module.
+ *
+ * @internal
  */
 trait ExcludesInPhpStorm
 {

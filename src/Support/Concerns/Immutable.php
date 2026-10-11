@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Support\Concerns;
 
 /**
  * Fluent methods return a changed copy; the instance itself never changes.
+ *
+ * @internal
  */
 trait Immutable
 {

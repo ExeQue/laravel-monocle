@@ -21,6 +21,8 @@ use Symfony\Component\Console\Input\InputOption;
 /**
  * Writes the developer's editor and path mappings to .monocle.json, so file
  * paths and class names in Monocle open in their editor.
+ *
+ * @internal
  */
 final class EditorCommand extends Command
 {

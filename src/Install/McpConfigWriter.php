@@ -10,6 +10,8 @@ use RuntimeException;
 /**
  * Merges one server into an MCP client config file, leaving everything else
  * in the file untouched.
+ *
+ * @internal
  */
 final class McpConfigWriter
 {

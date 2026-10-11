@@ -15,6 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-list')]
 #[Description('List recently recorded captures (requests, jobs, commands) newest first with duration, status and per-section counts. Start here, then call monocle-show with an id.')]

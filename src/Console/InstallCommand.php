@@ -23,6 +23,8 @@ use Symfony\Component\Console\Input\InputOption;
  * Interactive install: pick storage and MCP clients, publish a config that
  * reflects the choices and register the MCP server. Every answer
  * has a flag, so --no-interaction works for scripts.
+ *
+ * @internal
  */
 final class InstallCommand extends Command
 {

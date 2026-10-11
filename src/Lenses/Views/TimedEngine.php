@@ -11,6 +11,8 @@ use Illuminate\Contracts\View\Engine;
 /**
  * Wraps a view engine so every render - including nested includes and
  * components - becomes a `view` span and a row in the views section.
+ *
+ * @internal
  */
 final class TimedEngine implements Engine
 {

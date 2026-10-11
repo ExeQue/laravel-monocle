@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Console\Concerns;
 
 use Symfony\Component\Console\Input\InputOption;
 
+/** @internal */
 trait OutputsJson
 {
     /**

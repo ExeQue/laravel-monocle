@@ -15,6 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-queries')]
 #[Description('Aggregate the database queries of a capture by shape (normalized SQL), caller (origin file:line), table or transaction: count, total/avg/max ms and an example. Finds N+1 and duplicate work faster than reading rows.')]

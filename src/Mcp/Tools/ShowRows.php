@@ -15,6 +15,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-rows')]
 #[Description('Paginated, filterable rows of one section of a capture (queries, cache, timeline, or any section listed by monocle-show). Supports where-clauses, sorting and field projection so you only fetch what you need.')]

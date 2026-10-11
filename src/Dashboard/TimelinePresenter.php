@@ -13,6 +13,8 @@ use ExeQue\Monocle\Enums\SpanColor;
  * Builds the dashboard timeline: the span tree, with every timed row
  * (queries, cache, redis, http, filesystem) placed under the deepest span it
  * ran inside, and editor links on files and classes.
+ *
+ * @internal
  */
 final readonly class TimelinePresenter
 {

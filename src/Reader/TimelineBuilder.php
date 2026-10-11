@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 /**
  * Flattens the span tree into an ordered list with depth, ready to render as
  * an indented timeline.
+ *
+ * @internal
  */
 final class TimelineBuilder
 {

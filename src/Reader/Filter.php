@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Reader;
 
 /**
  * Filters applied to index rows when listing captures.
+ *
+ * @internal
  */
 final class Filter
 {

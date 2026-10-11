@@ -11,6 +11,8 @@ use RuntimeException;
  * Writes the Monocle skill into the skill folders of the coding agents a
  * project uses, when it does not use Laravel Boost (Boost installs the skill
  * itself). The skill is rendered with the lenses this application has enabled.
+ *
+ * @internal
  */
 final class SkillInstaller
 {

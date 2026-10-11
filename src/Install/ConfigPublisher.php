@@ -11,6 +11,8 @@ use RuntimeException;
  * editing the shipped config text so every comment survives.
  *
  * @phpstan-type Choices array{driver?: string, limit?: int}
+ *
+ * @internal
  */
 final class ConfigPublisher
 {

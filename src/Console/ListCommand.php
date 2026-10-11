@@ -9,6 +9,7 @@ use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Symfony\Component\Console\Input\InputOption;
 
+/** @internal */
 final class ListCommand extends Command
 {
     use OutputsJson;

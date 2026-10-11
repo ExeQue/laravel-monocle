@@ -13,6 +13,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-lenses')]
 #[Description('List the lenses enabled in this application: each section key you can pass to monocle-show and monocle-rows, with when to look at it and what it records.')]

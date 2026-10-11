@@ -12,6 +12,8 @@ use ExeQue\Monocle\Install\Concerns\ExcludesInZed;
 /**
  * Keeps Monocle's storage folder out of editors and AI tools. Only touches
  * tools the project already uses.
+ *
+ * @internal
  */
 final class IdeExclusions
 {

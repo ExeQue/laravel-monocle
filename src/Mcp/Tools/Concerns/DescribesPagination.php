@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Mcp\Tools\Concerns;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 
+/** @internal */
 trait DescribesPagination
 {
     /**

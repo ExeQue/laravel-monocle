@@ -13,6 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
  * Decorates a middleware instance resolved from the container and records two
  * spans: "middleware.request" for the work done before $next, and
  * "middleware.response" for the work done once $next returned.
+ *
+ * @internal
  */
 final class TimedMiddleware
 {

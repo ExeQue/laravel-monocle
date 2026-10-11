@@ -11,6 +11,8 @@ use Throwable;
  * Decorates the StartSession middleware and hands the session contents to a
  * callback as soon as the session has started, before the rest of the request
  * changes it.
+ *
+ * @internal
  */
 final class SnapshotsSession
 {

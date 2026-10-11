@@ -17,6 +17,8 @@ use Throwable;
 /**
  * Decorates a Flysystem adapter so every operation on the disk becomes a row
  * in the filesystem section: operation, path, bytes, duration and outcome.
+ *
+ * @internal
  */
 final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 {

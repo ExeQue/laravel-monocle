@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Mcp\Tools\Concerns;
 
 use Laravel\Mcp\Response;
 
+/** @internal */
 trait RespondsWithJson
 {
     /**

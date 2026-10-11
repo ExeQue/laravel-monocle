@@ -9,6 +9,7 @@ use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\View\View;
 
+/** @internal */
 final class DashboardController
 {
     public function __invoke(EditorLinks $links, LensRegistry $registry): View

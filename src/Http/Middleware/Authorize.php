@@ -11,6 +11,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Lets a request into the dashboard only when the viewMonocle gate allows it.
+ *
+ * @internal
  */
 final class Authorize
 {

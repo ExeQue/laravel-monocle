@@ -11,6 +11,8 @@ use ExeQue\Monocle\LensRegistry;
  * The dashboard tabs a capture gets, after Overview and Timeline: one per
  * section with rows, or with data and a tab view of its own. A section
  * another tab includes is shown there instead, as long as that tab is.
+ *
+ * @internal
  */
 final readonly class TabList
 {

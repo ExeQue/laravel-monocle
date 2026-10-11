@@ -13,6 +13,8 @@ use League\Flysystem\FilesystemAdapter;
 /**
  * Wraps the Flysystem adapter of every disk the lens selected so its
  * operations are recorded. Other disks are untouched.
+ *
+ * @internal
  */
 final class MonocleFilesystemManager extends FilesystemManager
 {

@@ -18,6 +18,8 @@ use Illuminate\Support\Arr;
 /**
  * JSON for the dashboard, built on the same Viewfinder the MCP tools and
  * artisan commands use.
+ *
+ * @internal
  */
 final readonly class CapturesController
 {

@@ -20,6 +20,8 @@ use Throwable;
  * Decorates a laravel/mcp method handler. Over HTTP the call lands as a span
  * and a row on the request capture; over stdio every JSON-RPC request becomes
  * its own capture of type mcp.
+ *
+ * @internal
  */
 final class TimedMethod implements Errable, Method
 {

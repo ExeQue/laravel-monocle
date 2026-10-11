@@ -12,6 +12,8 @@ use ExeQue\Monocle\LensRegistry;
 /**
  * The agent's first view of a capture: where the time went, totals and
  * warnings. Lenses contribute through the Summarizable contract.
+ *
+ * @internal
  */
 final class SummaryBuilder
 {

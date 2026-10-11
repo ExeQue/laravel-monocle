@@ -13,6 +13,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsDestructive;
 
+/** @internal */
 #[IsDestructive]
 #[Name('monocle-clear')]
 #[Description('Delete all recorded captures. Useful before reproducing a scenario so monocle-list only shows what you trigger next.')]

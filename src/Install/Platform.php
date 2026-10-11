@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Install;
 
 /**
  * How the MCP client should start `artisan mcp:start monocle` on this machine.
+ *
+ * @internal
  */
 enum Platform: string
 {

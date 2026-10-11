@@ -9,6 +9,8 @@ use ExeQue\Monocle\Storage\StoreManager;
 
 /**
  * Lists, finds and traces captures using the store index wherever possible.
+ *
+ * @internal
  */
 final class CaptureReader
 {

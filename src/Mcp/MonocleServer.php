@@ -18,6 +18,7 @@ use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 
+/** @internal */
 #[Name('monocle')]
 #[Version('0.1.0')]
 final class MonocleServer extends Server

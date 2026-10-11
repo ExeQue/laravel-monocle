@@ -10,6 +10,8 @@ use ExeQue\Monocle\Support\Origin;
 /**
  * Groups the queries section by shape, caller, table or transaction so the
  * agent sees repeated work instead of hundreds of individual rows.
+ *
+ * @internal
  */
 final class QueryAggregator
 {

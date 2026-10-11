@@ -7,6 +7,8 @@ namespace ExeQue\Monocle\Dashboard;
 /**
  * Durations, sizes and values written the way the dashboard writes them,
  * for views rendered on the server.
+ *
+ * @internal
  */
 final class Format
 {

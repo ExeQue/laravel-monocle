@@ -10,6 +10,8 @@ use Throwable;
  * A throwable as it is recorded: its class, message and where it was thrown
  * (relative to the application), plus the exceptions it wraps, outermost
  * first.
+ *
+ * @internal
  */
 final class ThrowableChain
 {

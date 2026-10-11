@@ -18,6 +18,8 @@ use ReflectionProperty;
  * the user-land code called is added as "via"; when no user-land code is
  * involved at all, the library call that did the work (outside the database,
  * cache and event plumbing) is reported instead, marked as vendor.
+ *
+ * @internal
  */
 final class Origin
 {

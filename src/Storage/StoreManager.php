@@ -12,6 +12,8 @@ use Illuminate\Contracts\Foundation\Application;
 /**
  * Resolves the configured store driver: built-in file/cache, a class name
  * implementing Store, or a driver registered through Monocle::extendStore().
+ *
+ * @internal
  */
 final class StoreManager
 {

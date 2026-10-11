@@ -15,6 +15,8 @@ use Throwable;
  * Registers the MCP server with every agent Laravel Boost is set up for
  * (boost.json), using Boost's own agent definitions so each agent gets its
  * own config file and format.
+ *
+ * @internal
  */
 final class BoostAgents
 {

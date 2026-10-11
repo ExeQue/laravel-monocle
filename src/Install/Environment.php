@@ -8,6 +8,8 @@ namespace ExeQue\Monocle\Install;
  * Where this PHP process runs: the OS family and, on Linux, whether the kernel
  * is WSL's. A Sail container on WSL2 or Docker Desktop for Windows shares that
  * kernel, so the check works inside containers too.
+ *
+ * @internal
  */
 final readonly class Environment
 {

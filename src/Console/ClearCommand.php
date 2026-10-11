@@ -8,6 +8,7 @@ use ExeQue\Monocle\Console\Concerns\OutputsJson;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 
+/** @internal */
 final class ClearCommand extends Command
 {
     use OutputsJson;

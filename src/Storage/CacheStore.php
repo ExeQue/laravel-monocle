@@ -11,6 +11,8 @@ use Illuminate\Contracts\Cache\Repository;
 /**
  * Ring buffer on top of a Laravel cache store. The array driver does not
  * share state between processes, so it cannot serve the MCP server.
+ *
+ * @internal
  */
 final class CacheStore implements Store
 {

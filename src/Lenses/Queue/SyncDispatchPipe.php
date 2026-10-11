@@ -13,6 +13,8 @@ use Throwable;
 /**
  * Bus pipe that wraps commands handled inline (dispatchSync, dispatchNow and
  * the handler call inside a queue worker) in a job span.
+ *
+ * @internal
  */
 final class SyncDispatchPipe
 {

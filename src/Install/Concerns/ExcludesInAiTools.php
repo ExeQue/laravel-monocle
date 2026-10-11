@@ -9,6 +9,8 @@ use ExeQue\Monocle\Install\GitignoreWriter;
 /**
  * Lists a folder in the ignore files AI coding tools read, for the tools the
  * project uses.
+ *
+ * @internal
  */
 trait ExcludesInAiTools
 {

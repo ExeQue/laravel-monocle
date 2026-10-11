@@ -9,6 +9,8 @@ use ExeQue\Monocle\Data\Capture;
 /**
  * Side-by-side diff of two captures: summary totals, phases, categories and
  * which query shapes appeared or disappeared. Built for "did my change help?".
+ *
+ * @internal
  */
 final class CaptureComparer
 {

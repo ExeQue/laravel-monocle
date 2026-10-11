@@ -9,6 +9,8 @@ use ReflectionClass;
 /**
  * Turns file paths and class names into links that open them in the
  * developer's editor. Without an editor in .monocle.json there are no links.
+ *
+ * @internal
  */
 final readonly class EditorLinks
 {

@@ -8,6 +8,8 @@ use ExeQue\Monocle\Data\Capture;
 
 /**
  * Paginated access to one section of a capture.
+ *
+ * @internal
  */
 final class SectionReader
 {

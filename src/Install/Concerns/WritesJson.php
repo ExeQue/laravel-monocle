@@ -9,6 +9,8 @@ use RuntimeException;
 /**
  * Reads and writes JSON config files while keeping the indentation the file
  * already uses, so a diff only shows what changed.
+ *
+ * @internal
  */
 trait WritesJson
 {

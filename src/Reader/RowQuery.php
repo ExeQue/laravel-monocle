@@ -10,6 +10,8 @@ use Illuminate\Support\Arr;
 /**
  * Pagination, filtering, sorting and projection shared by everything that
  * returns rows to an agent or a UI.
+ *
+ * @internal
  */
 final class RowQuery
 {

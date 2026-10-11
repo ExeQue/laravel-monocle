@@ -14,6 +14,7 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Tool;
 use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
+/** @internal */
 #[IsReadOnly]
 #[Name('monocle-show')]
 #[Description('Show one capture. The default "summary" section gives the time breakdown per phase/category, totals, warnings (slow queries, N+1, duplicates, slow middleware), errors (exceptions, failed calls and jobs) and trace links. Add "timeline" for the span tree or any section name (queries, cache, middleware, ...) for its first rows; use monocle-rows for more.')]

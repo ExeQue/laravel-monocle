@@ -9,6 +9,8 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /**
  * Serves the compiled dashboard assets shipped with the package, so the host
  * application needs no build step and no published files.
+ *
+ * @internal
  */
 final class AssetController
 {

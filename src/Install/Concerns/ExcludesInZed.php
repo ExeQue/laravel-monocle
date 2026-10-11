@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Install\Concerns;
 
 /**
  * Adds a folder to Zed's file_scan_exclusions.
+ *
+ * @internal
  */
 trait ExcludesInZed
 {
