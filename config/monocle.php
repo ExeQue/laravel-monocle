@@ -32,6 +32,7 @@ use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
 use ExeQue\Monocle\Lenses\ValidationLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
+use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
@@ -243,7 +244,12 @@ return [
 
     'mask' => [
         'headers' => [
-            'authorization' => PartialMask::class,
+            'authorization' => [AuthorizationMask::class, [
+                'Basic', 'Bearer', 'Digest', 'Token', 'Negotiate', 'NTLM', 'AWS4-HMAC-SHA256', 'Hawk',
+            ]],
+            'proxy-authorization' => [AuthorizationMask::class, [
+                'Basic', 'Bearer', 'Digest', 'Token', 'Negotiate', 'NTLM', 'AWS4-HMAC-SHA256', 'Hawk',
+            ]],
             'cookie' => FullMask::class,
             'set-cookie' => FullMask::class,
             'x-xsrf-token' => PartialMask::class,

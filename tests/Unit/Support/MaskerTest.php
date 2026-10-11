@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use ExeQue\Monocle\Support\Masker;
+use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
-covers(Masker::class, PartialMask::class, FullMask::class);
+covers(Masker::class, PartialMask::class, FullMask::class, AuthorizationMask::class);
 
 describe(PartialMask::class, function (): void {
     it('keeps at most four characters and never more than a quarter', function (): void {
@@ -19,6 +20,30 @@ describe(PartialMask::class, function (): void {
             ->and($mask('abc', 'token'))->toBe('****')
             ->and($mask('', 'token'))->toBe('')
             ->and($mask(['nested'], 'token'))->toBe('****');
+    });
+});
+
+describe(AuthorizationMask::class, function (): void {
+    it('keeps a known scheme and masks only the credentials', function (): void {
+        $mask = new AuthorizationMask();
+
+        expect($mask('Bearer abcdefghijklmnopqrstuvwxyz', 'authorization'))->toBe('Bearer abcd****')
+            ->and($mask('basic dXNlcjpwYXNzd29yZA==', 'authorization'))->toBe('basic dXNl****');
+    });
+
+    it('masks the whole value when the scheme is unknown or missing', function (): void {
+        $mask = new AuthorizationMask();
+
+        expect($mask('Custom abcdefghijklmnopqrstuvwxyz', 'authorization'))->toBe('Cust****')
+            ->and($mask('abcdefghijklmnop', 'authorization'))->toBe('abcd****')
+            ->and($mask(['x'], 'authorization'))->toBe('****');
+    });
+
+    it('takes its own schemes and visible length', function (): void {
+        $mask = new AuthorizationMask(['Custom'], 2);
+
+        expect($mask('Custom abcdefghijklmnop', 'authorization'))->toBe('Custom ab****')
+            ->and($mask('Bearer abcdefghijklmnop', 'authorization'))->toBe('Be****');
     });
 });
 

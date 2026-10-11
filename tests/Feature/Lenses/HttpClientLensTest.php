@@ -35,7 +35,7 @@ describe(HttpClientLens::class, function (): void {
         expect($rows)->toHaveCount(2)
             ->and($rows[0]['method'])->toBe('POST')
             ->and($rows[0]['url'])->toBe('https://api.example.com/orders?api_token=ab****&page=2')
-            ->and($rows[0]['request_headers']['Authorization'])->toBe('Bear****')
+            ->and($rows[0]['request_headers']['Authorization'])->toBe('Bearer ver****')
             ->and($rows[0]['request_bytes'])->toBeGreaterThan(0)
             ->and($rows[0]['request_body'])->toBeNull()
             ->and($rows[0]['status'])->toBe(201)

@@ -38,7 +38,7 @@ describe(RequestLens::class, function (): void {
             ->and($request['route']['parameters'])->toBe(['id' => '7'])
             ->and($request['query']['token'])->toBe('abc****')
             ->and($request['query']['page'])->toBe('2')
-            ->and($request['headers']['authorization'])->toBe('Bear****')
+            ->and($request['headers']['authorization'])->toBe('Bearer ver****')
             ->and($request['status'])->toBe(200)
             ->and($request['response_bytes'])->toBeGreaterThan(0)
             ->and($capture->health['memory_peak_bytes'])->toBeGreaterThan(0)

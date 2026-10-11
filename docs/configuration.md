@@ -55,12 +55,18 @@ Paths and command names support `*`. By default the dashboards and assets of Tel
 ## Masking
 
 ```php
+use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
 'mask' => [
     'headers' => [
-        'authorization' => PartialMask::class,
+        'authorization' => [AuthorizationMask::class, [
+            'Basic', 'Bearer', 'Digest', 'Token', 'Negotiate', 'NTLM', 'AWS4-HMAC-SHA256', 'Hawk',
+        ]],
+        'proxy-authorization' => [AuthorizationMask::class, [
+            'Basic', 'Bearer', 'Digest', 'Token', 'Negotiate', 'NTLM', 'AWS4-HMAC-SHA256', 'Hawk',
+        ]],
         'cookie' => FullMask::class,
         'set-cookie' => FullMask::class,
         'x-xsrf-token' => PartialMask::class,
@@ -79,7 +85,11 @@ Headers and cookies are listed by name, each with the mask to use. Names support
 
 Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name.
 
-`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value. A mask can also be your own class with an `__invoke($value, $key)` method. Pass constructor arguments by giving an array with the class first: `[PartialMask::class, 8]` or `[PartialMask::class, 'visible' => 8]`.
+`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value.
+
+`AuthorizationMask` keeps a known scheme readable and masks only the credentials: `Bearer eyJh****`. It takes the list of schemes to recognize; a value with another scheme, or none, is masked as a whole.
+
+A mask can also be your own class with an `__invoke($value, $key)` method. Pass constructor arguments by giving an array with the class first: `[PartialMask::class, 8]` or `[PartialMask::class, 'visible' => 8]`.
 
 ## `origin`
 
