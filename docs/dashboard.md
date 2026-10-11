@@ -54,4 +54,4 @@ or, with Docker:
 docker compose up serve
 ```
 
-Then open [http://localhost:8000](http://localhost:8000). The start page lists every demo, one or more per lens, with a short description. Trigger one and open the dashboard at `/_monocle` to inspect the capture it recorded. The database is rebuilt and seeded each time the server starts; the seeded users share the password `password`.
+Then open `http://localhost:8000`. The start page lists every demo, one or more per lens, with a short description. Trigger one and open the dashboard at `/_monocle` to inspect the capture it recorded. The database is rebuilt and seeded each time the server starts; the seeded users share the password `password`.
