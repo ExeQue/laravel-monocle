@@ -53,7 +53,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   tabData: null,
   tabLoading: false,
   rowGroups: {},
-  logLevels: [],
   customDetails: {},
   openRows: [],
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
@@ -189,7 +188,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
       this.openGroups = [];
       this.openRows = [];
-      this.logLevels = [];
       // Sections the tab includes (auth on the request tab) come along under tabData.included.
       const included = {};
       for (const key of this.presentationOf(tab)?.includes ?? []) {
@@ -408,24 +406,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },
 
   /** The tables in a generic tab: the tab's own rows, and model changes under the model counts. */
-  /** The log levels in the open log, most severe first, with how many entries each has. */
-  get levelCounts() {
-    if (this.tab !== 'log') return [];
-    const order = ['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug'];
-    const counts = {};
-    (this.tabData?.rows ?? []).forEach((row) => { counts[row.level] = (counts[row.level] ?? 0) + 1; });
-    return Object.entries(counts).sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
-  },
 
-  toggleLevel(level) {
-    this.logLevels = this.logLevels.includes(level) ? this.logLevels.filter((l) => l !== level) : [...this.logLevels, level];
-  },
 
 
   get tables() {
     if (this.groups.length) return [];
     const rows = this.tabData?.rows ?? [];
-    const own = { key: this.tab, title: null, rows: this.tab === 'log' && this.logLevels.length ? rows.filter((row) => this.logLevels.includes(row.level)) : rows };
+    const own = { key: this.tab, title: null, rows };
     const included = Object.entries(this.tabData?.included ?? {}).map(([key, rows]) => ({ key, title: this.presentationOf(key)?.label ?? humanize(key), rows }));
     return [own, ...included];
   },
