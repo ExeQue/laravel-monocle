@@ -8,6 +8,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 use Tests\Fixtures\Models\Thing;
 
 covers(EloquentLens::class);
@@ -50,9 +51,9 @@ describe(EloquentLens::class, function (): void {
             DB::transaction(function (): void {
                 Thing::create(['name' => 'never saved']);
 
-                throw new \RuntimeException('undo');
+                throw new RuntimeException('undo');
             });
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
         }
 
         $changes = app(Eyepiece::class)->finalize()->rows('model_changes');

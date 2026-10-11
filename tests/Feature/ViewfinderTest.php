@@ -40,7 +40,7 @@ describe(Viewfinder::class, function (): void {
 
         expect($request['request']['data']['method'])->toBe('GET')
             ->and($request['nothing']['total'])->toBe(0)
-            ->and(collect($request['available_sections'])->firstWhere('key', 'queries')['rows'])->toBe(2);
+            ->and(collect($request['available_sections'])->firstWhere('key', 'queries')['rows'])->toBe(4);
     });
 
     it('serves the timeline through rows with kinds and verbose origins', function (): void {

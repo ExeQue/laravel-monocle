@@ -21,6 +21,10 @@ final class QueryAggregator
         $groups = [];
 
         foreach ($capture->rows('queries') as $row) {
+            if (($row['type'] ?? null) === 'transaction') {
+                continue;
+            }
+
             foreach ($this->keysFor($row, $by) as $key) {
                 $group = &$groups[$key];
 

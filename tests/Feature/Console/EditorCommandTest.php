@@ -17,7 +17,7 @@ describe(EditorCommand::class, function (): void {
 
         $this->kernel = $this->dir.'/osrelease';
         file_put_contents($this->kernel, '6.8.0-generic');
-        $this->environment = fn (string $os, string $kernel, array $env = []) => $this->app->instance(Environment::class, new Environment($os, [$this->kernel], $env)) && file_put_contents($this->kernel, $kernel);
+        $this->environment = fn (string $os, string $kernel, array $env = []) => $this->app->instance(Environment::class, new Environment($os, [$this->kernel], $env, [])) && file_put_contents($this->kernel, $kernel);
         ($this->environment)('Linux', '6.8.0-generic');
 
         $this->settings = fn (): array => json_decode((string) file_get_contents($this->dir.'/.monocle.json'), true);
@@ -35,6 +35,19 @@ describe(EditorCommand::class, function (): void {
 
         expect(($this->settings)())->toBe(['editor' => 'phpstorm', 'paths' => [$this->dir => '/home/me/app']])
             ->and(file_get_contents($this->dir.'/.gitignore'))->toContain("\n/.monocle.json\n");
+    });
+
+    it('asks for the path on the host when running in a container', function (): void {
+        touch($this->dir.'/.dockerenv');
+        $this->app->instance(Environment::class, new Environment('Linux', [$this->kernel], [], [$this->dir.'/.dockerenv']));
+
+        $this->artisan('monocle:editor')
+            ->expectsChoice('Which editor do you use?', 'vscode', $this->editors)
+            ->expectsQuestion("Where is {$this->dir} on the machine your editor runs on?", '/home/me/app')
+            ->expectsOutputToContain('vscode://file/home/me/app/')
+            ->assertSuccessful();
+
+        expect(($this->settings)()['paths'])->toBe([$this->dir => '/home/me/app']);
     });
 
     it('asks where the editor runs under WSL and which distro holds the project', function (): void {

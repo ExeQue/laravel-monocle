@@ -14,12 +14,29 @@ final readonly class Environment
     /**
      * @param  list<string>  $kernelFiles
      * @param  array<string, string>|null  $env
+     * @param  list<string>  $containerFiles
      */
     public function __construct(
         private string $os = PHP_OS_FAMILY,
         private array $kernelFiles = ['/proc/sys/kernel/osrelease', '/proc/version'],
         private ?array $env = null,
+        private array $containerFiles = ['/.dockerenv', '/run/.containerenv'],
     ) {
+    }
+
+    /**
+     * Running inside a Docker or Podman container, where the paths PHP sees
+     * differ from the ones on the host.
+     */
+    public function inContainer(): bool
+    {
+        foreach ($this->containerFiles as $file) {
+            if (file_exists($file)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function os(): string

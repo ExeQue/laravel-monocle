@@ -145,7 +145,7 @@ Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
 Section `queries`: every query with its SQL, bindings, a ready-to-run version with the values filled in, connection, duration, type (select, insert, ...), tables and the transaction it ran in.
 
-Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. Transactions appear in the timeline with their outcome (committed or rolled back).
+Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. Transactions appear in the timeline with their outcome (committed or rolled back).
 
 Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true), `ignore_tables` (`telescope_*`, `pulse_*`): queries that only touch these tables are left out.
 

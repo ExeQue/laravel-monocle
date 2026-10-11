@@ -95,7 +95,7 @@ Pick your editor and file paths and class names in Monocle become links that ope
 { "editor": "myeditor://open?file={file}&line={line}" }
 ```
 
-**`paths`** - when PHP runs in a container (Sail, Lerd), the paths it sees differ from the ones on your machine. Map each container path to where it is for your editor. You are asked for this when it applies.
+**`paths`** - when PHP runs in a container (Sail, Lerd, plain Docker or Podman), the paths it sees differ from the ones on your machine. Map each container path to where it is for your editor. You are asked for this when it applies.
 
 **WSL** - when PHP runs under WSL, you are asked where your editor runs:
 

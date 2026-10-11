@@ -56,7 +56,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
 
     public function description(): string
     {
-        return 'Every executed query: sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query). Transactions are db.transaction spans in the timeline.';
+        return 'Every executed query, plus transaction statements (BEGIN TRANSACTION, COMMIT, ROLLBACK and savepoints, type transaction, no duration): sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query). Transactions are db.transaction spans in the timeline.';
     }
 
     public function advice(): string
@@ -98,7 +98,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
 
     public function summarize(Capture $capture): array
     {
-        $rows = $capture->rows('queries');
+        $rows = array_values(array_filter($capture->rows('queries'), fn (array $row): bool => ($row['type'] ?? null) !== 'transaction'));
         $total = 0.0;
         $slow = [];
         $duplicates = 0;
@@ -210,6 +210,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
         $span->start(['connection' => $event->connectionName, 'level' => $depth + 1]);
 
         $this->transactions[$event->connectionName][] = $span;
+        $this->transactionRow($event->connectionName, $depth === 0 ? 'BEGIN TRANSACTION' : 'SAVEPOINT trans'.($depth + 1), $span);
     }
 
     private function endTransaction(string $connection, string $outcome): void
@@ -218,7 +219,46 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
             return;
         }
 
-        array_pop($this->transactions[$connection])->stop(['outcome' => $outcome]);
+        $level = count($this->transactions[$connection]);
+        $span = array_pop($this->transactions[$connection]);
+        $span->stop(['outcome' => $outcome]);
+
+        $sql = match ($outcome) {
+            'committed' => $level === 1 ? 'COMMIT' : 'RELEASE SAVEPOINT trans'.$level,
+            default => $level === 1 ? 'ROLLBACK' : 'ROLLBACK TO SAVEPOINT trans'.$level,
+        };
+
+        $this->transactionRow($connection, $sql, $span);
+    }
+
+    /**
+     * Transaction statements go straight to PDO and fire no query event;
+     * list them with the queries so the order of work reads as it ran.
+     */
+    private function transactionRow(string $connection, string $sql, Span $span): void
+    {
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $this->counter++;
+
+        $this->eyepiece->push('queries', [
+            'n' => $this->counter,
+            'sql' => $sql,
+            'bindings' => [],
+            'sql_with_bindings' => $sql,
+            'connection' => $connection,
+            'driver' => null,
+            'duration' => null,
+            'type' => 'transaction',
+            'tables' => [],
+            'shape' => $sql,
+            'shape_hash' => substr(md5($sql), 0, 8),
+            'transaction_id' => $span->id,
+            'slow' => false,
+            'duplicate_of' => null,
+        ], origin: false);
     }
 
     private function rawSql(QueryExecuted $event): ?string

@@ -61,7 +61,7 @@ final class EditorCommand extends Command
 
         $location = $this->editorLocation($environment, $current);
         $distro = $location === 'windows' ? $this->distro($environment, $current) : null;
-        $paths = $this->paths($basePath, $current, $location);
+        $paths = $this->paths($basePath, $current, $location, $environment);
         $project = $this->project($basePath, $editor, $paths, $current, $location, $environment);
         $settings = new EditorSettings($editor, $paths, $distro, $project);
         $dryRun = (bool) $this->option('dry-run');
@@ -204,7 +204,7 @@ final class EditorCommand extends Command
     /**
      * @return array<string, string>
      */
-    private function paths(string $basePath, EditorSettings $current, ?string $location): array
+    private function paths(string $basePath, EditorSettings $current, ?string $location, Environment $environment): array
     {
         $paths = $current->paths;
 
@@ -221,25 +221,37 @@ final class EditorCommand extends Command
         }
 
         $platform = Platform::detect($basePath);
+        $root = $this->projectRoot($basePath);
 
-        if (! in_array($platform, [Platform::Sail, Platform::Lerd], true) && $location !== 'windows-drive' && ! isset($paths[$basePath])) {
+        if (! in_array($platform, [Platform::Sail, Platform::Lerd], true) && ! $environment->inContainer() && $location !== 'windows-drive' && ! isset($paths[$root])) {
             return $paths;
         }
 
         $target = text(
-            "Where is {$basePath} on the machine your editor runs on?",
+            "Where is {$root} on the machine your editor runs on?",
             placeholder: $location === 'windows-drive' ? 'C:/Users/you/code/project' : '/home/you/code/project',
-            default: $paths[$basePath] ?? '',
+            default: $paths[$root] ?? '',
             hint: 'Leave empty when the path is the same.',
         );
 
-        unset($paths[$basePath]);
+        unset($paths[$root]);
 
         if ($target !== '') {
-            $paths[$basePath] = $target;
+            $paths[$root] = $target;
         }
 
         return $paths;
+    }
+
+    /**
+     * The folder to map: the project the command runs from, which holds the
+     * application even when its base path lives deeper, as with Testbench.
+     */
+    private function projectRoot(string $basePath): string
+    {
+        $cwd = getcwd();
+
+        return $cwd !== false && str_starts_with($basePath, rtrim($cwd, '/').'/') ? $cwd : $basePath;
     }
 
     protected function getOptions(): array

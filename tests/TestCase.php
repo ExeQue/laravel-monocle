@@ -26,6 +26,14 @@ abstract class TestCase extends BaseTestCase
     /**
      * @return array<int, class-string>
      */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // A developer's own .monocle.json in the Testbench app must not change the tests.
+        $this->app->instance(\ExeQue\Monocle\Editor\EditorLinks::class, new \ExeQue\Monocle\Editor\EditorLinks(null, $this->app->basePath()));
+    }
+
     protected function getPackageProviders($app): array
     {
         return [

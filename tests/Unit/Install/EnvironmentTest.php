@@ -40,4 +40,14 @@ describe(Environment::class, function (): void {
             ->and((new Environment('Linux', [], ['WSL_DISTRO_NAME' => '']))->wslDistro())->toBeNull()
             ->and((new Environment('Linux', [], []))->wslDistro())->toBeNull();
     });
+
+    it('knows when it runs inside a container', function (): void {
+        $marker = sys_get_temp_dir().'/monocle-dockerenv-'.bin2hex(random_bytes(4));
+        touch($marker);
+
+        expect((new Environment('Linux', [], [], [$marker]))->inContainer())->toBeTrue()
+            ->and((new Environment('Linux', [], [], ['/missing/.dockerenv']))->inContainer())->toBeFalse();
+
+        unlink($marker);
+    });
 });

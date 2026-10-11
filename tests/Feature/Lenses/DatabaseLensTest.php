@@ -73,8 +73,14 @@ describe(DatabaseLens::class, function (): void {
         expect($transactions)->toHaveCount(2)
             ->and($transactions[0]->meta['outcome'])->toBe('committed')
             ->and($transactions[1]->meta['outcome'])->toBe('rolled_back')
-            ->and($rows[0]['transaction_id'])->toBe($transactions[0]->id)
-            ->and($rows[1]['transaction_id'])->toBe($transactions[1]->id);
+            ->and(array_column($rows, 'sql'))->toBe([
+                'BEGIN TRANSACTION', $rows[1]['sql'], 'COMMIT',
+                'BEGIN TRANSACTION', $rows[4]['sql'], 'ROLLBACK',
+            ])
+            ->and($rows[0]['type'])->toBe('transaction')
+            ->and($rows[1]['transaction_id'])->toBe($transactions[0]->id)
+            ->and($rows[4]['transaction_id'])->toBe($transactions[1]->id)
+            ->and($rows[5]['transaction_id'])->toBe($transactions[1]->id);
     });
 
     it('summarizes totals, slow queries and N+1 candidates', function (): void {
