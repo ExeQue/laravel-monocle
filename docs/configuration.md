@@ -85,11 +85,44 @@ Headers and cookies are listed by name, each with the mask to use. Names support
 
 Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name.
 
-`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value.
+### Masks
 
-`AuthorizationMask` keeps a known scheme readable and masks only the credentials: `Bearer eyJh****`. It takes the list of schemes to recognize; a value with another scheme, or none, is masked as a whole.
+| Mask | Arguments | `Bearer eyJhbGciOiJIUzI1NiJ9.e30` becomes |
+| --- | --- | --- |
+| `PartialMask` | `visible` (default `4`) | `Bear****` |
+| `FullMask` | none | `********` |
+| `AuthorizationMask` | `schemes` (required), `visible` (default `4`) | `Bearer eyJh****` |
 
-A mask can also be your own class with an `__invoke($value, $key)` method. Pass constructor arguments by giving an array with the class first: `[PartialMask::class, 8]` or `[PartialMask::class, 'visible' => 8]`.
+`PartialMask` keeps the first characters visible, so you can tell which token was sent without seeing it. It never shows more than a quarter of the value, so short values keep fewer characters, and values under four characters are masked completely.
+
+`AuthorizationMask` keeps the scheme readable when it is one of `schemes` (any letter case) and masks the credentials after it like `PartialMask`. A value with another scheme, or no scheme, is masked as a whole.
+
+Pass arguments with an array, class first. Positional and named arguments both work:
+
+```php
+'x-api-key' => [PartialMask::class, 8],
+'authorization' => [AuthorizationMask::class, ['Bearer'], 'visible' => 6],
+```
+
+### Your own mask
+
+A mask is any class with an `__invoke($value, $key)` method returning the masked value. `$key` is the header, cookie or input name.
+
+```php
+final class HashMask
+{
+    public function __invoke(mixed $value, string $key): string
+    {
+        return is_scalar($value) ? 'sha1:'.substr(sha1((string) $value), 0, 8) : '****';
+    }
+}
+```
+
+```php
+'x-api-key' => HashMask::class,
+```
+
+A mask without arguments is resolved from the container, so its constructor can ask for dependencies. `using` also accepts a closure.
 
 ## `origin`
 
