@@ -336,8 +336,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   /**
    * Entries in groups, in this order: quick actions (the latest capture of each type, then
-   * clearing), tabs, then captures by type. With a query, each group keeps the entries whose
-   * name holds its letters in order, closest first.
+   * clearing), tabs, then captures by type. With a query, each group keeps the entries where
+   * every word's letters appear in order in the name, status or kind, closest first.
    */
   get paletteItems() {
     const types = ['request', 'command', 'job', 'mcp'];
@@ -372,8 +372,15 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     }
 
     const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
+    // Every word has to match somewhere in the name, status or kind: "404 demo" finds 404s under /demo.
+    const words = query.split(/\s+/);
+    const scoreOf = (item) => {
+      const text = `${item.label} ${item.status ?? ''} ${item.kind}`.toLowerCase();
+      const scores = words.map((word) => fuzzyScore(word, text));
+      return scores.includes(null) ? null : scores.reduce((sum, score) => sum + score, 0);
+    };
     return [...quick, ...tabs, ...byType]
-      .map((item) => ({ item, score: fuzzyScore(query, item.label.toLowerCase()) }))
+      .map((item) => ({ item, score: scoreOf(item) }))
       .filter((match) => match.score !== null)
       .sort((a, b) => groups.indexOf(a.item.group) - groups.indexOf(b.item.group) || a.score - b.score)
       .map((match) => match.item)
