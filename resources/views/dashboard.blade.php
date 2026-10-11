@@ -79,7 +79,7 @@
         </div>
     </aside>
 
-    <main class="scroll-quiet flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
+    <main class="scroll-quiet flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:[scrollbar-gutter:stable] min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
         <p :class="cls.empty" x-show="!capture">Select a capture.</p>
         <template x-if="capture">
             <div class="flex min-w-0 flex-col gap-5">
