@@ -30,6 +30,9 @@
         x-show="summary.label"
         x-text="'label: ' + summary.label"
     ></span>
+    <template x-for="tag in summary.tags ?? []" :key="tag.label">
+        <span class="rounded-full border px-2 text-xs font-medium" :class="tagClass(tag.tone)" x-text="tag.label"></span>
+    </template>
 </header>
 <div class="text-muted flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-[13px]">
     <span

@@ -487,6 +487,7 @@ final class Eyepiece
             $summary = $this->app->make(SummaryBuilder::class)->build($capture, children: false);
             $capture->health['warnings'] = count($summary['warnings']);
             $capture->health['errors'] = count($summary['errors']);
+            $capture->health['tags'] = $summary['tags'];
 
             $this->stores->store()->put($capture);
 

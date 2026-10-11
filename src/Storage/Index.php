@@ -44,6 +44,7 @@ final class Index
             'has_errors' => self::hasErrors($capture),
             'warnings' => (int) ($capture->health['warnings'] ?? 0),
             'errors' => (int) ($capture->health['errors'] ?? 0),
+            'tags' => (array) ($capture->health['tags'] ?? []),
             'job_id' => $capture->type === CaptureType::Job ? ($capture->section('job')['job_id'] ?? null) : null,
         ];
     }

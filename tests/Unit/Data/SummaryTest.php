@@ -73,6 +73,13 @@ describe(Summary::class, function (): void {
             ->and($summary->units)->toBe(['response_bytes' => 'bytes']);
     });
 
+    it('tags the whole capture', function (): void {
+        expect(Summary::make()->tag('impersonated', 'warn')->tag('replayed')->tags)->toBe([
+            ['label' => 'impersonated', 'tone' => 'warn'],
+            ['label' => 'replayed', 'tone' => 'muted'],
+        ]);
+    });
+
     it('keeps errors apart from warnings', function (): void {
         $summary = Summary::make()->warning('slow')->error('failed')->errors(['also failed']);
 

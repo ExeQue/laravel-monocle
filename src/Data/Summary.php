@@ -27,6 +27,7 @@ final readonly class Summary
      * @param  list<string>  $warnings  things worth a look
      * @param  list<string>  $errors  things that failed
      * @param  list<string>  $headlines  totals shown at the top of the overview
+     * @param  list<array{label: string, tone: string}>  $tags  short labels for the whole capture
      */
     private function __construct(
         public array $totals = [],
@@ -35,6 +36,7 @@ final readonly class Summary
         public array $warnings = [],
         public array $errors = [],
         public array $headlines = [],
+        public array $tags = [],
     ) {
     }
 
@@ -118,5 +120,16 @@ final readonly class Summary
     public function errors(array $errors): self
     {
         return $this->with(['errors' => [...$this->errors, ...array_values($errors)]]);
+    }
+
+    /**
+     * A short label for the whole capture, shown next to its name in the
+     * dashboard and its list, such as "impersonated by #1".
+     *
+     * @param  'muted'|'warn'|'bad'|'ok'  $tone
+     */
+    public function tag(string $label, string $tone = 'muted'): self
+    {
+        return $this->with(['tags' => [...$this->tags, ['label' => $label, 'tone' => $tone]]]);
     }
 }

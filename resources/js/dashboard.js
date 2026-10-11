@@ -2,7 +2,7 @@ import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml, usePathMappings } from './format.js';
-import { cls, statusClass, httpStatusClass } from './classes.js';
+import { cls, statusClass, httpStatusClass, tagClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
 import { setupTooltip } from './tooltip.js';
@@ -521,7 +521,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return this.customDetails[key];
   },
 
-  cls, ms, ago, statusClass, humanize, esc, maybeLink, rowBody, classes,
+  cls, ms, ago, statusClass, tagClass, humanize, esc, maybeLink, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   /** A table cell; formats that link to other captures look among this capture's children. */
   cell(row, key, presentation = null) { return cells.cell(row, key, presentation, { children: this.capture?.children ?? [] }); },

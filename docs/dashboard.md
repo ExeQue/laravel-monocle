@@ -25,6 +25,8 @@ The overview shows where the time went (each phase of the request), what it was 
 
 **Copy agent prompt** in the header copies a prompt for your coding agent: the capture, its totals, what Monocle flagged and how to dig in through the MCP server. Paste it into the agent to have it look into that request.
 
+A capture made while one user impersonates another is tagged "impersonated by ..." in yellow, in the header and in the list.
+
 ## Tabs
 
 Every section with rows gets a tab, and so does a section of facts (such as the request or the session) whose lens has a view for it. Tables list rows in order or grouped: queries by query, caller, table or transaction, HTTP calls by endpoint, host, pool or status, middleware by group, and views, cache, events, files, jobs, mail, authorization, exceptions, feature flags, Redis and log entries by what they have in common, such as the view, the cache key or the event. The log can also be filtered by level. Each group shows its count and timing and expands to the calls in it, and a query expands to its bindings and details in both views.

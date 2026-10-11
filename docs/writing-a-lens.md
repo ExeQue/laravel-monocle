@@ -153,6 +153,7 @@ A summary is immutable: start with `Summary::make()`, and since every method ret
 | `headline($name, $value, $label = null, $unit = null)` | A total about the whole capture, shown at the top of the overview next to the duration and peak memory instead of under your tab. |
 | `warning($message)`, `warnings([...])` | Things worth a look. |
 | `error($message)`, `errors([...])` | Things that failed, such as a call or a job. |
+| `tag($label, $tone = 'muted')` | A short label for the whole capture, shown next to its name in the dashboard header and in the list. `$tone` is `muted`, `ok`, `warn` or `bad`. |
 
 The label says what the value is ("failed", "spent"). Without one the overview shows the name, humanised and without its unit suffix (`stripe_ms` becomes "stripe"). The unit decides how the value is shown:
 
@@ -284,7 +285,7 @@ final class SwitchUserLens implements ExtendsLens, Lens, RequiresPackages, Summa
 }
 ```
 
-The auth section then gets a row when an impersonation starts and ends, the authenticated user is marked with who is impersonating them, and the summary shows it, as with the built-in impersonation packages.
+The auth section then gets a row when an impersonation starts and ends, the authenticated user is marked with who is impersonating them, and the summary shows it and tags the capture "impersonated by ...", as with the built-in impersonation packages.
 
 ## Extending the request lens
 

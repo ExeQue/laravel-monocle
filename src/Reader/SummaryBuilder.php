@@ -58,12 +58,14 @@ final class SummaryBuilder
         $errors = [];
         $problems = [];
         $flags = [];
+        $tags = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
             $section = $this->registry->sectionOf($summarizer);
             $totals = [...$totals, ...$contribution->totals];
             $headlines = [...$headlines, ...$contribution->headlines];
+            $tags = [...$tags, ...$contribution->tags];
             $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $section)];
             $labels = [...$labels, ...$contribution->labels];
             $units = [...$units, ...$contribution->units];
@@ -121,6 +123,7 @@ final class SummaryBuilder
             'warnings' => array_values(array_unique($warnings)),
             'errors' => array_values(array_unique($errors)),
             'flags' => $this->sortFlags($flags),
+            'tags' => array_values(array_unique($tags, SORT_REGULAR)),
             'problems' => $problems,
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],

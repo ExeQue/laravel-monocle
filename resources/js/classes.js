@@ -20,6 +20,8 @@ export const httpStatusClass = (s) => {
   return n >= 400 ? 'text-bad' : n >= 300 ? 'text-muted' : 'text-ok';
 };
 
+export const tagClass = (tone) => ({ ok: 'border-ok text-ok', warn: 'border-warn text-warn', bad: 'border-bad text-bad' })[tone] ?? 'border-line text-muted';
+
 export const statusClass = (s) => {
   if (s === null || s === undefined) return '';
   // Below 100 it is a command's exit code: 0 went well, anything else failed.

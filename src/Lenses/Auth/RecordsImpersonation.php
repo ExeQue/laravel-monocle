@@ -93,6 +93,8 @@ trait RecordsImpersonation
 
         return Summary::make()
             ->when($impersonator !== null)
-            ->total('auth_impersonated_by', $impersonator ?? '', 'impersonated by');
+            ->total('auth_impersonated_by', $impersonator ?? '', 'impersonated by')
+            ->when($impersonator !== null)
+            ->tag('impersonated by '.$impersonator, 'warn');
     }
 }
