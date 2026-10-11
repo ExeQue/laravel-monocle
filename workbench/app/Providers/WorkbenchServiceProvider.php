@@ -47,7 +47,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'monocle.lenses.'.FilesystemLens::class => ['disks' => ['demo']],
             // An application lens with its own dashboard tab.
             'monocle.lenses.'.PaymentsLens::class => true,
-            'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico'],
+            // The queue worker demo only starts a worker; the jobs it runs are captures of their own.
+            'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico', 'demo/queue/work'],
             // The showcase sends an API key to an outgoing API; mask it for the http lens only.
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
             'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
