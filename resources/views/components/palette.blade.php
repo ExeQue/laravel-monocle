@@ -1,4 +1,4 @@
-{{-- The command palette (Ctrl/⌘ K): the open capture's tabs and the captures in the list, searchable. --}}
+{{-- The command palette (Ctrl/⌘ K): quick actions, the open capture's tabs and the captures in the list, grouped and searchable. --}}
 <div
     class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 px-4 pt-[12vh]"
     x-show="palette.open"
@@ -30,21 +30,37 @@
             role="listbox"
         >
             <template x-for="(item, i) in paletteItems" :key="item.id">
-                <li
-                    :id="'monocle-palette-' + i"
-                    class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm"
-                    :class="i === palette.index ? 'bg-brass-soft text-fg' : 'text-fg'"
-                    role="option"
-                    :aria-selected="i === palette.index"
-                    @mousemove="palette.index = i"
-                    @click="runPalette(item)"
-                >
-                    <span
-                        class="text-muted w-[3.4em] shrink-0 font-mono text-[11px] uppercase"
-                        x-text="item.kind"
-                    ></span>
-                    <span class="min-w-0 flex-1 truncate" x-text="item.label"></span>
-                    <span class="text-muted shrink-0 text-xs tabular-nums" x-text="item.hint"></span>
+                <li role="none">
+                    <div
+                        class="text-muted px-3 pt-2.5 pb-1 text-[11px] tracking-wider uppercase"
+                        role="presentation"
+                        x-show="i === 0 || paletteItems[i - 1].group !== item.group"
+                        x-text="item.group"
+                    ></div>
+                    <div
+                        :id="'monocle-palette-' + i"
+                        class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm"
+                        :class="[i === palette.index ? 'bg-brass-soft' : '', item.danger ? 'text-bad' : 'text-fg']"
+                        role="option"
+                        :aria-selected="i === palette.index"
+                        @mousemove="palette.index = i"
+                        @click="runPalette(item)"
+                    >
+                        <span
+                            class="text-muted w-[3.4em] shrink-0 font-mono text-[11px] uppercase"
+                            x-text="item.kind"
+                        ></span>
+                        <span class="min-w-0 flex-1 truncate" x-text="item.label"></span>
+                        <span
+                            class="shrink-0 font-mono text-xs"
+                            :class="statusClass(item.status)"
+                            x-text="item.status ?? ''"
+                        ></span>
+                        <span
+                            class="text-muted max-w-[45%] shrink-0 truncate text-xs tabular-nums"
+                            x-text="item.hint"
+                        ></span>
+                    </div>
                 </li>
             </template>
             <li class="text-muted px-3 py-2 text-sm" x-show="! paletteItems.length">Nothing matches.</li>

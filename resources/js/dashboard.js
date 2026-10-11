@@ -101,7 +101,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     });
     setInterval(() => this.live && !document.hidden && this.load(true), 2500);
     this.$watch('filters', () => this.load(), { deep: true });
-    this.$watch('palette.query', () => { this.palette.index = 0; });
+    this.$watch('palette.query', () => { this.palette.index = 0; this.palette.confirmClear = false; });
     addEventListener('keydown', (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -321,35 +321,63 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   },
 
 
-  /** The command palette: jump to a tab of the open capture, or to another capture. */
-  palette: { open: false, query: '', index: 0 },
+  /** The command palette: quick actions, a tab of the open capture, or another capture. */
+  palette: { open: false, query: '', index: 0, confirmClear: false },
 
   openPalette() {
-    this.palette = { open: true, query: '', index: 0 };
+    this.palette = { open: true, query: '', index: 0, confirmClear: false };
     this.$nextTick(() => document.getElementById('monocle-palette-input')?.focus());
   },
 
   closePalette() {
     this.palette.open = false;
+    this.palette.confirmClear = false;
   },
 
-  /** Tabs first, then the latest capture of each type, then captures; with a query, everything whose name holds its letters in order, closest first. */
+  /**
+   * Entries in groups, in this order: quick actions (the latest capture of each type, then
+   * clearing), tabs, then captures by type. With a query, each group keeps the entries whose
+   * name holds its letters in order, closest first.
+   */
   get paletteItems() {
-    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', run: () => this.openTab(t.key) }));
-    const captures = this.captures.map((c) => ({ id: `capture:${c.id}`, kind: shortType(c.type), label: c.name, hint: ago(c.started_at), run: () => this.select(c.id, this.tab) }));
-    // The list is newest first, so the first capture of a type is its latest.
-    const latestItems = [...new Set(this.captures.map((c) => c.type))].map((type) => {
-      const capture = this.captures.find((c) => c.type === type);
-      return { id: `latest:${type}`, kind: shortType(type), label: `Latest ${type === 'mcp' ? 'MCP call' : type}`, hint: capture.name, run: () => this.select(capture.id, this.tab) };
-    });
+    const types = ['request', 'command', 'job', 'mcp'];
+    const typeName = (type) => (type === 'mcp' ? 'MCP call' : type);
+    const groupOf = { request: 'Requests', command: 'Commands', job: 'Jobs', mcp: 'MCP' };
+    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, run: () => this.select(c.id, this.tab) });
+
+    const quick = types
+      .map((type) => this.captures.find((c) => c.type === type))
+      .filter(Boolean)
+      .map((c) => capture(c, 'Quick actions', `Latest ${typeName(c.type)}`, c.name));
+    if (this.captures.length) {
+      quick.push({
+        id: 'clear',
+        group: 'Quick actions',
+        kind: 'clear',
+        label: this.palette.confirmClear ? 'Delete all captures? Press Enter again' : 'Clear captures',
+        hint: '',
+        danger: this.palette.confirmClear,
+        // The first time only asks; the palette stays open for the answer.
+        run: () => (this.palette.confirmClear ? (this.clearAll(), false) : (this.palette.confirmClear = true)),
+      });
+    }
+
+    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: 'Tabs', kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', run: () => this.openTab(t.key) }));
+    const byType = types.flatMap((type) => this.captures.filter((c) => c.type === type).map((c) => capture(c, groupOf[type])));
+
     const query = this.palette.query.trim().toLowerCase();
-    if (!query) return [...tabs, ...latestItems, ...captures.slice(0, 8)];
-    return [...tabs, ...latestItems, ...captures]
+    if (!query) {
+      const shown = {};
+      return [...quick, ...tabs, ...byType.filter((item) => (shown[item.group] = (shown[item.group] ?? 0) + 1) <= 5)];
+    }
+
+    const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
+    return [...quick, ...tabs, ...byType]
       .map((item) => ({ item, score: fuzzyScore(query, item.label.toLowerCase()) }))
       .filter((match) => match.score !== null)
-      .sort((a, b) => a.score - b.score)
-      .slice(0, 30)
-      .map((match) => match.item);
+      .sort((a, b) => groups.indexOf(a.item.group) - groups.indexOf(b.item.group) || a.score - b.score)
+      .map((match) => match.item)
+      .filter((item, i, all) => all.slice(0, i).filter((x) => x.group === item.group).length < 10);
   },
 
   /** Arrow keys move through the list, Enter runs the chosen entry, Escape closes. */
@@ -369,8 +397,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   runPalette(item) {
     if (!item) return;
+    // An entry that returns true keeps the palette open (clearing asks first).
+    if (item.run() === true) return;
     this.closePalette();
-    item.run();
   },
 
   get summary() { return this.capture?.summary ?? {}; },
