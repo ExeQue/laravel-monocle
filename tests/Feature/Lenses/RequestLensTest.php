@@ -111,12 +111,12 @@ describe(RequestLens::class, function (): void {
 
     it('shows a Livewire update as one card per component instead of the raw body', function (): void {
         Route::post('/livewire/update', fn () => response()->json(['components' => [[
-            'snapshot' => json_encode(['data' => ['count' => 2, 'items' => [['a', 'b'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'snapshot' => json_encode(['data' => ['count' => 2, 'items' => [['a', 'b'], ['s' => 'arr']], 'log' => [['role' => 'assistant']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
             'effects' => ['html' => '<div>2</div>', 'dispatches' => [['name' => 'counted', 'params' => ['by' => 2]], ['name' => 'saved', 'params' => []]], 'returns' => [2]],
         ]]]))->name('default-livewire.update');
 
         $this->postJson('/livewire/update', ['components' => [[
-            'snapshot' => json_encode(['data' => ['count' => 1, 'items' => [['a'], ['s' => 'arr']], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'snapshot' => json_encode(['data' => ['count' => 1, 'items' => [['a'], ['s' => 'arr']], 'log' => [], 'password' => 'secret-value'], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
             'updates' => ['step' => 1],
             'calls' => [['method' => 'increment', 'params' => [1], 'metadata' => []], ['method' => '__dispatch', 'params' => ['refresh', ['id' => 7]], 'metadata' => []]],
         ]]])->assertOk();
@@ -133,6 +133,7 @@ describe(RequestLens::class, function (): void {
             ->and($card['items']['changes'])->toBe([
                 ['field' => 'count', 'from' => 1, 'to' => 2],
                 ['field' => 'items.1', 'from' => null, 'to' => 'b'],
+                ['field' => 'log.0.role', 'from' => null, 'to' => 'assistant'],
             ])
             ->and($card['items']['dispatched'])->toBe([['name' => 'counted', 'params' => ['by' => 2]], ['name' => 'saved', 'params' => null]])
             ->and($card['items']['returns'])->toBe([2])

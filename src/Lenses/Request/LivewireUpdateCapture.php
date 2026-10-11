@@ -131,11 +131,37 @@ final readonly class LivewireUpdateCapture implements ResponseCapture
         $changes = [];
 
         foreach (array_unique([...array_keys($from), ...array_keys($to)]) as $field) {
+            if ($this->becameParent((string) $field, $from, $to) || $this->becameParent((string) $field, $to, $from)) {
+                continue;
+            }
+
             if (($from[$field] ?? null) !== ($to[$field] ?? null) || array_key_exists($field, $from) !== array_key_exists($field, $to)) {
                 $changes[] = ['field' => (string) $field, 'from' => $from[$field] ?? null, 'to' => $to[$field] ?? null];
             }
         }
 
         return $changes;
+    }
+
+    /**
+     * An empty list on one side that holds items on the other: the items are
+     * listed as changes on their own, so the list itself is not.
+     *
+     * @param  array<string, mixed>  $side
+     * @param  array<string, mixed>  $other
+     */
+    private function becameParent(string $field, array $side, array $other): bool
+    {
+        if (! array_key_exists($field, $side) || $side[$field] !== [] || array_key_exists($field, $other)) {
+            return false;
+        }
+
+        foreach (array_keys($other) as $key) {
+            if (str_starts_with((string) $key, $field.'.')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
