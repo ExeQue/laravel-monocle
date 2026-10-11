@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Lenses\Packages\Ai;
+namespace Tests\Feature\Lenses\Packages\Laravel;
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Packages\Ai\AiLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;

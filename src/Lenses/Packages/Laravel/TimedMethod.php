@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses\Packages\Mcp;
+namespace ExeQue\Monocle\Lenses\Packages\Laravel;
 
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;

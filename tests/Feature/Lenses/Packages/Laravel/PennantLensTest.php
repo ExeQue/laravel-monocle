@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Lenses\Packages\Pennant;
+namespace Tests\Feature\Lenses\Packages\Laravel;
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\PennantLens;
 use Laravel\Pennant\Feature;
 
-covers(FeatureFlagsLens::class);
+covers(PennantLens::class);
 
-describe(FeatureFlagsLens::class, function (): void {
+describe(PennantLens::class, function (): void {
     beforeEach(function (): void {
         config(['pennant.default' => 'array', 'pennant.stores.array' => ['driver' => 'array']]);
         app(Eyepiece::class)->start(CaptureType::Request);
@@ -29,7 +29,7 @@ describe(FeatureFlagsLens::class, function (): void {
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('features');
-        $summary = app(FeatureFlagsLens::class)->summarize($capture);
+        $summary = app(PennantLens::class)->summarize($capture);
 
         expect(array_map(fn (array $row): array => [$row['feature'], $row['source']], $rows))->toContain(
             ['new-checkout', 'resolved'],
@@ -43,6 +43,6 @@ describe(FeatureFlagsLens::class, function (): void {
     });
 
     it('summarizes nothing without flag checks', function (): void {
-        expect(app(FeatureFlagsLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
+        expect(app(PennantLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
 });

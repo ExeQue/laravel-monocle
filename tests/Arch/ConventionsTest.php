@@ -83,8 +83,8 @@ test('every lens implements Lens and Advises', function (): void {
     }
 });
 
-test('lenses for other packages say which packages they need', function (): void {
-    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src/Lenses/Packages')->name('*Lens.php');
+test('lenses and captures for other packages say which packages they need', function (): void {
+    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src/Lenses/Packages')->name(['*Lens.php', '*Capture.php']);
 
     expect($files)->not->toBeEmpty();
 
@@ -93,6 +93,20 @@ test('lenses for other packages say which packages they need', function (): void
 
         expect($class)->toImplement(RequiresPackages::class)
             ->and($class::packages())->not->toBeEmpty();
+    }
+});
+
+test('package lenses live under the root namespace of the package they record', function (): void {
+    $root = dirname(__DIR__, 2);
+    $files = Finder::create()->files()->in($root.'/src/Lenses/Packages')->name('*Lens.php');
+
+    foreach ($files as $file) {
+        $author = explode('/', $file->getRelativePath())[0];
+        $class = 'ExeQue\Monocle\Lenses\Packages\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+        $composer = json_decode((string) file_get_contents($root.'/vendor/'.$class::packages()[0].'/composer.json'), true);
+        $namespaces = array_map(fn (string $namespace): string => explode('\\', $namespace)[0], array_keys($composer['autoload']['psr-4'] ?? []));
+
+        expect(in_array($author, $namespaces, true))->toBeTrue("{$class} records {$class::packages()[0]}, whose root namespace is not {$author}");
     }
 });
 

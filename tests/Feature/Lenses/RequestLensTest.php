@@ -121,6 +121,11 @@ describe(RequestLens::class, function (): void {
         $lens->configure(['capture' => ['response_types' => []]]);
         $this->get('/problem')->assertStatus(422);
         expect(latestCapture()->section('request')['response_capture'])->toBeNull();
+
+        // A capture for a package that is not installed is passed over for the next match.
+        $lens->configure(['capture' => ['response_types' => ['text/html' => \Tests\Fixtures\MissingPackageCapture::class, 'text/*' => \ExeQue\Monocle\Lenses\Request\TextCapture::class]]]);
+        $this->get('/html')->assertOk();
+        expect(latestCapture()->section('request')['response_capture']['capture'])->toBe(\ExeQue\Monocle\Lenses\Request\TextCapture::class);
     });
 
     it('shows a Livewire update as one card per component instead of the raw body', function (): void {

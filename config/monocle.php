@@ -16,12 +16,12 @@ use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
-use ExeQue\Monocle\Lenses\Packages\Ai\AiLens;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\PennantLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
-use ExeQue\Monocle\Lenses\Packages\Mcp\McpLens;
-use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
 use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
@@ -165,7 +165,7 @@ return [
         ],
 
         // Laravel Pennant
-        FeatureFlagsLens::class => true,
+        PennantLens::class => true,
 
         // spatie/laravel-responsecache
         ResponseCacheLens::class => true,
@@ -372,7 +372,7 @@ return [
             ExceptionsLens::class,
             ValidationLens::class,
             ResponseCacheLens::class,
-            FeatureFlagsLens::class,
+            PennantLens::class,
             CacheLens::class,
             ViewsLens::class,
             HttpClientLens::class,

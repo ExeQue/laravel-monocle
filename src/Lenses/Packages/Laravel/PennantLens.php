@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses\Packages\Pennant;
+namespace ExeQue\Monocle\Lenses\Packages\Laravel;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
@@ -25,7 +25,7 @@ use Laravel\Pennant\Events\UnknownFeatureResolved;
  * scope, the value it got and whether that came from storage or was resolved
  * just now. Explains why a request took one branch rather than another.
  */
-final class FeatureFlagsLens implements Advises, Lens, Presentable, RequiresPackages, Summarizable
+final class PennantLens implements Advises, Lens, Presentable, RequiresPackages, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece

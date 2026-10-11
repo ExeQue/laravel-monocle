@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Inertia;
 
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Http\Request;
@@ -14,8 +15,13 @@ use Symfony\Component\HttpFoundation\Response;
  * props were asked for. Reads both the JSON of an Inertia visit and the page
  * embedded in the HTML of a first visit; other HTML is left alone.
  */
-final readonly class InertiaCapture implements ResponseCapture
+final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
 {
+    public static function packages(): array
+    {
+        return ['inertiajs/inertia-laravel'];
+    }
+
     public function __construct(
         private Eyepiece $eyepiece
     ) {

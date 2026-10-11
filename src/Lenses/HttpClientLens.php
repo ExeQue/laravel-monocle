@@ -17,6 +17,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
+use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Batch;
@@ -222,7 +223,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         $class = null;
 
         foreach ($this->responseTypes as $pattern => $candidate) {
-            if ($type !== '' && Str::is(strtolower((string) $pattern), $type)) {
+            if ($type !== '' && Str::is(strtolower((string) $pattern), $type) && LensRegistry::available($candidate)) {
                 $class = $candidate;
 
                 break;

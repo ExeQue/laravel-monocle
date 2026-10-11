@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Http\Request;
@@ -15,8 +16,13 @@ use Symfony\Component\HttpFoundation\Response;
  * the properties the browser updated, what changed in its data, the events it
  * dispatched, what it returned and how much HTML it sent back.
  */
-final readonly class LivewireUpdateCapture implements ResponseCapture
+final readonly class LivewireUpdateCapture implements RequiresPackages, ResponseCapture
 {
+    public static function packages(): array
+    {
+        return ['livewire/livewire'];
+    }
+
     public function __construct(
         private Eyepiece $eyepiece
     ) {

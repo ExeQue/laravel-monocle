@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Tests\Feature\Lenses\Packages\Mcp;
+namespace Tests\Feature\Lenses\Packages\Laravel;
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Packages\Mcp\McpLens;
-use ExeQue\Monocle\Lenses\Packages\Mcp\TimedMethod;
+use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\TimedMethod;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Testing\TestResponse;

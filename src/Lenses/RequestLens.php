@@ -22,6 +22,7 @@ use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
+use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Http\Request;
@@ -510,7 +511,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private function headerCapture(Response $response): ?string
     {
         foreach ($this->headerCaptures as $header => $class) {
-            if ($response->headers->has((string) $header)) {
+            if (! $response->headers->has((string) $header)) {
+                continue;
+            }
+
+            if (LensRegistry::available($class)) {
                 return $class;
             }
         }
@@ -524,7 +529,12 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private function match(array $captures, string $subject): ?string
     {
         foreach ($captures as $pattern => $class) {
-            if (Str::is(strtolower((string) $pattern), strtolower($subject))) {
+            if (! Str::is(strtolower((string) $pattern), strtolower($subject))) {
+                continue;
+            }
+
+            // A capture for a package that is not installed is skipped, like a lens for one.
+            if (LensRegistry::available($class)) {
                 return $class;
             }
         }

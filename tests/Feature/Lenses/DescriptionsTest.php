@@ -9,7 +9,7 @@ use ExeQue\Monocle\LensRegistry;
 
 covers(
     LensRegistry::class,
-    \ExeQue\Monocle\Lenses\Packages\Ai\AiLens::class,
+    \ExeQue\Monocle\Lenses\Packages\Laravel\AiLens::class,
     \ExeQue\Monocle\Lenses\AuthorizationLens::class,
     \ExeQue\Monocle\Lenses\CacheLens::class,
     \ExeQue\Monocle\Lenses\CommandLens::class,
@@ -23,7 +23,7 @@ covers(
     \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens::class,
     \ExeQue\Monocle\Lenses\LogLens::class,
     \ExeQue\Monocle\Lenses\MailLens::class,
-    \ExeQue\Monocle\Lenses\Packages\Mcp\McpLens::class,
+    \ExeQue\Monocle\Lenses\Packages\Laravel\McpLens::class,
     \ExeQue\Monocle\Lenses\Packages\Prism\PrismLens::class,
     \ExeQue\Monocle\Lenses\ProcessLens::class,
     \ExeQue\Monocle\Lenses\MiddlewareLens::class,
