@@ -96,6 +96,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
         e.preventDefault();
         return this.stepTab(tabStep, false);
       }
+      if (e.key === 'Home' && this.captures[0]) {
+        e.preventDefault();
+        if (this.captures[0].id !== this.selectedId) this.select(this.captures[0].id, this.tab);
+        return this.$nextTick(() => document.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' }));
+      }
       const step = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
       if (!step || !this.captures.length) return;
       e.preventDefault();
