@@ -13,7 +13,6 @@ Everything the MCP tools do is also available from artisan. Run by a person, the
 | `monocle:trace [id]` | `monocle-trace` |
 | `monocle:compare <a> [b]` | `monocle-compare` |
 | `monocle:clear` | `monocle-clear` |
-| `monocle:tui` | |
 
 Without an `id` the latest capture is used.
 
@@ -35,19 +34,3 @@ php artisan monocle:clear
 `monocle:clear` asks before it deletes anything; add `--force` to skip the question.
 
 The commands work even when recording is turned off, so earlier captures can always be read.
-
-## Terminal UI
-
-`monocle:tui` opens a full-screen browser for captures. The list updates as new captures come in; open one to see a tab per section, rendered like the commands above.
-
-| Key | In the list | In a capture |
-|---|---|---|
-| `j` / `k` or arrows | next / previous capture | scroll |
-| `enter` | open the capture | |
-| `/` | filter by name, type, status, route, label or tag; `esc` clears it | |
-| `u` / `i`, left / right or tab | | previous / next tab |
-| `J` / `K` | | next / previous capture, same tab |
-| `g` / `G`, Home / End | first / last capture | top / bottom |
-| Page Up / Page Down | a page up / down | a page up / down |
-| `esc` | | back to the list |
-| `q` | quit | quit |
