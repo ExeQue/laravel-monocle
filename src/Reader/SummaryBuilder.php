@@ -30,7 +30,7 @@ final class SummaryBuilder
         'jobs_sync' => 'job',
     ];
 
-    private const array PHASES = ['bootstrap', 'command', 'middleware (request)', 'routing', 'controller', 'middleware (response)', 'response', 'terminate'];
+    private const array PHASES = ['bootstrap', 'command', 'job', 'middleware (request)', 'routing', 'controller', 'middleware (response)', 'response', 'terminate'];
 
     public function __construct(
         private readonly LensRegistry $registry,

@@ -7,7 +7,7 @@ import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails } from './popover.js';
 
 const PHASE_COLORS = {
-  bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)', command: 'var(--c-ctrl)',
+  bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)', command: 'var(--c-ctrl)', job: 'var(--c-ctrl)',
   'middleware (response)': 'color-mix(in srgb, var(--c-mw) 75%, var(--panel))', response: 'var(--c-phase)', terminate: 'var(--c-phase)', other: 'var(--line)',
 };
 const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', fs: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };

@@ -89,6 +89,9 @@ describe(QueueLens::class, function (): void {
             ->and($job->section('job')['job_id'])->toBe($dispatched[0]['job_id'])
             ->and($job->section('job')['attempts'])->toBe(1)
             ->and($job->rows('cache'))->not->toBeEmpty()
+            ->and($job->spansOfKind('phase')[0]->name)->toBe('job')
+            ->and($job->spansOfKind('phase')[0]->isOpen())->toBeFalse()
+            ->and($job->health['open_spans_at_finalize'])->toBe(0)
             ->and($captures('job'))->toHaveCount(1)
             ->and($captures('request'))->toHaveCount(1);
 
@@ -108,7 +111,8 @@ describe(QueueLens::class, function (): void {
         expect($job->type)->toBe(CaptureType::Job)
             ->and($job->status)->toBe('failed')
             ->and($job->section('job')['exception']['class'])->toBe(RuntimeException::class)
-            ->and($job->section('job')['exception']['message'])->toBe('job exploded');
+            ->and($job->section('job')['exception']['message'])->toBe('job exploded')
+            ->and($job->health['open_spans_at_finalize'])->toBe(0);
 
         $summary = (new QueueLens())->summarize($job);
 

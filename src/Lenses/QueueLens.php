@@ -44,6 +44,9 @@ final class QueueLens implements Lens, Resettable, Summarizable
     /** @var array<string, Span> open inline job spans by job id */
     private array $spans = [];
 
+    /** The phase covering a job capture from start to finish. */
+    private ?Span $phase = null;
+
     public function key(): string
     {
         return 'jobs';
@@ -72,6 +75,7 @@ final class QueueLens implements Lens, Resettable, Summarizable
     public function reset(): void
     {
         $this->spans = [];
+        $this->phase = null;
     }
 
     public function summarize(Capture $capture): array
@@ -207,6 +211,10 @@ final class QueueLens implements Lens, Resettable, Summarizable
             'chained_remaining' => count($payload['data']['chained'] ?? []),
             'payload_bytes' => strlen($job->getRawBody()),
         ]);
+
+        $this->phase = $this->eyepiece->span('job', 'phase');
+        $this->eyepiece->startSpan($this->phase, origin: false);
+        $this->phase->parentId = null;
     }
 
     private function finish(Job $job, string $status): void
@@ -230,6 +238,8 @@ final class QueueLens implements Lens, Resettable, Summarizable
             $this->eyepiece->describe(status: $status);
         }
 
+        $this->phase?->stop();
+        $this->phase = null;
         $this->eyepiece->finalize();
     }
 
@@ -269,6 +279,8 @@ final class QueueLens implements Lens, Resettable, Summarizable
         }
 
         if ($finish) {
+            $this->phase?->stop();
+            $this->phase = null;
             $this->eyepiece->finalize();
         }
     }

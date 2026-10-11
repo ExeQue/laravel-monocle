@@ -5,7 +5,7 @@ export const LENS_COLOR = {
   phase: 'var(--c-phase)', middleware: 'var(--c-mw)', controller: 'var(--c-ctrl)', user: 'var(--brass-2)', db: 'var(--c-db)',
   cache: 'var(--c-cache)', redis: 'var(--c-io)', view: 'var(--c-view)', livewire: 'var(--c-http)', http: 'var(--c-io)', job: 'var(--c-mw)', ai: 'var(--c-ctrl)', mcp: 'var(--c-db)', command: 'var(--c-phase)'
 };
-export const PHASE_COLOR = { 'Middleware (request)': 'var(--c-mw)', 'Middleware (response)': 'var(--c-mw)', Controller: 'var(--c-ctrl)', Command: 'var(--c-ctrl)' };
+export const PHASE_COLOR = { 'Middleware (request)': 'var(--c-mw)', 'Middleware (response)': 'var(--c-mw)', Controller: 'var(--c-ctrl)', Command: 'var(--c-ctrl)', Job: 'var(--c-ctrl)' };
 export const lensOf = (n) => n.kind.split('.')[0];
 /** A span's own colour (a SpanColor name or a hex value) wins over its kind's. */
 export const colorOf = (n) => {
