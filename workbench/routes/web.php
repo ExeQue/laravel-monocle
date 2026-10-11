@@ -126,6 +126,13 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
             $pool->as('webhook')->connectTimeout(2)->post('https://hooks.monocle-demo.invalid/published', ['post' => $post->id]),
         ]);
 
+        // A real call, so its transfer timing (dns, connect, tls, wait, download) is recorded.
+        try {
+            Http::connectTimeout(2)->timeout(5)->get('https://example.com/');
+        } catch (ConnectionException) {
+            // Offline: the failed connection is recorded instead.
+        }
+
         try {
             Http::connectTimeout(2)->get('https://expired.badssl.com/');
         } catch (ConnectionException) {
