@@ -307,11 +307,7 @@ final class Browser
         $capture = $this->captures[$this->selected] ?? [];
         $header = $this->bold(' '.($capture['name'] ?? $this->openId)).'  '.$this->dim(($capture['status'] ?? '').'  '.Format::ms($capture['duration'] ?? 0).'  '.$this->openId);
 
-        $tabs = ' '.implode('  ', array_map(
-            fn (array $tab, int $index): string => $index === $this->tab ? "\e[7m ".$tab['label']." \e[27m" : ' '.$tab['label'].' ',
-            $this->tabs,
-            array_keys($this->tabs),
-        ));
+        $tabs = $this->tabBar($width);
 
         $this->content ??= $this->renderTab($width);
 
@@ -319,6 +315,47 @@ final class Browser
         $this->scroll = max(0, min($this->scroll, max(0, count($this->content) - $visible)));
 
         return [$header, $tabs, '', ...array_slice($this->content, $this->scroll, $visible)];
+    }
+
+    /**
+     * The tabs that fit the width around the active one, with ‹ and ›
+     * where more tabs are off screen, so the bar scrolls along.
+     */
+    private function tabBar(int $width): string
+    {
+        $widths = array_map(fn (array $tab): int => mb_strwidth($tab['label']) + 4, $this->tabs);
+        $room = $width - 4;
+        $first = $this->tab;
+        $last = $this->tab;
+        $used = $widths[$this->tab] ?? 0;
+
+        while (true) {
+            $grown = false;
+
+            if (isset($widths[$last + 1]) && $used + $widths[$last + 1] <= $room) {
+                $used += $widths[++$last];
+                $grown = true;
+            }
+
+            if (isset($widths[$first - 1]) && $used + $widths[$first - 1] <= $room) {
+                $used += $widths[--$first];
+                $grown = true;
+            }
+
+            if (! $grown) {
+                break;
+            }
+        }
+
+        $visible = array_slice($this->tabs, $first, $last - $first + 1, true);
+
+        $bar = implode('', array_map(
+            fn (array $tab, int $index): string => $index === $this->tab ? "\e[7m ".$tab['label']." \e[27m  " : ' '.$tab['label'].'   ',
+            $visible,
+            array_keys($visible),
+        ));
+
+        return ($first > 0 ? $this->dim('‹ ') : '  ').rtrim($bar).($last < count($this->tabs) - 1 ? $this->dim(' ›') : '');
     }
 
     /**

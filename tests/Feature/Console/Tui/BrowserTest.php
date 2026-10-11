@@ -105,6 +105,20 @@ describe(Browser::class, function (): void {
         expect($this->browser->frame(120, 20))->toContain('2 captures');
     });
 
+    it('scrolls the tab bar to keep the active tab in view', function (): void {
+        $this->browser->handle('j', 20);
+        $this->browser->handle(Key::ENTER, 20);
+        $tabBar = fn (): string => (string) preg_replace('/\e\[[0-9;?]*[A-Za-z]/', '', explode(PHP_EOL, $this->browser->frame(30, 20))[1]);
+
+        expect($tabBar())->toContain('Overview')->toEndWith('›')->not->toContain('‹');
+
+        foreach (range(1, 5) as $step) {
+            $this->browser->handle('i', 20);
+        }
+
+        expect($tabBar())->not->toContain('Overview')->toStartWith('‹');
+    });
+
     it('cuts lines to the width without counting colour codes', function (): void {
         foreach (explode(PHP_EOL, $this->browser->frame(30, 10)) as $line) {
             expect(mb_strwidth((string) preg_replace('/\e\[[0-9;?]*[A-Za-z]/', '', $line)))->toBeLessThanOrEqual(30);
