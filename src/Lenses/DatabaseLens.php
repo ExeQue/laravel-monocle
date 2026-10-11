@@ -263,6 +263,11 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
                 'queries_by_type' => $byType,
             ])
             ->total('queries', count($rows), 'queries')
+            ->total('selects', $byType['select'] ?? 0, 'selects')
+            ->total('inserts', $byType['insert'] ?? 0, 'inserts')
+            ->total('updates', $byType['update'] ?? 0, 'updates')
+            ->total('deletes', $byType['delete'] ?? 0, 'deletes')
+            ->total('transactions', count($capture->spansOfKind('db.transaction')), 'transactions')
             ->total('slow_queries', count($slow), 'slow')
             ->total('duplicate_queries', $duplicates, 'duplicates')
             ->warnings($warnings);

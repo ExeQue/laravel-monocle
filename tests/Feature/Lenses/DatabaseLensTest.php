@@ -127,6 +127,21 @@ describe(DatabaseLens::class, function (): void {
             ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries']['warnings'] ?? 0)->toBeGreaterThan(0)
             ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
     });
+
+    it('counts queries by type and transactions', function (): void {
+        DB::transaction(function (): void {
+            DB::table('things')->insert(['name' => 'a']);
+            DB::table('things')->insert(['name' => 'b']);
+            DB::table('things')->where('name', 'a')->update(['name' => 'c']);
+        });
+        DB::table('things')->where('name', 'b')->delete();
+        DB::table('things')->count();
+
+        $summary = app(DatabaseLens::class)->summarize(app(Eyepiece::class)->finalize());
+
+        expect($summary->totals)->toMatchArray(['selects' => 1, 'inserts' => 2, 'updates' => 1, 'deletes' => 1, 'transactions' => 1]);
+    });
+
     it('closes transactions still open at finalize as left open', function (): void {
         DB::beginTransaction();
         DB::table('things')->insert(['name' => 'open']);
