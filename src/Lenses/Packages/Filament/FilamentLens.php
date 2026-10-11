@@ -208,7 +208,7 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
 
         $this->actions[$index]['status'] = $status ?? 'halted';
 
-        $record = $action->getRecord(withDefault: false);
+        $record = $this->eyepiece->outside(fn () => $action->getRecord(withDefault: false));
 
         if ($record instanceof Model) {
             $this->actions[$index]['record'] = $record->getKey();

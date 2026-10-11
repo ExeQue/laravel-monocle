@@ -7,6 +7,8 @@ namespace ExeQue\Monocle\Support;
 use BackedEnum;
 use Closure;
 use DateTimeInterface;
+use ExeQue\Monocle\Eyepiece;
+use Illuminate\Container\Container;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use JsonSerializable;
@@ -88,17 +90,17 @@ final class Normalizer
         }
 
         if ($value instanceof Arrayable) {
-            return self::normalize($value->toArray(), $depth + 1, $path + [spl_object_id($value) => true]);
+            return self::normalize(self::outside(fn () => $value->toArray()), $depth + 1, $path + [spl_object_id($value) => true]);
         }
 
         if ($value instanceof JsonSerializable) {
-            $serialized = $value->jsonSerialize();
+            $serialized = self::outside(fn () => $value->jsonSerialize());
 
             return is_array($serialized) ? self::normalize($serialized, $depth + 1, $path + [spl_object_id($value) => true]) : $serialized;
         }
 
         if ($value instanceof Stringable) {
-            return (string) $value;
+            return self::outside(fn () => (string) $value);
         }
 
         if (is_object($value)) {
@@ -106,5 +108,19 @@ final class Normalizer
         }
 
         return $value;
+    }
+
+    /**
+     * toArray(), jsonSerialize() and __toString() are the application's code,
+     * so their time is not counted as Monocle's.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $work
+     * @return T
+     */
+    private static function outside(Closure $work): mixed
+    {
+        return Container::getInstance()->bound(Eyepiece::class) ? Container::getInstance()->make(Eyepiece::class)->outside($work) : $work();
     }
 }

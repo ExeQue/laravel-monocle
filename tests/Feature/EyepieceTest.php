@@ -253,6 +253,12 @@ describe(Eyepiece::class, function (): void {
             expect(array_keys($this->eyepiece->finalize()->health['overhead_by']))->toContain('things', 'timeline');
         });
 
+        it('leaves application code a lens runs while registering out of its time', function (): void {
+            $this->eyepiece->registering('booting', fn () => $this->eyepiece->outside(fn () => usleep(10_000)));
+
+            expect($this->eyepiece->finalize()->health['overhead_by']['booting'])->toBeLessThan(10.0);
+        });
+
         it('counts registering lenses as overhead, on the running capture or the next one', function (): void {
             $this->eyepiece->registering('slow', fn () => usleep(10_000));
 

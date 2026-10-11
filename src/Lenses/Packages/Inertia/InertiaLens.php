@@ -162,7 +162,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             $type = $types[$name] ?? 'plain';
             $isSent = array_key_exists($name, $sent);
             $isShared = in_array($name, $sharedKeys, true);
-            $size = $isSent ? strlen((string) json_encode($sent[$name], JSON_PARTIAL_OUTPUT_ON_ERROR)) : null;
+            $size = $isSent ? strlen((string) $this->eyepiece->outside(fn () => json_encode($sent[$name], JSON_PARTIAL_OUTPUT_ON_ERROR))) : null;
             $omitted += $isSent ? 0 : 1;
 
             $this->eyepiece->push('inertia', [
@@ -191,7 +191,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             'partial' => $partial ? array_filter(['component' => $page['component'], 'only' => $only, 'except' => $except]) : null,
             'props_sent' => count($sent),
             'props_omitted' => $omitted,
-            'payload_bytes' => strlen((string) json_encode($page, JSON_PARTIAL_OUTPUT_ON_ERROR)),
+            'payload_bytes' => strlen((string) $this->eyepiece->outside(fn () => json_encode($page, JSON_PARTIAL_OUTPUT_ON_ERROR))),
             'deferred' => ($page['deferredProps'] ?? []) ?: null,
             'encrypt_history' => (bool) ($page['encryptHistory'] ?? false),
             'clear_history' => (bool) ($page['clearHistory'] ?? false),

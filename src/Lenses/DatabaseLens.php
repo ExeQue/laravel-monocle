@@ -307,7 +307,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     private function rawSql(QueryExecuted $event): ?string
     {
         try {
-            return $event->toRawSql();
+            return $this->eyepiece->outside(fn (): string => $event->toRawSql());
         } catch (Throwable) {
             return null;
         }

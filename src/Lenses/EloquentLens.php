@@ -190,7 +190,7 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
         $fields = [];
 
         foreach ($model->getChanges() as $field => $value) {
-            $fields[$field] = [$model->getOriginal($field), $value];
+            $fields[$field] = [$model->getRawOriginal($field), $value];
         }
 
         return $fields;

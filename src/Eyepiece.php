@@ -572,11 +572,14 @@ final class Eyepiece
         $previous = $this->registering;
         $this->registering = $owner;
         $started = hrtime(true);
+        $outsideBefore = $this->outsideNs;
+        $this->measuring++;
 
         try {
             $register();
         } finally {
-            $elapsed = hrtime(true) - $started;
+            $this->measuring--;
+            $elapsed = hrtime(true) - $started - ($this->outsideNs - $outsideBefore);
             $this->registering = $previous;
 
             if ($this->capture === null) {

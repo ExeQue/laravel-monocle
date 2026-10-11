@@ -283,7 +283,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
     private function onToolInvoked(ToolInvoked $event): void
     {
         $this->tools[$event->toolInvocationId]?->stop([
-            'result' => $this->text(is_scalar($event->result) || $event->result instanceof Stringable ? (string) $event->result : json_encode(Normalizer::value($event->result))),
+            'result' => $this->text($this->eyepiece->outside(fn () => is_scalar($event->result) || $event->result instanceof Stringable ? (string) $event->result : json_encode(Normalizer::value($event->result)))),
             'status' => 'ok',
             'tool_ms' => round($event->time, 3),
         ]);

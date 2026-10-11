@@ -87,7 +87,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
         });
 
         $this->eyepiece->listen(RouteMatched::class, function (RouteMatched $event): void {
-            foreach ($event->route->gatherMiddleware() as $middleware) {
+            foreach ($this->eyepiece->outside(fn (): array => $event->route->gatherMiddleware()) as $middleware) {
                 foreach ($this->resolveNames($middleware) as $class) {
                     $this->wrap($class, isset($this->global[$class]) ? 'global' : 'route');
                 }

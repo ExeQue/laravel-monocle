@@ -389,7 +389,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
                 'uri' => $route->uri(),
                 'methods' => $route->methods(),
                 'parameters' => $parameters,
-                'middleware' => $route->gatherMiddleware(),
+                'middleware' => $this->eyepiece->outside(fn (): array => $route->gatherMiddleware()),
                 'domain' => $route->getDomain(),
             ],
         ];
@@ -485,8 +485,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         }
 
         try {
-            $capture = $this->app->make($class);
-            $cards = $capture instanceof ResponseCapture ? $capture->capture($request, $response) : null;
+            $cards = $this->eyepiece->outside(function () use ($class, $request, $response): ?array {
+                $capture = $this->app->make($class);
+
+                return $capture instanceof ResponseCapture ? $capture->capture($request, $response) : null;
+            });
         } catch (Throwable $e) {
             $this->eyepiece->failed($e);
 
@@ -548,7 +551,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private function describeAuth(Request $request): ?array
     {
         try {
-            $user = $request->user();
+            $user = $this->eyepiece->outside(fn () => $request->user());
         } catch (Throwable) {
             return null;
         }

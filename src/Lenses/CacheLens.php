@@ -266,7 +266,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
     private function size(mixed $value): ?int
     {
         try {
-            return strlen(serialize($value));
+            return strlen($this->eyepiece->outside(fn (): string => serialize($value)));
         } catch (Throwable) {
             return null;
         }

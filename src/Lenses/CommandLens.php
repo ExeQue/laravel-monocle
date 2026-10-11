@@ -64,10 +64,12 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         $this->app = $app;
 
         // The Laravel command events are bridged from Symfony's only once the
-        // kernel has been asked to; most applications do this during bootstrap,
-        // but it is cheap and idempotent to make sure.
-        if ($app->bound(ConsoleKernel::class)) {
-            $kernel = $app->make(ConsoleKernel::class);
+        // kernel has been asked to; Laravel does it itself outside the test
+        // suite. Resolving the console kernel runs the application's own
+        // callbacks for it (commands, schedule), so it is left alone on HTTP
+        // requests: an Artisan::call() there resolves it anyway.
+        if ($app->runningInConsole() && $app->bound(ConsoleKernel::class)) {
+            $kernel = $this->eyepiece->outside(fn () => $app->make(ConsoleKernel::class));
 
             if (method_exists($kernel, 'rerouteSymfonyCommandEvents')) {
                 $kernel->rerouteSymfonyCommandEvents();
@@ -170,7 +172,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     private function commandClass(string $name): ?string
     {
         try {
-            $command = $this->app->make(ConsoleKernel::class)->all()[$name] ?? null;
+            $command = $this->eyepiece->outside(fn (): array => $this->app->make(ConsoleKernel::class)->all())[$name] ?? null;
         } catch (Throwable) {
             return null;
         }

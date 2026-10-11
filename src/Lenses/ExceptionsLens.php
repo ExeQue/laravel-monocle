@@ -49,7 +49,7 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
     {
         $this->basePath = rtrim($app->basePath(), '/').'/';
 
-        $handler = $app->make(ExceptionHandler::class);
+        $handler = $this->eyepiece->outside(fn () => $app->make(ExceptionHandler::class));
 
         if (! method_exists($handler, 'reportable')) {
             return;

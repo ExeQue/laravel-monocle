@@ -94,7 +94,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             }
 
             $status = $event->response->status();
-            $body = $event->response->body();
+            $body = $this->eyepiece->outside(fn (): string => $event->response->body());
             $capture = $this->captureResponse($event->request, $event->response, $body);
 
             $this->eyepiece->push('http', [
@@ -237,10 +237,13 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         try {
             $incoming = HttpRequest::create($request->url(), $request->method(), [], [], [], [], $request->body());
             $incoming->headers->replace($request->headers());
-            $capture = $this->app->make($class);
-            $cards = $capture instanceof ResponseCapture
-                ? $capture->capture($incoming, new HttpResponse($body, $response->status(), $response->headers()))
-                : null;
+            $cards = $this->eyepiece->outside(function () use ($class, $incoming, $body, $response): ?array {
+                $capture = $this->app->make($class);
+
+                return $capture instanceof ResponseCapture
+                    ? $capture->capture($incoming, new HttpResponse($body, $response->status(), $response->headers()))
+                    : null;
+            });
         } catch (Throwable $e) {
             $this->eyepiece->failed($e);
 
