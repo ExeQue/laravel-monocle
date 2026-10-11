@@ -115,7 +115,7 @@
                 <nav class="scroll-quiet flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b border-line" role="tablist" x-ref="tabs">
                     <template x-for="t in tabs" :key="t.key">
                         <button type="button" class="flex shrink-0 snap-start items-baseline gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
-                            <span x-text="t.label"></span><span class="font-mono text-[11px] text-muted" x-show="t.count" x-text="t.count"></span>
+                            <span class="grid after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)]" :data-label="t.label" x-text="t.label"></span><span class="font-mono text-[11px] text-muted" x-show="t.count" x-text="t.count"></span>
                         </button>
                     </template>
                 </nav>
