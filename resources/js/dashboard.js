@@ -367,7 +367,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
     // "|" splits the search into alternatives; the words on each side must all match.
     const alternatives = this.palette.query.toLowerCase().split('|')
-      .map((side) => side.split(/\s+/).filter((word) => word.replace(/^[#$]/, '')))
+      .map((side) => side.split(/\s+/).filter((word) => word.replace(/^[#$@]/, '')))
       .filter((words) => words.length);
     if (!alternatives.length) {
       const shown = {};
@@ -375,7 +375,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     }
 
     const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
-    // Every word has to match: "404 demo" finds 404s under /demo. "#req" matches the kind only,
+    // Every word has to match: "404 demo" finds 404s under /demo. "#req" matches the kind only, "@users.index" the route name only,
     // "$live" a section the capture has, by its key or the name its tab shows (livewire, "Model changes").
     const best = (needle, haystacks) => haystacks
       .map((haystack) => fuzzyScore(needle, haystack.toLowerCase()))
@@ -384,8 +384,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       const text = `${item.label} ${item.route ?? ''} ${item.status ?? ''} ${item.kind}`;
       let total = 0;
       for (const word of words) {
-        const needle = word.replace(/^[#$]/, '');
-        const score = word.startsWith('#') ? best(needle, [item.kind]) : word.startsWith('$') ? best(needle, item.sections ?? []) : best(needle, [text]);
+        const needle = word.replace(/^[#$@]/, '');
+        const fields = { '#': [item.kind], $: item.sections ?? [], '@': item.route ? [item.route] : [] }[word[0]] ?? [text];
+        const score = best(needle, fields);
         if (score === null) return null;
         total += score;
       }
