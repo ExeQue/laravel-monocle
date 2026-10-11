@@ -42,7 +42,7 @@ npm install
 
 ## Code style
 
-Pint settles formatting. Beyond that, follow what the surrounding code does.
+Pint settles formatting. Beyond that, follow what the surrounding code does. The architecture tests in `tests/Arch` check the conventions that can be checked automatically, such as strict types, final classes and that every lens implements `Lens` and `Advises`.
 
 ## Commit messages
 

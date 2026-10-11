@@ -75,6 +75,14 @@ export default defineConfig({
           { text: 'Storage', link: '/docs/storage' },
         ],
       },
+      {
+        text: 'Contributing',
+        items: [
+          { text: 'Contributing', link: '/CONTRIBUTING' },
+          { text: 'Security', link: '/SECURITY' },
+          { text: 'Code of Conduct', link: '/CODE_OF_CONDUCT' },
+        ],
+      },
     ],
 
     search: {

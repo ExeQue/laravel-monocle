@@ -63,15 +63,12 @@ Monocle::measure('resize', fn () => $this->resize($file));
 - [What gets recorded](https://exeque.github.io/laravel-monocle/docs/lenses)
 - [Spans and metadata](https://exeque.github.io/laravel-monocle/docs/spans)
 - [Writing a lens](https://exeque.github.io/laravel-monocle/docs/writing-a-lens)
+- [Third-party lenses](https://exeque.github.io/laravel-monocle/docs/third-party-lenses)
 - [Configuration](https://exeque.github.io/laravel-monocle/docs/configuration)
 
-## Development
+## Contributing
 
-```bash
-docker compose run --rm composer install
-docker compose run --rm php vendor/bin/pest
-docker compose run --rm php vendor/bin/pint
-```
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report security issues privately as described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

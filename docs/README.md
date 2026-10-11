@@ -28,3 +28,9 @@
 | Recording `Storage` disks | [What gets recorded](lenses.md#filesystem) |
 | Request phases | [What gets recorded](lenses.md#request) |
 | N+1 and slow query warnings | [What gets recorded](lenses.md#database) |
+
+## Contributing
+
+- [Contributing](../CONTRIBUTING.md) - Proposing a change and what a pull request needs
+- [Security](../SECURITY.md) - Reporting a vulnerability
+- [Code of Conduct](../CODE_OF_CONDUCT.md)
