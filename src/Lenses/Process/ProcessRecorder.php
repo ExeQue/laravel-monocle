@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses\Process;
 
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Lenses\ProcessLens;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
@@ -22,6 +23,15 @@ use Throwable;
  */
 final class ProcessRecorder
 {
+    /** A value: quoted, or up to the next space or quote. */
+    private const string VALUE = '(?<value>\'[^\']*\'|"[^"]*"|[^\s\'"]+)';
+
+    /** --name=value, or NAME=value as when setting a variable for the command. */
+    private const string ASSIGNED = '/(?<=^|\s|[\'"])(?<name>--[\w.-]+|[A-Za-z_]\w*)(?<separator>=)'.self::VALUE.'/';
+
+    /** --name value; a value cannot start with a dash, as that is the next option. */
+    private const string SEPARATE = '/(?<=^|\s|[\'"])(?<name>--[\w.-]+)(?<separator>[\'"]?\s+)(?<value>\'(?!-)[^\']*\'|"(?!-)[^"]*"|[^\s\'"-][^\s\'"]*)/';
+
     private int $tickets = 0;
 
     /** @var array<int, array{command: string, path: string|null, async: bool, started: float, parent: Span|null, origin: array<string, mixed>|null}> */
@@ -43,7 +53,7 @@ final class ProcessRecorder
         }
 
         $this->open[++$this->tickets] = [
-            'command' => $command,
+            'command' => $this->mask($command),
             'path' => $this->relative($path),
             'async' => $async,
             'started' => $this->eyepiece->now(),
@@ -121,6 +131,35 @@ final class ProcessRecorder
     public function reset(): void
     {
         $this->open = [];
+    }
+
+    /**
+     * The command line with the values of options and variables whose name
+     * matches the input mask pattern masked.
+     */
+    private function mask(string $command): string
+    {
+        $mask = fn (array $match): string => $match['name'].$match['separator'].$this->maskValue(ltrim($match['name'], '-'), $match['value']);
+
+        $command = (string) preg_replace_callback(self::ASSIGNED, $mask, $command);
+
+        return (string) preg_replace_callback(self::SEPARATE, $mask, $command);
+    }
+
+    /**
+     * A quoted value keeps its quotes around the masked text.
+     */
+    private function maskValue(string $name, string $value): string
+    {
+        $masker = $this->eyepiece->masker(ProcessLens::class);
+
+        if (! in_array($value[0], ['\'', '"'], true)) {
+            return (string) $masker->inputs([$name => $value])[$name];
+        }
+
+        $inner = substr($value, 1, -1);
+
+        return $value[0].(string) $masker->inputs([$name => $inner])[$name].$value[0];
     }
 
     /**

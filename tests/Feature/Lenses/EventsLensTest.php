@@ -47,6 +47,22 @@ describe(EventsLens::class, function (): void {
         expect($summary->totals)->toBe(['events' => 3, 'events_without_listeners' => 1]);
     });
 
+    it('masks payload keys and properties matching the input pattern', function (): void {
+        event('user.login', [['email' => 'ada@example.com', 'password' => 'hunter22hunter22']]);
+        event(new class ('abcdefgh12345678', 'ada') {
+            public function __construct(
+                public string $apiToken,
+                public string $customer,
+            ) {
+            }
+        });
+
+        $rows = app(Eyepiece::class)->finalize()->rows('events');
+
+        expect($rows[0]['payload'])->toBe([['email' => 'ada@example.com', 'password' => 'hunt****']])
+            ->and($rows[1]['payload'])->toBe(['apiToken' => 'abcd****', 'customer' => 'ada']);
+    });
+
     it('honours a configured ignore list', function (): void {
         $lens = app(EventsLens::class);
         $lens->configure(['ignore' => ['custom.*']]);

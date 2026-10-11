@@ -22,6 +22,13 @@ final class DashboardController
             $tabs[$lens->key()] = $tabView ?? 'monocle::tabs.table';
         }
 
+        // Sections a lens shows beside its own, such as the facts of a job capture.
+        foreach ($registry->presentations() as $section => $presentation) {
+            if ($presentation->tabView !== null) {
+                $tabs[$section] ??= $presentation->tabView;
+            }
+        }
+
         $labels = array_filter(array_map(fn (Presentation $presentation): ?string => $presentation->label, $registry->presentations()));
 
         return view('monocle::dashboard', [

@@ -54,7 +54,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
     public function description(): string
     {
-        return 'Artisan command facts for captures of type command: name, arguments, options (masked), exit code. Section commands has one row per Artisan::call() made while any capture (request, job, command) is active: name, class, arguments, options (masked), exit_code, failed (non-zero exit code), duration, time and origin; each is also a command span in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
+        return 'Artisan command facts for captures of type command: name, arguments and options (both masked), exit code (a non-zero exit code is an error). Section commands has one row per Artisan::call() made while any capture (request, job, command) is active: name, class, arguments and options (masked), exit_code, failed (non-zero exit code), duration, time and origin; each is also a command span in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
     }
 
     public function advice(): string
@@ -101,8 +101,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
             return;
         }
 
-        $arguments = $this->arguments($event->input);
-        $options = $this->eyepiece->masker(self::class)->inputs($this->options($event->input));
+        $masker = $this->eyepiece->masker(self::class);
+        $arguments = $masker->inputs($this->arguments($event->input));
+        $options = $masker->inputs($this->options($event->input));
 
         // Inside another capture (Artisan::call() from a request, job or command) the command is a span of it.
         if ($this->eyepiece->active() !== null) {
@@ -233,10 +234,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
     public function summarize(Capture $capture): Summary
     {
+        $summary = $this->summarizeExitCode($capture);
         $rows = $capture->rows('commands');
 
         if ($rows === []) {
-            return Summary::make();
+            return $summary;
         }
 
         $failed = [];
@@ -250,11 +252,29 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
             }
         }
 
-        return Summary::make()
+        return $summary
             ->total('commands_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->total('commands', count($rows), 'commands')
             ->total('commands_failed', count($failed), 'failed')
             ->errors(array_slice($failed, 0, 3));
+    }
+
+    /**
+     * A command capture that exited with a non-zero code failed.
+     */
+    private function summarizeExitCode(Capture $capture): Summary
+    {
+        if ($capture->type !== CaptureType::Command) {
+            return Summary::make();
+        }
+
+        $exitCode = $capture->section('command')['exit_code'] ?? 0;
+
+        if ($exitCode === 0) {
+            return Summary::make();
+        }
+
+        return Summary::make()->error(sprintf('Command exited with code %s.', $exitCode));
     }
 
     /**

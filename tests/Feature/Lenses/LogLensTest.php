@@ -37,6 +37,18 @@ describe(LogLens::class, function (): void {
             ->and($summary->errors)->toBe(['Logged error: Import failed']);
     });
 
+    it('masks context keys that look like secrets', function (): void {
+        config(['logging.default' => 'null']);
+        app(\ExeQue\Monocle\Eyepiece::class)->start(\ExeQue\Monocle\Enums\CaptureType::Request);
+
+        \Illuminate\Support\Facades\Log::info('Signed in.', ['user' => 'ada', 'api_token' => 'secret-token-123', 'nested' => ['password' => 'hunter2hunter2']]);
+
+        $context = app(\ExeQue\Monocle\Eyepiece::class)->finalize()->rows('log')[0]['context'];
+
+        expect($context['user'])->toBe('ada')
+            ->and(json_encode($context))->not->toContain('secret-token-123')->not->toContain('hunter2hunter2');
+    });
+
     it('summarizes nothing without log rows', function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
 

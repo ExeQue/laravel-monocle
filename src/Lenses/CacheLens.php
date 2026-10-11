@@ -18,6 +18,7 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
 use Illuminate\Cache\Events\CacheEvent;
 use Illuminate\Cache\Events\CacheFlushed;
+use Illuminate\Cache\Events\CacheFlushFailed;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\ForgettingKey;
@@ -63,7 +64,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
     public function description(): string
     {
-        return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, *_failed), store, key, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true.';
+        return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, write_failed, forget_failed, flush_failed), store, key, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true, masked when the key matches the input masking pattern.';
     }
 
     public function advice(): string
@@ -107,16 +108,10 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             $this->record('forget_failed', $event);
         });
         $this->eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
-
-            $this->eyepiece->push('cache', [
-                'type' => 'flush',
-                'store' => $event->storeName,
-                'key' => null,
-                'duration' => null,
-            ]);
+            $this->recordFlush('flush', $event->storeName);
+        });
+        $this->eyepiece->listen(CacheFlushFailed::class, function (CacheFlushFailed $event): void {
+            $this->recordFlush('flush_failed', $event->storeName);
         });
     }
 
@@ -313,7 +308,8 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             $row['value_size_bytes'] = $this->size($extra['value']);
 
             if ($this->values) {
-                $row['value'] = $extra['value'];
+                // A key that matches the input masking pattern, such as "api_token", has its value masked.
+                $row['value'] = $this->eyepiece->masker(self::class)->inputs([$event->key => $extra['value']])[$event->key];
             }
         }
 
@@ -324,6 +320,20 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         }
 
         $this->eyepiece->push('cache', $row);
+    }
+
+    private function recordFlush(string $type, ?string $store): void
+    {
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $this->eyepiece->push('cache', [
+            'type' => $type,
+            'store' => $store,
+            'key' => null,
+            'duration' => null,
+        ]);
     }
 
     private function pendingKey(CacheEvent $event): string

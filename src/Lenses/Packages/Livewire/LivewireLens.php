@@ -20,6 +20,8 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Livewire\Component;
+use ReflectionMethod;
+use ReflectionParameter;
 use Throwable;
 
 /**
@@ -81,7 +83,7 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
             return function () use ($component, $method, $params, $started): void {
                 $this->components[$component->getId()]['calls'][] = [
                     'method' => $method,
-                    'params' => Normalizer::normalize($params),
+                    'params' => $this->maskParams($component, $method, $params),
                     'duration' => round($this->eyepiece->now() - $started, 3),
                 ];
             };
@@ -89,7 +91,8 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
 
         $this->hook('update', function (Component $component, string $path, mixed $value): void {
             if ($this->track($component)) {
-                $this->components[$component->getId()]['updates'][] = ['path' => $path, 'value' => Normalizer::value($value)];
+                $masked = $this->eyepiece->masker(self::class)->inputs([$path => Normalizer::value($value)]);
+                $this->components[$component->getId()]['updates'][] = ['path' => $path, 'value' => $masked[$path]];
             }
         });
 
@@ -158,6 +161,34 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
             ->total('livewire_components', count($rows), 'components')
             ->total('livewire_calls', $calls, 'calls')
             ->errors($warnings);
+    }
+
+    /**
+     * Each parameter is masked under the name the method gives it, so a
+     * secret passed by position is masked like a named one.
+     *
+     * @param  array<array-key, mixed>  $params
+     * @return array<array-key, mixed>
+     */
+    private function maskParams(Component $component, string $method, array $params): array
+    {
+        $masker = $this->eyepiece->masker(self::class);
+        $names = [];
+
+        // Magic actions such as $refresh are not methods of the component.
+        if (method_exists($component, $method)) {
+            $parameters = new ReflectionMethod($component, $method)->getParameters();
+            $names = array_map(fn (ReflectionParameter $parameter): string => $parameter->getName(), $parameters);
+        }
+
+        $masked = [];
+
+        foreach (Normalizer::normalize($params) as $index => $value) {
+            $key = $names[$index] ?? $index;
+            $masked[$index] = $masker->inputs([$key => $value])[$key];
+        }
+
+        return $masked;
     }
 
     private function hook(string $event, callable $callback): void

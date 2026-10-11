@@ -8,6 +8,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\CacheLens;
 use Illuminate\Cache\Events\CacheFlushed;
+use Illuminate\Cache\Events\CacheFlushFailed;
 use Illuminate\Cache\Events\KeyForgetFailed;
 use Illuminate\Cache\Events\KeyWriteFailed;
 use Illuminate\Support\Facades\Cache;
@@ -46,6 +47,21 @@ describe(CacheLens::class, function (): void {
         $rows = app(Eyepiece::class)->finalize()->rows('cache');
 
         expect(collect($rows)->where('type', 'write')->pluck('value')->filter()->all())->toContain('v');
+    });
+
+    it('masks values of keys that match the input masking pattern', function (): void {
+        $lens = app(CacheLens::class);
+        $lens->configure(['values' => true]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        Cache::put('api_token', 'secret-value', 60);
+        Cache::put('settings', ['theme' => 'dark', 'password' => 'secret-value'], 60);
+
+        $values = collect(app(Eyepiece::class)->finalize()->rows('cache'))->where('type', 'write')->pluck('value', 'key');
+
+        expect($values['api_token'])->not->toBe('secret-value')
+            ->and($values['settings']['theme'])->toBe('dark')
+            ->and($values['settings']['password'])->not->toBe('secret-value');
     });
 
     it('summarizes hit rate and hottest keys', function (): void {
@@ -108,14 +124,16 @@ describe(CacheLens::class, function (): void {
 
         expect($lens->summarize($capture)->warnings)->toBe([]);
     });
-    it('records failed writes, failed forgets and flushes', function (): void {
+    it('records failed writes, failed forgets, flushes and failed flushes', function (): void {
         event(new KeyWriteFailed('array', 'k', 'v', 30));
         event(new KeyForgetFailed('array', 'k'));
         event(new CacheFlushed('array'));
+        event(new CacheFlushFailed('array'));
 
         $rows = app(Eyepiece::class)->finalize()->rows('cache');
 
-        expect(array_column($rows, 'type'))->toBe(['write_failed', 'forget_failed', 'flush'])
+        expect(array_column($rows, 'type'))->toBe(['write_failed', 'forget_failed', 'flush', 'flush_failed'])
+            ->and($rows[3])->toMatchArray(['store' => 'array', 'key' => null, 'duration' => null])
             ->and($rows[0]['ttl'])->toBe(30)
             ->and($rows[2])->toMatchArray(['store' => 'array', 'key' => null, 'duration' => null]);
     });

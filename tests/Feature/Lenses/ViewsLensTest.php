@@ -94,6 +94,29 @@ describe(ViewsLens::class, function (): void {
             ->and($engine->inner())->not->toBeInstanceOf(TimedEngine::class);
     });
 
+    it('masks view data keys matching the input pattern, nested ones too', function (): void {
+        Route::get('/secret-page', fn () => view('parent', [
+            'title' => 'Hello',
+            'items' => [],
+            'password' => 'hunter22hunter22',
+            'user' => collect(['name' => 'ada', 'api_token' => 'abcdefgh12345678']),
+        ]));
+
+        $lens = app(ViewsLens::class);
+        $lens->configure(['data' => true, 'engines' => ['blade']]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        $this->get('/secret-page');
+
+        $data = collect(latestCapture()->rows('views'))->firstWhere('view', 'parent')['data'];
+
+        expect($data)->toMatchArray([
+            'title' => 'Hello',
+            'password' => 'hunt****',
+            'user' => ['name' => 'ada', 'api_token' => 'abcd****'],
+        ]);
+    });
+
     it('skips engines that cannot be resolved', function (): void {
         $lens = app(ViewsLens::class);
         $lens->configure(['engines' => ['missing-engine', 'blade']]);

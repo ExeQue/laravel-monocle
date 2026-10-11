@@ -263,6 +263,18 @@ describe(QueueLens::class, function (): void {
         expect(app(BusDispatcher::class))->toBe($dispatcher);
     });
 
+    it('shows the facts of a job capture on a Job tab', function (): void {
+        $this->get('/dispatch')->assertOk();
+
+        Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
+
+        $tabs = app(\ExeQue\Monocle\Dashboard\TabList::class)->for(latestCapture(), [], []);
+        $job = array_values(array_filter($tabs, fn (array $tab): bool => $tab['key'] === 'job'))[0];
+
+        expect($job['label'])->toBe('Job')
+            ->and(app(QueueLens::class)->presentation()->included['job']->tabView)->toBe('monocle::tabs.job');
+    });
+
     it('presents dispatched jobs with a link to their own capture', function (): void {
         $presentation = app(QueueLens::class)->presentation();
 

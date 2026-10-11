@@ -44,7 +44,7 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
 
     public function description(): string
     {
-        return 'prism-php/prism calls: operation (text, structured, stream, embeddings, images, moderation, text_to_speech, speech_to_text), provider, model, prompt, response text, structured output, finish reason, steps, tool calls, tools offered, tokens (input, output, cache, reasoning), duration and status (ok, failed, abandoned for a stream not read to the end). Each call is a prism.call span in the timeline; streams get prism.step children and tool calls prism.tool children. Section prism_tools has one row per tool call: tool, status, arguments, result (or exception) and duration.';
+        return 'prism-php/prism calls: operation (text, structured, stream, embeddings, images, moderation, text_to_speech, speech_to_text), provider, model, prompt, response text, structured output, finish reason, steps, tool calls, tools offered, tokens (input, output, cache, reasoning), duration and status (ok, failed, abandoned for a stream not read to the end). Each call is a prism.call span in the timeline; streams get prism.step children and tool calls prism.tool children. Section prism_tools has one row per tool call: tool, status, arguments, result (or exception) and duration. Rows in both carry nested: true for a call made while another Prism call ran (from one of its tools) and for the tools such a call ran; the time totals leave nested rows out, as their time is already part of the call around them.';
     }
 
     public function advice(): string
@@ -100,7 +100,8 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
                 $tokens[$key] = $value + (int) ($row['tokens'][$key] ?? 0);
             }
 
-            $ms += (float) ($row['duration'] ?? 0);
+            // A call made from inside another call (from one of its tools) runs in that call's time.
+            $ms += ($row['nested'] ?? false) ? 0.0 : (float) ($row['duration'] ?? 0);
             $model = ($row['provider'] ?? '?').'/'.($row['model'] ?? '?');
             $byModel[$model] = ($byModel[$model] ?? 0) + 1;
 
@@ -121,7 +122,8 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
         $toolMs = 0.0;
 
         foreach ($tools as $tool) {
-            $toolMs += (float) ($tool['duration'] ?? 0);
+            // So does a tool called by such a nested call.
+            $toolMs += ($tool['nested'] ?? false) ? 0.0 : (float) ($tool['duration'] ?? 0);
 
             if ($tool['status'] === 'failed') {
                 $errors[] = sprintf('Prism tool %s failed: %s', $tool['tool'], $tool['exception']['message'] ?? '');

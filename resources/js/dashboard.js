@@ -652,24 +652,37 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
 
-  /** The groupings the open section offers, and the one picked. */
+  /** The groupings the open tab's own section offers, and the one picked. */
   get groupings() { return this.presentationOf(this.tab)?.groupings ?? []; },
-  get rowGroup() { return this.rowGroups[this.tab] ?? 'order'; },
-  setRowGroup(by) { this.rowGroups = { ...this.rowGroups, [this.tab]: by }; this.openGroups = []; },
+  get rowGroup() { return this.rowGroupOf(this.tab); },
+  rowGroupOf(section) { return this.rowGroups[section] ?? 'order'; },
+  setRowGroup(by, section = this.tab) { this.rowGroups = { ...this.rowGroups, [section]: by }; this.openGroups = []; },
 
-  /** Rows of the open section grouped by the picked grouping: count, failures and timing per group. */
-  get groups() {
-    const by = this.rowGroup;
-    if (by === 'order' || !this.groupings.length) return [];
+  /** The open tab's own rows grouped by the picked grouping. */
+  get groups() { return this.groupsOf(this.tab, this.tabData?.rows ?? []); },
+
+  /**
+   * A section's rows with its grouping state, for the grouped view: the groupings it offers, the one
+   * picked, the groups, whether they show timing and the field a row inside a group leads with.
+   */
+  section(key, rows) {
+    return { key, rows, groupings: this.presentationOf(key)?.groupings ?? [], by: this.rowGroupOf(key), groups: this.groupsOf(key, rows), timed: rows.some((row) => typeof row.duration === 'number'), badge: this.memberBadgeFieldOf(key) };
+  },
+
+  /** Rows of a section grouped by its picked grouping: count, failures and timing per group. */
+  groupsOf(section, rows) {
+    const by = this.rowGroupOf(section);
+    const presentation = this.presentationOf(section);
+    if (by === 'order' || !presentation?.groupings?.length) return [];
     const keyOf = (row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by]));
-    const formats = Object.entries(this.presentationOf(this.tab)?.formats ?? {});
+    const formats = Object.entries(presentation.formats ?? {});
     // A row failed when it says so, or when a field its lens shows as a bad flag or an HTTP status says so.
     const failed = (row) => row.failed === true || formats.some(([field, [format, , , tone = 'bad']]) => (format === 'flag' && tone === 'bad' && row[field] === false) || (format === 'http-status' && (row[field] == null || row[field] >= 400)));
     const groups = new Map();
-    (this.tabData?.rows ?? []).forEach((row, i) => {
+    rows.forEach((row, i) => {
       const key = keyOf(row);
       // The group shows its value the way the table cell would (a coloured status, #1 for a pool).
-      const g = groups.get(key) ?? { key, html: this.cell(row, by, this.presentationOf(this.tab)) || '<span class="text-muted">(none)</span>', count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
+      const g = groups.get(key) ?? { key, html: this.cell(row, by, presentation) || '<span class="text-muted">(none)</span>', count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
       const ms = Number(row.duration ?? 0);
       g.count++;
       g.failed += failed(row) ? 1 : 0;
@@ -681,31 +694,21 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms || b.count - a.count);
   },
 
-  /** Whether the open section's rows have durations, so its groups show timing. */
-  get groupsTimed() {
-    return (this.tabData?.rows ?? []).some((row) => typeof row.duration === 'number');
-  },
-
-  /** A row inside a group, in one line: the columns that tell it apart from the rest of its group. */
-  memberLabel(row) {
-    const skip = [this.rowGroup, 'duration', 'time', 'origin', this.memberBadgeField];
-    const presentation = this.presentationOf(this.tab);
-    const columns = this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c));
-    const rows = this.tabData?.rows ?? [];
+  /** A row inside a group of section s, in one line: the columns that tell it apart from the rest of its group. */
+  memberLabel(row, s) {
+    const skip = [s.by, 'duration', 'time', 'origin', s.badge];
+    const presentation = this.presentationOf(s.key);
+    const columns = this.columnsOf(s.rows, s.key).filter((c) => !skip.includes(c));
     // Numbers say little without their column, so they carry its name.
-    const labelled = (c, html) => (this.numeric(c, rows) ? `<span class="text-muted">${esc(this.columnLabel(c, this.tab).toLowerCase())}</span> ${html}` : html);
+    const labelled = (c, html) => (this.numeric(c, s.rows) ? `<span class="text-muted">${esc(this.columnLabel(c, s.key).toLowerCase())}</span> ${html}` : html);
     return columns.map((c) => [c, this.cell(row, c, presentation)]).filter(([, html]) => html).map(([c, html]) => labelled(c, html)).join(' <span class="text-muted">·</span> ');
   },
 
   /** The field a row inside a group leads with: the first status or level its lens formats. */
-  get memberBadgeField() {
-    const formats = this.presentationOf(this.tab)?.formats ?? {};
+  memberBadgeFieldOf(section) {
+    const formats = this.presentationOf(section)?.formats ?? {};
     return Object.keys(formats).find((field) => ['http-status', 'status', 'level'].includes(formats[field][0])) ?? null;
   },
-
-
-
-
 
   toggleRow(key) {
     this.openRows = this.openRows.includes(key) ? this.openRows.filter((k) => k !== key) : [...this.openRows, key];

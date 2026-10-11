@@ -153,10 +153,11 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
 
         // An event object dispatched under its own class name: its properties are the payload.
         if (is_object($object) && $object::class === $event) {
-            return Normalizer::normalize(get_object_vars($object));
+            $payload = get_object_vars($object);
         }
 
-        return Normalizer::normalize($payload);
+        // Normalized first, so keys inside collections and other arrayables are masked too.
+        return $this->eyepiece->masker(self::class)->inputs(Normalizer::normalize($payload));
     }
 
     /**

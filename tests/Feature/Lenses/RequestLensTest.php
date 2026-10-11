@@ -39,6 +39,7 @@ use Tests\Fixtures\Http\StaticCardCapture;
 use Tests\Fixtures\Http\UnreadableResponse;
 use Tests\Fixtures\Middleware\Abort;
 use Tests\Fixtures\Models\Thing;
+use Tests\TestCase;
 
 covers(\ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class, \ExeQue\Monocle\Lenses\Request\JsonCapture::class, \ExeQue\Monocle\Lenses\Request\TextCapture::class, \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, RequestLens::class);
 
@@ -153,6 +154,25 @@ describe(RequestLens::class, function (): void {
         $lens->configure(['capture' => ['response_types' => ['text/html' => \Tests\Fixtures\MissingPackageCapture::class, 'text/*' => \ExeQue\Monocle\Lenses\Request\TextCapture::class]]]);
         $this->get('/html')->assertOk();
         expect(latestCapture()->section('request')['response_capture']['capture'])->toBe(\ExeQue\Monocle\Lenses\Request\TextCapture::class);
+    });
+
+    it('captures Livewire updates per component with the default options', function (): void {
+        TestCase::$bootConfig = ['monocle.lenses.'.RequestLens::class => true];
+        $this->refreshApplication();
+        TestCase::$bootConfig = [];
+
+        Route::post('/livewire/update', fn () => response()->json(['components' => [[
+            'snapshot' => json_encode(['data' => ['count' => 2], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'effects' => ['html' => '<div>2</div>'],
+        ]]]))->name('default-livewire.update');
+
+        $this->postJson('/livewire/update', ['components' => [[
+            'snapshot' => json_encode(['data' => ['count' => 1], 'memo' => ['id' => 'abc', 'name' => 'counter']]),
+            'updates' => [],
+            'calls' => [],
+        ]]])->assertOk();
+
+        expect(latestCapture()->section('request')['response_capture']['capture'])->toBe(\ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class);
     });
 
     it('shows a Livewire update as one card per component instead of the raw body', function (): void {

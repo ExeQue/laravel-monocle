@@ -44,6 +44,46 @@ describe(RedisLens::class, function (): void {
             ->and($summary->totals['redis_by_command'])->toBe(['GET' => 2, 'SET' => 1]);
     });
 
+    it('masks credentials and values written under keys matching the input pattern', function () use ($connection): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        $commands = [
+            ['auth', ['default', 'hunter22hunter22']],
+            ['HELLO', [3, 'auth', 'default', 'hunter22hunter22', 'SETNAME', 'app']],
+            ['hello', [3]],
+            ['set', ['api_token', 'abcdefgh12345678', 'EX', 60]],
+            ['set', ['user:1', 'ada']],
+            ['setex', ['reset:password', 60, 'abcdefgh12345678']],
+            ['set', [42, 'abcdefgh12345678']],
+            ['set', ['password']],
+            ['mset', ['secret', 'abcdefgh12345678', 'name', 'ada', 'dangling']],
+            ['hset', ['user:1', 'password', 'abcdefgh12345678', 'name', 'ada']],
+            ['hmset', ['user:1', ['password' => 'abcdefgh12345678', 'name' => 'ada']]],
+            ['get', ['password']],
+        ];
+
+        foreach ($commands as [$command, $parameters]) {
+            event(new CommandExecuted($command, $parameters, 0.1, $connection(), 'default'));
+        }
+
+        $parameters = array_column(app(Eyepiece::class)->finalize()->rows('redis'), 'parameters');
+
+        expect($parameters)->toBe([
+            ['d****', 'hunt****'],
+            [3, 'auth', 'd****', 'hunt****', 'SETNAME', 'app'],
+            [3],
+            ['api_token', 'abcd****', 'EX', 60],
+            ['user:1', 'ada'],
+            ['reset:password', 60, 'abcd****'],
+            [42, 'abcdefgh12345678'],
+            ['password'],
+            ['secret', 'abcd****', 'name', 'ada', 'dangling'],
+            ['user:1', 'password', 'abcd****', 'name', 'ada'],
+            ['user:1', ['password' => 'abcd****', 'name' => 'ada']],
+            ['password'],
+        ]);
+    });
+
     it('ignores commands outside a capture and summarizes nothing for none', function () use ($connection): void {
         event(new CommandExecuted('get', ['x'], 0.1, $connection(), 'default'));
         app(Eyepiece::class)->start(CaptureType::Request);

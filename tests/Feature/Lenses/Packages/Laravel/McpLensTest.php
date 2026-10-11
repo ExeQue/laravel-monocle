@@ -57,6 +57,12 @@ describe(McpLens::class, function (): void {
             ->and($summary->errors)->toBe(['MCP tools/call echo returned an error.']);
     });
 
+    it('masks arguments whose key matches the input pattern', function () use ($call): void {
+        $call('/mcp/echo', ['text' => 'hi', 'options' => ['api_token' => 'abcdefgh12345678']])->assertOk();
+
+        expect(latestCapture()->rows('mcp')[0]['arguments'])->toBe(['text' => 'hi', 'options' => ['api_token' => 'abcd****']]);
+    });
+
     it('skips excluded servers', function () use ($call): void {
         $call('/mcp/excluded', ['text' => 'hi'])->assertOk();
 

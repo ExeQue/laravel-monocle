@@ -23,6 +23,8 @@ use Illuminate\Console\Scheduling\Event;
 /**
  * Scheduled tasks run by schedule:run, recorded on that command's capture.
  * Tasks run as subprocesses, so their own output lands in separate captures.
+ * A task run in the background reports its end through schedule:finish, so
+ * its finished_in_background row lands on that command's capture.
  */
 final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
 {
@@ -38,7 +40,7 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
 
     public function description(): string
     {
-        return 'Scheduled tasks evaluated by schedule:run: command, cron expression, description, outcome (finished, failed, skipped), runtime_ms and the exception for failures.';
+        return 'Scheduled tasks evaluated by schedule:run: command, cron expression, description, outcome (starting, finished, failed, skipped), runtime_ms, exit_code (a non-zero exit code is a failure) and the exception for failures. A task with runInBackground() has only its starting row there; its finished_in_background row with the exit code is on the schedule:finish command capture that follows it.';
     }
 
     public function advice(): string
@@ -55,11 +57,11 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
         $this->eyepiece->listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
             $runtimeMs = round($event->runtime * 1000, 3);
 
-            $this->record($event->task, 'finished', ['runtime_ms' => $runtimeMs]);
+            $this->record($event->task, 'finished', ['runtime_ms' => $runtimeMs, 'exit_code' => $event->task->exitCode]);
         });
 
         $this->eyepiece->listen(ScheduledBackgroundTaskFinished::class, function (ScheduledBackgroundTaskFinished $event): void {
-            $this->record($event->task, 'finished_in_background');
+            $this->record($event->task, 'finished_in_background', ['exit_code' => $event->task->exitCode]);
         });
 
         $this->eyepiece->listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
@@ -100,6 +102,12 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
             if ($outcome === 'failed') {
                 $errors[] = "Scheduled task failed: {$row['command']}";
             }
+
+            $exitCode = $row['exit_code'] ?? 0;
+
+            if ($exitCode !== 0) {
+                $errors[] = "Scheduled task failed: {$row['command']} (exit code {$exitCode})";
+            }
         }
 
         return Summary::make()
@@ -124,6 +132,7 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
             'description' => $task->description,
             'outcome' => $outcome,
             'runtime_ms' => $extra['runtime_ms'] ?? null,
+            'exit_code' => $extra['exit_code'] ?? null,
             'exception' => $extra['exception'] ?? null,
         ], origin: false);
     }

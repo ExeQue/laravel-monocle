@@ -21,6 +21,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\Foundation\Application;
@@ -68,7 +69,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     ];
 
     /** @var array<string, class-string<ResponseCapture>> Route name pattern => capture. */
-    private array $routeCaptures = [];
+    private array $routeCaptures = ['*livewire.update' => LivewireUpdateCapture::class];
 
     /** @var array<string, class-string<ResponseCapture>> Response header => capture. */
     private array $headerCaptures = ['X-Inertia' => InertiaCapture::class];

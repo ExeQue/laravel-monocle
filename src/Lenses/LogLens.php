@@ -38,7 +38,7 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
 
     public function description(): string
     {
-        return 'Log captures written while handling the capture: level, message and context. Exceptions in the context are reduced to class, message and file:line.';
+        return 'Log captures written while handling the capture: level, message and context (keys that look like secrets masked like request input). Exceptions in the context are reduced to class, message and file:line.';
     }
 
     public function advice(): string
@@ -108,7 +108,8 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        return Normalizer::normalize($context);
+        // Keys that look like secrets (password, token ...) are masked like request input.
+        return $this->eyepiece->masker(self::class)->inputs(Normalizer::normalize($context));
     }
 
     public function presentation(): Presentation

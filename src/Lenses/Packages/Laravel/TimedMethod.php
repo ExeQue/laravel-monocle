@@ -48,7 +48,7 @@ final class TimedMethod implements Errable, Method
             'server' => $server,
             'method' => $request->method,
             'primitive' => $this->primitive($request),
-            'arguments' => $request->params['arguments'] ?? null,
+            'arguments' => $this->arguments($request),
             'protocol_version' => $request->params['protocolVersion'] ?? null,
         ];
 
@@ -137,6 +137,17 @@ final class TimedMethod implements Errable, Method
         }
 
         $this->eyepiece->push('mcp', $row, origin: false);
+    }
+
+    private function arguments(JsonRpcRequest $request): mixed
+    {
+        $arguments = $request->params['arguments'] ?? null;
+
+        if (! is_array($arguments)) {
+            return $arguments;
+        }
+
+        return $this->eyepiece->masker(McpLens::class)->inputs($arguments);
     }
 
     private function primitive(JsonRpcRequest $request): ?string

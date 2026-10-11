@@ -52,6 +52,9 @@ final class TracedProvider extends Provider
     /** @var WeakMap<Tool, true>|null Tools whose closure is already timed. */
     private static ?WeakMap $timedTools = null;
 
+    /** How many recorded calls are running: a call or tool call made while one runs is nested in it. */
+    private static int $running = 0;
+
     public function __construct(
         private readonly Provider $inner,
         private readonly Eyepiece $eyepiece,
@@ -127,6 +130,10 @@ final class TracedProvider extends Provider
             'tokens' => $this->tokens(null),
         ];
 
+        // The stream runs only while it is read: the caller's own work between two events is not nested in it.
+        $running = true;
+        self::$running++;
+
         try {
             foreach ($this->inner->stream($request) as $key => $event) {
                 if ($event instanceof StreamStartEvent) {
@@ -168,7 +175,13 @@ final class TracedProvider extends Provider
                     $result['tokens'] = $this->tokens($event->usage ?? null);
                 }
 
+                $running = false;
+                self::$running--;
+
                 yield $key => $event;
+
+                $running = true;
+                self::$running++;
             }
         } catch (Throwable $exception) {
             $result['status'] = 'failed';
@@ -177,6 +190,10 @@ final class TracedProvider extends Provider
             throw $exception;
         } finally {
             // Also runs when the caller stops reading early, so an abandoned stream is still recorded.
+            if ($running) {
+                self::$running--;
+            }
+
             $step?->stop();
             $response = $text === '' ? null : $text;
 
@@ -217,14 +234,18 @@ final class TracedProvider extends Provider
         $facts = $this->requestFacts($operation, $request);
         $span = $this->eyepiece->span($this->spanName($facts), 'prism.call')->start($facts);
         $this->timeTools($request);
+        self::$running++;
 
         try {
             $response = $call();
         } catch (Throwable $exception) {
+            self::$running--;
             $this->finish($span, $facts, ['status' => 'failed', 'exception' => ThrowableChain::describe($exception)]);
 
             throw $exception;
         }
+
+        self::$running--;
 
         $this->finish($span, $facts, ['status' => 'ok', ...$this->responseFacts($response)]);
 
@@ -238,6 +259,7 @@ final class TracedProvider extends Provider
     {
         return [
             'operation' => $operation,
+            'nested' => self::$running > 0,
             'provider' => method_exists($request, 'provider') ? $request->provider() : null,
             'model' => method_exists($request, 'model') ? $request->model() : null,
             'prompt' => $this->truncate($this->prompt($request)),
@@ -287,7 +309,8 @@ final class TracedProvider extends Provider
             return $inner(...$arguments);
         }
 
-        $span = $this->eyepiece->span($tool->name(), 'prism.tool')->start(['tool' => $tool->name()]);
+        // The call running this tool is itself nested when another call runs around it.
+        $span = $this->eyepiece->span($tool->name(), 'prism.tool')->start(['tool' => $tool->name(), 'nested' => self::$running > 1]);
         $started = hrtime(true);
 
         try {
@@ -311,15 +334,18 @@ final class TracedProvider extends Provider
         $ms = round((hrtime(true) - $started) / 1_000_000, 3);
         $status = $exception === null ? 'ok' : 'failed';
         $result = $output instanceof ToolOutput ? $output->result : (is_string($output) ? $output : null);
+        $masker = $this->eyepiece->masker(PrismLens::class);
         $described = $exception === null ? null : ThrowableChain::describe($exception);
 
         $span->stop(['status' => $status, 'tool_ms' => $ms]);
 
         $this->eyepiece->push('prism_tools', [
             'tool' => $tool->name(),
+            'nested' => $span->meta['nested'],
             'status' => $status,
-            'arguments' => Normalizer::normalize($arguments),
-            'result' => $this->truncate($result),
+            'arguments' => $masker->inputs(Normalizer::normalize($arguments)),
+            // A JSON result is masked like input; free text stays as it is.
+            'result' => $this->truncate($result === null ? null : $masker->body($result)),
             'exception' => $described,
             'duration' => $ms,
         ]);
@@ -426,6 +452,7 @@ final class TracedProvider extends Provider
 
         $this->eyepiece->push('prism', [
             'operation' => $facts['operation'],
+            'nested' => $facts['nested'],
             'provider' => $facts['provider'],
             'model' => $result['model'] ?? $facts['model'],
             'status' => $result['status'],

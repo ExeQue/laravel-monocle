@@ -9,6 +9,7 @@ use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use Livewire\Livewire;
 use RuntimeException;
 use Tests\Fixtures\Livewire\Counter;
+use Tests\Fixtures\Livewire\LoginForm;
 
 covers(LivewireLens::class);
 
@@ -59,6 +60,27 @@ describe(LivewireLens::class, function (): void {
 
         expect($summary->totals['livewire_components'])->toBeGreaterThanOrEqual(1)
             ->and(implode(' ', $summary->errors))->toContain('component exploded');
+    });
+
+    it('masks parameters and updates whose name matches the input pattern', function (): void {
+        $component = Livewire::test(LoginForm::class)->set('password', 'hunter22hunter22');
+        $updates = latestCapture()->rows('livewire')[0]['updates'];
+
+        $component->set('email', 'ada@example.com');
+        $updates = [...$updates, ...latestCapture()->rows('livewire')[0]['updates']];
+
+        $component->call('login', 'hunter22hunter22', 'ada@example.com');
+        $login = latestCapture()->rows('livewire')[0]['calls'][0];
+
+        $component->call('$commit');
+        $magic = latestCapture()->rows('livewire')[0]['calls'][0];
+
+        expect($updates)->toBe([
+            ['path' => 'password', 'value' => 'hunt****'],
+            ['path' => 'email', 'value' => 'ada@example.com'],
+        ])
+            ->and($login['params'])->toBe(['hunt****', 'ada@example.com'])
+            ->and($magic)->toMatchArray(['method' => '$commit', 'params' => []]);
     });
 
     it('summarizes nothing without components', function (): void {

@@ -19,6 +19,7 @@ use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tests\Fixtures\Middleware\Abort;
+use Tests\Fixtures\Middleware\Fail;
 use Tests\Fixtures\Middleware\SleepAfter;
 use Tests\Fixtures\Middleware\SleepBefore;
 
@@ -61,6 +62,35 @@ describe(MiddlewareLens::class, function (): void {
         expect($span('middleware.request', 'Abort')->meta)->toMatchArray(['passed' => false, 'short_circuited_with' => 418])
             ->and($span('middleware.response', 'Abort'))->toBeNull()
             ->and(latestCapture()->spans)->not->toHaveKey('controller');
+    });
+
+    it('records the status a thrown exception turns into and rethrows it', function (string $with, int $status, string $exception): void {
+        Route::get('/failing', fn () => 'never')->middleware([SleepBefore::class, Fail::class.':'.$with]);
+
+        $this->getJson('/failing')->assertStatus($status);
+
+        $rows = collect(latestCapture()->rows('middleware'))->keyBy(fn (array $row): string => class_basename($row['middleware']));
+
+        expect($rows['Fail'])->toMatchArray(['passed' => false, 'short_circuited_with' => $status, 'threw' => $exception])
+            ->and($rows['SleepBefore'])->toMatchArray(['passed' => true, 'short_circuited_with' => null, 'threw' => null])
+            ->and(app(MiddlewareLens::class)->summarize(latestCapture())->warnings)
+            ->toContain(sprintf('Middleware Fail short-circuited the request by throwing %s (%d).', $exception, $status));
+    })->with([
+        'http exception' => ['http', 409, \Symfony\Component\HttpKernel\Exception\HttpException::class],
+        'authorization' => ['denied', 403, \Illuminate\Auth\Access\AuthorizationException::class],
+        'authorization with a status' => ['hidden', 404, \Illuminate\Auth\Access\AuthorizationException::class],
+        'authentication' => ['guest', 401, \Illuminate\Auth\AuthenticationException::class],
+        'validation' => ['invalid', 422, \Illuminate\Validation\ValidationException::class],
+        'anything else' => ['boom', 500, RuntimeException::class],
+    ]);
+
+    it('records the throttle middleware as answering 429', function (): void {
+        Route::get('/throttled', fn () => 'ok')->middleware('throttle:1,1');
+
+        $this->get('/throttled')->assertOk();
+        $this->get('/throttled')->assertStatus(429);
+
+        expect(collect(latestCapture()->rows('middleware'))->firstWhere('passed', false))->toMatchArray(['short_circuited_with' => 429]);
     });
 
     it('lists every middleware in order with its time before and after the rest of the request', function (): void {
@@ -174,7 +204,7 @@ describe(MiddlewareLens::class, function (): void {
 
         expect($presentation->tabView)->toBe('monocle::tabs.middleware')
             ->and(array_keys($presentation->columns))->toBe(['middleware', 'group', 'request_ms', 'response_ms', 'passed', 'duration'])
-            ->and($presentation->detailsOnly)->toBe(['parameters', 'short_circuited_with', 'slow'])
+            ->and($presentation->detailsOnly)->toBe(['parameters', 'short_circuited_with', 'threw', 'slow'])
             ->and($presentation->groupings)->toBe(['group' => 'by group'])
             ->and($presentation->highlights)->toBe(['slow' => 'warn']);
     });

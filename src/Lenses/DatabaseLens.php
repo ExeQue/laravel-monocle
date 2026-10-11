@@ -46,7 +46,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     /** @var array<string, int> hash => first row number */
     private array $seen = [];
 
-    /** @var array<string, array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string}> */
+    /** @var array<string, array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string, columns: array<int, ?string>}> */
     private array $parsed = [];
 
     /** @var array<int, array{0: Connection, 1: string, 2: array<mixed>}> Queries whose sql_with_bindings is filled in at finalize, by row number. */
@@ -289,7 +289,8 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
         $this->counter++;
 
-        $bindings = $this->bindings ? $event->bindings : [];
+        // Duplicates are told apart by the real values; only masked values are stored.
+        $bindings = $this->bindings ? $this->maskBindings($event->bindings, $parsed['columns']) : [];
         $hash = hash('xxh128', $sql.'|'.json_encode($event->bindings));
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
@@ -300,7 +301,8 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             'sql' => $sql,
             'bindings' => $bindings,
             // Filled in at finalize, after the response is sent: substituting bindings is not free.
-            'sql_with_bindings' => null,
+            // Without bindings the values stay out, so the placeholders are kept.
+            'sql_with_bindings' => $this->bindings ? null : $sql,
             'connection' => $event->connectionName,
             'driver' => $this->driver($event),
             'duration' => $duration,
@@ -314,7 +316,39 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         ]);
 
         $this->seen[$hash] ??= $this->counter;
-        $this->unrendered[$this->counter] = [$event->connection, $sql, $event->bindings];
+
+        if ($this->bindings) {
+            $this->unrendered[$this->counter] = [$event->connection, $sql, $bindings];
+        }
+    }
+
+    /**
+     * Mask each binding whose column matches the input mask pattern.
+     *
+     * @param  array<array-key, mixed>  $bindings
+     * @param  array<int, ?string>  $columns
+     * @return array<array-key, mixed>
+     */
+    private function maskBindings(array $bindings, array $columns): array
+    {
+        $masker = $this->eyepiece->masker(self::class);
+
+        foreach ($bindings as $index => $value) {
+            $column = $columns[$index] ?? null;
+
+            if ($column === null) {
+                continue;
+            }
+
+            // An empty value has nothing to hide, and stays readable as null.
+            if ($value === null) {
+                continue;
+            }
+
+            $bindings[$index] = $masker->inputs([$column => $value])[$column];
+        }
+
+        return $bindings;
     }
 
     /**
@@ -452,7 +486,100 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             'type' => $this->type($sql),
             'shape' => $shape,
             'shape_hash' => substr(hash('xxh128', $shape), 0, 8),
+            'columns' => $this->columns($sql),
         ];
+    }
+
+    /**
+     * The column each `?` placeholder is compared with or written to, by
+     * position: `column = ?`, `!=`, `<>`, `like`, `in (?, ?)`, `update ...
+     * set column = ?` and the column list of an insert. Null where the
+     * column cannot be told.
+     *
+     * @return list<?string>
+     */
+    private function columns(string $sql): array
+    {
+        // Question marks inside string literals are not placeholders.
+        preg_match_all("/'(?:[^'\\\\]|\\\\.)*'|\?/", $sql, $matches, PREG_OFFSET_CAPTURE);
+
+        [$insertColumns, $valuesStart, $valuesEnd] = $this->insertColumns($sql);
+        $columns = [];
+        $inserted = 0;
+        $previousEnd = 0;
+        $previous = null;
+
+        foreach ($matches[0] as [$token, $offset]) {
+            if ($token !== '?') {
+                continue;
+            }
+
+            if ($offset >= $valuesStart && $offset < $valuesEnd) {
+                // Multi-row inserts repeat the column list for every row.
+                $column = $insertColumns[$inserted++ % count($insertColumns)];
+            } elseif (trim(substr($sql, $previousEnd, $offset - $previousEnd)) === ',') {
+                // The next value in the same list, as in `in (?, ?)`.
+                $column = $previous;
+            } else {
+                $column = $this->comparedColumn($sql, $offset);
+            }
+
+            $columns[] = $column;
+            $previous = $column;
+            $previousEnd = $offset + 1;
+        }
+
+        return $columns;
+    }
+
+    /**
+     * The column in front of the placeholder at the offset, as in
+     * `"users"."email" = ?`, `name like ?` or `id in (?`.
+     */
+    private function comparedColumn(string $sql, int $offset): ?string
+    {
+        // 200 characters is plenty for a quoted schema.table.column and its operator.
+        $start = max(0, $offset - 200);
+        $before = substr($sql, $start, $offset - $start);
+
+        $pattern = '/([\w."`\[\]]+)\s*(?:=|!=|<>|\s(?:not\s+)?like|\s(?:not\s+)?in\s*\()\s*$/i';
+
+        if (preg_match($pattern, $before, $match) !== 1) {
+            return null;
+        }
+
+        return $this->columnName($match[1]);
+    }
+
+    /**
+     * The column list of an `insert into t (a, b) values (?, ?), ...` and
+     * where its value rows start and end.
+     *
+     * @return array{0: list<?string>, 1: int, 2: int}
+     */
+    private function insertColumns(string $sql): array
+    {
+        if (preg_match('/^\s*insert\b.*?\binto\s+[^\s(]+\s*\(([^)]*)\)\s*values\s*/is', $sql, $match) !== 1) {
+            return [[], 0, 0];
+        }
+
+        $start = strlen($match[0]);
+        preg_match('/(?:\(\s*\?(?:\s*,\s*\?)*\s*\)\s*,?\s*)*/A', $sql, $rows, 0, $start);
+
+        $columns = array_map($this->columnName(...), explode(',', $match[1]));
+
+        return [$columns, $start, $start + strlen($rows[0])];
+    }
+
+    /**
+     * The bare column name of an identifier like `"users"."password"`.
+     */
+    private function columnName(string $identifier): ?string
+    {
+        $parts = explode('.', $identifier);
+        $name = trim((string) end($parts), " \t\n`\"[]");
+
+        return $name === '' ? null : $name;
     }
 
     /**

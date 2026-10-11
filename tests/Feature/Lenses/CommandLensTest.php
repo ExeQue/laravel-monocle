@@ -61,6 +61,32 @@ describe(CommandLens::class, function (): void {
             ->and(array_map(fn ($span): string => $span->name, $capture->spansOfKind('phase')))->toContain('command');
     });
 
+    it('reports a command capture that exited with a non-zero code as an error', function (): void {
+        Artisan::call('monocle-test:ping', ['name' => 'ada']);
+
+        $row = app(CaptureReader::class)->list(Filter::fromArray(['type' => 'command']))['rows'][0];
+
+        expect(app(CommandLens::class)->summarize(latestCapture())->errors)->toBe(['Command exited with code 3.'])
+            ->and($row['has_errors'])->toBeTrue();
+    });
+
+    it('reports no error for a command capture that exited with code 0', function (): void {
+        Artisan::call('monocle-test:ok');
+
+        $row = app(CaptureReader::class)->list(Filter::fromArray(['type' => 'command']))['rows'][0];
+
+        expect(app(CommandLens::class)->summarize(latestCapture())->errors)->toBe([])
+            ->and($row['has_errors'])->toBeFalse();
+    });
+
+    it('masks arguments whose name matches the input mask', function (): void {
+        Artisan::command('monocle-test:login {token} {user}', fn (): int => 0);
+
+        Artisan::call('monocle-test:login', ['token' => 'hunter22hunter22', 'user' => 'ada']);
+
+        expect(latestCapture()->section('command')['arguments'])->toBe(['token' => 'hunt****', 'user' => 'ada']);
+    });
+
     it('closes its own phase and keeps request data out of command captures', function (): void {
         Artisan::call('monocle-test:ping', ['name' => 'ada']);
 

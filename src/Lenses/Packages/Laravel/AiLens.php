@@ -78,7 +78,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     public function description(): string
     {
-        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them. Section ai_tools has one row per tool call: tool, class, sub_agent (true when the tool is another agent; class is then that agent), agent, status, arguments, result (or exception) and duration.';
+        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them. Section ai_tools has one row per tool call: tool, class, sub_agent (true when the tool is another agent; class is then that agent), agent, status, arguments, result (or exception) and duration. The time totals count only top-level runs and their tool calls, as a sub-agent runs inside the tool call that started it.';
     }
 
     public function advice(): string
@@ -121,10 +121,24 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         }
 
         $tools = $capture->rows('ai_tools');
-        $toolMs = array_sum(array_map(fn (array $tool): float => (float) ($tool['duration'] ?? 0), $tools));
+        $topLevel = $this->topLevelInvocations($rows);
+        $ms = 0.0;
+        $toolMs = 0.0;
+
+        // A nested agent and its tools run inside the tool call of the agent above, so time counts only once: at the top.
+        foreach ($rows as $row) {
+            if (in_array($row['invocation_id'] ?? null, $topLevel, true)) {
+                $ms += (float) ($row['duration'] ?? 0);
+            }
+        }
+
+        foreach ($tools as $tool) {
+            if (in_array($tool['invocation_id'] ?? null, $topLevel, true)) {
+                $toolMs += (float) ($tool['duration'] ?? 0);
+            }
+        }
 
         $tokens = self::NO_TOKENS;
-        $ms = 0.0;
         $byModel = [];
         $warnings = [];
 
@@ -133,7 +147,6 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
                 $tokens[$key] = $value + (int) ($row['tokens'][$key] ?? 0);
             }
 
-            $ms += (float) ($row['duration'] ?? 0);
             $model = ($row['provider'] ?? '?').'/'.($row['model'] ?? '?');
             $byModel[$model] = ($byModel[$model] ?? 0) + 1;
 
@@ -158,6 +171,20 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
             ->when($tools !== [])
             ->total('ai_tool_calls', count($tools), 'tool calls')
             ->errors(array_slice($warnings, 0, 5));
+    }
+
+    /**
+     * The invocations not prompted from inside another recorded invocation.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<mixed>
+     */
+    private function topLevelInvocations(array $rows): array
+    {
+        $invocations = array_column($rows, 'invocation_id');
+        $topLevel = array_filter($rows, fn (array $row): bool => ! in_array($row['parent_invocation_id'] ?? null, $invocations, true));
+
+        return array_column($topLevel, 'invocation_id');
     }
 
     private function onPrompting(PromptingAgent $event): void
@@ -303,7 +330,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         $span->parent($this->currentStep($event->invocationId) ?? $agent)->start([
             'tool' => $event->tool::class,
             'tool_invocation_id' => $event->toolInvocationId,
-            'arguments' => Normalizer::normalize($event->arguments),
+            'arguments' => $this->eyepiece->masker(self::class)->inputs(Normalizer::normalize($event->arguments)),
         ]);
 
         $this->tools[$event->toolInvocationId] = $span;
@@ -312,7 +339,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     private function onToolInvoked(ToolInvoked $event): void
     {
-        $result = $this->text($this->resultText($event->result));
+        $result = $this->text($this->maskedResult($event->result));
 
         ($this->tools[$event->toolInvocationId] ?? null)?->stop([
             'result' => $result,
@@ -378,6 +405,17 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
             'exception' => $exception,
             'duration' => round($ms, 3),
         ]);
+    }
+
+    /**
+     * A result with keys (an array, an object or JSON text) is masked like
+     * input; free text stays as it is.
+     */
+    private function maskedResult(mixed $result): ?string
+    {
+        $text = $this->resultText($result);
+
+        return $text === null ? null : $this->eyepiece->masker(self::class)->body($text);
     }
 
     /**

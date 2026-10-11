@@ -60,7 +60,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
 
     public function description(): string
     {
-        return 'One row per class-based middleware, in the order the request passed through them: middleware (class), parameters, group, request_ms (work before it called $next), response_ms (work once $next returned), duration (both together), time, passed (false when it short-circuited) short_circuited_with (the HTTP status) and slow (its own time is over slow_ms). The same work is in the timeline as middleware.request and middleware.response spans.';
+        return 'One row per class-based middleware, in the order the request passed through them: middleware (class), parameters, group, request_ms (work before it called $next), response_ms (work once $next returned), duration (both together), time, passed (false when it short-circuited), short_circuited_with (the HTTP status it answered with, or the one the exception it threw turns into: 401, 403, 422, 429, 500...), threw (the class of that exception) and slow (its own time is over slow_ms). The same work is in the timeline as middleware.request and middleware.response spans.';
     }
 
     public function advice(): string
@@ -134,6 +134,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
                 'time' => round($request->start ?? 0.0, 3),
                 'passed' => $request->meta['passed'] ?? true,
                 'short_circuited_with' => $request->meta['short_circuited_with'] ?? null,
+                'threw' => $request->meta['threw'] ?? null,
                 'slow' => $this->isSlow($ownMs, $class),
             ];
         }
@@ -167,14 +168,25 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
                 continue;
             }
 
-            $status = $span->meta['short_circuited_with'] ?? 'no response';
-            $warnings[] = sprintf('Middleware %s short-circuited the request (%s).', $span->name, $status);
+            $warnings[] = $this->shortCircuitWarning($span);
         }
 
         return Summary::make()
             ->headline('middleware_self_ms', round(array_sum($own), 3), 'middleware time', Unit::Milliseconds)
             ->headline('middleware_count', count($requests), 'middleware')
             ->warnings($warnings);
+    }
+
+    private function shortCircuitWarning(Span $span): string
+    {
+        $status = $span->meta['short_circuited_with'] ?? 'no response';
+        $threw = $span->meta['threw'] ?? null;
+
+        if ($threw === null) {
+            return sprintf('Middleware %s short-circuited the request (%s).', $span->name, $status);
+        }
+
+        return sprintf('Middleware %s short-circuited the request by throwing %s (%s).', $span->name, $threw, $status);
     }
 
     private function isSlow(float $ms, mixed $class): bool
@@ -293,7 +305,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
         return Presentation::table()
             ->tab('monocle::tabs.middleware')
             ->columns(['middleware', 'group', 'request_ms' => 'Before', 'response_ms' => 'After', 'passed', 'duration' => 'Own time'])
-            ->detailsOnly(['parameters', 'short_circuited_with', 'slow'])
+            ->detailsOnly(['parameters', 'short_circuited_with', 'threw', 'slow'])
             ->groupBy(['group' => 'by group'])
             ->format(['passed' => ['flag', 'passed', 'short-circuited', 'warn']])
             ->highlight(['slow' => 'warn']);

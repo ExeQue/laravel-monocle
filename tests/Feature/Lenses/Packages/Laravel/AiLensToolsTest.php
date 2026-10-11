@@ -105,6 +105,42 @@ describe(AiLens::class, function (): void {
         expect(app(Eyepiece::class)->finalize()->rows('ai_tools')[0]['result'])->toBeString()->toContain('bad');
     });
 
+    it('counts the time of nested agents and their tools once', function (): void {
+        $eyepiece = app(Eyepiece::class);
+        $agent = ['agent' => Greeter::class, 'provider' => 'openai', 'model' => 'gpt-test', 'status' => 'ok', 'tokens' => []];
+
+        $eyepiece->push('ai', [...$agent, 'invocation_id' => 'inv-2', 'parent_invocation_id' => 'inv-1', 'duration' => 30.0]);
+        $eyepiece->push('ai', [...$agent, 'invocation_id' => 'inv-1', 'parent_invocation_id' => null, 'duration' => 100.0]);
+        $eyepiece->push('ai', [...$agent, 'invocation_id' => 'inv-3', 'parent_invocation_id' => 'gone', 'duration' => 5.0]);
+        $eyepiece->push('ai_tools', ['tool' => 'researcher', 'invocation_id' => 'inv-1', 'status' => 'ok', 'duration' => 40.0]);
+        $eyepiece->push('ai_tools', ['tool' => 'weather', 'invocation_id' => 'inv-2', 'status' => 'ok', 'duration' => 10.0]);
+
+        $summary = app(AiLens::class)->summarize($eyepiece->finalize());
+
+        expect($summary->totals)->toMatchArray(['ai_ms' => 105.0, 'ai_calls' => 3, 'ai_tool_ms' => 40.0, 'ai_tool_calls' => 2]);
+    });
+
+    it('masks keyed tool arguments and results and keeps free text', function (): void {
+        config(['monocle.mask.inputs' => ['/city/i']]);
+
+        event(new PromptingAgent('inv-1', $this->prompt));
+        event(new InvokingTool('inv-1', 'tool-1', $this->agent, $this->tool, ['city' => 'Aarhus', 'days' => 2]));
+        event(new ToolInvoked('inv-1', 'tool-1', $this->agent, $this->tool, [], ['city' => 'Aarhus', 'sky' => 'sunny'], 1.0));
+        event(new InvokingTool('inv-1', 'tool-2', $this->agent, $this->tool, []));
+        event(new ToolInvoked('inv-1', 'tool-2', $this->agent, $this->tool, [], '{"city":"Oslo"}', 1.0));
+        event(new InvokingTool('inv-1', 'tool-3', $this->agent, $this->tool, []));
+        event(new ToolInvoked('inv-1', 'tool-3', $this->agent, $this->tool, [], 'city: Bergen', 1.0));
+
+        $tools = app(Eyepiece::class)->finalize()->rows('ai_tools');
+
+        expect($tools[0]['arguments'])->toMatchArray(['days' => 2])
+            ->and($tools[0]['arguments']['city'])->not->toBe('Aarhus')
+            ->and(json_decode($tools[0]['result'], true))->toMatchArray(['sky' => 'sunny'])
+            ->and($tools[0]['result'])->not->toContain('Aarhus')
+            ->and($tools[1]['result'])->not->toContain('Oslo')
+            ->and($tools[2]['result'])->toBe('city: Bergen');
+    });
+
     it('names the agent behind an agent used as a tool', function (): void {
         $subAgent = new AgentTool(new Greeter());
 

@@ -195,6 +195,58 @@ describe(DatabaseLens::class, function (): void {
             ->and($rows[2]['tables'])->toBe(['telescope_entries']);
     });
 
+    it('keeps the values out of every stored field when bindings are off', function (): void {
+        $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens): bool => $lens instanceof DatabaseLens);
+        $lens->configure(['bindings' => false]);
+
+        DB::table('things')->where('name', 'secret-value')->first();
+        DB::table('things')->where('name', 'secret-value')->first();
+        DB::table('things')->where('name', 'other-value')->first();
+
+        $rows = app(Eyepiece::class)->finalize()->rows('queries');
+        $lens->configure(['bindings' => true]);
+
+        expect(json_encode($rows))->not->toContain('secret-value')->not->toContain('other-value')
+            ->and($rows[0]['bindings'])->toBe([])
+            ->and($rows[0]['sql_with_bindings'])->toBe($rows[0]['sql'])
+            ->and($rows[1]['duplicate_of'])->toBe(1)
+            ->and($rows[2]['duplicate_of'])->toBeNull();
+    });
+
+    it('masks bindings whose column matches the input mask pattern', function (): void {
+        DB::statement('create table users (id integer primary key, email text, password text, remember_token text)');
+
+        DB::table('users')->insert([
+            ['email' => 'a@example.com', 'password' => 'first-password', 'remember_token' => 'token-first'],
+            ['email' => 'b@example.com', 'password' => 'second-password', 'remember_token' => 'token-second'],
+        ]);
+        DB::table('users')->where('users.password', 'hunter2hunter2')->first();
+        DB::table('users')->where('password', '!=', 'unequal-password')->whereIn('remember_token', ['token-aaaa', 'token-bbbb'])->first();
+        DB::table('users')->where('id', 1)->update(['password' => 'updated-password', 'email' => 'c@example.com']);
+        DB::select("select '?' as mark from users where `password` like ? and email = ?", ['literal-password', 'd@example.com']);
+        DB::select('select * from users where length(password) > ?', ['unknown-column']);
+        DB::table('users')->insert(['email' => 'e@example.com', 'password' => 'set-password', 'remember_token' => null]);
+
+        $rows = array_values(array_filter(
+            app(Eyepiece::class)->finalize()->rows('queries'),
+            fn (array $row): bool => $row['type'] !== 'other',
+        ));
+
+        expect(json_encode($rows))
+            ->not->toContain('first-password')->not->toContain('second-password')
+            ->not->toContain('hunter2hunter2')->not->toContain('unequal-password')
+            ->not->toContain('token-aaaa')->not->toContain('token-bbbb')
+            ->not->toContain('updated-password')->not->toContain('literal-password')
+            ->and($rows[0]['bindings'])->toBe(['a@example.com', 'fir****', 'to****', 'b@example.com', 'sec****', 'tok****'])
+            ->and($rows[1]['bindings'])->toBe(['hun****'])
+            ->and($rows[1]['sql_with_bindings'])->toContain("\"password\" = 'hun****'")
+            ->and($rows[2]['bindings'])->toBe(['uneq****', 'to****', 'to****'])
+            ->and($rows[3]['bindings'])->toBe(['upda****', 'c@example.com', 1])
+            ->and($rows[4]['bindings'])->toBe(['lite****', 'd@example.com'])
+            ->and($rows[5]['bindings'])->toBe(['unknown-column'])
+            ->and($rows[6]['bindings'])->toBe(['e@example.com', 'set****', null]);
+    });
+
     it('warns about slow queries the application ran, slowest first', function (): void {
         $capture = app(Eyepiece::class)->finalize();
         $capture->sections['queries'] = [

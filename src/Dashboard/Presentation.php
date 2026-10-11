@@ -27,7 +27,7 @@ final readonly class Presentation
         public ?string $tabView = null,
         /** @var list<string> */
         public array $includes = [],
-        /** @var array<string, self> included section => how it is shown */
+        /** @var array<string, self> included or alongside section => how it is shown */
         public array $included = [],
         /** @var array<string, list<mixed>> field => [format, ...arguments] */
         public array $formats = [],
@@ -133,6 +133,17 @@ final readonly class Presentation
         }
 
         return $this->with(['includes' => $keys, 'included' => $included]);
+    }
+
+    /**
+     * Other sections the lens writes that get a tab of their own, such as
+     * the facts of a job capture beside the jobs it dispatched.
+     *
+     * @param  array<string, self>  $sections  section => how it is shown
+     */
+    public function alongside(array $sections): self
+    {
+        return $this->with(['included' => [...$this->included, ...$sections]]);
     }
 
     /**

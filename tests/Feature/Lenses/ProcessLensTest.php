@@ -133,6 +133,20 @@ describe(ProcessLens::class, function (): void {
         Process::assertRan('ls -la');
     });
 
+    it('masks option values and variables whose name matches the input pattern', function (): void {
+        Process::fake();
+
+        Process::run('DB_PASSWORD=hunter22hunter22 APP_ENV=local deploy --token=abcdefgh12345678 --api-secret "supersecretvalue" --password --force --secret=\'my secret value\' --name ada');
+        Process::run(['deploy', '--password=hunter22hunter22', '--token', 'abcdefgh12345678', '--verbose']);
+
+        $commands = array_column(app(Eyepiece::class)->finalize()->rows('processes'), 'command');
+
+        expect($commands)->toBe([
+            'DB_PASSWORD=hunt**** APP_ENV=local deploy --token=abcd**** --api-secret "supe****" --password --force --secret=\'my ****\' --name ada',
+            "'deploy' '--password=hunt****' '--token' 'abcd****' '--verbose'",
+        ]);
+    });
+
     it('warns about processes slower than slow_ms', function (): void {
         Process::run(['php', '-r', 'echo 1;']);
 

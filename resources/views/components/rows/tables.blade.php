@@ -1,4 +1,7 @@
-{{-- One table per section shown in the tab, each row folding out to its details. --}}
+{{--
+    One table per section shown in the tab, each row folding out to its details. A section the tab
+    includes offers its own grouping chips and shows its rows grouped when one is picked.
+--}}
 <template x-for="t in tables" :key="t.key">
     <div class="mb-5 last:mb-0" x-show="t.rows.length">
         <h3
@@ -6,7 +9,19 @@
             x-show="t.title"
             x-text="t.title"
         ></h3>
-        <div :class="cls.tableWrap">
+        <template x-for="s in t.key === tab ? [] : [section(t.key, t.rows)]" :key="s.key">
+            <div>
+                <x-monocle::chips
+                    label="Group rows"
+                    options="[['order', 'in order'], ...s.groupings]"
+                    active="s.by === option[0]"
+                    pick="setRowGroup(option[0], s.key)"
+                    x-show="s.groupings.length"
+                />
+                <x-monocle::rows.groups />
+            </div>
+        </template>
+        <div :class="cls.tableWrap" x-show="t.key === tab || rowGroupOf(t.key) === 'order'">
             <table class="w-full border-collapse text-[13px]">
                 <thead>
                     <tr>

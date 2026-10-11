@@ -1,6 +1,7 @@
 {{--
     A section's rows as a table: grouping chips when the lens offers groupings, the rows in order or
-    grouped, each folding out to its details, and more rows on demand. Reads the open tab's data.
+    grouped, each folding out to its details, and more rows on demand. Reads the open tab's data;
+    each section the tab includes offers its own groupings (see rows.tables).
 --}}
 <x-monocle::chips
     label="Group rows"
@@ -9,7 +10,9 @@
     pick="setRowGroup(option[0])"
     x-show="groupings.length"
 />
-<x-monocle::rows.groups />
+<template x-for="s in [section(tab, tabData?.rows ?? [])]" :key="s.key">
+    <x-monocle::rows.groups />
+</template>
 <x-monocle::rows.tables />
 <x-monocle::kv-table rows="Object.entries(tabData?.data ?? {})" x-show="tabData?.data" />
 <button

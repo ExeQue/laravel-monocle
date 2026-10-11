@@ -63,6 +63,12 @@ describe('dashboard', function (): void {
                 && ! in_array(null, $labels, true));
         });
 
+        it('renders the tab view of a section a lens presents beside its own', function (): void {
+            $this->get('/_monocle')
+                ->assertViewHas('tabs', fn (array $tabs): bool => $tabs['job'] === 'monocle::tabs.job')
+                ->assertSee('monocle-panel-job', false);
+        });
+
         it('shows paths relative to the project root, not to the deeper Testbench base path', function (): void {
             $this->get('/_monocle')->assertViewHas('paths', ['base' => dirname(__DIR__, 3)]);
         });

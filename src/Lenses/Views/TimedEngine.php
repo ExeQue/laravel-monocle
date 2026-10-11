@@ -6,6 +6,8 @@ namespace ExeQue\Monocle\Lenses\Views;
 
 use Closure;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Lenses\ViewsLens;
+use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\View\Engine;
 
 /**
@@ -60,7 +62,9 @@ final class TimedEngine implements Engine
             ];
 
             if ($this->data) {
-                $row['data'] = array_diff_key($data, array_flip(self::INTERNAL_KEYS));
+                // Normalized first, so keys inside collections and other arrayables are masked too.
+                $values = Normalizer::normalize(array_diff_key($data, array_flip(self::INTERNAL_KEYS)));
+                $row['data'] = $this->eyepiece->masker(ViewsLens::class)->inputs($values);
             }
 
             $this->eyepiece->push('views', $row);
