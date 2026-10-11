@@ -696,6 +696,12 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
     if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('');
     if (key === 'status' && typeof v === 'string') return `<span class="${statusClass(v)}">${esc(v)}</span>`;
+    if (key === 'level' && typeof v === 'string') return `<span class="font-medium ${({ debug: 'text-muted', info: '', notice: '', warning: 'text-warn', error: 'text-bad', critical: 'text-bad', alert: 'text-bad', emergency: 'text-bad' })[v] ?? ''}">${esc(v)}</span>`;
+    if (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) return '';
+    if (Array.isArray(v) && !v.length) return '';
+    if (key === 'context' && v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v)) return Object.entries(v).map(([k, x]) => `<div><span class="text-muted">${esc(k)}</span> <span class="font-mono">${esc(fmtValue(x).slice(0, 120))}</span></div>`).join('');
+    // Long or multi-line messages: the first line in the table, all of it in the details.
+    if (key === 'message' && typeof v === 'string' && (v.includes('\n') || v.length > 160)) return `<span data-tip="${esc(v.slice(0, 600))}">${esc(v.split('\n')[0].slice(0, 160))}…</span>`;
     if (key === 'ok' && typeof v === 'boolean') return v ? '<span class="text-ok">ok</span>' : '<span class="font-medium text-bad">failed</span>';
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;

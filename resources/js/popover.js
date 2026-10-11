@@ -72,7 +72,7 @@ export function rowBody(row) {
   // A row that is itself an exception (the exceptions section) leads with its chain.
   const thrown = isThrowable(row) && Array.isArray(row.previous);
   // Prose (prompts, responses, bodies) reads better as a block than as a table cell.
-  const prose = ['prompt', 'response', 'body', 'text', 'instructions'].filter((k) => typeof row[k] === 'string' && /\s/.test(row[k].trim()));
+  const prose = ['prompt', 'response', 'body', 'text', 'instructions', 'message'].filter((k) => typeof row[k] === 'string' && (k === 'message' ? row[k].includes('\n') || row[k].length > 160 : /\s/.test(row[k].trim())));
   const hidden = ['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash', 'frames', ...prose, ...(thrown ? ['class', 'message', 'previous', 'file'] : []), ...(row.code === 0 ? ['code'] : [])];
   const frames = Array.isArray(row.frames) && row.frames.length ? row.frames : null;
   const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !hidden.includes(k)));
