@@ -463,7 +463,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     // An exception code is nearly always 0; the column only shows when one is not.
     // A column that is false (or a code of 0) in every row says nothing; ids belong in the details.
-    let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0) && !(k === 'ok' && row[k] === true)));
+    let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0) && !(k === 'ok' && row[k] === true) && !(['chained', 'attempts', 'delay', 'retries', 'attachments'].includes(k) && row[k] === 0)));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
     used = used.filter((k) => k !== 'rolled_back');
     // HTTP calls read as "GET 200 https://...".
@@ -667,6 +667,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   /** A name cut to 32 characters, for header and cookie names; the full name is in a tooltip. */
   shortName(name) {
     return name.length > 32 ? name.slice(0, 32) + '…' : name;
+  },
+
+  /** A column header: `time` is an offset into the capture, not a duration. */
+  columnLabel(col) {
+    if (col === 'time') return 'Started at';
+    if (col.endsWith('_bytes') && !col.includes('size')) return humanize(col.replace(/_bytes$/, '')) + ' size';
+    return humanize(col.replace(/_(bytes|ms)$/, ''));
   },
 
   /** Columns that only hold a short word or code and take as little width as they can. */

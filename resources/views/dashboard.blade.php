@@ -1527,7 +1527,7 @@
                                                             numeric(col) && '!text-right',
                                                             narrow(col) && 'w-0 whitespace-nowrap',
                                                         ]"
-                                                        x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"
+                                                        x-text="columnLabel(col)"
                                                     ></th
                                                 ></template>
                                             </tr>
