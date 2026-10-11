@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Routing\Events\PreparingResponse;
 use Illuminate\Routing\Events\ResponsePrepared;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Str;
 use Inertia\AlwaysProp;
 use Inertia\DeferProp;
@@ -53,6 +54,12 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     private ?InertiaResponse $pending = null;
 
+    /** @var array{types: array<string, string>, sources: array<string, string>} what the props were declared as, before timing */
+    private array $declared = ['types' => [], 'sources' => []];
+
+    /** @var array<string, array{time: float, duration: float}> prop => when it resolved and how long it took */
+    private array $timings = [];
+
     public function __construct(
         private readonly Eyepiece $eyepiece
     ) {
@@ -70,7 +77,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     public function description(): string
     {
-        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), value (the value sent, masked like request input; left out over max_value_bytes), defined_at (file:line of the closure a deferred, optional or lazy prop resolves with), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
+        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), value (the value sent, masked like request input; left out over max_value_bytes), defined_at (file:line of the closure a deferred, optional or lazy prop resolves with), duration and time (how long that closure took to resolve, also an inertia.prop span on the timeline), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
     }
 
     public function advice(): string
@@ -94,6 +101,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         $this->eyepiece->listen(PreparingResponse::class, function (PreparingResponse $event): void {
             if ($event->response instanceof InertiaResponse) {
                 $this->pending = $event->response;
+                $this->prepare($event->response);
             }
         });
 
@@ -123,6 +131,8 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
     public function reset(): void
     {
         $this->pending = null;
+        $this->declared = ['types' => [], 'sources' => []];
+        $this->timings = [];
     }
 
     /**
@@ -130,15 +140,14 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
      */
     private function record(Request $request, InertiaResponse $inertia, array $page): void
     {
-        [$shared, $declared] = (fn (): array => [$this->sharedProps, $this->props])->call($inertia);
+        [$shared] = (fn (): array => [$this->sharedProps])->call($inertia);
 
         $sent = (array) ($page['props'] ?? []);
         $partial = $request->headers->get('X-Inertia-Partial-Component') === ($page['component'] ?? null);
         $only = $partial ? $this->list($request->headers->get('X-Inertia-Partial-Data')) : [];
         $except = $partial ? $this->list($request->headers->get('X-Inertia-Partial-Except')) : [];
         $sharedKeys = array_unique([...$this->topLevel(array_keys($shared)), ...(array) ($page['sharedProps'] ?? [])]);
-        $types = [...$this->types($shared), ...$this->types($declared)];
-        $sources = [...$this->sources($shared), ...$this->sources($declared)];
+        ['types' => $types, 'sources' => $sources] = $this->declared;
         $groups = $this->groups((array) ($page['deferredProps'] ?? []));
         $merges = [
             ...$this->flag((array) ($page['mergeProps'] ?? []), 'append'),
@@ -166,6 +175,8 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
                 'merge' => $merges[$name] ?? null,
                 'omitted' => $isSent ? null : $this->omitted($name, $type, $page, $groups, $partial),
                 'defined_at' => $sources[$name] ?? null,
+                'duration' => $this->timings[$name]['duration'] ?? null,
+                'time' => $this->timings[$name]['time'] ?? null,
                 'value' => $isSent ? $this->value($name, $sent[$name], (int) $size) : null,
                 'large' => $size !== null && $size > $this->largePropBytes ? true : null,
                 'shared_on_partial' => $this->sharedOnPartial($partial, $isShared, $isSent, $type, $name, $only) ? true : null,
@@ -232,6 +243,87 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         }
 
         return $types;
+    }
+
+    /**
+     * Notes what each prop was declared as, then has every closure a prop
+     * resolves with timed: a span on the timeline (with the queries it runs
+     * under it) and a duration on the prop's row. The closure is still
+     * called through the container, so its parameters are injected as before.
+     */
+    private function prepare(InertiaResponse $inertia): void
+    {
+        [$shared, $props] = (fn (): array => [$this->sharedProps, $this->props])->call($inertia);
+
+        $this->declared = [
+            'types' => [...$this->types($shared), ...$this->types($props)],
+            'sources' => [...$this->sources($shared), ...$this->sources($props)],
+        ];
+        $this->timings = [];
+
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $time = function (array $props): array {
+            foreach ($props as $key => $value) {
+                if (is_string($key)) {
+                    $props[$key] = $this->timed($this->topLevel([$key])[0], $value);
+                }
+            }
+
+            return $props;
+        };
+
+        (function (array $shared, array $props): void {
+            $this->sharedProps = $shared;
+            $this->props = $props;
+        })->call($inertia, $time($shared), $time($props));
+    }
+
+    private function timed(string $name, mixed $value): mixed
+    {
+        if ($value instanceof Closure) {
+            return $this->timer($name, $value);
+        }
+
+        if (! is_object($value)) {
+            return $value;
+        }
+
+        if (! str_starts_with($value::class, 'Inertia\\')) {
+            return $value;
+        }
+
+        $timer = $this->timer(...);
+
+        // Prop classes keep their resolver in a protected callback (or value) property.
+        (function () use ($name, $timer): void {
+            foreach (['callback', 'value'] as $property) {
+                if (property_exists($this, $property) && $this->{$property} instanceof Closure) {
+                    $this->{$property} = $timer($name, $this->{$property});
+
+                    return;
+                }
+            }
+        })->call($value);
+
+        return $value;
+    }
+
+    private function timer(string $name, Closure $resolver): Closure
+    {
+        return function () use ($name, $resolver): mixed {
+            $span = $this->eyepiece->span($name, 'inertia.prop')->start();
+            $started = $this->eyepiece->now();
+
+            try {
+                return App::call($resolver);
+            } finally {
+                $span->stop();
+                $this->timings[$name] = ['time' => round($started, 3), 'duration' => round($this->eyepiece->now() - $started, 3)];
+            }
+        };
     }
 
     /**
@@ -468,6 +560,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         }
 
         return Summary::make()
+            ->total('inertia_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $props)), 3), 'spent', Unit::Milliseconds)
             ->total('inertia_props', count($sent), 'props sent')
             ->total('inertia_payload_bytes', array_sum(array_column($pages, 'payload_bytes')), 'payload', Unit::Bytes)
             ->total('inertia_deferred', count(array_filter($props, fn (array $row): bool => ($row['omitted'] ?? null) === 'deferred')), 'deferred')
@@ -479,7 +572,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         return Presentation::table()
             ->tab('monocle::tabs.inertia')
             ->includes(['inertia_pages'])
-            ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at'])
+            ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at', 'duration'])
             ->detailsOnly(['value'])
             ->format(['shared' => ['flag', 'shared', 'page', 'muted', 'muted'], 'sent' => ['flag', 'sent', 'not sent', 'muted']])
             ->highlight(['large' => 'warn', 'shared_on_partial' => 'warn'])

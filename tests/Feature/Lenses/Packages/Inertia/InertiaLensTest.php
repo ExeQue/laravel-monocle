@@ -144,6 +144,37 @@ describe(InertiaLens::class, function (): void {
             ->and(implode("\n", $summary->warnings))->toContain('Inertia page Orders/Index is');
     });
 
+    it('times the closures props resolve with, on the row and as spans', function () use ($props): void {
+        Route::get('/timed', fn () => Inertia::render('Timed', [
+            'path' => fn (\Illuminate\Http\Request $request): string => $request->path(),
+            'slow' => Inertia::defer(function (): string {
+                usleep(5_000);
+
+                return 'done';
+            }),
+        ]));
+
+        $this->get('/timed')->assertOk();
+        $first = $props();
+
+        $this->get('/timed', [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => 'v1',
+            'X-Inertia-Partial-Component' => 'Timed',
+            'X-Inertia-Partial-Data' => 'slow',
+        ])->assertOk();
+        $reload = $props();
+        $span = collect(latestCapture()->spansOfKind('inertia.prop'))->firstWhere('name', 'slow');
+
+        expect($first['path']['value'])->toBe('timed')
+            ->and($first['path']['duration'])->toBeFloat()
+            ->and($first['slow']['duration'])->toBeNull()
+            ->and($first['slow']['defined_at'])->toContain('InertiaLensTest.php')
+            ->and($reload['slow']['duration'])->toBeGreaterThanOrEqual(4)
+            ->and($reload['slow']['value'])->toBe('done')
+            ->and($span?->duration())->toBeGreaterThanOrEqual(4);
+    });
+
     it('records nothing for responses that are not Inertia pages', function () use ($lens): void {
         Route::get('/plain', fn () => 'hello');
 

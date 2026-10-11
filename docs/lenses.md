@@ -291,7 +291,7 @@ Warning: `dd()` ended the process before the response was sent.
 
 ### Inertia
 
-Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor. Expanding a prop that was sent shows its value, with secrets masked like request input.
+Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor. Expanding a prop that was sent shows its value, with secrets masked like request input. The time each of those closures took to resolve is shown with the prop and as a span on the timeline, with the queries it ran under it; a deferred prop is timed on the request that loads it.
 
 Section `inertia_pages`: the page itself - component, URL, asset version, whether it was a first load or an Inertia visit, the props a partial reload asked for (only or except), the deferred groups, the size of the whole page and whether history is encrypted or cleared. The Inertia tab shows these facts above the props.
 
