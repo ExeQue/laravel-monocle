@@ -34,7 +34,7 @@ Recent captures, newest first.
 | `label` | captures with this label |
 | `has_errors` | only captures with errors: a 5xx status, a failed job or command, an exception, or an error a lens reported (a failed HTTP call, an error log entry, ...) |
 | `has` | only captures with rows in these sections, e.g. `["exceptions"]` |
-| `exclude` | leave out captures whose name contains any of these, e.g. `["/livewire"]` |
+| `exclude` | leave out captures whose name contains any of these, or whose route name is one of them, e.g. `["/livewire"]` or `["livewire.update"]` |
 | `offset`, `limit` | paging |
 
 ### `monocle-show`
@@ -59,14 +59,15 @@ The summary, also returned by `monocle:show`, has these keys:
 | `totals` | name => value |
 | `labels`, `units` | what each total counts and its unit |
 | `headlines` | the totals about the whole capture, such as duration and peak memory |
-| `groups` | total => the section that reported it |
+| `groups` | total => the section that reported it (headlines are left out) |
 | `counts` | rows per section |
 | `errors`, `warnings` | the messages |
 | `flags` | every error and warning as `{level, section, message}`, errors first |
 | `problems` | section => `{warnings, errors}` counts |
-| `meta`, `health` | metadata added to the capture, and memory, overhead and the sections recorded |
+| `tags` | short labels for the whole capture as `{label, tone}`, such as "impersonated by #1 (web guard)" |
+| `meta`, `health` | metadata added to the capture, and memory, overhead, lens failures and the sections recorded |
 
-Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`).
+Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`). `limit` sets the rows per section (default 25); `verbose: true` adds the full call chain behind each `origin`.
 
 ### `monocle-rows`
 
@@ -81,11 +82,11 @@ Rows of one section, with filtering, sorting, paging and a choice of fields:
 }
 ```
 
-Operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `in`, `null`, `not_null`. Use dots for nested fields, e.g. `origin.file`. Add `verbose: true` to see the full call chain behind each `origin`.
+Operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `in`, `null`, `not_null`. Use dots for nested fields, e.g. `origin.file`. Add `verbose: true` to see the full call chain behind each `origin`. For `section: "timeline"`, `kinds` limits the spans as in `monocle-show`.
 
 ### `monocle-queries`
 
-Database queries grouped by `shape` (the same query with different values), `caller` (the line of code), `table` or `transaction`, with count and total, average and max time.
+Database queries grouped by `shape` (the same query with different values), `caller` (the line of code), `table` or `transaction`, with count and total, average and max time. Sort groups with `sort` (`total_ms` by default, `count`, `max_ms` or `avg_ms`); page with `offset` and `limit`.
 
 ### `monocle-trace`
 

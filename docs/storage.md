@@ -37,7 +37,7 @@ interface Store
 }
 ```
 
-`ExeQue\Monocle\Storage\Index::summarize($capture)` builds the summary row.
+`index()` returns one row per capture, newest first, with `id`, `parent_id`, `trace_id`, `type`, `name`, `route`, `status`, `label`, `duration`, `started_at`, `ended_by`, `counts` (rows per section), `has_errors`, `warnings`, `errors`, `tags` and `job_id`.
 
 Register it in a service provider's `register()` method:
 

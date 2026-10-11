@@ -10,7 +10,7 @@ Security issues are the exception: never open a public issue for them. See [SECU
 
 ## Lenses for other packages
 
-A lens for a widely used package can go into Monocle itself, under `src/Lenses/Packages/{Package}`. Say which package and what the lens records in the issue, and we decide together whether it belongs in core.
+A lens for a widely used package can go into Monocle itself, as `src/Lenses/Packages/{Author}/{Package}Lens.php`, where `{Author}` is the root namespace of the package it records (`laravel/fortify` becomes `Laravel\FortifyLens`, `spatie/laravel-medialibrary` becomes `Spatie\MediaLibraryLens`). Every lens and response capture there implements `RequiresPackages`, naming the package it records first. A lens that adds to an existing section, rather than having its own, implements `ExtendsLens`. Say which package and what the lens records in the issue, and we decide together whether it belongs in core.
 
 For other packages, publish the lens as your own package and register it with `Monocle::register()`. To have it listed in the index of third-party lenses in the docs, open an issue with the **Add a third-party lens** template. A lens is listed when it meets the requirements in the template, and removed only when it is reported as broken with the **Report a broken third-party lens** template. Listing is not an endorsement: the maintainers do not review or take responsibility for third-party lenses.
 

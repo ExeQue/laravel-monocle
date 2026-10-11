@@ -386,8 +386,8 @@ return [
     | allows the local environment; define the gate yourself to change that.
     | Requests to the dashboard are never recorded.
     |
-    | `tabs` orders the section tabs after Request, Session and Queries: a
-    | lens class or a section key per entry. Sections not listed follow.
+    | `tabs` orders the section tabs after Overview and Timeline: a lens
+    | class or a section key per entry. Sections not listed follow.
     |
     */
 

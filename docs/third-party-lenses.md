@@ -12,7 +12,7 @@ These lenses are not part of Monocle. They are listed because they met the listi
 
 ## Get your lens listed
 
-Open an issue with the [Add a third-party lens](https://github.com/ExeQue/laravel-monocle/issues/new?template=third_party_lens.yml) template. [Writing a lens](writing-a-lens.md) explains how to build one.
+Open an issue with the [Add a third-party lens](https://github.com/ExeQue/laravel-monocle/issues/new?template=third_party_lens.yml) template. A listed lens implements `Advises`, so agents know what its section holds, and masks secrets with the eyepiece's `masker()`. Name the package it records with `RequiresPackages`, so it does nothing where that package is not installed, and use `ExtendsLens` to add to an existing section (such as `auth`) instead of creating a parallel one. [Writing a lens](writing-a-lens.md#lenses-for-other-packages) explains how to build one.
 
 ## Report a broken lens
 

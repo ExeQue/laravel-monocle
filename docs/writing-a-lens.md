@@ -79,13 +79,18 @@ What the `Eyepiece` offers a lens:
 |---|---|
 | `push(string $section, array $row, bool $origin = true)` | Adds a row to a section. Pass `origin: false` to leave the `origin` out; a row that already has a `time` or `origin` keeps its own. |
 | `set(string $section, array $data)` | Merges key/value data into a section. |
-| `span(?string $name = null, string $kind = 'user', ?string $key = null)` | A span for the timeline; call `start()` and `stop()` on it. The kind is the second argument here, while `Monocle::span($name, $key)` takes the key second. |
+| `span(?string $name = null, string $kind = 'user', ?string $key = null)` | A span for the timeline; call `start()` and `stop()` on it. The kind is the second argument here, while `Monocle::span($name, $key)` takes the key second. The span also has `meta()`, `color()`, `parent()`, `run(fn () => ...)` (start, run the callback, stop) and `duration()`; see [Spans and metadata](spans.md). |
 | `listen(string $event, Closure $handler)` | Listens to an event. |
 | `recording()` | Whether a capture is being recorded right now. |
 | `now()` | Milliseconds since the capture started. |
 | `relative(float $microtime)` | A `microtime(true)` value as milliseconds since the capture started. |
 | `currentSpan()` | The innermost running span, or `null`. |
 | `meta(array $meta)` | Adds metadata to the capture. |
+| `describe(?string $name = null, ?string $status = null, ?string $label = null)` | Sets the capture's name, status or label. |
+| `modify(string $section, Closure $modifier)` | Changes every row pushed into a section before it is kept, also rows other lenses push. Return the row. Data from `set()` is not passed through it. |
+| `active()` | The capture being recorded, or `null`. |
+| `discard()` | Drops the capture being recorded, so nothing is stored. |
+| `start(CaptureType $type)`, `finalize()` | Start and store a capture yourself; see [Testing](#testing). |
 | `origin()` | The line in your code that is running now, to keep and put on a row you push later. |
 | `masker(?string $lens = null)` | Masks values the way the [masking configuration](configuration.md#masking) says, including entries keyed by your lens class: `headers()`, `cookies()`, `inputs()` and `body($body, $contentType)`. |
 | `config(string $key, mixed $default = null)` | Reads a value from `config/monocle.php`. |
@@ -208,6 +213,8 @@ final class StripeLens implements Lens, RequiresPackages
 }
 ```
 
+Use the package's Composer name, as in its `composer.json`. A response capture (`ResponseCapture`, see [Extending the request lens](#extending-the-request-lens)) for another package implements `RequiresPackages` too.
+
 ## Adding to another lens
 
 A lens can add to another one instead of having a section of its own - the way the impersonation packages add to the auth section. Implement `ExtendsLens` and name the lens you add to. Your lens then runs only while that lens is enabled, its totals, warnings and errors count on that lens's tab, and its description is added to that lens's description for agents.
@@ -215,12 +222,29 @@ A lens can add to another one instead of having a section of its own - the way t
 Push rows into that lens's section, and use `modify()` to add to the rows it writes itself:
 
 ```php
+use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\AuthLens;
 
 final class TeamsLens implements ExtendsLens, Lens, RequiresPackages
 {
+    public function __construct(
+        private readonly Eyepiece $eyepiece,
+    ) {
+    }
+
+    public function key(): string
+    {
+        return 'auth_teams';
+    }
+
+    public function description(): string
+    {
+        return 'With acme/teams: team_switched rows, and the current team on the authenticated row.';
+    }
+
     public static function extends(): string
     {
         return AuthLens::class;
@@ -246,25 +270,20 @@ final class TeamsLens implements ExtendsLens, Lens, RequiresPackages
 }
 ```
 
+An extension still has a `key()`, but it only names the extension: its rows go into the section of the lens it extends. Its `description()` is added to that section's description, and it does not need `Advises`.
+
 ### Impersonation
 
-For a package that lets one user act as another, use the `RecordsImpersonation` trait in a lens that extends `AuthLens`. Name the events fired when an impersonation starts and ends (each with `$impersonator` and `$impersonated`) and how to tell, from the session, who is impersonating now:
+For a package that lets one user act as another, extend `ImpersonationLens`. It already adds to the auth lens; name the package, the events fired when an impersonation starts and ends (each with `$impersonator` and `$impersonated`) and how to tell, from the session, who is impersonating now:
 
 ```php
-use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
+use ExeQue\Monocle\Lenses\Auth\ImpersonationLens;
 
-final class SwitchUserLens implements ExtendsLens, Lens, RequiresPackages, Summarizable
+final class SwitchUserLens extends ImpersonationLens
 {
-    use RecordsImpersonation;
-
-    public function __construct(
-        private readonly Eyepiece $eyepiece,
-    ) {
-    }
-
-    public static function extends(): string
+    public function key(): string
     {
-        return AuthLens::class;
+        return 'auth_switch_user';
     }
 
     public static function packages(): array
@@ -272,15 +291,21 @@ final class SwitchUserLens implements ExtendsLens, Lens, RequiresPackages, Summa
         return ['acme/switch-user'];
     }
 
-    public function boot(): void
+    protected function startedEvent(): string
     {
-        $this->recordImpersonation(
-            SwitchedToUser::class,
-            SwitchedBack::class,
-            fn (): ?array => session()->has('switched_from')
-                ? ['id' => session('switched_from'), 'guard' => 'web']
-                : null,
-        );
+        return SwitchedToUser::class;
+    }
+
+    protected function endedEvent(): string
+    {
+        return SwitchedBack::class;
+    }
+
+    protected function impersonator(): ?array
+    {
+        return session()->has('switched_from')
+            ? ['id' => session('switched_from'), 'guard' => 'web']
+            : null;
     }
 }
 ```
@@ -323,7 +348,7 @@ final class ProblemCapture implements ResponseCapture
 
 Each card has a `title`, an optional `subtitle` and named `items`. Items can be text, numbers, lists and maps. A list of `field`/`from`/`to` entries shows as a table of changes, and a list of other objects as a table. Return `null` when the response is not one the capture understands; nothing is kept then.
 
-Captures are resolved from the container, so the constructor can take what it needs.
+Captures are resolved from the container, so the constructor can take what it needs. Card values are masked like request input. A capture for another package can implement `RequiresPackages`; when the package is not installed the capture is skipped and the next matching entry is used. The HTTP client lens uses the same captures for response content types, under its own `capture.response_types`.
 
 Register the capture in `config/monocle.php` for a route name, a response header or a content type (wildcards allowed in route names and content types):
 
@@ -559,6 +584,7 @@ Durations (`duration`, `*_ms`), sizes (`*_bytes`), file paths, exceptions, `{fie
 | `['highlight', ['miss', 'failed'], 'warn']` | the listed values in a colour |
 | `'fields'` | a key/value map as a short list |
 | `'rules'` | validation rules per field |
+| `['capture', 'job_id']` | a link to the capture this row started, such as a queued job: the newest capture it dispatched whose `job_id` equals the value, showing that capture's status. Shows *pending* until there is one |
 
 When rows are grouped, a group counts a row as failed when its `failed` field is `true`, a `flag` field shown in red is `false` or an `http-status` field is empty or 400 and up. A row inside a group leads with its first `http-status`, `status` or `level` field.
 
@@ -566,7 +592,7 @@ A column that is empty, `false` or `0` in every row, or `true` in every row, is 
 
 ### Other sections on your tab
 
-`includes(['stripe_webhooks'])` shows other sections on your tab; give one a presentation of its own to format its table, as in `includes(['stripe_webhooks' => Presentation::table()->label('Webhooks')->format([...])])`. Their rows are loaded with the tab into `tabData.included.stripe_webhooks`, and the default table (also `<x-monocle::section-table />` in a tab view) shows them as extra tables under yours. While your tab is shown they get no tab of their own, and their warnings and errors count on your tab.
+`includes(['stripe_webhooks'])` shows other sections on your tab; give one a presentation of its own to format its table, as in `includes(['stripe_webhooks' => Presentation::table()->label('Webhooks')->format([...])])`. Their rows are loaded with the tab into `tabData.included.stripe_webhooks`, and the default table (also `<x-monocle::section-table />` in a tab view) shows them as extra tables under yours. While your tab is shown they get no tab of their own, and their warnings and errors count on your tab (their rows do not add to its count).
 
 ### An expanded row
 
@@ -616,7 +642,7 @@ The dashboard's Alpine state a tab view can read:
 | `tab` | the key of the open tab |
 | `capture` | the open capture |
 | `summary` | its summary |
-| `tabData` | the open tab's data: `rows`, `data` for a section filled with `set()`, `included` and `next_offset` |
+| `tabData` | the open tab's data: `rows`, `total`, `next_offset`, `data` for a section filled with `set()`, and `included` |
 | `tabLoading` | `true` while the tab's data loads |
 | `cls` | the dashboard's class sets, such as `cls.sectionTitle`, `cls.tableWrap`, `cls.th`, `cls.td` and `cls.empty` |
 

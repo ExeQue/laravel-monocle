@@ -10,7 +10,7 @@ php artisan vendor:publish --tag=monocle-config
 
 ## `enabled`
 
-`null` (default) records outside production when `APP_DEBUG` is on. Set `MONOCLE_ENABLED=true` or `false` in `.env` to force it, or decide at runtime - see [Installation](installation.md#enabling-monocle).
+`null` (default) records outside production when `APP_DEBUG` is on. Set `MONOCLE_ENABLED=true` or `false` in `.env` to force it, or decide at runtime - see [Installation](installation.md#enabling-monocle). Monocle never records while the test suite runs unless `enabled` is explicitly `true`.
 
 ## Lenses
 
@@ -25,7 +25,7 @@ Each lens is listed with `true` (on), `false` (off) or an array of options:
 ],
 ```
 
-The options of each lens are described in [What gets recorded](lenses.md).
+The options of each lens are described in [What gets recorded](lenses.md). Lenses for other packages can stay listed; they do nothing until their package is installed. Extensions such as `FortifyLens` run only while the lens they add to is enabled.
 
 You can also change lenses from a service provider's `register()` method:
 
@@ -37,7 +37,7 @@ Monocle::enable(CacheLens::class);
 
 ## `throw_failures`
 
-When a lens fails while recording, the application carries on: the failure is logged and shown as a warning on the capture. Set `MONOCLE_THROW_FAILURES=true` to have it thrown instead, for instance while writing a lens and its tests.
+When a lens fails while recording, the application carries on: the failure is logged and shown as a warning on the capture ("Monocle failed to record part of this capture: ..."). Set `MONOCLE_THROW_FAILURES=true` to have it thrown instead, for instance while writing a lens and its tests.
 
 ## `except`
 
@@ -47,10 +47,11 @@ Requests and commands that are never recorded:
 'except' => [
     'paths' => ['telescope/*', 'pulse/*', 'horizon/*', 'up', 'livewire-*/livewire*.js', /* ... */],
     'commands' => ['monocle:*', 'queue:work', 'horizon*', 'pulse:work', 'reverb:start', /* ... */],
+    'livewire' => ['pulse.*'],
 ],
 ```
 
-Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization and long-running commands such as queue workers, Reverb, Octane and Pulse. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
+Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization, Laravel Boost's browser logs, the health-check route and commands of spatie/laravel-health, and long-running commands such as queue workers, Reverb, Octane, Pulse and the Nightwatch agent, as well as `tinker`, `test`, `package:discover`, Boost and Monocle's own commands and MCP server. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
 
 ## Masking
 
@@ -83,7 +84,7 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
 
 Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
 
-Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
+Request input, session data, command options, HTTP client payloads, validated input, Inertia prop values and response capture cards whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
 
 Everything above applies to every lens. To mask something for one lens only, key it by the lens class. A mask set for one lens wins over the shared one:
 

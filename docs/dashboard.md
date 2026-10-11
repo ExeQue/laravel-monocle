@@ -4,24 +4,26 @@
 
 Open `/_monocle` in your browser to see recent captures: what took the time, the timeline of every span, queries, cache calls and the other sections, and the jobs a request dispatched.
 
-The list shows how many warnings each capture has and marks the ones with errors in red. Filter it by type, path or name, or show only captures with errors. **hide route** on a capture keeps that route (or command) out of the list until you show it again; this is remembered in your browser.
+The list shows how many warnings each capture has and marks the ones with errors in red (5xx responses, failed jobs and commands, exceptions and errors a lens reported). Filter it by type, path or name, or show only captures with errors. **hide route** on a capture keeps that route (or command) out of the list until you show it again; this is remembered in your browser.
 
-Use the keyboard to move around: **↑** / **↓** (or **k** / **j**) open the previous or next capture on the same tab, **Home** opens the newest, and **←** / **→** (or **u** / **i**) open the previous or next tab.
+Use the keyboard to move around: **↑** / **↓** (or **k** / **j**) open the previous or next capture on the same tab, **Home** opens the newest, and **←** / **→** (or **u** / **i**) open the previous or next tab. Shortcuts are ignored while typing in a field.
 
 ## Warnings and errors
 
 Lenses report two kinds of problems:
 
-- **Errors** are things that failed: exceptions, failed HTTP calls, jobs and scheduled tasks, error log entries, failed AI, MCP and filesystem calls, and 5xx responses.
-- **Warnings** are things worth a look: slow, duplicate and N+1 queries, slow cache calls and keys read over and over, views rendered many times, slow middleware, and the like.
+- **Errors** are things that failed: exceptions, failed HTTP calls, jobs, scheduled tasks and processes, error log entries, failed AI, Prism, MCP and filesystem calls, Filament actions that failed, Livewire components that threw, and 5xx responses.
+- **Warnings** are things worth a look: slow, duplicate and N+1 queries, slow cache calls and keys read over and over, views rendered many times, slow middleware, and the like. Monocle adds a warning when it failed to record part of a capture, or when a span was never stopped.
 
 The overview lists them under **Warnings / Errors**, errors first, with the count of each next to the title. The first three are shown; **Show more** lists the rest.
 
-A tab's count turns red when its section reported errors and yellow when it reported only warnings. A red count with a yellow dot means both. A tab without a count shows a dot in the same colours.
+A tab's count turns red when its section reported errors and yellow when it reported only warnings. A red count with a yellow dot means both. A tab without a count shows a dot in the same colours. Hover the count or dot to see how many warnings and errors.
 
 ## The overview
 
-The overview shows where the time went (each phase of the request), what it was spent on (queries, cache, HTTP calls and so on), the warnings and errors, and the totals. The duration, peak memory, response size and middleware time are at the top; the other totals are grouped by the section that reported them. Click a group's name to open its tab. **Totals** folds the groups away.
+The overview shows where the time went (each phase of the request), what it was spent on (queries, cache, HTTP calls and so on), the warnings and errors, and the totals. The duration, peak memory, response size, middleware time and middleware count are at the top; the other totals are grouped by the section that reported them. Click a group's name to open its tab. **Totals** folds the grouped totals away; the ones at the top stay.
+
+For a GET request, the capture's title opens the URL in a new window, so you can run the request again.
 
 **Copy agent prompt** in the header copies a prompt for your coding agent: the capture, its totals, what Monocle flagged and how to dig in through the MCP server. Paste it into the agent to have it look into that request.
 
@@ -36,6 +38,10 @@ Queries that look like an N+1 are marked with how often they ran, duplicates poi
 The tabs follow `dashboard.tabs` in the configuration; see below.
 
 Click a line on the timeline or a row in a table to see its details: the query with its values, every field in full with a button to copy it, the line of your code that caused it and the call chain leading there. With an editor set up (see [Installation](installation.md#opening-files-in-your-editor)), file paths and class names open in your editor.
+
+## Jobs and traces
+
+A capture that dispatched queued jobs, or was dispatched by one, has a **Trace** tab (always last): the request or command with every job it dispatched, nested, each with its status, duration and when it started. The header links to the parent capture, and **Dispatched N job(s)** opens the Trace tab. In the Jobs tab, the `run` column links each queued job to its own capture, or shows *pending* until a worker has run it.
 
 ## Access
 

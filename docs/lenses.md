@@ -8,7 +8,7 @@ Every row records when it happened and the `origin` - the file and line in your 
 
 Turn lenses on, off or change their options in [`config/monocle.php`](configuration.md#lenses).
 
-Lenses report two kinds of problems in the summary: **errors** for things that failed and **warnings** for things worth a look. Each lens below says which it reports; a response with a 5xx status is an error too. Warnings point at your code. Slow or repeated work that comes from a package on its own - a slow query a library runs, a package's middleware - is not flagged; possible N+1 queries are flagged wherever they come from.
+Lenses report two kinds of problems in the summary: **errors** for things that failed and **warnings** for things worth a look. Each lens below says which it reports; a response with a 5xx status is an error too. Warnings point at your code. Slow or repeated work that comes from a package on its own - a slow query a library runs, a package's middleware - is not flagged. Possible N+1 queries, slow cache calls and slow processes are flagged wherever they come from.
 
 ## At a glance
 
@@ -49,17 +49,17 @@ These record something only when the package is installed; otherwise they do not
 | [franbarbalopez/mirror](https://github.com/franbarbalopez/mirror) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Inertia](https://inertiajs.com) | [Inertia](#inertia) | `inertia`, `inertia_pages` | the page, every prop with its type and size, deferred props and partial reloads |
 | [lab404/laravel-impersonate](https://github.com/404labfr/laravel-impersonate) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
+| [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
 | [Prism](https://prismphp.com) | [Prism](#prism) | `prism` | text, structured, stream, embeddings, image and audio calls with tokens |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
-| [Laravel Folio](https://laravel.com/docs/folio) | [Folio](#folio) | `request` | the page file a request matched |
+| [Laravel Folio](https://laravel.com/docs/folio) | part of [Request](#request), see [Folio](#folio) | `request` | the page file a request matched |
 | [Laravel Fortify](https://laravel.com/docs/fortify) | [Fortify](#fortify) | `auth` | two-factor challenges, failed and passed codes |
 | [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
-| [Laravel Octane](https://laravel.com/docs/octane) | [Octane](#octane) | - | a capture per request in a worker |
+| [Laravel Octane](https://laravel.com/docs/octane) | part of [Request](#request), see [Octane](#octane) | - | a capture per request in a worker |
 | [Laravel Nova](https://nova.laravel.com) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](#feature-flags) | `features` | every feature check and its value |
 | [Laravel Sanctum](https://laravel.com/docs/sanctum) | [Sanctum](#sanctum) | `auth` | the token a request used |
-| [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
 | **Spatie** | | | |
 | [laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](#media-library) | `media` | media added and conversions run |
 | [laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](#response-cache) | `response_cache` | cache hits and misses for whole responses |
@@ -162,29 +162,36 @@ Warnings: middleware that took at least `slow_ms` of its own time, and middlewar
 
 Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
+The Middleware tab shows each middleware's time before (`Before`) and after (`After`) the controller and its own time, and can be grouped by group. The overview shows the middleware count and the total middleware time at the top.
+
 ### Database
 
 Section `queries`: every query with its SQL, bindings, a ready-to-run version with the values filled in, connection, duration, type (select, insert, ...), tables and the transaction it ran in.
 
-Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. A select that looks like an N+1 carries `n_plus_one`: how often its shape ran. The exact same query with the same values counts as a duplicate (`duplicate_of` points at the first one), not as an N+1. Transactions appear in the timeline with their outcome (committed or rolled back).
+Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. A select that looks like an N+1 carries `n_plus_one`: how often its shape ran. The exact same query with the same values counts as a duplicate (`duplicate_of` points at the first one, which carries `repeated`: how many later queries repeated it), not as an N+1. Transactions appear in the timeline with their outcome (committed, rolled back, or left open when the capture ended first).
 
 Warnings: slow queries, duplicate queries and possible N+1 queries.
 
-Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true), `ignore_tables` (`telescope_*`, `pulse_*`): queries that only touch these tables are left out.
+Options:
+
+- `slow_ms` (default 70) - a query taking at least this long is slow.
+- `n_plus_one_threshold` (default 3) - how often a select's shape must run to count as a possible N+1.
+- `bindings` (default true) - false leaves the bindings out of the rows.
+- `ignore_tables` (default `telescope_*`, `pulse_*`) - queries that only touch these tables are left out.
 
 ### Eloquent
 
-Sections `models` and `model_changes`: how many models of each class were retrieved, created, updated and deleted, and every write with each changed attribute as `field`, `from` and `to`. Hidden attributes are left out.
+Sections `models` and `model_changes`: how many models of each class were retrieved, created, updated, deleted, restored and force deleted, and every write with each changed attribute as `field`, `from` and `to`. Hidden attributes are left out. A write made in a transaction that was rolled back is marked `rolled_back`.
 
 ### Cache
 
-Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys.
+Section `cache`: hits, misses, writes, forgets, flushes and failed operations with key, store, tags, TTL, value size and, when the store reports when a call started, duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys.
 
 Warnings: slow cache calls, and keys read over and over - remember such a value for the request with `Cache::memo()` or `once()`.
 
 Options:
 
-- `slow_ms` (default 20) - a cache call taking at least this long gives a warning.
+- `slow_ms` (default 20) - a cache call taking at least this long gives a warning, wherever it comes from.
 - `repeat_threshold` (default 5) and `repeat_ms` (default 0) - a key read at least this often, taking at least this long in all, gives a warning.
 - `values` (default false) - also record the cached values.
 
@@ -202,13 +209,15 @@ Options: `engines` (`['blade', 'php', 'file']`) - the view engines to time; `dat
 
 ### Events
 
-Section `events`: your application's events with their payload and listeners. Framework events are left out.
+Section `events`: your application's events with their payload, listeners and whether they broadcast. Framework events are left out.
 
 Option: `ignore` - event names or patterns to leave out. The default is `Illuminate\*`, `Laravel\*`, `Livewire\*`, `eloquent.*`, `composing:*`, `creating:*`, `bootstrapping:*`, `bootstrapped:*` and `locale.*`. Setting the option replaces this list, so include the defaults you want to keep.
 
 ### Queue
 
-Section `jobs`: jobs dispatched during the capture.
+Section `jobs`: jobs dispatched during the capture - class, connection, queue, delay, job id, batch, chain length and whether it ran inline. For a queued job, `run` links to the job's own capture once a worker has run it (*pending* until then). The summary counts the jobs dispatched and those that ran inline.
+
+On the job's own capture, section `job` holds its class, connection, queue, attempt and maximum tries, batch, remaining chain, payload size and, when it failed, the exception.
 
 Every queued job is recorded as its own capture when a worker runs it, linked to the request, command or job that dispatched it. Use `monocle-trace` to follow the chain. Jobs that run immediately (the `sync` connection or `dispatchSync()`) appear in the timeline of the capture that ran them.
 
@@ -228,7 +237,7 @@ Error: a task that failed.
 
 Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. Real calls also record where the time went: DNS lookup, connecting, the TLS handshake, waiting for the first byte, downloading and redirects, with the address connected to and the protocol. A JSON or form body sent is kept as fields, masked like request input. Responses are read with the same captures the request lens uses, chosen by content type, and kept with their raw body. Secrets in headers and query strings are masked.
 
-Error: a call that failed.
+Error: a call that got a 4xx or 5xx response or no response at all.
 
 Options:
 
@@ -284,11 +293,13 @@ Warning: a check that was denied.
 
 ### Dumps
 
-Section `dumps`: every `dump()` and `dd()` with the value and where it was called. You still see the output as usual.
+Section `dumps`: every `dump()` and `dd()` with the value and where it was called. You still see the output as usual. A capture ended by `dd()` is still stored, marked as ended at shutdown.
 
 Warning: `dd()` ended the process before the response was sent.
 
 ## Packages
+
+Each package lens is listed by class in `config/monocle.php` under `ExeQue\Monocle\Lenses\Packages\{Author}\`, and does nothing until its package is installed. Lenses that add to another lens's section, such as Fortify or the impersonation lenses, are turned off by their own class.
 
 ### Filament
 
@@ -303,7 +314,7 @@ Section `filament_context`: the panel (its id, path and auth guard), the tenant,
 
 With Livewire recorded too, the rows of Filament components in the `livewire` section say what they are to Filament - `resource page`, `page`, `relation manager`, `widget`, `table` or `component` - with the panel, the resource and the record (`owner_record` on a relation manager).
 
-Needs `filament/filament`.
+Needs `filament/filament`. Lenses: `Filament\FilamentLens` (sections `filament` and `filament_context`) and `Filament\FilamentLivewireLens` (adds to `livewire`).
 
 Errors: an action that threw an exception, and an action that ended with `failure()`. Warning: a table without pagination that loaded more than `large_table_records` records.
 
@@ -311,15 +322,15 @@ Option: `large_table_records` (500).
 
 ### Inertia
 
-Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor. Expanding a prop that was sent shows its value, with secrets masked like request input. The time each of those closures took to resolve is shown with the prop and as a span on the timeline, with the queries it ran under it; a deferred prop is timed on the request that loads it.
+Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, lazy, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure in your code - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor. Expanding a prop that was sent shows its value, with secrets masked like request input. The time each of those closures took to resolve is shown with the prop and as a span on the timeline, with the queries it ran under it; a deferred prop is timed on the request that loads it.
 
-Section `inertia_pages`: the page itself - component, URL, asset version, whether it was a first load or an Inertia visit, the props a partial reload asked for (only or except), the deferred groups, the size of the whole page and whether history is encrypted or cleared. The Inertia tab shows these facts above the props.
+Section `inertia_pages`: the page itself - component, URL, asset version, whether it was a first load or an Inertia visit, the props a partial reload asked for (only or except), the deferred groups, the size of the whole page and whether history is encrypted or cleared. The Inertia tab shows these facts above the props, and groups the props by type or by scope (shared or page).
 
 Needs `inertiajs/inertia-laravel`.
 
 Warnings: a prop bigger than `large_prop_bytes`, a page bigger than `large_page_bytes`, and a shared prop sent on a partial reload that did not ask for it (such as a reload with only an except list). Wrap such a prop in `Inertia::always()` if it is meant to be sent every time.
 
-Options: `large_prop_bytes` (50000) and `large_page_bytes` (200000); `max_value_bytes` (20000) - values of props larger than this are not kept.
+Options: `large_prop_bytes` (50000) and `large_page_bytes` (200000); `max_value_bytes` (20000) - a prop value larger than this is shown as its size instead of its value.
 
 Inertia responses are also shown as a card on the Request tab: the component, its props and, on a partial reload, which props were asked for. This works for Inertia visits and for the page embedded in the first load.
 
@@ -341,41 +352,55 @@ Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, res
 
 Error: an agent or tool call that failed.
 
+Needs `laravel/ai`.
+
 Option: `max_text` (no limit) - shorten long prompts and responses.
 
 #### Folio
 
-The page file a request matched is shown as the request's action, with the page name, mount path and parameters under `folio`. See [Request](#request).
+The page file a request matched is shown as the request's action, with the page name, mount path and parameters under `folio`. Built into the [request lens](#request) - nothing to enable.
 
 #### Fortify
 
 Section `auth` also records Fortify's two-factor login: when a user is asked for a code, wrong codes and the code that let them in, plus two-factor being turned on, confirmed or off, recovery codes being generated or used, and password changes. The summary counts failed codes. Recovery codes themselves are never recorded.
 
+Needs `laravel/fortify`. Lens: `Laravel\FortifyLens`.
+
 #### Impersonation
 
-With lab404/laravel-impersonate, stechstudio/filament-impersonate, Laravel Nova or franbarbalopez/mirror, section `auth` also records an impersonation starting and ending, with the impersonated user and who impersonated them. While an impersonation lasts, the authenticated user is marked with the id and guard of the user impersonating them, the summary shows it, and the Request tab shows it next to the user. No user is loaded from the database to find out.
+With lab404/laravel-impersonate, stechstudio/filament-impersonate, Laravel Nova or franbarbalopez/mirror, section `auth` also records an impersonation starting and ending, with the impersonated user and who impersonated them. While an impersonation lasts, the authenticated user is marked with the id and guard of the user impersonating them, the summary shows it, and the Request tab shows it next to the user. No user is loaded from the database to find out. The capture is tagged "impersonated by ..." in the dashboard's header and list.
+
+Lenses: `Lab404\ImpersonateLens`, `STS\FilamentImpersonateLens`, `Laravel\NovaLens` and `Mirror\MirrorLens`.
 
 #### MCP servers
 
-Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Calls to Monocle's own server are not recorded.
+Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Servers listed in `mcp.except_servers` (Monocle's own and Laravel Boost's by default) are not recorded - see [Configuration](configuration.md#mcp). Over HTTP a call is part of the request capture; over stdio each call is its own capture of type `mcp`.
+
+Needs `laravel/mcp`.
 
 Error: a call that failed.
 
 #### Octane
 
-Each request in an Octane worker is its own capture, starting before global middleware runs, so the middleware phase is complete.
+Each request in an Octane worker is its own capture, starting before global middleware runs, so the middleware phase is complete. Built into the [request lens](#request) - nothing to enable.
 
 #### Feature flags
 
 Section `features`: every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined gives a warning, since it quietly resolves to false.
 
+Needs `laravel/pennant`.
+
 #### Sanctum
 
 Section `auth` also records the Sanctum token a request authenticated with: its id, name, abilities and owner. See [Auth](#auth).
 
+Needs `laravel/sanctum`. Lens: `Laravel\SanctumLens`.
+
 ### Livewire
 
 Section `livewire`: every component in the request - whether it was mounted or updated, the methods called, properties changed, render time and any exception. A component that threw an exception is reported as an error.
+
+Needs `livewire/livewire`.
 
 The response of a Livewire update is shown as one card per component on the Request tab: the methods it called with their parameters, the properties that changed, the events it dispatched and what it returned.
 
@@ -385,6 +410,10 @@ The response of a Livewire update is shown as one card per component on the Requ
 
 Section `media`: media added to models - the model, collection, disk, file and size - and every conversion that ran, with its duration. Conversions also show on the timeline. Conversions that run during a request rather than on the queue give a warning.
 
+Needs `spatie/laravel-medialibrary`.
+
 #### Response cache
 
 Section `response_cache`: whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit gives a warning: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.
+
+Needs `spatie/laravel-responsecache`.
