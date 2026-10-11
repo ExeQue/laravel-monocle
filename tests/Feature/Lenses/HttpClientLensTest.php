@@ -25,6 +25,18 @@ describe(HttpClientLens::class, function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
     });
 
+    it('records every request sent in a pool', function (): void {
+        Http::pool(fn ($pool) => [
+            $pool->as('orders')->get('https://api.example.com/orders'),
+            $pool->as('health')->get('https://down.example.com/health'),
+        ]);
+
+        $rows = app(Eyepiece::class)->finalize()->rows('http');
+
+        expect(array_column($rows, 'status'))->toEqualCanonicalizing([201, 503])
+            ->and(array_column($rows, 'duration'))->each->not->toBeNull();
+    });
+
     it('records calls with masked query and headers, sizes and status', function (): void {
         Http::withToken('verysecrettoken')->post('https://api.example.com/orders?api_token=abcdefghij&page=2', ['name' => 'ada']);
         Http::get('https://down.example.com/health');
