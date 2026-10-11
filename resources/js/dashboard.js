@@ -91,7 +91,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     this.$watch('filters', () => this.load(), { deep: true });
     addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable], [role="tab"]')) return;
-      const tabStep = { ArrowRight: 1, l: 1, ArrowLeft: -1, h: -1 }[e.key];
+      const tabStep = { ArrowRight: 1, i: 1, ArrowLeft: -1, u: -1 }[e.key];
       if (tabStep && this.capture) {
         e.preventDefault();
         return this.stepTab(tabStep, false);

@@ -6,7 +6,7 @@ Open `/_monocle` in your browser to see recent captures: what took the time, the
 
 The list shows how many warnings each capture has and marks the ones with errors in red. Filter it by type, path or name, or show only captures with errors. **hide route** on a capture keeps that route (or command) out of the list until you show it again; this is remembered in your browser.
 
-Use the keyboard to move around: **↑** / **↓** (or **k** / **j**) open the previous or next capture on the same tab, and **←** / **→** (or **h** / **l**) open the previous or next tab.
+Use the keyboard to move around: **↑** / **↓** (or **k** / **j**) open the previous or next capture on the same tab, and **←** / **→** (or **u** / **i**) open the previous or next tab.
 
 ## Warnings and errors
 
