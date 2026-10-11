@@ -615,7 +615,8 @@ describe(RequestLens::class, function (): void {
             $span($capture, 'blocked', 'middleware.request', $now, $now + 1, ['passed' => false, 'group' => 'global']);
             $span($capture, 'outer', 'middleware.response', $now + 30, $now + 31);
             $span($capture, 'inner', 'middleware.response', $now + 20, $now + 21);
-            $span($capture, 'before', 'user', $now - 5, $now - 4, parentId: $handlePhase->id);
+            // Before the route matched, however long the request took to get here.
+            $span($capture, 'before', 'user', $handlePhase->start - 2, $handlePhase->start - 1, parentId: $handlePhase->id);
             $span($capture, 'inside', 'user', $now + 5, $now + 6, parentId: $handlePhase->id);
         });
 
