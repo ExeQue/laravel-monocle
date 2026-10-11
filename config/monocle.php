@@ -358,6 +358,7 @@ return [
             RequestLens::class,
             SessionLens::class,
             DatabaseLens::class,
+            MiddlewareLens::class,
             ExceptionsLens::class,
             ValidationLens::class,
             ResponseCacheLens::class,
