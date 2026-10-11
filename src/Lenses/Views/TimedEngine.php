@@ -27,9 +27,6 @@ final class TimedEngine implements Engine
     ) {
     }
 
-    /** @var list<float> Time spent in nested views, per view being rendered. */
-    private static array $children = [];
-
     public function get($path, array $data = []): string
     {
         if (! $this->eyepiece->recording()) {
@@ -43,8 +40,6 @@ final class TimedEngine implements Engine
             fn (int|string $key): bool => ! str_starts_with((string) $key, '_'),
         ));
 
-        self::$children[] = 0.0;
-
         $span = $this->eyepiece->span($name, 'view')->start([
             'path' => $relative,
             'engine' => $this->engine,
@@ -56,19 +51,11 @@ final class TimedEngine implements Engine
         } finally {
             $span->stop();
 
-            $duration = (float) $span->duration();
-            $self = max(0.0, $duration - (float) array_pop(self::$children));
-
-            if (self::$children !== []) {
-                self::$children[array_key_last(self::$children)] += $duration;
-            }
-
             $row = [
                 'view' => $name,
                 'path' => $relative,
                 'engine' => $this->engine,
                 'duration' => $span->duration(),
-                'self_ms' => round($self, 3),
                 'data_keys' => $keys,
                 'origin' => $span->origin,
             ];
