@@ -17,6 +17,9 @@ export const ago = (startedAt) => {
 
 const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json', 'mb', 'kb', 'ms', 'ai', 'mcp', 'http']);
 
+/** A capture type in three letters, so the list's type column has one width. */
+export const shortType = (type) => ({ request: 'req', command: 'cmd', job: 'job', mcp: 'mcp' })[type] ?? String(type ?? '').slice(0, 3);
+
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
 /** Server paths as the developer's machine sees them, from the path mappings in .monocle.json. */

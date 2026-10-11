@@ -113,7 +113,7 @@
                         @click="select(c.id)"
                         :aria-current="c.id === selectedId"
                     >
-                        <span :class="cls.type" x-text="c.type"></span>
+                        <span :class="cls.type" class="w-[3.4em] text-center" :data-tip="c.type" :aria-label="c.type" x-text="shortType(c.type)"></span>
                         <span
                             class="overflow-hidden font-medium text-ellipsis whitespace-nowrap"
                             x-text="c.name"
