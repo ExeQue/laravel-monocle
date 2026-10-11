@@ -4,28 +4,15 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Lab404;
 
-use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
-use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
-use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
-use ExeQue\Monocle\Lenses\AuthLens;
+use ExeQue\Monocle\Lenses\Auth\ImpersonationLens;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 
 /**
  * Impersonation with lab404/laravel-impersonate, on the auth section.
  */
-final class ImpersonateLens implements ExtendsLens, Lens, RequiresPackages, Summarizable
+final class ImpersonateLens extends ImpersonationLens
 {
-    use RecordsImpersonation;
-
-    public function __construct(
-        private readonly Eyepiece $eyepiece
-    ) {
-    }
-
     public function key(): string
     {
         return 'auth_impersonate';
@@ -36,24 +23,22 @@ final class ImpersonateLens implements ExtendsLens, Lens, RequiresPackages, Summ
         return ['lab404/laravel-impersonate'];
     }
 
-    public static function extends(): string
+    protected function startedEvent(): string
     {
-        return AuthLens::class;
+        return TakeImpersonation::class;
     }
 
-    public function description(): string
+    protected function endedEvent(): string
     {
-        return 'With lab404/laravel-impersonate: impersonation_started and impersonation_ended rows, and impersonated_by (the impersonator id and guard) on the authenticated row while an impersonation lasts.';
+        return LeaveImpersonation::class;
     }
 
-    public function boot(): void
+    protected function impersonator(): ?array
     {
-        $this->recordImpersonation(
-            TakeImpersonation::class,
-            LeaveImpersonation::class,
-            fn (): ?array => session()->has($key = (string) config('laravel-impersonate.session_key', 'impersonated_by'))
-                ? ['id' => session($key), 'guard' => session((string) config('laravel-impersonate.session_guard', 'impersonator_guard'))]
-                : null,
-        );
+        $key = (string) config('laravel-impersonate.session_key', 'impersonated_by');
+
+        return session()->has($key)
+            ? ['id' => session($key), 'guard' => session((string) config('laravel-impersonate.session_guard', 'impersonator_guard'))]
+            : null;
     }
 }

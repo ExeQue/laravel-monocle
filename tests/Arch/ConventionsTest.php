@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Exceptions\MonocleExceptionInterface;
+use ExeQue\Monocle\Lenses\Auth\ImpersonationLens;
 use ExeQue\Monocle\Lenses\ValidationLens;
 use ExeQue\Monocle\Support\Concerns\Immutable;
 use ReflectionClass;
@@ -27,7 +28,7 @@ arch('classes are final')
     ->expect('ExeQue\Monocle')
     ->classes()
     ->toBeFinal()
-    ->ignoring(['ExeQue\Monocle\Exceptions', 'ExeQue\Monocle\Facades']);
+    ->ignoring(['ExeQue\Monocle\Exceptions', 'ExeQue\Monocle\Facades', ImpersonationLens::class]);
 
 arch('contracts are interfaces')
     ->expect('ExeQue\Monocle\Contracts')
@@ -146,7 +147,7 @@ test('internal classes are marked @internal and public ones are not', function (
         'ExeQue\Monocle\Exceptions\\',
         'ExeQue\Monocle\Support\Masks\\',
         'ExeQue\Monocle\Support\Masker',
-        'ExeQue\Monocle\Lenses\Auth\RecordsImpersonation',
+        'ExeQue\Monocle\Lenses\Auth\ImpersonationLens',
         'ExeQue\Monocle\MonocleManager',
         'ExeQue\Monocle\Eyepiece',
         'ExeQue\Monocle\Dashboard\Presentation',

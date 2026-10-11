@@ -6,7 +6,7 @@ namespace Tests\Feature\Lenses\Packages\Lab404;
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
+use ExeQue\Monocle\Lenses\Auth\ImpersonationLens;
 use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
 use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Storage\Index;
@@ -15,7 +15,7 @@ use Illuminate\Auth\GenericUser;
 use Lab404\Impersonate\Events\LeaveImpersonation;
 use Lab404\Impersonate\Events\TakeImpersonation;
 
-covers(ImpersonateLens::class, RecordsImpersonation::class);
+covers(ImpersonateLens::class, ImpersonationLens::class);
 
 describe(ImpersonateLens::class, function (): void {
     beforeEach(function (): void {

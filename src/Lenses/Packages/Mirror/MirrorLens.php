@@ -4,28 +4,15 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Mirror;
 
-use ExeQue\Monocle\Contracts\Lens;
-use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
-use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
-use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
-use ExeQue\Monocle\Lenses\AuthLens;
+use ExeQue\Monocle\Lenses\Auth\ImpersonationLens;
 use Mirror\Events\ImpersonationStarted;
 use Mirror\Events\ImpersonationStopped;
 
 /**
  * Impersonation with franbarbalopez/mirror, on the auth section.
  */
-final class MirrorLens implements ExtendsLens, Lens, RequiresPackages, Summarizable
+final class MirrorLens extends ImpersonationLens
 {
-    use RecordsImpersonation;
-
-    public function __construct(
-        private readonly Eyepiece $eyepiece
-    ) {
-    }
-
     public function key(): string
     {
         return 'auth_mirror';
@@ -36,28 +23,22 @@ final class MirrorLens implements ExtendsLens, Lens, RequiresPackages, Summariza
         return ['franbarbalopez/mirror'];
     }
 
-    public static function extends(): string
+    protected function startedEvent(): string
     {
-        return AuthLens::class;
+        return ImpersonationStarted::class;
     }
 
-    public function description(): string
+    protected function endedEvent(): string
     {
-        return 'With franbarbalopez/mirror: impersonation_started and impersonation_ended rows, and impersonated_by (the impersonator id and guard) on the authenticated row while an impersonation lasts.';
+        return ImpersonationStopped::class;
     }
 
-    public function boot(): void
+    protected function impersonator(): ?array
     {
-        $this->recordImpersonation(
-            ImpersonationStarted::class,
-            ImpersonationStopped::class,
-            function (): ?array {
-                $payload = session(config('mirror.session.key', 'mirror.impersonation').'.payload');
+        $payload = session(config('mirror.session.key', 'mirror.impersonation').'.payload');
 
-                return is_array($payload) && isset($payload['impersonator_id'])
-                    ? ['id' => $payload['impersonator_id'], 'guard' => $payload['impersonator_guard'] ?? null]
-                    : null;
-            },
-        );
+        return is_array($payload) && isset($payload['impersonator_id'])
+            ? ['id' => $payload['impersonator_id'], 'guard' => $payload['impersonator_guard'] ?? null]
+            : null;
     }
 }
