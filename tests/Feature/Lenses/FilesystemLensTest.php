@@ -33,7 +33,7 @@ describe(FilesystemLens::class, function (): void {
         Storage::disk('wild-one')->put('b.txt', 'y');
         Storage::disk('plain')->put('c.txt', 'z');
 
-        $disks = collect(app(Eyepiece::class)->finalize()->rows('fs'))->pluck('disk')->unique()->values()->all();
+        $disks = collect(app(Eyepiece::class)->finalize()->rows('filesystem'))->pluck('disk')->unique()->values()->all();
 
         expect(app('filesystem'))->toBeInstanceOf(MonocleFilesystemManager::class)
             ->and($disks)->toBe(['spy', 'wild-one'])
@@ -71,7 +71,7 @@ describe(FilesystemLens::class, function (): void {
         $disk->get('missing.txt');
 
         $capture = app(Eyepiece::class)->finalize();
-        $rows = $capture->rows('fs');
+        $rows = $capture->rows('filesystem');
         $ops = array_column($rows, 'op');
 
         expect($ops)->toContain('write', 'read', 'fileExists', 'copy', 'move', 'fileSize', 'listContents', 'setVisibility', 'delete')
@@ -86,8 +86,8 @@ describe(FilesystemLens::class, function (): void {
 
         $summary = (new FilesystemLens())->summarize($capture);
 
-        expect($summary['totals'])->toMatchArray(['fs_bytes_read' => 11, 'fs_bytes_written' => 11, 'fs_by_disk' => ['spy' => count($rows)]])
-            ->and($summary['totals']['fs_ops'])->toBe(count($rows))
+        expect($summary['totals'])->toMatchArray(['filesystem_bytes_read' => 11, 'filesystem_bytes_written' => 11, 'filesystem_by_disk' => ['spy' => count($rows)]])
+            ->and($summary['totals']['filesystem_ops'])->toBe(count($rows))
             ->and($summary['warnings'][0])->toContain('Filesystem read failed on spy:missing.txt');
     });
 
@@ -101,7 +101,7 @@ describe(FilesystemLens::class, function (): void {
         $read = $disk->readStream('s.txt');
         $checksum = $disk->checksum('s.txt');
 
-        $rows = app(Eyepiece::class)->finalize()->rows('fs');
+        $rows = app(Eyepiece::class)->finalize()->rows('filesystem');
 
         expect(is_resource($read))->toBeTrue()
             ->and($checksum)->toBe(md5('streamed'))

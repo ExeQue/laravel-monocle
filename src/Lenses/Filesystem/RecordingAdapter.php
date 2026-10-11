@@ -15,7 +15,7 @@ use Throwable;
 
 /**
  * Decorates a Flysystem adapter so every operation on the disk becomes a row
- * in the fs section: operation, path, bytes, duration and outcome.
+ * in the filesystem section: operation, path, bytes, duration and outcome.
  */
 final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 {
@@ -185,7 +185,7 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
             throw $exception;
         } finally {
             $row['duration'] = round($this->eyepiece->now() - $started, 3);
-            $this->eyepiece->push('fs', $row);
+            $this->eyepiece->push('filesystem', $row);
         }
     }
 

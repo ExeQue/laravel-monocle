@@ -181,7 +181,7 @@ Section `mcp`: calls to MCP servers your application provides - which tool, reso
 
 ## Filesystem
 
-Section `fs`: operations on `Storage` disks - reads, writes, deletes, copies, moves, listings and so on - with path, size, duration and failures.
+Section `filesystem`: operations on `Storage` disks - reads, writes, deletes, copies, moves, listings and so on - with path, size, duration and failures.
 
 Nothing is recorded until you choose the disks:
 

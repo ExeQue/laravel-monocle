@@ -10,7 +10,7 @@ const PHASE_COLORS = {
   bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)', command: 'var(--c-ctrl)', job: 'var(--c-ctrl)',
   'middleware (response)': 'color-mix(in srgb, var(--c-mw) 75%, var(--panel))', response: 'var(--c-phase)', terminate: 'var(--c-phase)', other: 'var(--line)',
 };
-const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', fs: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
+const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', filesystem: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
 
 /** Totals grouped by subject: [heading, which keys belong]. Keys no group claims land under "Other". */
 const TOTAL_GROUPS = [
@@ -24,7 +24,7 @@ const TOTAL_GROUPS = [
   ['Jobs', (k) => k.startsWith('jobs_')],
   ['AI', (k) => k.startsWith('ai_') || k.startsWith('tokens')],
   ['HTTP', (k) => k.startsWith('http_')],
-  ['Files', (k) => k.startsWith('fs_') || k.startsWith('media_')],
+  ['Files', (k) => k.startsWith('filesystem_') || k.startsWith('media_')],
   ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification')],
   ['Auth', (k) => k.startsWith('auth_')],
   ['Features', (k) => k.startsWith('features_')],
@@ -32,7 +32,7 @@ const TOTAL_GROUPS = [
 ];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'fs', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {

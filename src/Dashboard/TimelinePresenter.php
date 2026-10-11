@@ -17,7 +17,7 @@ use ExeQue\Monocle\Enums\SpanColor;
 final readonly class TimelinePresenter
 {
     /** Section => node kind. */
-    private const array TIMED_SECTIONS = ['queries' => 'db', 'cache' => 'cache', 'redis' => 'redis', 'http' => 'http', 'fs' => 'fs'];
+    private const array TIMED_SECTIONS = ['queries' => 'db', 'cache' => 'cache', 'redis' => 'redis', 'http' => 'http', 'filesystem' => 'filesystem'];
 
     /** Row keys shown elsewhere in the node. */
     private const array HIDDEN_KEYS = ['time', 'duration', 'origin', 'sql', 'sql_with_bindings', 'shape', 'shape_hash', 'n'];
@@ -110,7 +110,7 @@ final readonly class TimelinePresenter
             'cache' => strtoupper((string) ($row['type'] ?? '')).' '.($row['key'] ?? ''),
             'redis' => strtoupper((string) ($row['command'] ?? '')).' '.implode(' ', array_map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '...', (array) ($row['parameters'] ?? []))),
             'http' => ($row['method'] ?? '').' '.($row['url'] ?? ''),
-            'fs' => ($row['op'] ?? '').' '.($row['disk'] ?? '').':'.($row['path'] ?? ''),
+            'filesystem' => ($row['op'] ?? '').' '.($row['disk'] ?? '').':'.($row['path'] ?? ''),
             default => $section,
         };
 

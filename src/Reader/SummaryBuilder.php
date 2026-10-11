@@ -20,7 +20,7 @@ final class SummaryBuilder
         'cache' => 'cache',
         'redis' => 'redis',
         'http' => 'http',
-        'fs' => 'fs',
+        'filesystem' => 'filesystem',
         'mail' => 'mail',
     ];
 

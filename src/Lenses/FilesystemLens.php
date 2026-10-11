@@ -28,7 +28,7 @@ final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
 
     public function key(): string
     {
-        return 'fs';
+        return 'filesystem';
     }
 
     public function description(): string
@@ -70,7 +70,7 @@ final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
 
     public function summarize(Capture $capture): array
     {
-        $rows = $capture->rows('fs');
+        $rows = $capture->rows('filesystem');
 
         if ($rows === []) {
             return [];
@@ -101,11 +101,11 @@ final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
 
         return [
             'totals' => [
-                'fs_ops' => count($rows),
-                'fs_ms' => round($ms, 3),
-                'fs_bytes_read' => $read,
-                'fs_bytes_written' => $written,
-                'fs_by_disk' => $byDisk,
+                'filesystem_ops' => count($rows),
+                'filesystem_ms' => round($ms, 3),
+                'filesystem_bytes_read' => $read,
+                'filesystem_bytes_written' => $written,
+                'filesystem_by_disk' => $byDisk,
             ],
             'warnings' => array_slice($failed, 0, 3),
         ];
