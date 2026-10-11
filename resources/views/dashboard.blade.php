@@ -592,76 +592,12 @@
                                     </div>
                                 </div>
 
-                                <div x-show="dot(request.query).length">
-                                    <h3 :class="cls.sectionTitle">Query</h3>
-                                    <div :class="cls.tableWrap" x-show="dot(request.query).length">
-                                        <table class="w-full border-collapse text-[13px]">
-                                            <tbody>
-                                                <template x-for="[k, v] in dot(request.query)" :key="k">
-                                                    <tr>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
-                                                            x-html="dottedKey(k)"
-                                                        ></td>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="group/copy font-mono text-xs"
-                                                            x-html="
-                                                                payloadValue(v) +
-                                                                ' ' +
-                                                                copyButton(
-                                                                    typeof v === 'object'
-                                                                        ? JSON.stringify(v)
-                                                                        : String(v),
-                                                                    k,
-                                                                    {
-                                                                        hover: true,
-                                                                    },
-                                                                )
-                                                            "
-                                                        ></td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <x-monocle::section title="Query" show="dot(request.query).length">
+                                    <x-monocle::kv-table rows="dot(request.query)" />
+                                </x-monocle::section>
 
-                                <div>
-                                    <h3 :class="cls.sectionTitle">Payload</h3>
-                                    <div :class="cls.tableWrap" x-show="dot(request.input).length">
-                                        <table class="w-full border-collapse text-[13px]">
-                                            <tbody>
-                                                <template x-for="[k, v] in dot(request.input)" :key="k">
-                                                    <tr>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
-                                                            x-html="dottedKey(k)"
-                                                        ></td>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="group/copy font-mono text-xs"
-                                                            x-html="
-                                                                payloadValue(v) +
-                                                                ' ' +
-                                                                copyButton(
-                                                                    typeof v === 'object'
-                                                                        ? JSON.stringify(v)
-                                                                        : String(v),
-                                                                    k,
-                                                                    {
-                                                                        hover: true,
-                                                                    },
-                                                                )
-                                                            "
-                                                        ></td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                <x-monocle::section title="Payload">
+                                    <x-monocle::kv-table rows="dot(request.input)" x-show="dot(request.input).length" />
                                     <p :class="cls.empty" x-show="! dot(request.input).length && ! request.files?.length">
                                         No body.
                                     </p>
@@ -699,55 +635,19 @@
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
+                                </x-monocle::section>
 
-                                <div>
-                                    <h3 :class="cls.sectionTitle">Request headers</h3>
-                                    <div :class="cls.tableWrap">
-                                        <table class="w-full border-collapse text-[13px]">
-                                            <tbody>
-                                                <template x-for="[k, v] in headers(request.headers)" :key="k">
-                                                    <tr>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
-                                                            :data-tip="k.length > 32 ? k : ''"
-                                                            x-text="shortName(k)"
-                                                        ></td>
-                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
-                                                            <span x-text="v"></span>
-                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
-                                                        </td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <x-monocle::section title="Request headers">
+                                    <x-monocle::kv-table rows="headers(request.headers)" keys="header" value="esc(v)" />
+                                </x-monocle::section>
 
-                                <div x-show="dot(request.cookies).length">
-                                    <h3 :class="cls.sectionTitle">Cookies</h3>
-                                    <div :class="cls.tableWrap">
-                                        <table class="w-full border-collapse text-[13px]">
-                                            <tbody>
-                                                <template x-for="[k, v] in dot(request.cookies)" :key="k">
-                                                    <tr>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
-                                                            :data-tip="k.length > 32 ? k : ''"
-                                                            x-text="shortName(k)"
-                                                        ></td>
-                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
-                                                            <span x-text="v"></span>
-                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
-                                                        </td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <x-monocle::section title="Cookies" show="dot(request.cookies).length">
+                                    <x-monocle::kv-table
+                                        rows="dot(request.cookies)"
+                                        keys="header"
+                                        value="esc(String(v ?? ''))"
+                                    />
+                                </x-monocle::section>
 
                                 <div class="grid gap-3">
                                     <h3 :class="cls.sectionTitle" class="mb-0">Response</h3>
@@ -767,26 +667,11 @@
                                             >Redirects to <span class="font-mono" x-text="request.redirect"></span
                                         ></span>
                                     </p>
-                                    <div :class="cls.tableWrap">
-                                        <table class="w-full border-collapse text-[13px]">
-                                            <tbody>
-                                                <template x-for="[k, v] in headers(request.response_headers)" :key="k">
-                                                    <tr>
-                                                        <td
-                                                            :class="cls.td"
-                                                            class="text-muted w-0 pr-6 font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
-                                                            :data-tip="k.length > 32 ? k : ''"
-                                                            x-text="shortName(k)"
-                                                        ></td>
-                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
-                                                            <span x-text="v"></span>
-                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
-                                                        </td>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                    <x-monocle::kv-table
+                                        rows="headers(request.response_headers)"
+                                        keys="header"
+                                        value="esc(v)"
+                                    />
                                     <div class="flex gap-1.5" x-show="request.response_capture?.raw">
                                         <template
                                             x-for="
@@ -895,34 +780,11 @@
                                     This request did not change the session.
                                 </p>
                                 <h3 :class="cls.sectionTitle" class="mb-0">Contents</h3>
-                                <div :class="cls.tableWrap" x-show="dot(session.data).length">
-                                    <table class="w-full border-collapse text-[13px]">
-                                        <tbody>
-                                            <template x-for="[k, v] in dot(session.data)" :key="k">
-                                                <tr>
-                                                    <td
-                                                        :class="cls.td"
-                                                        class="text-muted w-0 pr-6 font-mono text-xs whitespace-nowrap"
-                                                        x-text="k"
-                                                    ></td>
-                                                    <td
-                                                        :class="cls.td"
-                                                        class="group/copy font-mono text-xs"
-                                                        x-html="
-                                                            linked(v, 'data.' + k) +
-                                                            ' ' +
-                                                            copyButton(
-                                                                typeof v === 'object' ? JSON.stringify(v) : String(v),
-                                                                k,
-                                                                { hover: true },
-                                                            )
-                                                        "
-                                                    ></td>
-                                                </tr>
-                                            </template>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <x-monocle::kv-table
+                                    rows="dot(session.data)"
+                                    value="linked(v, 'data.' + k)"
+                                    x-show="dot(session.data).length"
+                                />
                                 <p :class="cls.empty" x-show="! dot(session.data).length">The session was empty.</p>
                             </div>
                         </template>
@@ -1639,23 +1501,7 @@
                                 </div>
                             </div>
                         </template>
-                        <dl class="m-0 grid gap-1.5" x-show="tabData?.data">
-                            <template x-for="[k, v] in Object.entries(tabData?.data ?? {})" :key="k">
-                                <div class="border-line grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-3 border-b py-1.5">
-                                    <dt class="text-muted text-[12.5px]" x-text="k"></dt>
-                                    <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
-                                        <span x-text="typeof v === 'object' ? JSON.stringify(v) : v"></span>
-                                        <span
-                                            x-html="
-                                                copyButton(typeof v === 'object' ? JSON.stringify(v) : String(v), k, {
-                                                    hover: true,
-                                                })
-                                            "
-                                        ></span>
-                                    </dd>
-                                </div>
-                            </template>
-                        </dl>
+                        <x-monocle::kv-table rows="Object.entries(tabData?.data ?? {})" x-show="tabData?.data" />
                         <button
                             type="button"
                             class="mt-2.5"

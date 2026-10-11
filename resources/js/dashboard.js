@@ -726,6 +726,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return name.length > 32 ? name.slice(0, 32) + '…' : name;
   },
 
+  /** A value as text to copy: objects as JSON. */
+  copyText(value) {
+    return value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value ?? '');
+  },
+
   /** A dot-notated key with its parents toned down, so the field itself stands out. */
   dottedKey(key) {
     const at = String(key).lastIndexOf('.');
