@@ -15,14 +15,15 @@ use Tests\Fixtures\Requests\StoreOrderRequest;
 covers(ValidationLens::class);
 
 describe(ValidationLens::class, function (): void {
-    it('records the rules and every failed rule with its parameters, without the values', function (): void {
+    it('records the rules, every failed rule with its parameters and the masked input', function (): void {
         Route::post('/signup', fn (Request $request) => $request->validate([
             'email' => 'required|email',
             'name' => 'max:3',
             'plan' => [Rule::in(['free', 'pro'])],
+            'password' => 'nullable',
         ]));
 
-        $this->postJson('/signup', ['name' => 'Rumpelstiltskin', 'plan' => 'gold'])->assertStatus(422);
+        $this->postJson('/signup', ['name' => 'Rumpelstiltskin', 'plan' => 'gold', 'password' => 'hunter22hunter22', 'unvalidated' => 'x'])->assertStatus(422);
 
         $capture = latestCapture();
         $row = $capture->rows('validation')[0];
@@ -30,12 +31,12 @@ describe(ValidationLens::class, function (): void {
 
         expect($row['source'])->toBeNull()
             ->and($row['passed'])->toBeFalse()
-            ->and($row['rules'])->toBe(['email' => 'required|email', 'name' => 'max:3', 'plan' => 'in:"free","pro"'])
+            ->and($row['rules'])->toBe(['email' => 'required|email', 'name' => 'max:3', 'plan' => 'in:"free","pro"', 'password' => 'nullable'])
             ->and($failed['email'])->toMatchArray(['rule' => 'Required', 'parameters' => []])
             ->and($failed['name'])->toMatchArray(['rule' => 'Max', 'parameters' => ['3']])
             ->and($failed['name']['message'])->toContain('3')
-            ->and($row['fields'])->toBe(3)
-            ->and(json_encode($row))->not->toContain('Rumpelstiltskin')
+            ->and($row['fields'])->toBe(4)
+            ->and($row['input'])->toBe(['name' => 'Rumpelstiltskin', 'plan' => 'gold', 'password' => 'hunt****'])
             ->and(app(ValidationLens::class)->summarize($capture)['totals'])->toBe(['validations' => 1, 'validation_failed' => 1]);
     });
 

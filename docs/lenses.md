@@ -131,7 +131,7 @@ Section `auth`: who the request was authenticated as and how - the guard that re
 
 ### Validation
 
-Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. Only field names are recorded, never the values.
+Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. The input of the validated fields is kept too, with secrets masked like request input.
 
 A resolver you set with `Validator::resolver()` keeps working.
 

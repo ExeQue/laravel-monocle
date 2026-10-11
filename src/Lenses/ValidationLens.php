@@ -17,6 +17,8 @@ use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Factory;
 use Illuminate\Validation\Validator;
 use ReflectionProperty;
@@ -48,7 +50,7 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
 
     public function description(): string
     {
-        return 'Validation runs: source (FormRequest class, Livewire component or null for inline validation), passed, the rules per field, failed (field, rule, parameters and message for each failure), fields and duration in ms. Values are never recorded.';
+        return 'Validation runs: source (FormRequest class, Livewire component or null for inline validation), passed, the rules per field, failed (field, rule, parameters and message for each failure), input (the validated fields, masked like request input), fields and duration in ms.';
     }
 
     public function advice(): string
@@ -157,10 +159,24 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
                 'passed' => $failed === [],
                 'rules' => array_map(fn (array $rules): string => implode('|', array_map($this->ruleName(...), $rules)), $validator->getRules()),
                 'failed' => $failed,
+                'input' => $this->input($validator),
                 'fields' => count($validator->getRules()),
                 'duration' => round($this->eyepiece->now() - $started, 3),
             ]);
         });
+    }
+
+    /**
+     * The validated input, limited to the fields with rules and masked like
+     * request input.
+     *
+     * @return array<array-key, mixed>
+     */
+    private function input(Validator $validator): array
+    {
+        $fields = array_unique(array_map(fn (string $field): string => Str::before($field, '.'), array_keys($validator->getRules())));
+
+        return Normalizer::normalize($this->eyepiece->masker(self::class)->inputs(Arr::only($validator->getData(), $fields)));
     }
 
     /**

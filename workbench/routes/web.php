@@ -48,8 +48,8 @@ Route::prefix('demo')->group(function () use ($result): void {
         ));
 
         Monocle::measure('validate draft', fn (): array => Validator::make(
-            ['title' => 'Monocle 1.0', 'body' => 'Profiling for agents.'],
-            ['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string']],
+            ['title' => 'Monocle 1.0', 'body' => 'Profiling for agents.', 'api_token' => 'tok_4c8e1a7f9b2d'],
+            ['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string'], 'api_token' => ['nullable', 'string']],
         )->validate());
 
         Gate::authorize('read-docs');
