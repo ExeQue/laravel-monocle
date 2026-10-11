@@ -90,7 +90,12 @@ The **Prism** tab has two tables, both in the order things happened.
 - The calls (`prism`). The columns are the fields that have a value in some row, up to eight, with `duration` last. `status` is coloured.
 - **Tool calls** (`prism_tools`), with the columns tool, status and duration, plus where in your code it came from. Its chips group the tool calls by tool, each group with its count, failures and timing.
 
-Click a row to fold it out. A call shows every field, with the prompt and response as text blocks. A tool call shows its fields plus the arguments, the result or the exception.
+Click a row to fold it out. A call shows its kind (text, structured, stream, embeddings, images, moderation, text to speech or speech to text), provider and model, then its status, finish reason, steps, tool calls, whether it was streamed or nested, its duration and when it started. Below that come the tokens (input, output, and cache read, cache write and reasoning when there are any), the exception or stream error when it failed, the prompt and the response (or the structured output, pretty printed) in boxes that scroll and copy, the tools it offered (failed ones in red) and the line in your code that made the call.
+
+![A Prism call folded out](../images/57-lens-prism-details-light.webp#gh-light-mode-only)
+![A Prism call folded out](../images/57-lens-prism-details-dark.webp#gh-dark-mode-only)
+
+A tool call folds out to its status, whether a nested call ran it, its duration, the exception when it failed, the arguments and the result (JSON pretty printed), and where in your code it came from.
 
 The **Timeline** tab shows the call, step and tool spans described above.
 

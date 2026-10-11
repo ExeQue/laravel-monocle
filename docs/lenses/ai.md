@@ -90,7 +90,12 @@ The **AI** tab has two tables, both in the order things happened.
 - The agent runs (`ai`). The columns are the fields that have a value in some row, up to eight, with `duration` last. `status` is coloured.
 - **Tool calls** (`ai_tools`), with the columns tool, Sub-agent, agent, status and duration, plus where in your code it came from. The Sub-agent column says `agent` for a tool that is another agent and is empty otherwise. Its chips group the tool calls by tool or by agent, each group with its count, failures and timing.
 
-Click a row to fold it out. An agent run shows every field, with the prompt and response as text blocks. A tool call shows its fields plus the arguments, the result or the exception, and the line in your code that led to it.
+Click a row to fold it out. An agent run shows the agent class, its status, provider, model, steps, tool calls, duration and when it started, and for a sub-agent the agent that called it. Below that come the tokens (input, output, and cache read, cache write and reasoning when there are any), the exception when the run failed, and the prompt and the response (or the structured output, pretty printed) in boxes that scroll and copy. Last is a table of the tool calls the run made, each with its arguments, status and duration, sub-agents marked as such.
+
+![An agent run folded out, with its tool calls](../images/56-lens-ai-details-light.webp#gh-light-mode-only)
+![An agent run folded out, with its tool calls](../images/56-lens-ai-details-dark.webp#gh-dark-mode-only)
+
+A tool call folds out to the tool and its class, its status, whether it is a sub-agent, the agent that called it, its duration, the exception when it failed, the arguments and the result (JSON pretty printed), and the line in your code that led to it.
 
 The **Timeline** tab shows the agent, step and tool spans described above. Click a span to see its details, such as a step's tokens and finish reason.
 
