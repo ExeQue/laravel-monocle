@@ -24,6 +24,7 @@ describe(InertiaLens::class, function (): void {
 
         Route::get('/orders', fn () => Inertia::render('Orders/Index', [
             'orders' => [['id' => 1], ['id' => 2]],
+            'tags' => collect(['new', 'paid']),
             'customer' => fn (): array => ['name' => 'Ada'],
             'stats' => Inertia::defer(fn (): array => ['revenue' => 10], 'metrics'),
             'filters' => Inertia::optional(fn (): array => ['status' => 'open']),
@@ -41,12 +42,17 @@ describe(InertiaLens::class, function (): void {
         $rows = $props();
         $page = latestCapture()->rows('inertia_pages')[0];
 
-        expect(array_keys($rows))->toBe(['app', 'flash', 'orders', 'customer', 'stats', 'filters', 'feed', 'big'])
+        expect(array_keys($rows))->toBe(['app', 'flash', 'orders', 'tags', 'customer', 'stats', 'filters', 'feed', 'big'])
             ->and($rows['app'])->toMatchArray(['type' => 'plain', 'shared' => true, 'sent' => true, 'size_bytes' => strlen('{"name":"Shop"}')])
             ->and($rows['flash'])->toMatchArray(['type' => 'always', 'shared' => true])
             ->and($rows['orders'])->toMatchArray(['type' => 'plain', 'shared' => false, 'sent' => true, 'size_bytes' => strlen('[{"id":1},{"id":2}]')])
             ->and($rows['customer'])->toMatchArray(['type' => 'closure', 'sent' => true])
             ->and($rows['stats'])->toMatchArray(['type' => 'defer', 'sent' => false, 'size_bytes' => null, 'group' => 'metrics', 'omitted' => 'deferred'])
+            ->and($rows['stats']['defined_at'])->toEndWith('InertiaLensTest.php:29')
+            ->and($rows['customer']['defined_at'])->toEndWith('InertiaLensTest.php:28')
+            ->and($rows['tags']['defined_at'] ?? null)->toBeNull()
+            ->and(latestCapture()->health['failures'] ?? [])->toBe([])
+            ->and($rows['orders']['defined_at'] ?? null)->toBeNull()
             ->and($rows['filters'])->toMatchArray(['type' => 'optional', 'sent' => false, 'omitted' => 'optional'])
             ->and($rows['feed'])->toMatchArray(['type' => 'merge', 'merge' => 'append', 'sent' => true])
             ->and($rows['big']['size_bytes'])->toBe(202)
@@ -56,7 +62,7 @@ describe(InertiaLens::class, function (): void {
                 'version' => 'v1',
                 'visit' => 'first load',
                 'partial' => null,
-                'props_sent' => 6,
+                'props_sent' => 7,
                 'props_omitted' => 2,
                 'deferred' => ['metrics' => ['stats']],
             ])
@@ -106,7 +112,7 @@ describe(InertiaLens::class, function (): void {
             ->and($rows['app']['shared_on_partial'])->toBeTrue()
             ->and($rows['flash']['shared_on_partial'])->toBeNull()
             ->and(latestCapture()->rows('inertia_pages')[0]['partial'])->toBe(['component' => 'Orders/Index', 'except' => ['orders']])
-            ->and(implode("\n", $summary->warnings))->toContain('Shared Inertia prop app was sent on a partial reload');
+            ->and(implode("\n", $summary->warnings))->toContain('Shared Inertia prop "app" was sent on a partial reload of');
     });
 
     it('sums the page up and warns about large props and pages', function () use ($lens): void {
@@ -121,10 +127,10 @@ describe(InertiaLens::class, function (): void {
 
         expect($rows['big']['large'])->toBeTrue()
             ->and($rows['orders']['large'])->toBeNull()
-            ->and($summary->totals['inertia_props'])->toBe(6)
+            ->and($summary->totals['inertia_props'])->toBe(7)
             ->and($summary->totals['inertia_payload_bytes'])->toBe($capture->rows('inertia_pages')[0]['payload_bytes'])
             ->and($summary->totals['inertia_deferred'])->toBe(1)
-            ->and($summary->warnings)->toContain('Inertia prop big is 202 bytes, over 100.')
+            ->and($summary->warnings)->toContain('Inertia prop "big" on Orders/Index is 202 B.')
             ->and(implode("\n", $summary->warnings))->toContain('Inertia page Orders/Index is');
     });
 

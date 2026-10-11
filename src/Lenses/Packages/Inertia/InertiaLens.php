@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Format;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
@@ -22,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Routing\Events\PreparingResponse;
 use Illuminate\Routing\Events\ResponsePrepared;
+use Illuminate\Support\Str;
 use Inertia\AlwaysProp;
 use Inertia\DeferProp;
 use Inertia\MergeProp;
@@ -29,8 +31,10 @@ use Inertia\OnceProp;
 use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
 use Inertia\ScrollProp;
+use ReflectionFunction;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Inertia page responses: the component, the visit and every prop with its
@@ -64,7 +68,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     public function description(): string
     {
-        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
+        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), defined_at (file:line of the closure a deferred, optional or lazy prop resolves with), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
     }
 
     public function advice(): string
@@ -131,6 +135,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         $except = $partial ? $this->list($request->headers->get('X-Inertia-Partial-Except')) : [];
         $sharedKeys = array_unique([...$this->topLevel(array_keys($shared)), ...(array) ($page['sharedProps'] ?? [])]);
         $types = [...$this->types($shared), ...$this->types($declared)];
+        $sources = [...$this->sources($shared), ...$this->sources($declared)];
         $groups = $this->groups((array) ($page['deferredProps'] ?? []));
         $merges = [
             ...$this->flag((array) ($page['mergeProps'] ?? []), 'append'),
@@ -157,6 +162,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
                 'group' => $groups[$name] ?? null,
                 'merge' => $merges[$name] ?? null,
                 'omitted' => $isSent ? null : $this->omitted($name, $type, $page, $groups, $partial),
+                'defined_at' => $sources[$name] ?? null,
                 'large' => $size !== null && $size > $this->largePropBytes ? true : null,
                 'shared_on_partial' => $this->sharedOnPartial($partial, $isShared, $isSent, $type, $name, $only) ? true : null,
             ], origin: false);
@@ -222,6 +228,81 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         }
 
         return $types;
+    }
+
+    /**
+     * Where each prop that resolves through a closure (deferred, optional,
+     * lazy and the like) defines it, as file:line.
+     *
+     * @param  array<array-key, mixed>  $props
+     * @return array<string, string>
+     */
+    private function sources(array $props): array
+    {
+        $sources = [];
+
+        foreach ($props as $key => $value) {
+            if (is_int($key)) {
+                continue;
+            }
+
+            $source = $this->source($value);
+
+            if ($source !== null) {
+                $sources[$this->topLevel([$key])[0]] = $source;
+            }
+        }
+
+        return $sources;
+    }
+
+    private function source(mixed $value): ?string
+    {
+        $callable = $value instanceof Closure ? $value : $this->resolver($value);
+
+        if (! $callable instanceof Closure) {
+            return null;
+        }
+
+        try {
+            $function = new ReflectionFunction($callable);
+        } catch (Throwable) {
+            return null;
+        }
+
+        $file = (string) $function->getFileName();
+
+        if ($file === '' || str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return Str::after($file, base_path().DIRECTORY_SEPARATOR).':'.$function->getStartLine();
+    }
+
+    /**
+     * The closure an Inertia prop class resolves with, kept in its protected
+     * callback (or value) property. Other objects, such as collections, are
+     * left alone.
+     */
+    private function resolver(mixed $value): mixed
+    {
+        if (! is_object($value)) {
+            return null;
+        }
+
+        if (! str_starts_with($value::class, 'Inertia\\')) {
+            return null;
+        }
+
+        return (function (): mixed {
+            foreach (['callback', 'value'] as $property) {
+                if (property_exists($this, $property)) {
+                    return $this->{$property};
+                }
+            }
+
+            return null;
+        })->call($value);
     }
 
     private function type(mixed $value): string
@@ -349,20 +430,23 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         $props = $capture->rows('inertia');
         $sent = array_filter($props, fn (array $row): bool => (bool) ($row['sent'] ?? false));
         $warnings = [];
+        $component = $pages[0]['component'] ?? '?';
 
         foreach ($props as $row) {
+            $where = isset($row['defined_at']) ? ', defined at '.$row['defined_at'] : '';
+
             if ($row['large'] ?? false) {
-                $warnings[] = sprintf('Inertia prop %s is %d bytes, over %d.', $row['prop'], $row['size_bytes'], $this->largePropBytes);
+                $warnings[] = sprintf('Inertia prop "%s" on %s is %s%s.', $row['prop'], $component, Format::bytes($row['size_bytes']), $where);
             }
 
             if ($row['shared_on_partial'] ?? false) {
-                $warnings[] = sprintf('Shared Inertia prop %s was sent on a partial reload that did not ask for it.', $row['prop']);
+                $warnings[] = sprintf('Shared Inertia prop "%s" was sent on a partial reload of %s that did not ask for it%s.', $row['prop'], $component, $where);
             }
         }
 
         foreach ($pages as $page) {
             if ((int) ($page['payload_bytes'] ?? 0) > $this->largePageBytes) {
-                $warnings[] = sprintf('Inertia page %s is %d bytes, over %d.', $page['component'], $page['payload_bytes'], $this->largePageBytes);
+                $warnings[] = sprintf('Inertia page %s is %s.', $page['component'], Format::bytes($page['payload_bytes']));
             }
         }
 
@@ -378,7 +462,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         return Presentation::table()
             ->tab('monocle::tabs.inertia')
             ->includes(['inertia_pages'])
-            ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted'])
+            ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at'])
             ->format(['shared' => 'bool', 'sent' => ['flag', 'sent', 'not sent', 'muted']])
             ->highlight(['large' => 'warn', 'shared_on_partial' => 'warn'])
             ->groupBy(['type' => 'by type', 'shared' => 'shared or page']);
