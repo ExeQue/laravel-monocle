@@ -11,6 +11,8 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
 use ExeQue\Monocle\Lenses\AuthLens;
+use Laravel\Nova\Events\StartedImpersonating;
+use Laravel\Nova\Events\StoppedImpersonating;
 
 /**
  * Impersonation with Laravel Nova, on the auth section.
@@ -47,8 +49,8 @@ final class NovaLens implements ExtendsLens, Lens, RequiresPackages, Summarizabl
     public function boot(): void
     {
         $this->recordImpersonation(
-            'Laravel\Nova\Events\StartedImpersonating',
-            'Laravel\Nova\Events\StoppedImpersonating',
+            StartedImpersonating::class,
+            StoppedImpersonating::class,
             fn (): ?array => session()->has('nova_impersonated_by')
                 ? ['id' => session('nova_impersonated_by'), 'guard' => session('nova_impersonated_guard', config('nova.guard'))]
                 : null,

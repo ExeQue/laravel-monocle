@@ -11,6 +11,8 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
 use ExeQue\Monocle\Lenses\AuthLens;
+use STS\FilamentImpersonate\Events\EnterImpersonation;
+use STS\FilamentImpersonate\Events\LeaveImpersonation;
 
 /**
  * Impersonation with stechstudio/filament-impersonate, on the auth section.
@@ -47,8 +49,8 @@ final class FilamentImpersonateLens implements ExtendsLens, Lens, RequiresPackag
     public function boot(): void
     {
         $this->recordImpersonation(
-            'STS\FilamentImpersonate\Events\EnterImpersonation',
-            'STS\FilamentImpersonate\Events\LeaveImpersonation',
+            EnterImpersonation::class,
+            LeaveImpersonation::class,
             fn (): ?array => session()->has('impersonated_by')
                 ? ['id' => session('impersonated_by'), 'guard' => session('impersonator_guard')]
                 : null,

@@ -13,6 +13,15 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\AuthLens;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Laravel\Fortify\Events\PasswordUpdatedViaController;
+use Laravel\Fortify\Events\RecoveryCodeReplaced;
+use Laravel\Fortify\Events\RecoveryCodesGenerated;
+use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
+use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
+use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
+use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
 
 /**
  * Two-factor authentication and password changes with Laravel Fortify, on
@@ -22,15 +31,15 @@ final class FortifyLens implements ExtendsLens, Lens, RequiresPackages, Summariz
 {
     /** Fortify event => auth row event. */
     private const array EVENTS = [
-        'Laravel\Fortify\Events\TwoFactorAuthenticationChallenged' => '2fa_challenged',
-        'Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided' => '2fa_passed',
-        'Laravel\Fortify\Events\TwoFactorAuthenticationFailed' => '2fa_failed',
-        'Laravel\Fortify\Events\TwoFactorAuthenticationEnabled' => '2fa_enabled',
-        'Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed' => '2fa_confirmed',
-        'Laravel\Fortify\Events\TwoFactorAuthenticationDisabled' => '2fa_disabled',
-        'Laravel\Fortify\Events\RecoveryCodesGenerated' => 'recovery_codes_generated',
-        'Laravel\Fortify\Events\RecoveryCodeReplaced' => 'recovery_code_used',
-        'Laravel\Fortify\Events\PasswordUpdatedViaController' => 'password_updated',
+        TwoFactorAuthenticationChallenged::class => '2fa_challenged',
+        ValidTwoFactorAuthenticationCodeProvided::class => '2fa_passed',
+        TwoFactorAuthenticationFailed::class => '2fa_failed',
+        TwoFactorAuthenticationEnabled::class => '2fa_enabled',
+        TwoFactorAuthenticationConfirmed::class => '2fa_confirmed',
+        TwoFactorAuthenticationDisabled::class => '2fa_disabled',
+        RecoveryCodesGenerated::class => 'recovery_codes_generated',
+        RecoveryCodeReplaced::class => 'recovery_code_used',
+        PasswordUpdatedViaController::class => 'password_updated',
     ];
 
     public function __construct(

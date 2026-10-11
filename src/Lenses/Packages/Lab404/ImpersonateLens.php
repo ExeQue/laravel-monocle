@@ -11,6 +11,8 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
 use ExeQue\Monocle\Lenses\AuthLens;
+use Lab404\Impersonate\Events\LeaveImpersonation;
+use Lab404\Impersonate\Events\TakeImpersonation;
 
 /**
  * Impersonation with lab404/laravel-impersonate, on the auth section.
@@ -47,8 +49,8 @@ final class ImpersonateLens implements ExtendsLens, Lens, RequiresPackages, Summ
     public function boot(): void
     {
         $this->recordImpersonation(
-            'Lab404\Impersonate\Events\TakeImpersonation',
-            'Lab404\Impersonate\Events\LeaveImpersonation',
+            TakeImpersonation::class,
+            LeaveImpersonation::class,
             fn (): ?array => session()->has($key = (string) config('laravel-impersonate.session_key', 'impersonated_by'))
                 ? ['id' => session($key), 'guard' => session((string) config('laravel-impersonate.session_guard', 'impersonator_guard'))]
                 : null,

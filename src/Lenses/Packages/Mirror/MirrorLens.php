@@ -11,6 +11,8 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
 use ExeQue\Monocle\Lenses\AuthLens;
+use Mirror\Events\ImpersonationStarted;
+use Mirror\Events\ImpersonationStopped;
 
 /**
  * Impersonation with franbarbalopez/mirror, on the auth section.
@@ -47,8 +49,8 @@ final class MirrorLens implements ExtendsLens, Lens, RequiresPackages, Summariza
     public function boot(): void
     {
         $this->recordImpersonation(
-            'Mirror\Events\ImpersonationStarted',
-            'Mirror\Events\ImpersonationStopped',
+            ImpersonationStarted::class,
+            ImpersonationStopped::class,
             function (): ?array {
                 $payload = session(config('mirror.session.key', 'mirror.impersonation').'.payload');
 

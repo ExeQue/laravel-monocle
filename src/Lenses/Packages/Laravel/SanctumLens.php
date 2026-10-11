@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\AuthLens;
+use Laravel\Sanctum\Events\TokenAuthenticated;
 
 /**
  * The Laravel Sanctum token a request authenticated with, on the auth section.
@@ -42,11 +43,11 @@ final class SanctumLens implements ExtendsLens, Lens, RequiresPackages
 
     public function boot(): void
     {
-        if (! class_exists('Laravel\Sanctum\Events\TokenAuthenticated')) {
+        if (! class_exists(TokenAuthenticated::class)) {
             return;
         }
 
-        $this->eyepiece->listen('Laravel\Sanctum\Events\TokenAuthenticated', function (object $event): void {
+        $this->eyepiece->listen(TokenAuthenticated::class, function (object $event): void {
             if (! $this->eyepiece->recording()) {
                 return;
             }
