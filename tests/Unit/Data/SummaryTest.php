@@ -35,7 +35,7 @@ describe(Summary::class, function (): void {
 
     it('keeps the unit of a total, as a Unit or as a suffix', function (): void {
         $summary = Summary::make()
-            ->total('query_ms', 8.7, 'time', Unit::Milliseconds)
+            ->total('query_ms', 8.7, 'spent', Unit::Milliseconds)
             ->total('charged', '49.00', 'charged', 'DKK')
             ->total('count', 3);
 

@@ -157,7 +157,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             ->total('queries', count($rows), 'queries')
             ->total('slow_queries', count($slow), 'slow')
             ->total('duplicate_queries', $duplicates, 'duplicates')
-            ->total('query_ms', round($total, 3), 'time', Unit::Milliseconds)
+            ->total('query_ms', round($total, 3), 'spent', Unit::Milliseconds)
             ->warnings($warnings);
     }
 

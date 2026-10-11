@@ -135,7 +135,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             ->total('cache_forgets', $counts['forget'], 'forgets')
             ->when($reads > 0)
             ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent)
-            ->total('cache_ms', round($ms, 3), 'time', Unit::Milliseconds);
+            ->total('cache_ms', round($ms, 3), 'spent', Unit::Milliseconds);
     }
 
     /**

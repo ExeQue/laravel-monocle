@@ -109,13 +109,13 @@ public function summarize(Capture $capture): Summary
 
     return Summary::make()
         ->total('stripe_calls', count($rows), 'calls')
-        ->total('stripe_ms', array_sum(array_column($rows, 'duration')), 'time', Unit::Milliseconds)
+        ->total('stripe_ms', array_sum(array_column($rows, 'duration')), 'spent', Unit::Milliseconds)
         ->when($failed !== [])
         ->warning(count($failed).' Stripe call(s) failed.');
 }
 ```
 
-Every method returns a new summary, so chain the calls or assign the result. `total()` takes the name, the value, a label saying what the value counts and a unit:
+Every method returns a new summary, so chain the calls or assign the result. `total()` takes the name, the value, a label saying what the value is ("failed", "spent") and a unit:
 
 | Unit | Shown as |
 | --- | --- |
