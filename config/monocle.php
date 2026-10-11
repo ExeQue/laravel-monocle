@@ -16,6 +16,8 @@ use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
+use ExeQue\Monocle\Lenses\Packages\Filament\FilamentLens;
+use ExeQue\Monocle\Lenses\Packages\Filament\FilamentLivewireLens;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens;
 use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
@@ -157,6 +159,12 @@ return [
 
         // Livewire
         LivewireLens::class => true,
+
+        // filament/filament
+        FilamentLens::class => [
+            'large_table_records' => 500,           // warn when a table without pagination loads more records than this
+        ],
+        FilamentLivewireLens::class => true,
 
         // inertiajs/inertia-laravel
         InertiaLens::class => [
@@ -406,6 +414,7 @@ return [
             MediaLibraryLens::class,
             QueueLens::class,
             LivewireLens::class,
+            FilamentLens::class,
             InertiaLens::class,
             EloquentLens::class,
             MailLens::class,

@@ -40,7 +40,7 @@ describe('lens descriptions', function (): void {
         $lenses = array_values(array_filter($all, fn (Lens $lens): bool => ! $lens instanceof \ExeQue\Monocle\Contracts\Lenses\ExtendsLens));
         $keys = array_map(fn (Lens $lens): string => $lens->key(), $lenses);
 
-        expect($lenses)->toHaveCount(30)
+        expect($lenses)->toHaveCount(31)
             ->and($keys)->toBe(array_unique($keys));
 
         foreach ($lenses as $lens) {
