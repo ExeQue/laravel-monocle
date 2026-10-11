@@ -49,6 +49,24 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
             fn (): User => User::query()->where('email', 'ada@example.com')->firstOrFail(),
         ));
 
+        Monocle::measure('build feed', function (): void {
+            // One query per post for its comments: an N+1.
+            Post::query()->latest()->limit(5)->get()->each(fn (Post $post): int => $post->comments->count());
+
+            // The same lookup three times: duplicate queries.
+            foreach (range(1, 3) as $ignored) {
+                DB::table('users')->where('email', 'ada@example.com')->first();
+            }
+
+            // A query slow enough to be flagged.
+            DB::selectOne('WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 1000000) SELECT count(*) AS total FROM n');
+
+            // The same cache key read over and over.
+            foreach (range(1, 60) as $ignored) {
+                Cache::get('demo:author');
+            }
+        });
+
         Monocle::measure('validate draft', fn (): array => Validator::make(
             ['title' => 'Monocle 1.0', 'slug' => 'monocle-1-0', 'body' => 'Profiling for agents.', 'api_token' => 'tok_4c8e1a7f9b2d'],
             [
@@ -65,6 +83,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         Gate::authorize('read-docs');
         Feature::active('new-dashboard');
+        Feature::active('new-chekout');
 
         $publish = Monocle::span('publish post')->start();
 
@@ -139,7 +158,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
             'tags' => array_map(fn (int $i): string => 'tag '.$i, range(1, 15)),
             'posts' => Post::query()->withCount('comments')->limit(5)->get(),
         ]);
-    })->name('showcase');
+    })->middleware(SlowMiddleware::class)->name('showcase');
 
     Route::get('database/n-plus-one', function () use ($result): View {
         $counts = Post::query()->get()->mapWithKeys(fn (Post $post): array => [$post->title => $post->comments->count()]);
