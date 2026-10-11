@@ -26,6 +26,7 @@ describe(InertiaLens::class, function (): void {
             'orders' => [['id' => 1], ['id' => 2]],
             'tags' => collect(['new', 'paid']),
             'note' => fn () => '',
+            'settings' => ['theme' => 'dark', 'api_token' => 'tok_4c8e1a7f9b2d'],
             'customer' => fn (): array => ['name' => 'Ada'],
             'stats' => Inertia::defer(fn (): array => ['revenue' => 10], 'metrics'),
             'filters' => Inertia::optional(fn (): array => ['status' => 'open']),
@@ -43,16 +44,21 @@ describe(InertiaLens::class, function (): void {
         $rows = $props();
         $page = latestCapture()->rows('inertia_pages')[0];
 
-        expect(array_keys($rows))->toBe(['app', 'flash', 'orders', 'tags', 'note', 'customer', 'stats', 'filters', 'feed', 'big'])
+        expect(array_keys($rows))->toBe(['app', 'flash', 'orders', 'tags', 'note', 'settings', 'customer', 'stats', 'filters', 'feed', 'big'])
             ->and($rows['app'])->toMatchArray(['type' => 'plain', 'shared' => true, 'sent' => true, 'size_bytes' => strlen('{"name":"Shop"}')])
             ->and($rows['flash'])->toMatchArray(['type' => 'always', 'shared' => true])
             ->and($rows['orders'])->toMatchArray(['type' => 'plain', 'shared' => false, 'sent' => true, 'size_bytes' => strlen('[{"id":1},{"id":2}]')])
             ->and($rows['customer'])->toMatchArray(['type' => 'closure', 'sent' => true])
             ->and($rows['stats'])->toMatchArray(['type' => 'defer', 'sent' => false, 'size_bytes' => null, 'group' => 'metrics', 'omitted' => 'deferred'])
-            ->and($rows['stats']['defined_at'])->toEndWith('InertiaLensTest.php:30')
-            ->and($rows['customer']['defined_at'])->toEndWith('InertiaLensTest.php:29')
+            ->and($rows['stats']['defined_at'])->toEndWith('InertiaLensTest.php:31')
+            ->and($rows['customer']['defined_at'])->toEndWith('InertiaLensTest.php:30')
             ->and($rows['tags']['defined_at'] ?? null)->toBeNull()
             ->and($rows['note'])->toMatchArray(['type' => 'closure', 'sent' => true, 'size_bytes' => 2])
+            ->and($rows['note']['value'])->toBe('')
+            ->and($rows['settings']['value']['theme'])->toBe('dark')
+            ->and($rows['settings']['value']['api_token'])->not->toBe('tok_4c8e1a7f9b2d')
+            ->and($rows['orders']['value'])->toBe([['id' => 1], ['id' => 2]])
+            ->and($rows['stats']['value'])->toBeNull()
             ->and($rows['note']['defined_at'])->toEndWith('InertiaLensTest.php:28')
             ->and(latestCapture()->health['failures'] ?? [])->toBe([])
             ->and($rows['orders']['defined_at'] ?? null)->toBeNull()
@@ -65,7 +71,7 @@ describe(InertiaLens::class, function (): void {
                 'version' => 'v1',
                 'visit' => 'first load',
                 'partial' => null,
-                'props_sent' => 8,
+                'props_sent' => 9,
                 'props_omitted' => 2,
                 'deferred' => ['metrics' => ['stats']],
             ])
@@ -120,7 +126,7 @@ describe(InertiaLens::class, function (): void {
 
     it('sums the page up and warns about large props and pages', function () use ($lens): void {
         $lens = $lens();
-        $lens->configure(['large_prop_bytes' => 100, 'large_page_bytes' => 200]);
+        $lens->configure(['large_prop_bytes' => 100, 'large_page_bytes' => 200, 'max_value_bytes' => 100]);
 
         $this->get('/orders')->assertOk();
 
@@ -129,8 +135,9 @@ describe(InertiaLens::class, function (): void {
         $summary = $lens->summarize($capture);
 
         expect($rows['big']['large'])->toBeTrue()
+            ->and($rows['big']['value'])->toBe('(202 B, larger than max_value_bytes)')
             ->and($rows['orders']['large'])->toBeNull()
-            ->and($summary->totals['inertia_props'])->toBe(8)
+            ->and($summary->totals['inertia_props'])->toBe(9)
             ->and($summary->totals['inertia_payload_bytes'])->toBe($capture->rows('inertia_pages')[0]['payload_bytes'])
             ->and($summary->totals['inertia_deferred'])->toBe(1)
             ->and($summary->warnings)->toContain('Inertia prop "big" on Orders/Index is 202 B.')

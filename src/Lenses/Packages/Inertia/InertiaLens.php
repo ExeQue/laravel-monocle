@@ -49,6 +49,8 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     private int $largePageBytes = 200000;
 
+    private int $maxValueBytes = 20000;
+
     private ?InertiaResponse $pending = null;
 
     public function __construct(
@@ -68,7 +70,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     public function description(): string
     {
-        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), defined_at (file:line of the closure a deferred, optional or lazy prop resolves with), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
+        return 'inertiajs/inertia-laravel page responses. Section inertia has one row per top-level prop: prop, type (plain, closure, always, optional, lazy, defer, merge, scroll, once), shared, sent, size_bytes (JSON size when sent), group (defer group), merge (append, prepend, deep), omitted (why it was not sent: deferred, partial reload, optional, loaded once, rescued), value (the value sent, masked like request input; left out over max_value_bytes), defined_at (file:line of the closure a deferred, optional or lazy prop resolves with), large and shared_on_partial. Section inertia_pages has one row per page: component, url, version, visit (first load or inertia), partial (component, only, except), props_sent, props_omitted, payload_bytes, deferred groups, encrypt_history and clear_history.';
     }
 
     public function advice(): string
@@ -80,6 +82,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
     {
         $this->largePropBytes = (int) ($options['large_prop_bytes'] ?? $this->largePropBytes);
         $this->largePageBytes = (int) ($options['large_page_bytes'] ?? $this->largePageBytes);
+        $this->maxValueBytes = (int) ($options['max_value_bytes'] ?? $this->maxValueBytes);
     }
 
     public function boot(): void
@@ -163,6 +166,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
                 'merge' => $merges[$name] ?? null,
                 'omitted' => $isSent ? null : $this->omitted($name, $type, $page, $groups, $partial),
                 'defined_at' => $sources[$name] ?? null,
+                'value' => $isSent ? $this->value($name, $sent[$name], (int) $size) : null,
                 'large' => $size !== null && $size > $this->largePropBytes ? true : null,
                 'shared_on_partial' => $this->sharedOnPartial($partial, $isShared, $isSent, $type, $name, $only) ? true : null,
             ], origin: false);
@@ -303,6 +307,19 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
             return null;
         })->call($value);
+    }
+
+    /**
+     * The value as sent, masked like request input; values over
+     * max_value_bytes are left out to keep captures small.
+     */
+    private function value(string $name, mixed $value, int $size): mixed
+    {
+        if ($size > $this->maxValueBytes) {
+            return sprintf('(%s, larger than max_value_bytes)', Format::bytes($size));
+        }
+
+        return $this->eyepiece->masker(self::class)->inputs([$name => $value])[$name] ?? null;
     }
 
     private function type(mixed $value): string
@@ -463,6 +480,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             ->tab('monocle::tabs.inertia')
             ->includes(['inertia_pages'])
             ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at'])
+            ->detailsOnly(['value'])
             ->format(['shared' => 'bool', 'sent' => ['flag', 'sent', 'not sent', 'muted']])
             ->highlight(['large' => 'warn', 'shared_on_partial' => 'warn'])
             ->groupBy(['type' => 'by type', 'shared' => 'shared or page']);

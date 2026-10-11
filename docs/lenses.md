@@ -291,7 +291,7 @@ Warning: `dd()` ended the process before the response was sent.
 
 ### Inertia
 
-Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor.
+Section `inertia`: one row per prop of an Inertia page - its type (plain, closure, always, optional, defer, merge, scroll, once), whether it is shared, whether it was sent, its size as JSON, its defer group and merge strategy, and, for a prop that was not sent, why: deferred, left out by a partial reload, optional, already loaded once, or rescued after it failed. Props resolved by a closure - deferred, optional, lazy or a plain closure - show where the closure is defined, linked to your editor. Expanding a prop that was sent shows its value, with secrets masked like request input.
 
 Section `inertia_pages`: the page itself - component, URL, asset version, whether it was a first load or an Inertia visit, the props a partial reload asked for (only or except), the deferred groups, the size of the whole page and whether history is encrypted or cleared. The Inertia tab shows these facts above the props.
 
@@ -299,7 +299,7 @@ Needs `inertiajs/inertia-laravel`.
 
 Warnings: a prop bigger than `large_prop_bytes`, a page bigger than `large_page_bytes`, and a shared prop sent on a partial reload that did not ask for it (such as a reload with only an except list). Wrap such a prop in `Inertia::always()` if it is meant to be sent every time.
 
-Options: `large_prop_bytes` (50000) and `large_page_bytes` (200000).
+Options: `large_prop_bytes` (50000) and `large_page_bytes` (200000); `max_value_bytes` (20000) - values of props larger than this are not kept.
 
 Inertia responses are also shown as a card on the Request tab: the component, its props and, on a partial reload, which props were asked for. This works for Inertia visits and for the page embedded in the first load.
 

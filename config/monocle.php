@@ -162,6 +162,7 @@ return [
         InertiaLens::class => [
             'large_prop_bytes' => 50000,            // warn when one prop is bigger than this
             'large_page_bytes' => 200000,           // warn when the whole page is bigger than this
+            'max_value_bytes' => 20000,             // keep the values of props up to this size
         ],
 
         // laravel/mcp
