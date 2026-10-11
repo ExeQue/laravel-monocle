@@ -104,6 +104,7 @@ test('internal classes are marked @internal and public ones are not', function (
         'ExeQue\Monocle\Enums\\',
         'ExeQue\Monocle\Exceptions\\',
         'ExeQue\Monocle\Support\Masks\\',
+        'ExeQue\Monocle\Support\Masker',
         'ExeQue\Monocle\MonocleManager',
         'ExeQue\Monocle\Eyepiece',
         'ExeQue\Monocle\Dashboard\Presentation',

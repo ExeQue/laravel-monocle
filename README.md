@@ -31,8 +31,8 @@ Monocle records only outside production and only with `APP_DEBUG=true`.
 
 | Tool | Purpose |
 | --- | --- |
-| `monocle-list` | Recent captures with duration, status and per-section counts |
-| `monocle-show` | Where the time went, totals and warnings (slow queries, N+1, duplicates, slow middleware, failures) |
+| `monocle-list` | Recent captures with duration, status, per-section counts and how many errors and warnings |
+| `monocle-show` | Where the time went, totals, errors (exceptions, failed calls and jobs) and warnings (slow queries, N+1, duplicates, slow middleware) |
 | `monocle-rows` | Any section, filtered, sorted and paginated |
 | `monocle-queries` | Queries grouped by shape, caller, table or transaction |
 | `monocle-trace` | A request and every job it dispatched |

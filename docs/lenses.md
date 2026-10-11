@@ -8,7 +8,7 @@ Every row records when it happened and the `origin` - the file and line in your 
 
 Turn lenses on, off or change their options in [`config/monocle.php`](configuration.md#lenses).
 
-Warnings point at your code. Slow or repeated work that comes from a package on its own - a slow query a library runs, a package's middleware - is not flagged; possible N+1 queries are flagged wherever they come from.
+Lenses report two kinds of problems in the summary: **errors** for things that failed and **warnings** for things worth a look. Each lens below says which it reports; a response with a 5xx status is an error too. Warnings point at your code. Slow or repeated work that comes from a package on its own - a slow query a library runs, a package's middleware - is not flagged; possible N+1 queries are flagged wherever they come from.
 
 ## At a glance
 
@@ -20,7 +20,7 @@ Warnings point at your code. Slow or repeated work that comes from a package on 
 | [Session](#session) | `session` | session contents and what the request changed |
 | [Auth](#auth) | `auth` | the user, logins, failed attempts and lockouts |
 | [Validation](#validation) | `validation` | every validation, its rules and the rules that failed |
-| [Middleware](#middleware) | timeline | each middleware before and after the controller |
+| [Middleware](#middleware) | `middleware` | each middleware before and after the controller |
 | [Database](#database) | `queries` | every query, transactions, N+1 and slow queries |
 | [Eloquent](#eloquent) | `models`, `model_changes` | models loaded and every changed attribute |
 | [Cache](#cache) | `cache` | hits, misses, writes and repeated reads |
@@ -62,9 +62,19 @@ These record something only when the package is installed; otherwise they do not
 
 ### Request
 
-Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token, remember-me cookies and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, and response status, size and headers. Responses with a capture for their route or content type are kept, both as the capture presents them and raw; other responses only have their size.
+Section `request`: method, URL, query and input (secrets masked), uploaded files, headers (masked), cookies (the session cookie, the XSRF token, remember-me cookies and secret-looking names masked), IP, user agent, locale, the logged-in user, the matched route with its parameters and middleware, and response status, size and headers. Responses with a capture for their route, a response header or their content type are kept, both as the capture presents them and raw; other responses only have their size.
 
-Option: `capture.response_types` - content type (wildcards allowed) => capture. By default JSON responses are captured with `JsonCapture`. Add `'text/plain' => TextCapture::class` to keep plain text as it is, or remove an entry to stop keeping that type.
+A response with a 5xx status is reported as an error.
+
+Option: `capture` - which responses are kept, and how. By default:
+
+| Key | Default |
+|---|---|
+| `response_types` | `application/json` and `application/*+json` with `JsonCapture`, `text/html` with `InertiaCapture` (only Inertia pages are kept) |
+| `headers` | `X-Inertia` with `InertiaCapture` |
+| `routes` | `*livewire.update` with `LivewireUpdateCapture` |
+
+Each key replaces its default when you set it, so list the defaults you want to keep. Add `'text/plain' => TextCapture::class` to `response_types` to keep plain text as it is, or leave an entry out to stop keeping that type.
 
 #### Response captures
 
@@ -129,6 +139,8 @@ Section `session`: what the session held once the request was handled - the data
 
 Section `auth`: who the request was authenticated as and how - the guard that resolved the user, logins, logouts, failed attempts and lockouts, registrations, verifications and password resets. Credentials are recorded as the keys that were tried, never their values. The summary shows the user, failed attempts and lockouts.
 
+Warning: a login locked out after too many attempts.
+
 ### Validation
 
 Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. The input of the validated fields is kept too, with secrets masked like request input, uploaded files described by name, size and type, and long values cut short. Rule objects and closures are recorded as the class you wrote (with its public properties) or the file and line of the closure.
@@ -137,7 +149,9 @@ A resolver you set with `Validator::resolver()` keeps working.
 
 ### Middleware
 
-Every middleware is timed. On the timeline each middleware has a `middleware.request` span for the work it did before passing the request on and a `middleware.response` span for the work it did once the response came back. It also shows whether the middleware stopped the request (for example a redirect or a 403) and with which status. Middleware written as closures is not timed.
+Section `middleware`: one row per middleware, in the order the request passed through them - the middleware, its group (global or route), its parameters, the time it took before passing the request on and after the response came back, its own time in all, whether it passed the request on and, when it stopped the request (for example a redirect or a 403), with which status. On the timeline each middleware has a `middleware.request` span for the work before and a `middleware.response` span for the work after. Middleware written as closures is not timed.
+
+Warnings: middleware that took at least `slow_ms` of its own time, and middleware that stopped the request.
 
 Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
@@ -145,7 +159,9 @@ Option: `slow_ms` (default 50) - middleware slower than this is flagged.
 
 Section `queries`: every query with its SQL, bindings, a ready-to-run version with the values filled in, connection, duration, type (select, insert, ...), tables and the transaction it ran in.
 
-Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. Transactions appear in the timeline with their outcome (committed or rolled back).
+Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. A select that looks like an N+1 carries `n_plus_one`: how often its shape ran. The exact same query with the same values counts as a duplicate (`duplicate_of` points at the first one), not as an N+1. Transactions appear in the timeline with their outcome (committed or rolled back).
+
+Warnings: slow queries, duplicate queries and possible N+1 queries.
 
 Options: `slow_ms` (70), `n_plus_one_threshold` (3), `bindings` (true), `ignore_tables` (`telescope_*`, `pulse_*`): queries that only touch these tables are left out.
 
@@ -155,11 +171,15 @@ Sections `models` and `model_changes`: how many models of each class were retrie
 
 ### Cache
 
-Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys, and warns when one key is read often - remember such a value for the request with `Cache::memo()` or `once()`.
+Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys.
 
-Options: `slow_ms` (default 20) - a cache call taking at least this long gives a warning; `repeat_threshold` (default 5) and `repeat_ms` (default 0) - a key read at least this often, taking at least this long in all, gives a warning suggesting `Cache::memo()` or `once()`.
+Warnings: slow cache calls, and keys read over and over - remember such a value for the request with `Cache::memo()` or `once()`.
 
-Option: `values` (false) - also record the cached values.
+Options:
+
+- `slow_ms` (default 20) - a cache call taking at least this long gives a warning.
+- `repeat_threshold` (default 5) and `repeat_ms` (default 0) - a key read at least this often, taking at least this long in all, gives a warning.
+- `values` (default false) - also record the cached values.
 
 ### Redis
 
@@ -169,19 +189,23 @@ Section `redis`: every Redis command with its parameters, connection and duratio
 
 Section `views`: every rendered view and component with its duration (including the views it renders) and the names of the variables passed to it. Nested views appear nested in the timeline, so a partial rendered in a loop is easy to spot.
 
-Options: `data` (false) - also record the variable values; `repeat_threshold` (10) and `repeat_ms` (20) - warn when a view is rendered at least this often and takes at least this long in all.
+Warning: a view rendered many times.
+
+Options: `engines` (`['blade', 'php', 'file']`) - the view engines to time; `data` (false) - also record the variable values; `repeat_threshold` (10) and `repeat_ms` (20) - warn when a view is rendered at least this often and takes at least this long in all.
 
 ### Events
 
 Section `events`: your application's events with their payload and listeners. Framework events are left out.
 
-Option: `ignore` - event names or patterns to leave out.
+Option: `ignore` - event names or patterns to leave out. The default is `Illuminate\*`, `Laravel\*`, `Livewire\*`, `eloquent.*`, `composing:*`, `creating:*`, `bootstrapping:*`, `bootstrapped:*` and `locale.*`. Setting the option replaces this list, so include the defaults you want to keep.
 
 ### Queue
 
 Section `jobs`: jobs dispatched during the capture.
 
 Every queued job is recorded as its own capture when a worker runs it, linked to the request, command or job that dispatched it. Use `monocle-trace` to follow the chain. Jobs that run immediately (the `sync` connection or `dispatchSync()`) appear in the timeline of the capture that ran them.
+
+Error: a job that failed, on the job's own capture.
 
 ### Artisan commands
 
@@ -191,11 +215,18 @@ Section `command`: every artisan command is recorded as its own capture, with it
 
 Section `scheduled_tasks` on the `schedule:run` capture: each task with its schedule, outcome (finished, skipped or failed) and runtime.
 
+Error: a task that failed.
+
 ### HTTP client
 
-Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. Real calls also record where the time went: DNS lookup, connecting, the TLS handshake, waiting for the first byte, downloading and redirects, with the address connected to and the protocol. A JSON or form body sent is kept as fields, masked like request input. Responses are read with the same captures the request lens uses, chosen by content type under `capture.response_types` (JSON by default), and kept with their raw body; set `bodies` to `true` to also keep bodies no capture handles. Secrets in headers and query strings are masked.
+Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. Real calls also record where the time went: DNS lookup, connecting, the TLS handshake, waiting for the first byte, downloading and redirects, with the address connected to and the protocol. A JSON or form body sent is kept as fields, masked like request input. Responses are read with the same captures the request lens uses, chosen by content type, and kept with their raw body. Secrets in headers and query strings are masked.
 
-Option: `bodies` (false) - also record request and response bodies.
+Error: a call that failed.
+
+Options:
+
+- `capture.response_types` - content type (wildcards allowed) => capture. By default `application/json` and `application/*+json` with `JsonCapture`. Setting it replaces the default.
+- `bodies` (default false) - also keep the raw request body, and the raw response body of responses no capture handles.
 
 ### Mail and notifications
 
@@ -214,21 +245,27 @@ FilesystemLens::class => ['disks' => ['media', 'uploads-*']],   // or ['*'] for 
 
 Plain PHP file functions like `file_put_contents()` are not recorded.
 
+Error: an operation that failed.
+
 ### Exceptions
 
-Section `exceptions`: every reported exception with its message, the lines of your code it passed through and the exception that caused it.
+Section `exceptions`: every reported exception with its message, the lines of your code it passed through and the exception that caused it. Each one is reported as an error.
 
 ### Log
 
-Section `log`: everything written to the log, with level and context. Errors are also listed as warnings.
+Section `log`: everything written to the log, with level and context. Entries at an error level or above are reported as errors.
 
 ### Authorization
 
 Section `authorization`: every gate and policy check - which ability, for which user, the result and the reason when one was given. Useful when a request ends in a 403.
 
+Warning: a check that was denied.
+
 ### Dumps
 
 Section `dumps`: every `dump()` and `dd()` with the value and where it was called. You still see the output as usual.
+
+Warning: `dd()` ended the process before the response was sent.
 
 ## Packages
 
@@ -241,6 +278,8 @@ Inertia responses are shown as a card on the Request tab: the component, its pro
 #### AI
 
 Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.
+
+Error: an agent or tool call that failed.
 
 Option: `max_text` (no limit) - shorten long prompts and responses.
 
@@ -256,13 +295,15 @@ Section `auth` also records Fortify's two-factor login: when a user is asked for
 
 Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Calls to Monocle's own server are not recorded.
 
+Error: a call that failed.
+
 #### Octane
 
 Each request in an Octane worker is its own capture, starting before global middleware runs, so the middleware phase is complete.
 
 #### Feature flags
 
-Section `features`: every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined is flagged, since it quietly resolves to false.
+Section `features`: every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined gives a warning, since it quietly resolves to false.
 
 #### Sanctum
 
@@ -270,7 +311,7 @@ Section `auth` also records the Sanctum token a request authenticated with: its 
 
 ### Livewire
 
-Section `livewire`: every component in the request - whether it was mounted or updated, the methods called, properties changed, render time and any exception.
+Section `livewire`: every component in the request - whether it was mounted or updated, the methods called, properties changed, render time and any exception. A component that threw an exception is reported as an error.
 
 The response of a Livewire update is shown as one card per component on the Request tab: the methods it called with their parameters, the properties that changed, the events it dispatched and what it returned.
 
@@ -278,8 +319,8 @@ The response of a Livewire update is shown as one card per component on the Requ
 
 #### Media library
 
-Section `media`: media added to models - the model, collection, disk, file and size - and every conversion that ran, with its duration. Conversions also show on the timeline. Conversions that run during a request rather than on the queue are flagged.
+Section `media`: media added to models - the model, collection, disk, file and size - and every conversion that ran, with its duration. Conversions also show on the timeline. Conversions that run during a request rather than on the queue give a warning.
 
 #### Response cache
 
-Section `response_cache`: whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit is flagged: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.
+Section `response_cache`: whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit gives a warning: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.

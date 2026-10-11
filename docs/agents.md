@@ -8,7 +8,7 @@ Monocle lets a coding agent answer "what did the application do when I hit that 
 
 1. Reproduce: open the page, `curl` the endpoint, run the job or the command.
 2. Find the capture with `monocle-list`, or take the id from the `X-Monocle-Id` response header.
-3. `monocle-show` shows where the time went, the totals and any warnings.
+3. `monocle-show` shows where the time went, the totals and any errors and warnings.
 4. Dig into a section with `monocle-rows` or `monocle-queries`.
 5. Every row has an `origin` - the `file:line` in your code that caused it, and `via` - the library call it went through on the way, when there is one. Fix the code, reproduce, and use `monocle-compare` to see the difference.
 
@@ -32,7 +32,7 @@ Recent captures, newest first.
 | `min_duration_ms` | only captures at least this slow |
 | `since` | a timestamp, a date, or `15m`, `2h`, ... |
 | `label` | captures with this label |
-| `has_errors` | only captures with a 5xx status, a failure or an exception |
+| `has_errors` | only captures with errors: a 5xx status, a failed job or command, an exception, or an error a lens reported (a failed HTTP call, an error log entry, ...) |
 | `has` | only captures with rows in these sections, e.g. `["exceptions"]` |
 | `exclude` | leave out captures whose name contains any of these, e.g. `["/livewire"]` |
 | `offset`, `limit` | paging |
@@ -42,10 +42,29 @@ Recent captures, newest first.
 One capture - the latest unless an `id` is given. By default it returns the summary:
 
 - **Time breakdown** - bootstrap, middleware (request), routing, controller, middleware (response) and terminate, plus how much of it was database, cache, views, HTTP calls, filesystem, AI and so on.
-- **Totals** - number of queries, cache hit rate, memory, tokens, ...
-- **Warnings** - slow queries, N+1 candidates, duplicate queries, slow middleware, errors and failures.
+- **Totals** - number of queries, cache hit rate, memory, tokens, ... with their labels, units and the section each belongs to.
+- **Errors** - things that failed: exceptions, failed HTTP calls, jobs and scheduled tasks, error log entries, 5xx responses and the like.
+- **Warnings** - things worth a look: slow queries, N+1 candidates, duplicate queries, slow middleware and the like.
+- **Flags** - the errors and warnings together, errors first, each with its level and the section that reported it, so the agent knows where to dig.
 - **Trace links** - the parent capture and any jobs it dispatched.
 - **Available sections** - what else can be fetched, with a description and row count.
+
+The summary, also returned by `monocle:show`, has these keys:
+
+| Key | Holds |
+|---|---|
+| `id`, `type`, `name`, `status`, `label`, `started_at`, `ended_by` | the capture |
+| `parent_id`, `trace_id`, `children` | trace links |
+| `breakdown` | time per phase and per category |
+| `totals` | name => value |
+| `labels`, `units` | what each total counts and its unit |
+| `headlines` | the totals about the whole capture, such as duration and peak memory |
+| `groups` | total => the section that reported it |
+| `counts` | rows per section |
+| `errors`, `warnings` | the messages |
+| `flags` | every error and warning as `{level, section, message}`, errors first |
+| `problems` | section => `{warnings, errors}` counts |
+| `meta`, `health` | metadata added to the capture, and memory, overhead and the sections recorded |
 
 Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`).
 
@@ -74,7 +93,7 @@ A request or command together with every job it dispatched, and the jobs those d
 
 ### `monocle-compare`
 
-Compares two captures: every total side by side, time per phase, queries that appeared or disappeared, and warnings only one side has.
+Compares two captures: every total side by side, time per phase, queries that appeared or disappeared, and errors and warnings only one side has.
 
 Label a run, change the code, run it again and compare:
 
