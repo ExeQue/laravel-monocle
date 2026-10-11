@@ -44,16 +44,18 @@ These record something only when the package is installed; otherwise they do not
 
 | Package | Lens | Section | Records |
 |---|---|---|---|
-| [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
 | [Inertia](https://inertiajs.com) | [Inertia](#inertia) | `request` | the page component and its props |
-| [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
+| **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
-| [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](#feature-flags) | `features` | every feature check and its value |
-| [spatie/laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](#response-cache) | `response_cache` | cache hits and misses for whole responses |
-| [spatie/laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](#media-library) | `media` | media added and conversions run |
-| [Laravel Sanctum](https://laravel.com/docs/sanctum) | [Sanctum](#sanctum) | `auth` | the token a request used |
 | [Laravel Folio](https://laravel.com/docs/folio) | [Folio](#folio) | `request` | the page file a request matched |
+| [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
 | [Laravel Octane](https://laravel.com/docs/octane) | [Octane](#octane) | - | a capture per request in a worker |
+| [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](#feature-flags) | `features` | every feature check and its value |
+| [Laravel Sanctum](https://laravel.com/docs/sanctum) | [Sanctum](#sanctum) | `auth` | the token a request used |
+| [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
+| **Spatie** | | | |
+| [laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](#media-library) | `media` | media added and conversions run |
+| [laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](#response-cache) | `response_cache` | cache hits and misses for whole responses |
 
 ## Laravel
 
@@ -229,46 +231,50 @@ Section `dumps`: every `dump()` and `dd()` with the value and where it was calle
 
 ## Packages
 
+### Inertia
+
+Inertia responses are shown as a card on the Request tab: the component, its props and, on a partial reload, which props were asked for. This works for Inertia visits and for the page embedded in the first load.
+
+### Laravel
+
+#### AI
+
+Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.
+
+Option: `max_text` (no limit) - shorten long prompts and responses.
+
+#### Folio
+
+The page file a request matched is shown as the request's action, with the page name, mount path and parameters under `folio`. See [Request](#request).
+
+#### MCP servers
+
+Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Calls to Monocle's own server are not recorded.
+
+#### Octane
+
+Each request in an Octane worker is its own capture, starting before global middleware runs, so the middleware phase is complete.
+
+#### Feature flags
+
+Section `features`: every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined is flagged, since it quietly resolves to false.
+
+#### Sanctum
+
+Section `auth` also records the Sanctum token a request authenticated with: its id, name, abilities and owner. See [Auth](#auth).
+
 ### Livewire
 
 Section `livewire`: every component in the request - whether it was mounted or updated, the methods called, properties changed, render time and any exception.
 
 The response of a Livewire update is shown as one card per component on the Request tab: the methods it called with their parameters, the properties that changed, the events it dispatched and what it returned.
 
-### Inertia
+### Spatie
 
-Inertia responses are shown as a card on the Request tab: the component, its props and, on a partial reload, which props were asked for. This works for Inertia visits and for the page embedded in the first load.
-
-### MCP servers
-
-Section `mcp`: calls to MCP servers your application provides - which tool, resource or prompt, the arguments, duration and whether it failed. Calls to Monocle's own server are not recorded.
-
-### AI
-
-Section `ai`: calls to `laravel/ai` agents - agent, provider, model, prompt, response, tool calls, tokens, duration and status. The timeline shows each agent with its steps and tool calls; an agent called from inside a tool is shown under that tool.
-
-Option: `max_text` (no limit) - shorten long prompts and responses.
-
-### Feature flags
-
-Section `features`: every feature check - the feature, its scope, the value and whether it came from storage or was resolved just now - plus updates and deletions. A feature that is not defined is flagged, since it quietly resolves to false.
-
-### Response cache
-
-Section `response_cache`: whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit is flagged: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.
-
-### Media library
+#### Media library
 
 Section `media`: media added to models - the model, collection, disk, file and size - and every conversion that ran, with its duration. Conversions also show on the timeline. Conversions that run during a request rather than on the queue are flagged.
 
-### Sanctum
+#### Response cache
 
-Section `auth` also records the Sanctum token a request authenticated with: its id, name, abilities and owner. See [Auth](#auth).
-
-### Folio
-
-The page file a request matched is shown as the request's action, with the page name, mount path and parameters under `folio`. See [Request](#request).
-
-### Octane
-
-Each request in an Octane worker is its own capture, starting before global middleware runs, so the middleware phase is complete.
+Section `response_cache`: whether the response came from the cache, how old it was and its tags, and when the cache was cleared. A hit is flagged: the controller did not run, so a change to it shows nothing until the entry expires or the cache is cleared.
