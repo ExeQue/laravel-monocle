@@ -3,6 +3,10 @@
     name="request"
     class="grid gap-6"
     x-data="{
+        responseView: 'pretty',
+        get request() {
+            return tab === 'request' ? (tabData?.data ?? null) : null
+        },
         get authRows() {
             return tabData?.included?.auth ?? []
         },

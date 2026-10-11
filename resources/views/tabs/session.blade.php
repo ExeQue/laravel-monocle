@@ -1,5 +1,12 @@
 {{-- Session driver and id, what the request changed and what the session held. --}}
-<x-monocle::panel name="session">
+<x-monocle::panel
+    name="session"
+    x-data="{
+        get session() {
+            return tab === 'session' ? (tabData?.data ?? null) : null;
+        },
+    }"
+>
     <template x-if="session">
         <div class="grid gap-4">
             <p class="text-muted m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">

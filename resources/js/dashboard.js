@@ -64,7 +64,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   listOpen: false,
   copied: null,
   status: '',
-  responseView: 'pretty',
   wide: true,
 
   init() {
@@ -402,8 +401,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },
 
 
-  get request() { return this.tab === 'request' ? (this.tabData?.data ?? null) : null; },
-  get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },
 
   /** The tables in a generic tab: the tab's own rows, and model changes under the model counts. */
 
