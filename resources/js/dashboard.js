@@ -176,12 +176,12 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   async openTab(tab) {
     this.popover.close();
+    const release = this.holdAtTabs();
     this.tab = tab;
     this.tabData = null;
     history.replaceState(null, '', `#${this.selectedId}/${tab}`);
-    // A new tab starts at the top of the capture, not where the last one was scrolled to.
-    this.$refs.detail?.scrollTo({ top: 0 });
     this.$nextTick(() => this.$refs.tabs?.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }));
+    if (['timeline', 'overview'].includes(tab)) this.$nextTick(release);
     if (tab === 'timeline') return this.renderTimeline();
     if (tab === 'overview') return;
     this.tabLoading = true;
@@ -202,7 +202,26 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       this.error = e.message;
     } finally {
       this.tabLoading = false;
+      this.$nextTick(release);
     }
+  },
+
+  /**
+   * A new tab starts just below the tab bar: scrolled up to where the bar sits when not
+   * stuck, never down. The capture keeps its height while the tab loads, so the scroll
+   * holds; the returned function lets go of it once the tab is drawn.
+   */
+  holdAtTabs() {
+    const pane = this.$refs.detail;
+    const body = this.$refs.tabs?.parentElement;
+    let above = this.$refs.tabs?.previousElementSibling;
+    while (above && !above.getClientRects().length) above = above.previousElementSibling;
+    if (!pane || !body || !above) return () => {};
+    const gap = parseFloat(getComputedStyle(body).rowGap) || 0;
+    const top = Math.min(pane.scrollTop, above.getBoundingClientRect().bottom - pane.getBoundingClientRect().top + pane.scrollTop + gap);
+    body.style.minHeight = `${top + pane.clientHeight}px`;
+    pane.scrollTo({ top });
+    return () => { body.style.minHeight = ''; };
   },
 
   async loadMore() {
