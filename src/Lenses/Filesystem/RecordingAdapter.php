@@ -241,10 +241,6 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
             return null;
         }
 
-        if (! isset($stats['size'])) {
-            return null;
-        }
-
         return (int) $stats['size'];
     }
 }

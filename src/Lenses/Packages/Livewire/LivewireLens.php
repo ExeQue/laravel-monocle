@@ -20,7 +20,6 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Livewire\Component;
-use Livewire\Livewire;
 use Throwable;
 
 /**
@@ -63,10 +62,6 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
 
     public function boot(): void
     {
-        if (! class_exists(Livewire::class)) {
-            return;
-        }
-
         $this->hook('mount', function (Component $component): void {
             $this->open($component, 'mount');
         });

@@ -125,4 +125,50 @@ describe(TimelinePresenter::class, function (): void {
         expect($row['_links']['payload'])->toHaveKeys(['order', 'meta.by'])
             ->and($row['_links']['payload'])->not->toHaveKey('count');
     });
+
+    it('places timed rows under their span and labels them by section', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
+        $capture = \ExeQue\Monocle\Data\Capture::fromArray([
+            'id' => 'c1', 'type' => 'request', 'started_at' => 0.0, 'ended_at' => 0.1,
+            'spans' => [
+                ['id' => 'h', 'kind' => 'phase', 'name' => 'handle', 'start' => 0, 'end' => 100],
+                ['id' => 'orphan', 'kind' => 'user', 'name' => 'orphan', 'parent_id' => 'gone', 'start' => 0, 'end' => 5],
+                ['id' => 'unstarted', 'kind' => 'user', 'name' => 'unstarted', 'start' => null, 'end' => null],
+            ],
+            'sections' => [
+                'queries' => [['sql' => 'select 1', 'duration' => 1]],
+                'redis' => [['command' => 'get', 'parameters' => ['key', ['nested']], 'time' => 10, 'duration' => 1]],
+                'filesystem' => [['op' => 'put', 'disk' => 'local', 'path' => 'a.txt', 'time' => 20, 'duration' => 1]],
+                'http' => [['method' => 'GET', 'url' => 'https://a.test', 'pool' => 1]],
+            ],
+        ]);
+
+        $roots = array_column($presenter->present($capture), null, 'id');
+
+        expect(array_keys($roots))->toEqualCanonicalizing(['h', 'orphan', 'unstarted'])
+            ->and(array_column($roots['h']['children'], 'name'))->toBe(['GET key ...', 'put local:a.txt'])
+            ->and($roots['orphan']['children'])->toBe([])
+            ->and($roots['unstarted']['children'])->toBe([]);
+    });
+
+    it('splits and links stack frames and wrapped exceptions in a row', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(new EditorSettings('vscode'), '/app'));
+
+        $row = $presenter->row([
+            'origin' => ['file' => 'app/A.php', 'line' => 3],
+            'frames' => ['app/B.php:4 App\\Missing->handle', 'app/C.php:5', ['file' => 'x']],
+            'previous' => [['class' => 'App\\Missing', 'message' => 'wrapped'], 'loose'],
+            'rules' => ['name' => 'required', 'tags' => ['nested']],
+            'blank' => '',
+            'long' => str_repeat('a', 501).'.php',
+        ]);
+
+        expect($row['origin']['link'])->toBe('vscode://file/app/app/A.php:3')
+            ->and($row['frames'][0])->toBe(['file' => 'app/B.php:4', 'call' => 'App\\Missing->handle', 'link' => 'vscode://file/app/app/B.php:4', 'call_link' => null])
+            ->and($row['frames'][1])->toBe(['file' => 'app/C.php:5', 'call' => null, 'link' => 'vscode://file/app/app/C.php:5', 'call_link' => null])
+            ->and($row['frames'][2])->toBe(['file' => 'x'])
+            ->and($row['previous'][0])->toMatchArray(['class' => 'App\\Missing', 'link' => null, 'file_link' => null])
+            ->and($row['previous'][1])->toBe('loose')
+            ->and($row)->not->toHaveKey('_links');
+    });
 });

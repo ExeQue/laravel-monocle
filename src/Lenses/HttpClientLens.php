@@ -410,7 +410,8 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             }
         }
 
-        return null;
+        // Unreachable: insidePool() found the frame, and every frame it matches carries its object here.
+        return null; // @codeCoverageIgnore
     }
 
     /**

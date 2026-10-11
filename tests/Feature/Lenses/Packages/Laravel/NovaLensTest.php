@@ -45,4 +45,8 @@ describe(NovaLens::class, function (): void {
         expect($capture->rows('auth')[0]['impersonated_by'])->toBe('#1 (web guard)')
             ->and(app(NovaLens::class)->summarize($capture)->totals)->toBe(['auth_impersonated_by' => '#1 (web guard)']);
     });
+
+    it('extends the auth section under its own key', function (): void {
+        expect(app(NovaLens::class)->key())->toBe('auth_nova');
+    });
 });

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use ExeQue\Monocle\Console\QueriesCommand;
+use ExeQue\Monocle\Lenses\DatabaseLens;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -66,5 +67,23 @@ describe(QueriesCommand::class, function (): void {
 
     it('fails for unknown captures', function (): void {
         $this->artisan('monocle:queries', ['id' => 'missing'])->assertFailed();
+    });
+
+    it('flags slow query groups', function (): void {
+        config(['monocle.lenses.'.DatabaseLens::class => ['slow_ms' => 0]]);
+
+        Artisan::call('monocle:queries');
+
+        expect(Artisan::output())->toContain('slow')
+            ->toContain('Slow, up to ');
+    });
+
+    it('says so when the capture ran no queries', function (): void {
+        Route::get('/quiet', fn (): string => 'ok');
+        $this->get('/quiet')->assertOk();
+
+        $this->artisan('monocle:queries')
+            ->expectsOutputToContain('No queries.')
+            ->assertSuccessful();
     });
 });

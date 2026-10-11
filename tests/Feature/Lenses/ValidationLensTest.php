@@ -5,14 +5,23 @@ declare(strict_types=1);
 namespace Tests\Feature\Lenses;
 
 use Closure;
+use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\ValidationLens;
+use Illuminate\Contracts\Validation\Factory as FactoryContract;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Mockery;
 use Tests\Fixtures\RecordingValidator;
 use Tests\Fixtures\Requests\StoreOrderRequest;
+use Tests\Fixtures\Rules\LegacyNotBlank;
+use Tests\Fixtures\Rules\LegacyStartsWith;
 use Tests\Fixtures\Rules\Uppercase;
 
 covers(ValidationLens::class);
@@ -102,5 +111,73 @@ describe(ValidationLens::class, function (): void {
 
         expect(RecordingValidator::$made)->toBe(1)
             ->and(latestCapture()->rows('validation'))->toHaveCount(1);
+    });
+
+    it('records legacy rule objects and rules given as arrays', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+
+        Validator::make(
+            ['sku' => 'xy-1', 'title' => 'Draft', 'name' => 'Rumpelstiltskin'],
+            ['sku' => [new LegacyStartsWith('ab-')], 'title' => [new LegacyNotBlank()], 'name' => [['max', 3]]],
+        )->passes();
+
+        $row = app(Eyepiece::class)->finalize()->rows('validation')[0];
+
+        expect($row['rules'])->toBe(['sku' => 'starts_with:ab-', 'title' => LegacyNotBlank::class, 'name' => '["max",3]'])
+            ->and(array_column($row['failed'], 'rule', 'field'))->toBe(['sku' => LegacyStartsWith::class, 'name' => 'Max']);
+    });
+
+    it('records nothing for validators made outside a capture', function (): void {
+        Validator::make(['code' => ''], ['code' => 'required'])->passes();
+
+        app(Eyepiece::class)->start(CaptureType::Command);
+
+        expect(app(Eyepiece::class)->finalize()->rows('validation'))->toBe([]);
+    });
+
+    it('records a validator once, however often it runs', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+
+        $validator = Validator::make(['code' => ''], ['code' => 'required']);
+        $validator->passes();
+        $validator->passes();
+
+        expect(app(Eyepiece::class)->finalize()->rows('validation'))->toHaveCount(1);
+    });
+
+    it('records nothing when the capture was discarded before validating', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+        $validator = Validator::make(['code' => ''], ['code' => 'required']);
+        app(Eyepiece::class)->discard();
+
+        expect($validator->passes())->toBeFalse()
+            ->and(app(Eyepiece::class)->finalize())->toBeNull();
+    });
+
+    it('leaves a validator factory alone that is not the framework one', function (): void {
+        $factory = Mockery::mock(FactoryContract::class);
+        app()->instance('validator', $factory);
+
+        event(new RouteMatched(new RoutingRoute(['GET'], '/', fn () => 'ok'), Request::create('/')));
+
+        expect(app('validator'))->toBe($factory);
+    });
+
+    it('summarizes nothing without validation', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+
+        expect(app(ValidationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(Summary::make());
+    });
+
+    it('describes itself and presents validation runs with their rules', function (): void {
+        $lens = app(ValidationLens::class);
+        $presentation = $lens->presentation();
+
+        expect($lens->description())->toContain('Validation runs')
+            ->and($lens->advice())->toContain('422')
+            ->and($presentation->tabView)->toBe('monocle::tabs.validation')
+            ->and($presentation->detailsView)->toBe('monocle::details.validation')
+            ->and($presentation->detailsOnly)->toBe(['input'])
+            ->and($presentation->formats)->toBe(['rules' => ['rules'], 'passed' => ['flag', 'passed', 'failed', 'warn']]);
     });
 });

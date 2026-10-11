@@ -137,9 +137,12 @@ enum Platform: string
             return true;
         }
 
+        // Needs a macOS Herd install at a fixed absolute path, which tests cannot create.
+        // @codeCoverageIgnoreStart
         if (file_exists('/Applications/Herd.app/Contents/MacOS/Herd')) {
             return true;
         }
+        // @codeCoverageIgnoreEnd
 
         $home = $env['HOME'] ?? $env['USERPROFILE'] ?? null;
 

@@ -27,4 +27,9 @@ describe(Search::class, function (): void {
             ->and(Search::matches($row, 'true'))->toBeTrue()
             ->and(Search::matches($row, 'duration'))->toBeFalse();
     });
+
+    it('reads empty nested arrays as nothing', function (): void {
+        expect(Search::matches(['tags' => [], 'name' => 'order'], 'order'))->toBeTrue()
+            ->and(Search::matches(['tags' => []], 'array'))->toBeFalse();
+    });
 });

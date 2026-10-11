@@ -149,12 +149,15 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         ]);
 
         // Booting the framework happened before the command started: show it as a phase from the very start.
+        // LARAVEL_START is only defined by the artisan script; defining it in the test process would skew every later request capture.
+        // @codeCoverageIgnoreStart
         if ($startedAt !== null) {
             $bootstrap = $this->eyepiece->span('bootstrap', 'phase');
             $this->eyepiece->startSpan($bootstrap, origin: false);
             $bootstrap->start = 0.0;
             $bootstrap->stop();
         }
+        // @codeCoverageIgnoreEnd
 
         $this->phase = $this->eyepiece->span('command', 'phase');
         $this->eyepiece->startSpan($this->phase, origin: false);
@@ -167,17 +170,22 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
      */
     private function laravelStart(): ?float
     {
+        // Only reachable with LARAVEL_START defined, see startCapture().
+        // @codeCoverageIgnoreStart
         if ($this->usedLaravelStart) {
             return null;
         }
+        // @codeCoverageIgnoreEnd
 
         if (! defined('LARAVEL_START')) {
             return null;
         }
 
+        // @codeCoverageIgnoreStart
         $this->usedLaravelStart = true;
 
         return LARAVEL_START;
+        // @codeCoverageIgnoreEnd
     }
 
     private function onFinished(CommandFinished $event): void

@@ -103,7 +103,7 @@
         ],
         "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "test:coverage": "vendor/bin/pest -p --coverage --min=90",
+        "test:coverage": "vendor/bin/pest -p --coverage --min=100",
         "build": "@php vendor/bin/testbench workbench:build --ansi",
         "queue": [
             "Composer\\Config::disableProcessTimeout",

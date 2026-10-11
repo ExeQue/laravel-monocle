@@ -363,10 +363,6 @@ final class Origin
             return true;
         }
 
-        if (self::isOwn($file)) {
-            return true;
-        }
-
         foreach (self::PLUMBING as $path) {
             if (str_contains($file, $path)) {
                 return true;

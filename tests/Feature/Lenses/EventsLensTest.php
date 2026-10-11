@@ -8,6 +8,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\EventsLens;
 use Illuminate\Support\Facades\Event;
+use Mockery;
 use Tests\Fixtures\OrderPlaced;
 use Tests\Fixtures\OrderPlacedListener;
 
@@ -82,5 +83,39 @@ describe(EventsLens::class, function (): void {
 
         expect(app(EventsLens::class)->summarize(app(Eyepiece::class)->start(CaptureType::Request))->totals)->toBe([])
             ->and(app(EventsLens::class)->presentation()->tabView)->toBe('monocle::tabs.events');
+    });
+    it('lists no listeners when the dispatcher cannot tell them', function (): void {
+        $app = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
+        $app->shouldReceive('make')->with(\Illuminate\Contracts\Events\Dispatcher::class)->andReturn(Mockery::mock(\Illuminate\Contracts\Events\Dispatcher::class));
+        (new EventsLens(app(Eyepiece::class)))->boot($app);
+
+        event('custom.string', ['hello']);
+
+        $rows = app(Eyepiece::class)->finalize()->rows('events');
+
+        expect(array_column($rows, 'listeners'))->toEqualCanonicalizing([['Closure'], []]);
+    });
+
+    it('leaves Monocle listeners out and names listeners of unknown shape', function (): void {
+        $dispatcher = Mockery::mock(\Illuminate\Events\Dispatcher::class);
+        $dispatcher->shouldReceive('getRawListeners')->andReturn([
+            'custom.raw' => ['ExeQue\\Monocle\\SomeListener', 42, 'App\\Listeners\\Audit'],
+        ]);
+        $app = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
+        $app->shouldReceive('make')->with(\Illuminate\Contracts\Events\Dispatcher::class)->andReturn($dispatcher);
+        (new EventsLens(app(Eyepiece::class)))->boot($app);
+
+        event('custom.raw', []);
+
+        $rows = app(Eyepiece::class)->finalize()->rows('events');
+
+        expect(array_column($rows, 'listeners'))->toEqualCanonicalizing([['listener', 'App\\Listeners\\Audit'], []]);
+    });
+
+    it('describes itself for the agent', function (): void {
+        $lens = app(EventsLens::class);
+
+        expect($lens->description())->toContain('listeners registered')
+            ->and($lens->advice())->toStartWith('Look here to see which application events fired');
     });
 });

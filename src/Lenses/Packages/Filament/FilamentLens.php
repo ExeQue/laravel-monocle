@@ -101,10 +101,6 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     public function boot(): void
     {
-        if (! class_exists(Filament::class)) {
-            return;
-        }
-
         $this->hook('mount', fn (Component $component) => $this->touch($component));
         $this->hook('hydrate', fn (Component $component) => $this->touch($component));
         $this->hook('call', $this->call(...));

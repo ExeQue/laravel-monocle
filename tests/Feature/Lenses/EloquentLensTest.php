@@ -82,4 +82,63 @@ describe(EloquentLens::class, function (): void {
         expect($capture->sections)->not->toHaveKey('models')
             ->and(app(EloquentLens::class)->summarize($capture)->totals['models_retrieved'])->toBe(0);
     });
+    it('flags only writes on the connection of the rolled back transaction', function (): void {
+        config(['database.connections.other' => ['driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '']]);
+        app(Eyepiece::class)->span('unrelated')->start()->stop();
+
+        try {
+            DB::connection('other')->transaction(function (): void {
+                Thing::create(['name' => 'on the default connection']);
+
+                throw new RuntimeException('undo');
+            });
+        } catch (RuntimeException) {
+        }
+
+        $changes = app(Eyepiece::class)->finalize()->rows('model_changes');
+
+        expect($changes)->toHaveCount(1)
+            ->and($changes[0])->not->toHaveKey('rolled_back');
+    });
+
+    it('flags nothing when a rolled back transaction wrote no models', function (): void {
+        try {
+            DB::transaction(function (): void {
+                throw new RuntimeException('undo');
+            });
+        } catch (RuntimeException) {
+        }
+
+        expect(app(Eyepiece::class)->finalize()->sections)->not->toHaveKey('model_changes');
+    });
+
+    it('ignores model events without a model and while no capture is recording', function (): void {
+        event('eloquent.created: '.Thing::class, ['not a model']);
+
+        app(Eyepiece::class)->discard();
+        Thing::create(['name' => 'unrecorded']);
+
+        expect(app(Eyepiece::class)->active()->rows('model_changes'))->toBe([]);
+    });
+
+    it('counts restores as updates and force deletes as deletes', function (): void {
+        $capture = app(Eyepiece::class)->finalize();
+        $capture->sections['models'] = [
+            ['model' => Thing::class, 'action' => 'restored', 'count' => 2],
+            ['model' => Thing::class, 'action' => 'forceDeleted', 'count' => 3],
+        ];
+
+        expect(app(EloquentLens::class)->summarize($capture)->totals)->toMatchArray(['models_updated' => 2, 'models_deleted' => 3]);
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(EloquentLens::class);
+        $changes = $lens->presentation()->included['model_changes'] ?? null;
+
+        expect($lens->description())->toContain('model_changes')
+            ->and($lens->advice())->toStartWith('Look here to see how many models')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.models')
+            ->and($lens->presentation()->includes)->toBe(['model_changes'])
+            ->and($changes?->highlights)->toBe(['rolled_back' => 'warn']);
+    });
 });

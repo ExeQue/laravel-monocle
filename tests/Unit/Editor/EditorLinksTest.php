@@ -7,6 +7,8 @@ namespace Tests\Unit\Editor;
 use ExeQue\Monocle\Editor\Editor;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Editor\EditorSettings;
+use ReflectionClass;
+use ReflectionMethod;
 
 covers(Editor::class, EditorLinks::class, EditorSettings::class);
 
@@ -85,6 +87,27 @@ describe(EditorLinks::class, function (): void {
                 ->toContain('src/Editor/Editor.php:')
                 ->and($links('vscode')->class('App\\Missing'))->toBeNull();
         });
+
+        it('links a method to the line it is declared on', function () use ($links): void {
+            $line = (new ReflectionMethod(EditorLinks::class, 'file'))->getStartLine();
+
+            expect($links('vscode', base: '/')->class(EditorLinks::class, 'file'))->toEndWith('src/Editor/EditorLinks.php:'.$line)
+                ->and($links('vscode', base: '/')->class(EditorLinks::class, 'missing'))->toEndWith(':'.(new ReflectionClass(EditorLinks::class))->getStartLine());
+        });
+
+        it('reads the editor from the project .monocle.json', function (): void {
+            $base = sys_get_temp_dir().'/monocle-project-'.bin2hex(random_bytes(4));
+            mkdir($base);
+            file_put_contents($base.'/'.EditorSettings::FILE, json_encode(['editor' => 'vscode']));
+
+            try {
+                expect(EditorLinks::forProject($base.'/')->file('app/X.php'))->toBe('vscode://file'.$base.'/app/X.php:1')
+                    ->and(EditorLinks::forProject($base.'/missing')->enabled())->toBeFalse();
+            } finally {
+                unlink($base.'/'.EditorSettings::FILE);
+                rmdir($base);
+            }
+        });
     });
 
     describe('path mappings', function () use ($links): void {
@@ -93,7 +116,8 @@ describe(EditorLinks::class, function (): void {
 
             expect($mapped->file('app/X.php'))->toBe('vscode://file/home/me/app/app/X.php:1')
                 ->and($mapped->file('/var/www/other.php'))->toBe('vscode://file/a/other.php:1')
-                ->and($mapped->file('/var/wwwx/y.php'))->toBe('vscode://file/var/wwwx/y.php:1');
+                ->and($mapped->file('/var/wwwx/y.php'))->toBe('vscode://file/var/wwwx/y.php:1')
+                ->and($mapped->file('/var/www'))->toBe('vscode://file/a:1');
         });
 
         it('maps container paths to a Windows drive', function () use ($links): void {

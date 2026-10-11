@@ -52,4 +52,22 @@ describe(ClearCommand::class, function (): void {
 
         expect($captures())->toBe(0);
     });
+
+    it('clears without asking when nothing is recorded', function () use ($captures): void {
+        app(StoreManager::class)->store()->clear();
+
+        $this->artisan('monocle:clear')
+            ->expectsOutputToContain('Cleared 0 captures.')
+            ->assertSuccessful();
+
+        expect($captures())->toBe(0);
+    });
+
+    it('clears without asking when the command is not interactive', function () use ($captures): void {
+        $this->artisan('monocle:clear', ['--no-interaction' => true])
+            ->expectsOutputToContain('Cleared 2 captures.')
+            ->assertSuccessful();
+
+        expect($captures())->toBe(0);
+    });
 });

@@ -238,7 +238,10 @@ final class FileStore implements Store
 
         // Belt and braces: the resolved file must live inside the storage directory.
         if ($root !== false && ! str_starts_with((string) realpath(dirname($path)), $root)) {
+            // Unreachable once the id is validated: dirname($path) is the store path itself.
+            // @codeCoverageIgnoreStart
             throw new InvalidArgumentException("Monocle refused to touch [{$path}] outside of [{$root}].");
+            // @codeCoverageIgnoreEnd
         }
 
         return $path;

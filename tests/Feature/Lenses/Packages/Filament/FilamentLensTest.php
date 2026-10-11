@@ -9,17 +9,24 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Filament\FilamentLens;
 use ExeQue\Monocle\LensRegistry;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Notifications\DatabaseNotification;
 use Filament\Notifications\Notification;
+use Filament\Resources\Events\RecordCreated;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use RuntimeException;
 use Tests\Fixtures\Filament\BookResource;
 use Tests\Fixtures\Filament\EditBook;
 use Tests\Fixtures\Filament\ListBooks;
+use Tests\Fixtures\Livewire\Counter;
 use Tests\Fixtures\Models\Book;
 use Tests\Fixtures\Models\User;
+use Tests\Fixtures\WelcomeNotification;
 
 covers(FilamentLens::class);
 
@@ -47,6 +54,14 @@ describe(FilamentLens::class, function (): void {
     });
 
     $lens = fn (): FilamentLens => collect(app(LensRegistry::class)->booted())->first(fn (object $lens): bool => $lens instanceof FilamentLens);
+    /** Runs one of the lens's private steps directly, for the paths Filament never takes in a test. */
+    $invoke = fn (string $method, mixed ...$arguments): mixed => (fn (): mixed => $this->{$method}(...$arguments))->call($lens());
+    $page = function (string $id): ListBooks {
+        $page = new ListBooks();
+        $page->setId($id);
+
+        return $page;
+    };
     $rows = fn (string $kind): array => array_values(array_filter(latestCapture()->rows('filament'), fn (array $row): bool => $row['kind'] === $kind));
 
     it('records the panel, page and resource and the table a page renders', function () use ($rows): void {
@@ -210,5 +225,102 @@ describe(FilamentLens::class, function (): void {
 
         expect(latestCapture()->rows('filament_context'))->toBe([])
             ->and($lens()->summarize(latestCapture()))->toEqual(Summary::make());
+    });
+    it('describes itself and shows its rows as a table on a tab of its own', function () use ($lens): void {
+        expect($lens()->description())->toContain('filament_context')
+            ->and($lens()->advice())->toContain('Filament')
+            ->and($lens()->presentation()->toArray())->toMatchArray(['includes' => ['filament_context'], 'groupings' => [['kind', 'by kind'], ['component', 'by component']]]);
+    });
+
+    it('ignores calls on components without actions and calls with no action mounted', function (): void {
+        Livewire::test(Counter::class)->call('increment');
+
+        expect(latestCapture()->rows('filament'))->toBe([]);
+
+        Livewire::test(ListBooks::class)->call('callMountedAction');
+
+        expect(collect(latestCapture()->rows('filament'))->where('kind', 'action')->all())->toBe([]);
+    });
+
+    it('records nothing while nothing is recording', function () use ($invoke, $page): void {
+        $book = Book::query()->first();
+
+        expect($invoke('call', $page('idle'), 'mountAction', ['greet']))->toBeNull()
+            ->and($invoke('render', $page('idle')))->toBeNull()
+            ->and($invoke('notifications'))->toBe([]);
+
+        $invoke('touch', $page('idle'));
+        $invoke('saved', 'created', $book, null);
+        $invoke('sent', new NotificationSent($this->user, new DatabaseNotification(['title' => 'Idle']), 'database'));
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        expect(app(Eyepiece::class)->finalize()->rows('filament'))->toBe([]);
+    });
+
+    it('ignores events and exceptions that are not about the running action', function () use ($invoke, $page): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        $invoke('ran', Action::make('greet'), 'success');
+        $invoke('exception', $page('books'), new RuntimeException('nothing running'));
+
+        $finish = $invoke('call', $page('books'), 'mountAction', ['greet']);
+        $invoke('ran', 'not an action', 'success');
+        $invoke('ran', Action::make('rename'), 'success');
+        $invoke('exception', 'not a component', new RuntimeException('elsewhere'));
+        $invoke('exception', $page('other'), new RuntimeException('other component'));
+        $invoke('stop', 99);
+        $finish();
+
+        $action = collect(app(Eyepiece::class)->finalize()->rows('filament'))->firstWhere('kind', 'action');
+
+        expect($action)->toMatchArray(['name' => 'greet', 'status' => 'stopped', 'exception' => null]);
+    });
+
+    it('leaves out a table that cannot describe itself', function () use ($invoke, $page): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        $invoke('render', $page('unmounted'))();
+
+        expect(app(Eyepiece::class)->finalize()->rows('filament'))->toBe([]);
+    });
+
+    it('records a record event fired as an object and skips what is not a model', function () use ($invoke): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        event(new RecordCreated($this->dune, ['title' => 'Dune'], new EditBook()));
+        $invoke('saved', 'updated', 'not a model', null);
+
+        $rows = app(Eyepiece::class)->finalize()->rows('filament');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0])->toMatchArray(['kind' => 'record', 'name' => 'created', 'component' => EditBook::class, 'record' => Book::class.'#'.$this->dune->getKey()]);
+    });
+
+    it('records Filament notifications sent to any notifiable and skips other notifications', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        event(new NotificationSent(new AnonymousNotifiable(), new WelcomeNotification(), 'mail'));
+        event(new NotificationSent(new AnonymousNotifiable(), new DatabaseNotification(['title' => 'Ping', 'status' => 'info']), 'broadcast'));
+
+        $rows = app(Eyepiece::class)->finalize()->rows('filament');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0])->toMatchArray(['kind' => 'notification', 'name' => 'Ping', 'status' => 'info', 'channel' => 'broadcast', 'notifiable' => AnonymousNotifiable::class]);
+    });
+
+    it('finds no flashed notifications without a working session', function () use ($invoke): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        app()->instance('session', new class () {
+            public function get(): never
+            {
+                throw new RuntimeException('session store is down');
+            }
+        });
+
+        expect($invoke('notifications'))->toBe([]);
+
+        unset(app()['session']);
+
+        expect(app()->bound('session'))->toBeFalse()
+            ->and($invoke('notifications'))->toBe([]);
+
+        app(Eyepiece::class)->discard();
     });
 });

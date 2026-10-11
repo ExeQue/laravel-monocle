@@ -72,9 +72,7 @@ final class MonocleServiceProvider extends ServiceProvider
 
         $this->app->make(LensRegistry::class)->boot($eyepiece);
 
-        register_shutdown_function(static function () use ($eyepiece): void {
-            $eyepiece->finalize('shutdown');
-        });
+        register_shutdown_function($eyepiece->finalize(...), 'shutdown');
     }
 
     private function registerDashboard(): void
@@ -116,9 +114,12 @@ final class MonocleServiceProvider extends ServiceProvider
             return;
         }
 
+        // laravel/mcp is optional for applications but always installed for the test suite.
+        // @codeCoverageIgnoreStart
         if (! class_exists(Registrar::class)) {
             return;
         }
+        // @codeCoverageIgnoreEnd
 
         $name = (string) $config->get('monocle.mcp.server', 'monocle');
 

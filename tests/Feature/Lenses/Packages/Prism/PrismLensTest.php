@@ -248,4 +248,8 @@ describe(PrismLens::class, function (): void {
                 ->toBe(TracedProvider::class, "TracedProvider does not override {$method}()");
         }
     });
+
+    it('presents its rows on the prism tab', function (): void {
+        expect(app(PrismLens::class)->presentation()->tabView)->toBe('monocle::tabs.prism');
+    });
 });

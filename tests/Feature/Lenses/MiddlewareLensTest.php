@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Reader\TimelineBuilder;
+use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\Route;
+use RuntimeException;
 use Tests\Fixtures\Middleware\Abort;
 use Tests\Fixtures\Middleware\SleepAfter;
 use Tests\Fixtures\Middleware\SleepBefore;
@@ -116,5 +124,58 @@ describe(MiddlewareLens::class, function (): void {
 
         expect($summary->totals['middleware_count'])->toBe(2)
             ->and($summary->warnings)->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $own));
+    });
+
+    it('skips closure middleware and classes that do not exist', function (): void {
+        $missing = 'Tests\\Fixtures\\Middleware\\Missing';
+        $route = new RoutingRoute(['GET'], '/mixed', ['uses' => fn () => 'ok', 'middleware' => [fn ($request, $next) => $next($request), $missing, SleepAfter::class]]);
+
+        event(new RouteMatched($route, Request::create('/mixed')));
+
+        expect(app(SleepAfter::class))->toBeInstanceOf(TimedMiddleware::class)
+            ->and(app()->bound($missing))->toBeFalse();
+    });
+
+    it('warns about slow middleware whose class is unknown or missing', function (): void {
+        $lens = app(MiddlewareLens::class);
+        $lens->configure(['slow_ms' => 1]);
+
+        $capture = new Capture('capture', CaptureType::Request, microtime(true));
+
+        foreach (['Anonymous' => [], 'Missing' => ['class' => 'Tests\\Fixtures\\Middleware\\Missing']] as $name => $meta) {
+            $span = new Span($name, $name, 'middleware.request', null, null, null);
+            $span->start = 0.0;
+            $span->end = 10.0;
+            $span->meta = $meta;
+            $capture->spans[$name] = $span;
+        }
+
+        expect($lens->summarize($capture)->warnings)->toBe([
+            'Middleware Anonymous spent 10.0 ms of its own time.',
+            'Middleware Missing spent 10.0 ms of its own time.',
+        ]);
+    });
+
+    it('wraps route middleware by name without global middleware when the kernel cannot be resolved', function (): void {
+        $this->app->bind(Kernel::class, fn () => throw new RuntimeException('no kernel'));
+
+        $lens = new MiddlewareLens(app(Eyepiece::class));
+        $lens->boot($this->app);
+
+        $route = new RoutingRoute(['GET'], '/plain', ['uses' => fn () => 'ok', 'middleware' => [SleepBefore::class.':3', fn ($request, $next) => $next($request)]]);
+
+        event(new RouteMatched($route, Request::create('/plain')));
+
+        expect(app(SleepBefore::class))->toBeInstanceOf(TimedMiddleware::class);
+    });
+
+    it('presents middleware as a table with own time and short circuits', function (): void {
+        $presentation = app(MiddlewareLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.middleware')
+            ->and(array_keys($presentation->columns))->toBe(['middleware', 'group', 'request_ms', 'response_ms', 'passed', 'duration'])
+            ->and($presentation->detailsOnly)->toBe(['parameters', 'short_circuited_with', 'slow'])
+            ->and($presentation->groupings)->toBe(['group' => 'by group'])
+            ->and($presentation->highlights)->toBe(['slow' => 'warn']);
     });
 });

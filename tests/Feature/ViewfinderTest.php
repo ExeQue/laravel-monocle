@@ -139,4 +139,29 @@ describe(Viewfinder::class, function (): void {
         expect(app(CaptureReader::class)->children(latestCapture()->parentId ?? $failed->parentId))->toHaveCount(1)
             ->and(app(CaptureReader::class)->list(Filter::fromArray(['has_errors' => true]))['total'])->toBe(2);
     });
+
+    it('lists queued jobs of a trace that no worker has run yet', function (): void {
+        $parent = new Capture('trace-parent', CaptureType::Request, microtime(true), traceId: 'trace-1');
+        $parent->sections['jobs'] = [
+            ['job' => 'App\\Jobs\\Ran', 'run' => 'job-ran'],
+            ['job' => 'App\\Jobs\\Sync', 'run' => null],
+            ['job' => 'App\\Jobs\\Waiting', 'run' => 'job-waiting'],
+        ];
+
+        $worker = new Capture('trace-worker', CaptureType::Job, microtime(true), parentId: 'trace-parent', traceId: 'trace-1');
+        $worker->sections['job'] = ['job_id' => 'job-ran'];
+
+        app(StoreManager::class)->store()->put($parent);
+        app(StoreManager::class)->store()->put($worker);
+
+        $trace = app(Viewfinder::class)->trace(['id' => 'trace-parent']);
+
+        expect($trace['trace_id'])->toBe('trace-1')
+            ->and($trace['captures'])->toHaveCount(2)
+            ->and($trace['pending'])->toBe([['parent_id' => 'trace-parent', 'job' => 'App\\Jobs\\Waiting', 'job_id' => 'job-waiting']]);
+    });
+
+    it('refuses to compare without a first capture', function (): void {
+        expect(app(Viewfinder::class)->compare(['a' => ''])['error'])->toBe('Capture [] not found by id or label.');
+    });
 });

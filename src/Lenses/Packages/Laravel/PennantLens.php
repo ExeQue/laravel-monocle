@@ -63,9 +63,12 @@ final class PennantLens implements Advises, Lens, Presentable, RequiresPackages,
         ];
 
         foreach ($events as $event => $source) {
+            // Event missing from older laravel/pennant versions.
+            // @codeCoverageIgnoreStart
             if (! class_exists($event)) {
                 continue;
             }
+            // @codeCoverageIgnoreEnd
 
             $this->eyepiece->listen($event, function (object $event) use ($source): void {
                 if (! $this->eyepiece->recording()) {

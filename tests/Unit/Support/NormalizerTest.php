@@ -6,6 +6,7 @@ namespace Tests\Unit\Support;
 
 use DateTimeImmutable;
 use ExeQue\Monocle\Support\Normalizer;
+use Illuminate\Container\Container;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use JsonSerializable;
@@ -136,4 +137,28 @@ describe(Normalizer::class, function (): void {
             ->and($normalized['again'])->toBeArray();
     });
 
+    it('keeps a closed resource as it is', function (): void {
+        $resource = fopen('php://memory', 'r');
+        fclose($resource);
+
+        expect(Normalizer::value($resource))->toBe($resource);
+    });
+
+    it('unwraps objects directly when no application is running', function (): void {
+        $previous = Container::getInstance();
+        Container::setInstance(new Container());
+
+        try {
+            $normalized = Normalizer::normalize(['s' => new class () implements Stringable {
+                public function __toString(): string
+                {
+                    return 'outside';
+                }
+            }]);
+        } finally {
+            Container::setInstance($previous);
+        }
+
+        expect($normalized)->toBe(['s' => 'outside']);
+    });
 });

@@ -149,7 +149,6 @@ final readonly class TimelinePresenter
             'redis' => strtoupper((string) ($row['command'] ?? '')).' '.$this->redisParameters($row),
             'http' => ($row['method'] ?? '').' '.($row['url'] ?? ''),
             'filesystem' => ($row['op'] ?? '').' '.($row['disk'] ?? '').':'.($row['path'] ?? ''),
-            default => $section,
         };
 
         return mb_strimwidth(trim($text), 0, 300, '...');

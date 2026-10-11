@@ -12,6 +12,13 @@ use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Testing\TestResponse;
 use Laravel\Mcp\Facades\Mcp;
+use Laravel\Mcp\Schema\Implementation;
+use Laravel\Mcp\Server\Contracts\Method;
+use Laravel\Mcp\Server\ServerContext;
+use Laravel\Mcp\Transport\JsonRpcRequest;
+use Laravel\Mcp\Transport\JsonRpcResponse;
+use Mockery;
+use RuntimeException;
 use Tests\Fixtures\Mcp\EchoServer;
 use Tests\Fixtures\Mcp\EchoTool;
 use Tests\Fixtures\Mcp\ExcludedServer;
@@ -82,4 +89,54 @@ describe(McpLens::class, function (): void {
             ->and($capture->section('mcp')['primitive'])->toBe('echo')
             ->and(app(CaptureReader::class)->list(Filter::fromArray(['type' => 'mcp']))['total'])->toBe(1);
     });
+
+    it('records a handler that throws as a failed call and rethrows', function (): void {
+        app(Eyepiece::class)->reset();
+        $inner = Mockery::mock(Method::class);
+        $inner->shouldReceive('handle')->andThrow(new RuntimeException('tool crashed'));
+        $method = new TimedMethod($inner, app(Eyepiece::class), []);
+
+        expect($method->inner())->toBe($inner)
+            ->and(fn () => $method->handle(new JsonRpcRequest(1, 'tools/call', ['name' => 'echo']), mcpContext()))
+            ->toThrow(RuntimeException::class, 'tool crashed');
+
+        $capture = latestCapture();
+
+        expect($capture->status)->toBe('error')
+            ->and($capture->section('mcp')['is_error'])->toBeTrue()
+            ->and($capture->section('mcp')['exception']['message'])->toBe('tool crashed');
+    });
+
+    it('marks a JSON-RPC error response as an error', function (): void {
+        app(Eyepiece::class)->reset();
+        $inner = Mockery::mock(Method::class);
+        $inner->shouldReceive('handle')->andReturn(JsonRpcResponse::error(1, -32601, 'Method not found'));
+
+        (new TimedMethod($inner, app(Eyepiece::class), []))->handle(new JsonRpcRequest(1, 'prompts/get', ['name' => 'missing']), mcpContext());
+
+        expect(latestCapture()->section('mcp'))->toMatchArray(['method' => 'prompts/get', 'primitive' => 'missing', 'is_error' => true]);
+    });
+
+    it('describes its rows and shows them on the mcp tab', function (): void {
+        $lens = app(McpLens::class);
+
+        expect($lens->description())->toContain('JSON-RPC method')
+            ->and($lens->advice())->toStartWith('Look here for calls')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.mcp');
+    });
 });
+
+function mcpContext(): ServerContext
+{
+    return new ServerContext(
+        supportedProtocolVersions: ['2025-06-18'],
+        serverCapabilities: [],
+        implementation: new Implementation('direct-server', '1.0.0'),
+        instructions: '',
+        maxPaginationLength: 50,
+        defaultPaginationLength: 15,
+        tools: [],
+        resources: [],
+        prompts: [],
+    );
+}

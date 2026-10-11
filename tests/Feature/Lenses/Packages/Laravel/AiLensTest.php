@@ -25,6 +25,7 @@ use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Mockery;
 use RuntimeException;
+use Tests\Fixtures\Ai\BrokenNameTool;
 use Tests\Fixtures\Ai\Greeter;
 use Tests\Fixtures\Ai\WeatherTool;
 
@@ -120,19 +121,76 @@ describe(AiLens::class, function (): void {
         $lens->configure(['max_text' => 5]);
         $lens->boot($this->app, app(Eyepiece::class));
 
-        Greeter::fake(['A very long answer']);
+        Greeter::fake(['A very long answer', 'Yo']);
         (new Greeter())->prompt('Say hi to Ada');
+        (new Greeter())->prompt('Hi');
 
         $rows = app(Eyepiece::class)->finalize()->rows('ai');
         $truncated = collect($rows)->firstWhere('response', 'A ver...');
 
         expect($truncated)->not->toBeNull()
-            ->and($truncated['prompt'])->toBe('Say h...');
+            ->and($truncated['prompt'])->toBe('Say h...')
+            ->and(collect($rows)->firstWhere('response', 'Yo'))->not->toBeNull();
 
         app(Eyepiece::class)->reset();
         event(new PromptingAgent('inv-9', ($this->prompt)('inv-9')));
         app(Eyepiece::class)->start(CaptureType::Request);
 
         expect(app(AiLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
+    });
+    it('ignores agent, step and tool events for invocations it is not tracking', function (): void {
+        $agent = new Greeter();
+        $tool = new WeatherTool();
+        $usage = new TextUsage(9, 9);
+        $step = new StepResponse('late', [], FinishReason::Stop, $usage, new Meta('openai', 'gpt-test'));
+
+        event(new AgentPrompted('ghost', ($this->prompt)('ghost'), new AgentResponse('ghost', 'boo', $usage, new Meta('openai', 'gpt-test'))));
+        event(new AgentFailed('ghost', ($this->prompt)('ghost'), new RuntimeException('boo')));
+        event(new StartingStep('ghost', 1, $agent, $this->provider, 'gpt-test', true, [], null));
+        event(new InvokingTool('ghost', 'ghost-tool', $agent, $tool, []));
+
+        event(new PromptingAgent('inv-1', ($this->prompt)('inv-1')));
+        event(new StartingStep('inv-1', 1, $agent, $this->provider, 'gpt-test', true, [], null));
+        event(new AgentFailed('inv-1', ($this->prompt)('inv-1'), new RuntimeException('gave up')));
+        event(new StepCompleted('inv-1', 1, $agent, $this->provider, 'gpt-test', true, $step, 5.0));
+
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('ai');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0]['invocation_id'])->toBe('inv-1')
+            ->and($rows[0]['tokens'])->toBe(['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0])
+            ->and($capture->spansOfKind('ai.step'))->toHaveCount(1)
+            ->and($capture->spansOfKind('ai.tool'))->toBe([]);
+    });
+
+    it('puts a tool under the open step of its own agent and copes with names and providers that throw', function (): void {
+        $agent = new Greeter();
+        $broken = Mockery::mock(TextProvider::class)->shouldIgnoreMissing();
+        $broken->shouldReceive('name')->andThrow(new RuntimeException('no name'));
+        $prompt = new class (new Greeter(), 'Short prompt', [], $this->provider, 'gpt-test', null, 'inv-a') extends AgentPrompt {
+            public function provider(): TextProvider
+            {
+                throw new RuntimeException('no provider');
+            }
+        };
+
+        event(new PromptingAgent('inv-a', $prompt));
+        event(new StartingStep('inv-a', 1, $agent, $broken, 'gpt-test', false, [], null));
+        event(new PromptingAgent('inv-b', ($this->prompt)('inv-b')));
+        event(new StartingStep('inv-b', 1, $agent, $this->provider, 'gpt-test', false, [], null));
+        event(new InvokingTool('inv-a', 'tool-a', $agent, new BrokenNameTool(), []));
+        event(new ToolInvoked('inv-a', 'tool-a', $agent, new BrokenNameTool(), [], ['temp' => 21], 2.0));
+
+        $capture = app(Eyepiece::class)->finalize();
+        $agents = collect($capture->spansOfKind('ai.agent'))->keyBy(fn ($span) => $span->meta['invocation_id']);
+        $steps = collect($capture->spansOfKind('ai.step'))->keyBy(fn ($span) => $span->parentId);
+        $tool = $capture->spansOfKind('ai.tool')[0];
+
+        expect($agents['inv-a']->meta)->toMatchArray(['provider' => null, 'prompt' => 'Short prompt'])
+            ->and($steps[$agents['inv-a']->id]->meta['provider'])->toBe($broken::class)
+            ->and($tool->parentId)->toBe($steps[$agents['inv-a']->id]->id)
+            ->and($tool->name)->toBe('broken_name_tool')
+            ->and($tool->meta['result'])->toBe('{"temp":21}');
     });
 });

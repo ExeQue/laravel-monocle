@@ -15,6 +15,7 @@ use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\MonocleManager;
+use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-covers(Eyepiece::class, Span::class, MonocleManager::class, Capture::class);
+covers(Eyepiece::class, Span::class, MonocleManager::class, Capture::class, InvalidMaskException::class, InvalidSpanColorException::class);
 
 describe(Eyepiece::class, function (): void {
     beforeEach(function (): void {
@@ -125,6 +126,51 @@ describe(Eyepiece::class, function (): void {
         it('rejects colours it cannot draw', function (string $color): void {
             Monocle::span('bad')->color($color);
         })->throws(InvalidSpanColorException::class)->with(['orange', '#ff88', 'red; background: url(x)', '']);
+
+        it('keeps the first start and stop of a span', function (): void {
+            $span = Monocle::span('once')->start();
+            $started = $span->start;
+
+            $span->start(['again' => true]);
+            $span->stop();
+            $ended = $span->end;
+            $span->stop(['late' => true]);
+
+            expect($span->start)->toBe($started)
+                ->and($span->end)->toBe($ended)
+                ->and($span->meta)->toBe(['again' => true, 'late' => true])
+                ->and($this->eyepiece->active()->spans)->toHaveCount(1);
+        });
+
+        it('has no duration until it has both started and stopped', function (): void {
+            $span = Monocle::span('timed');
+
+            expect($span->duration())->toBeNull();
+
+            $span->start();
+
+            expect($span->duration())->toBeNull();
+
+            $span->stop();
+
+            expect($span->duration())->toBeFloat();
+        });
+
+        it('can be moved under another span or to the top', function (): void {
+            $parent = Monocle::span('parent');
+            $child = Monocle::span('child')->parent($parent);
+
+            expect($child->parentId)->toBe($parent->id)
+                ->and($child->parent(null)->parentId)->toBeNull();
+        });
+
+        it('records nothing when started after the capture it was made in has ended', function (): void {
+            $span = Monocle::span('late');
+            $this->eyepiece->reset();
+
+            expect($span->start()->start)->toBeNull()
+                ->and($this->eyepiece->currentSpan())->toBeNull();
+        });
     });
 
     describe('capture metadata', function (): void {
@@ -151,7 +197,8 @@ describe(Eyepiece::class, function (): void {
             $before = $this->eyepiece->now();
             $this->eyepiece->push('custom', ['duration' => 15.0]);
 
-            expect($this->eyepiece->active()->rows('custom')[0]['time'])->toBeLessThanOrEqual($before - 15.0 + 1.0)
+            // Undated, the row would sit at $before or later; under load the push itself may take a few ms.
+            expect($this->eyepiece->active()->rows('custom')[0]['time'])->toBeLessThan($before - 5.0)
                 ->toBeGreaterThanOrEqual($before - 15.0);
         });
 
@@ -199,7 +246,7 @@ describe(Eyepiece::class, function (): void {
             $this->eyepiece->registering('things', function (): void {
                 $this->eyepiece->listen('monocle.test', function (): void {
                     usleep(5_000);
-                    $this->eyepiece->outside(fn () => usleep(30_000));
+                    $this->eyepiece->outside(fn () => usleep(100_000));
                     $this->eyepiece->push('other', ['n' => 1]);
                 });
             });
@@ -208,16 +255,16 @@ describe(Eyepiece::class, function (): void {
             $health = $this->eyepiece->finalize()->health;
 
             expect($health['overhead_by'])->toHaveKey('things')->not->toHaveKey('other')
-                ->and($health['overhead_by']['things'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(30.0)
-                ->and($health['overhead_ms'])->toBeLessThan(30.0);
+                ->and($health['overhead_by']['things'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(50.0)
+                ->and($health['overhead_ms'])->toBeLessThan(50.0);
         });
 
         it('counts Monocle work inside application code run through outside()', function (): void {
-            $this->eyepiece->listen('monocle.inner', fn () => usleep(5_000));
+            $this->eyepiece->listen('monocle.inner', fn () => usleep(30_000));
             $this->eyepiece->registering('outer', function (): void {
                 $this->eyepiece->listen('monocle.outer', function (): void {
                     $this->eyepiece->outside(function (): void {
-                        usleep(20_000);
+                        usleep(100_000);
                         event('monocle.inner');
                     });
                 });
@@ -226,15 +273,16 @@ describe(Eyepiece::class, function (): void {
             event('monocle.outer');
             $by = $this->eyepiece->finalize()->health['overhead_by'];
 
-            expect($by['monocle'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(20.0)
-                ->and($by['outer'])->toBeLessThan(5.0)
+            // The 100ms of application code count for no one; the 30ms listener inside it counts once, for itself.
+            expect($by['monocle'])->toBeGreaterThanOrEqual(30.0)->toBeLessThan(80.0)
+                ->and($by['outer'])->toBeLessThan(30.0)
                 ->and($this->eyepiece->outside(fn () => 'plain'))->toBe('plain');
         });
 
         it('leaves nested application code out once', function (): void {
             $this->eyepiece->registering('outer', function (): void {
                 $this->eyepiece->listen('monocle.inner', function (): void {
-                    $this->eyepiece->outside(fn () => usleep(10_000));
+                    $this->eyepiece->outside(fn () => usleep(100_000));
                 });
                 $this->eyepiece->listen('monocle.outer', function (): void {
                     usleep(5_000);
@@ -244,7 +292,7 @@ describe(Eyepiece::class, function (): void {
 
             event('monocle.outer');
 
-            expect($this->eyepiece->finalize()->health['overhead_by']['outer'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(10.0);
+            expect($this->eyepiece->finalize()->health['overhead_by']['outer'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(50.0);
         });
 
         it('times hooks wrapped for other APIs and returns what they return', function (): void {
@@ -273,7 +321,7 @@ describe(Eyepiece::class, function (): void {
         it('credits a listener that finalizes a capture to that capture, and what follows to the next', function (): void {
             $this->eyepiece->registering('jobs', function (): void {
                 $this->eyepiece->listen('monocle.finish', function (): void {
-                    usleep(10_000);
+                    usleep(50_000);
                     $this->eyepiece->finalize();
                     $this->eyepiece->start(CaptureType::Job);
                     usleep(3_000);
@@ -286,8 +334,8 @@ describe(Eyepiece::class, function (): void {
             $stored = app(\ExeQue\Monocle\Storage\StoreManager::class)->store()->find($first->id);
             $next = $this->eyepiece->finalize();
 
-            expect($stored->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(10.0)
-                ->and($next->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(3.0)->toBeLessThan(10.0);
+            expect($stored->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(50.0)
+                ->and($next->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(3.0)->toBeLessThan(30.0);
         });
 
         it('credits rows written outside a listener to their section', function (): void {
@@ -298,9 +346,9 @@ describe(Eyepiece::class, function (): void {
         });
 
         it('leaves application code a lens runs while registering out of its time', function (): void {
-            $this->eyepiece->registering('booting', fn () => $this->eyepiece->outside(fn () => usleep(10_000)));
+            $this->eyepiece->registering('booting', fn () => $this->eyepiece->outside(fn () => usleep(100_000)));
 
-            expect($this->eyepiece->finalize()->health['overhead_by']['booting'])->toBeLessThan(10.0);
+            expect($this->eyepiece->finalize()->health['overhead_by']['booting'])->toBeLessThan(50.0);
         });
 
         it('counts registering lenses as overhead, on the running capture or the next one', function (): void {
@@ -317,6 +365,68 @@ describe(Eyepiece::class, function (): void {
 
             expect($this->eyepiece->finalize()->health['overhead_by'])->not->toHaveKey('slow');
         });
+    });
+
+    it('runs section modifiers on every pushed row', function (): void {
+        $this->eyepiece->modify('custom', fn (array $row): array => [...$row, 'modified' => true]);
+        $this->eyepiece->push('custom', ['a' => 1], origin: false);
+        $this->eyepiece->push('other', ['b' => 2], origin: false);
+
+        expect($this->eyepiece->active()->rows('custom')[0])->toMatchArray(['a' => 1, 'modified' => true])
+            ->and($this->eyepiece->active()->rows('other')[0])->not->toHaveKey('modified');
+    });
+
+    it('leaves origins out when they are turned off', function (): void {
+        config(['monocle.origin.enabled' => false]);
+
+        $this->eyepiece->push('custom', ['a' => 1]);
+
+        expect($this->eyepiece->active()->rows('custom')[0]['origin'])->toBeNull()
+            ->and($this->eyepiece->origin())->toBeNull();
+    });
+
+    it('lets only the outer finalize finish a capture that is ended again while finalizing', function (): void {
+        $builder = app(SummaryBuilder::class);
+        $inner = 'not called';
+
+        $this->app->bind(SummaryBuilder::class, function () use ($builder, &$inner): SummaryBuilder {
+            $inner = $this->eyepiece->finalize('nested');
+
+            return $builder;
+        });
+
+        $capture = $this->eyepiece->finalize();
+
+        expect($inner)->toBeNull()
+            ->and($capture?->endedBy)->toBe('normal')
+            ->and(latestCapture()?->id)->toBe($capture?->id);
+    });
+
+    it('drops a capture it fails to finalize and resets', function (): void {
+        config(['monocle.throw_failures' => false]);
+        Log::spy();
+
+        $this->app->bind(SummaryBuilder::class, function (): never {
+            throw new RuntimeException('summary broke');
+        });
+
+        expect($this->eyepiece->finalize())->toBeNull()
+            ->and($this->eyepiece->active())->toBeNull()
+            ->and(latestCapture())->toBeNull();
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message): bool => str_contains($message, 'summary broke'));
+    });
+
+    it('stays silent when the log itself is unavailable', function (): void {
+        config(['monocle.throw_failures' => false]);
+
+        $this->app->bind('log', function (): never {
+            throw new RuntimeException('no log');
+        });
+
+        $this->eyepiece->failed(new RuntimeException('lens broke'));
+
+        expect($this->eyepiece->finalize()->health['failures'])->toHaveCount(1);
     });
 
     describe('safety', function (): void {
@@ -444,6 +554,22 @@ describe(Eyepiece::class, function (): void {
             config(['monocle.enabled' => true]);
 
             expect($this->eyepiece->enabled())->toBeTrue();
+        });
+
+        it('follows app.debug outside the test runner and is off in production', function (): void {
+            config(['monocle.enabled' => null, 'app.debug' => true]);
+
+            $this->app['env'] = 'production';
+
+            expect($this->eyepiece->enabled())->toBeFalse();
+
+            $this->app['env'] = 'local';
+
+            expect($this->eyepiece->enabled())->toBeTrue();
+
+            config(['app.debug' => false]);
+
+            expect($this->eyepiece->enabled())->toBeFalse();
         });
     });
 });

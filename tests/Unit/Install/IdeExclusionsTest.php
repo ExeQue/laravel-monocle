@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Install;
 
 use ExeQue\Monocle\Install\IdeExclusions;
+use RuntimeException;
 
 covers(
     IdeExclusions::class,
@@ -76,6 +77,27 @@ describe(IdeExclusions::class, function (): void {
 
             expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe(['PhpStorm (.idea/project.iml)' => 'skipped: no project content root found']);
         });
+
+        it('falls back to the module files when modules.xml lists none', function () use ($module): void {
+            mkdir($this->dir.'/.idea');
+            file_put_contents($this->dir.'/.idea/modules.xml', '<modules />');
+            file_put_contents($this->dir.'/.idea/app.iml', $module);
+
+            expect($this->ide->apply($this->dir, 'storage/monocle'))->toBe(['PhpStorm (.idea/app.iml)' => 'updated']);
+        });
+
+        it('fails when the module file cannot be written', function () use ($module): void {
+            mkdir($this->dir.'/.idea');
+            file_put_contents($this->dir.'/.idea/app.iml', $module);
+            chmod($this->dir.'/.idea/app.iml', 0444);
+            set_error_handler(fn (): bool => true);
+
+            try {
+                expect(fn () => $this->ide->apply($this->dir, 'storage/monocle'))->toThrow(RuntimeException::class, 'Could not write');
+            } finally {
+                restore_error_handler();
+            }
+        })->skip(fn (): bool => function_exists('posix_geteuid') && posix_geteuid() === 0, 'root ignores file permissions');
 
         it('changes nothing in dry-run mode', function () use ($module): void {
             mkdir($this->dir.'/.idea');

@@ -115,4 +115,14 @@ describe(FilesystemLens::class, function (): void {
     it('summarizes nothing without operations', function (): void {
         expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(FilesystemLens::class);
+        $presentation = $lens->presentation();
+
+        expect($lens->description())->toContain('wildcards allowed')
+            ->and($lens->advice())->toStartWith('Look here when file uploads')
+            ->and($presentation->tabView)->toBe('monocle::tabs.filesystem')
+            ->and($presentation->groupings)->toHaveKeys(['path', 'op', 'disk'])
+            ->and($presentation->formats)->toBe(['ok' => ['flag', 'ok', 'failed']]);
+    });
 });

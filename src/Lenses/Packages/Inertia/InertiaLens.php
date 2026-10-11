@@ -35,7 +35,6 @@ use Inertia\ScrollProp;
 use ReflectionFunction;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 /**
  * Inertia page responses: the component, the visit and every prop with its
@@ -94,10 +93,6 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
     public function boot(): void
     {
-        if (! class_exists(InertiaResponse::class)) {
-            return;
-        }
-
         $this->eyepiece->listen(PreparingResponse::class, function (PreparingResponse $event): void {
             if ($event->response instanceof InertiaResponse) {
                 $this->pending = $event->response;
@@ -425,11 +420,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             return null;
         }
 
-        try {
-            $function = new ReflectionFunction($callable);
-        } catch (Throwable) {
-            return null;
-        }
+        $function = new ReflectionFunction($callable);
 
         $file = (string) $function->getFileName();
 

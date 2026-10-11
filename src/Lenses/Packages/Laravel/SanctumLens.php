@@ -43,9 +43,12 @@ final class SanctumLens implements ExtendsLens, Lens, RequiresPackages
 
     public function boot(): void
     {
+        // Event missing from older laravel/sanctum versions.
+        // @codeCoverageIgnoreStart
         if (! class_exists(TokenAuthenticated::class)) {
             return;
         }
+        // @codeCoverageIgnoreEnd
 
         $this->eyepiece->listen(TokenAuthenticated::class, function (object $event): void {
             if (! $this->eyepiece->recording()) {

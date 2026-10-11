@@ -53,4 +53,32 @@ describe(AuthorizationLens::class, function (): void {
     it('summarizes nothing without checks', function (): void {
         expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+    it('records an unanswered check as neither allowed nor denied', function (): void {
+        Gate::forUser(new GenericUser(['id' => 7]))->allows('undefined-ability');
+
+        $rows = app(Eyepiece::class)->finalize()->rows('authorization');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0]['ability'])->toBe('undefined-ability')
+            ->and($rows[0]['allowed'])->toBeNull();
+    });
+
+    it('records nothing while no capture is recording', function (): void {
+        app(Eyepiece::class)->discard();
+
+        Gate::allows('anything');
+
+        expect(app(Eyepiece::class)->active()->rows('authorization'))->toBe([]);
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(AuthorizationLens::class);
+        $presentation = $lens->presentation();
+
+        expect($lens->description())->toContain('denial message')
+            ->and($lens->advice())->toStartWith('Look here to explain a 403')
+            ->and($presentation->tabView)->toBe('monocle::tabs.authorization')
+            ->and($presentation->groupings)->toHaveKeys(['ability', 'allowed'])
+            ->and($presentation->formats)->toBe(['allowed' => ['flag', 'allowed', 'denied']]);
+    });
 });

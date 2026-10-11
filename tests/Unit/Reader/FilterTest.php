@@ -84,4 +84,11 @@ describe(Filter::class, function (): void {
             ->and(Filter::fromArray(['since' => '2000-01-01'])->matches($old))->toBeTrue()
             ->and(Filter::fromArray(['since' => 'not a date'])->since)->toBeNull();
     });
+
+    it('treats empty strings as unset', function (): void {
+        $filter = Filter::fromArray(['type' => '', 'since' => '']);
+
+        expect($filter->type)->toBeNull()
+            ->and($filter->since)->toBeNull();
+    });
 });

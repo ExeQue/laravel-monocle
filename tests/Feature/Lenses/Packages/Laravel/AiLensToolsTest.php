@@ -17,6 +17,8 @@ use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\StreamedAgentResponse;
+use Laravel\Ai\Tools\AgentTool;
 use Mockery;
 use RuntimeException;
 use Tests\Fixtures\Ai\Greeter;
@@ -51,6 +53,7 @@ describe(AiLens::class, function (): void {
             ->and($tools[0])->toMatchArray([
                 'tool' => 'weather',
                 'class' => WeatherTool::class,
+                'sub_agent' => false,
                 'agent' => Greeter::class,
                 'invocation_id' => 'inv-1',
                 'tool_invocation_id' => 'tool-1',
@@ -85,5 +88,32 @@ describe(AiLens::class, function (): void {
         event(new ToolFailed('inv-9', 'tool-9', $this->agent, $this->tool, [], new RuntimeException('late'), 1.0));
 
         expect(app(Eyepiece::class)->active())->toBeNull();
+    });
+
+    it('marks a streamed agent run as streamed', function (): void {
+        event(new PromptingAgent('inv-1', $this->prompt));
+        event(new AgentPrompted('inv-1', $this->prompt, new StreamedAgentResponse('inv-1', collect(), new Meta('openai', 'gpt-test'))));
+
+        expect(app(Eyepiece::class)->finalize()->rows('ai')[0]['streamed'])->toBeTrue();
+    });
+
+    it('keeps a tool result with invalid UTF-8 as JSON text', function (): void {
+        event(new PromptingAgent('inv-1', $this->prompt));
+        event(new InvokingTool('inv-1', 'tool-1', $this->agent, $this->tool, []));
+        event(new ToolInvoked('inv-1', 'tool-1', $this->agent, $this->tool, [], ['bad' => "\xB1\x31"], 1.0));
+
+        expect(app(Eyepiece::class)->finalize()->rows('ai_tools')[0]['result'])->toBeString()->toContain('bad');
+    });
+
+    it('names the agent behind an agent used as a tool', function (): void {
+        $subAgent = new AgentTool(new Greeter());
+
+        event(new PromptingAgent('inv-1', $this->prompt));
+        event(new InvokingTool('inv-1', 'tool-1', $this->agent, $subAgent, ['task' => 'Say hi']));
+        event(new ToolInvoked('inv-1', 'tool-1', $this->agent, $subAgent, ['task' => 'Say hi'], 'Hi!', 12.0));
+
+        $row = app(Eyepiece::class)->finalize()->rows('ai_tools')[0];
+
+        expect($row)->toMatchArray(['tool' => 'Greeter', 'class' => Greeter::class, 'sub_agent' => true, 'result' => 'Hi!']);
     });
 });

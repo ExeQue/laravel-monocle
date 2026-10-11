@@ -7,6 +7,7 @@ namespace Tests\Feature\Lenses;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DumpLens;
+use RuntimeException;
 use Symfony\Component\VarDumper\VarDumper;
 
 covers(DumpLens::class);
@@ -67,5 +68,52 @@ describe(DumpLens::class, function (): void {
         dump('outside');
 
         expect($this->seen)->toHaveCount(1);
+    });
+    it('flags a dump made by the global dd() helper', function (): void {
+        VarDumper::setHandler(function (): void {
+            throw new RuntimeException('stop before dd() exits');
+        });
+        app(DumpLens::class)->boot($this->app, app(Eyepiece::class));
+
+        try {
+            dd('dying');
+        } catch (RuntimeException) {
+        }
+
+        $rows = app(Eyepiece::class)->finalize()->rows('dumps');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0]['is_dd'])->toBeTrue();
+    });
+
+    it('falls back to the default VarDumper output when no dumper was registered before it', function (): void {
+        $defaultOutput = \Symfony\Component\VarDumper\Dumper\CliDumper::$defaultOutput;
+        \Symfony\Component\VarDumper\Dumper\CliDumper::$defaultOutput = 'php://output';
+        VarDumper::setHandler(null);
+        app(DumpLens::class)->boot($this->app, app(Eyepiece::class));
+
+        ob_start();
+
+        try {
+            dump('first-default');
+            dump('second-default');
+        } finally {
+            $output = (string) ob_get_clean();
+            \Symfony\Component\VarDumper\Dumper\CliDumper::$defaultOutput = $defaultOutput;
+        }
+
+        expect($output)->toContain('first-default')->toContain('second-default')
+            ->and(app(Eyepiece::class)->finalize()->rows('dumps'))->toHaveCount(2);
+    });
+
+    it('summarizes nothing without dumps', function (): void {
+        expect(app(DumpLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(DumpLens::class);
+
+        expect($lens->advice())->toContain('dump() and dd()')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.dumps');
     });
 });

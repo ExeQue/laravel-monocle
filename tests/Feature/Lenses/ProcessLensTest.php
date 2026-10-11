@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
@@ -187,5 +188,33 @@ describe(ProcessLens::class, function (): void {
             ->and(app(Factory::class))->toBe($factory)
             ->and(app(Eyepiece::class)->finalize()->rows('processes'))->toHaveCount(1)
             ->and(app(ProcessLens::class)->presentation()->tabView)->toBe('monocle::tabs.processes');
+    });
+
+    it('wraps a plain factory swapped in once the factory is bound', function (): void {
+        Process::fake();
+        app()->instance(Factory::class, new Factory());
+
+        Process::run(['php', '-r', 'echo 1;']);
+
+        expect(app(Factory::class))->toBeInstanceOf(MonocleProcessFactory::class)
+            ->and(app(Eyepiece::class)->finalize()->rows('processes'))->toHaveCount(1);
+    });
+
+    it('wraps the factory once when booted again', function (): void {
+        app(ProcessLens::class)->boot(app());
+
+        Process::run(['php', '-r', 'echo 1;']);
+
+        expect(app(Factory::class))->toBeInstanceOf(MonocleProcessFactory::class)
+            ->and(app(Eyepiece::class)->finalize()->rows('processes'))->toHaveCount(1);
+    });
+
+    it('reports the exception message of a failed process', function (): void {
+        $capture = new Capture('capture', CaptureType::Request, microtime(true));
+        $capture->sections['processes'] = [
+            ['command' => 'deploy', 'duration' => 1.0, 'timed_out' => false, 'successful' => false, 'exception' => ['message' => 'broken pipe']],
+        ];
+
+        expect(app(ProcessLens::class)->summarize($capture)->errors)->toBe(['Process deploy failed (broken pipe).']);
     });
 });

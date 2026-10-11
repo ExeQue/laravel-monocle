@@ -8,6 +8,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use Illuminate\Support\Facades\DB;
+use Mockery;
 use ReflectionMethod;
 use RuntimeException;
 
@@ -125,5 +126,80 @@ describe(DatabaseLens::class, function (): void {
             ->and(array_column($capture->rows('queries'), 'repeated', 'n'))->toBe([4 => 2])
             ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries']['warnings'] ?? 0)->toBeGreaterThan(0)
             ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
+    });
+    it('closes transactions still open at finalize as left open', function (): void {
+        DB::beginTransaction();
+        DB::table('things')->insert(['name' => 'open']);
+
+        $capture = app(Eyepiece::class)->finalize();
+        DB::rollBack();
+
+        expect($capture->spansOfKind('db.transaction')[0]->meta['outcome'])->toBe('left_open');
+    });
+
+    it('records no transaction statements while no capture is recording', function (): void {
+        DB::beginTransaction();
+        app(Eyepiece::class)->discard();
+        DB::commit();
+
+        DB::beginTransaction();
+        DB::commit();
+
+        expect(app(Eyepiece::class)->active()->rows('queries'))->toHaveCount(1)
+            ->and(app(Eyepiece::class)->active()->rows('queries')[0]['sql'])->toBe('BEGIN TRANSACTION');
+    });
+
+    it('keeps the plain SQL and no driver when the connection cannot render bindings', function (): void {
+        $connection = Mockery::mock(\Illuminate\Database\Connection::class);
+        $connection->shouldReceive('getName')->andReturn('broken');
+        $connection->shouldReceive('getDriverName')->andThrow(new RuntimeException('no driver'));
+        $connection->shouldReceive('prepareBindings')->andReturnArg(0);
+        $connection->shouldReceive('getQueryGrammar')->andThrow(new RuntimeException('no grammar'));
+
+        event(new \Illuminate\Database\Events\QueryExecuted('select * from things where id = ?', [1], 1.0, $connection));
+
+        $row = app(Eyepiece::class)->finalize()->rows('queries')[0];
+
+        expect($row['connection'])->toBe('broken')
+            ->and($row['driver'])->toBeNull()
+            ->and($row['sql_with_bindings'])->toBeNull();
+    });
+
+    it('types common table expressions as selects and records every table without ignore_tables', function (): void {
+        $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens): bool => $lens instanceof DatabaseLens);
+        $lens->configure(['ignore_tables' => []]);
+
+        DB::statement('create table telescope_entries (id integer primary key, content text)');
+        DB::select('with recent as (select * from things) select * from recent');
+        DB::table('telescope_entries')->get();
+
+        $rows = app(Eyepiece::class)->finalize()->rows('queries');
+        $lens->configure(['ignore_tables' => ['telescope_*', 'pulse_*']]);
+
+        expect(array_column($rows, 'type'))->toBe(['other', 'select', 'select'])
+            ->and($rows[2]['tables'])->toBe(['telescope_entries']);
+    });
+
+    it('warns about slow queries the application ran, slowest first', function (): void {
+        $capture = app(Eyepiece::class)->finalize();
+        $capture->sections['queries'] = [
+            ['n' => 1, 'type' => 'select', 'sql' => 'select 1', 'shape' => 'shape-1', 'duration' => 120.0, 'slow' => true],
+            ['n' => 2, 'type' => 'select', 'sql' => 'select   2', 'shape' => 'shape-2', 'duration' => 300.0, 'slow' => true],
+            ['n' => 3, 'type' => 'select', 'sql' => 'select 3', 'shape' => 'shape-3', 'duration' => 500.0, 'slow' => true, 'origin' => ['file' => 'vendor/acme/x.php', 'vendor' => true]],
+        ];
+
+        $summary = app(DatabaseLens::class)->summarize($capture);
+
+        expect($summary->warnings)->toBe(['Slow query (300.0 ms): select 2', 'Slow query (120.0 ms): select 1'])
+            ->and($summary->totals['slow_queries'])->toBe(2);
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(DatabaseLens::class);
+
+        expect($lens->description())->toContain('n_plus_one')
+            ->and($lens->advice())->toStartWith('Look here first')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.queries')
+            ->and($lens->presentation()->detailsView)->toBe('monocle::details.query');
     });
 });

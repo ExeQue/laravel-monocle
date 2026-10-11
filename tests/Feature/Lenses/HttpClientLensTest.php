@@ -13,7 +13,10 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Mockery;
 use ReflectionMethod;
+use RuntimeException;
+use stdClass;
 
 covers(HttpClientLens::class);
 
@@ -189,5 +192,98 @@ describe(HttpClientLens::class, function (): void {
 
     it('summarizes nothing without calls', function (): void {
         expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
+    });
+    it('records nothing while no capture is recording', function (): void {
+        app(Eyepiece::class)->discard();
+
+        Http::get('https://api.example.com/unrecorded');
+        event(new ConnectionFailed(new Request(new PsrRequest('GET', 'https://gone.example.com/')), new ConnectionException('gone')));
+
+        expect(app(Eyepiece::class)->active()->rows('http'))->toBe([]);
+    });
+
+    it('records no payload when the body is not a list of fields or cannot be read', function (): void {
+        Http::withBody('5', 'application/json')->post('https://api.example.com/scalar');
+
+        $request = Mockery::mock(Request::class);
+        $request->shouldReceive('method')->andReturn('POST');
+        $request->shouldReceive('url')->andReturn('https://gone.example.com/broken');
+        $request->shouldReceive('body')->andReturn('broken');
+        $request->shouldReceive('headers')->andReturn([]);
+        $request->shouldReceive('data')->andThrow(new RuntimeException('unreadable body'));
+        event(new ConnectionFailed($request, new ConnectionException('gone')));
+
+        $rows = app(Eyepiece::class)->finalize()->rows('http');
+
+        expect($rows)->toHaveCount(2)
+            ->and($rows[0]['url'])->toBe('https://api.example.com/scalar')
+            ->and($rows[0]['request_payload'])->toBeNull()
+            ->and($rows[1]['url'])->toBe('https://gone.example.com/broken')
+            ->and($rows[1]['request_payload'])->toBeNull();
+    });
+
+    it('picks the first capture whose content type pattern matches and none for other types', function (): void {
+        Http::fake([
+            'vendor.example.com/*' => Http::response('{"data":[]}', 200, ['Content-Type' => 'application/vnd.api+json']),
+            'image.example.com/*' => Http::response('png', 200, ['Content-Type' => 'image/png']),
+        ]);
+
+        Http::get('https://vendor.example.com/items');
+        Http::get('https://image.example.com/logo.png');
+
+        $rows = app(Eyepiece::class)->finalize()->rows('http');
+
+        expect($rows[0]['response_capture']['capture'])->toBe(JsonCapture::class)
+            ->and($rows[1]['response_capture'])->toBeNull();
+    });
+
+    it('captures nothing when the registered capture is not a response capture or cannot be made', function (): void {
+        config(['monocle.throw_failures' => false]);
+        $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens): bool => $lens instanceof HttpClientLens);
+
+        $lens->configure(['capture' => ['response_types' => ['application/json' => stdClass::class]]]);
+        Http::get('https://api.example.com/not-a-capture');
+
+        $lens->configure(['capture' => ['response_types' => ['application/json' => 'Tests\\Fixtures\\MissingHttpCapture']]]);
+        Http::get('https://api.example.com/missing-capture');
+
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('http');
+
+        expect(array_column($rows, 'response_capture'))->toBe([null, null])
+            ->and(array_column($rows, 'status'))->toBe([201, 201])
+            ->and(json_encode($capture->health))->toContain('MissingHttpCapture');
+    });
+
+    it('leaves out transfer phases that were never reached and reads every protocol and remote', function (): void {
+        $timing = new ReflectionMethod(HttpClientLens::class, 'timing');
+        $lens = app(HttpClientLens::class);
+
+        expect($timing->invoke($lens, [
+            'namelookup_time' => 0.0, 'connect_time' => 0.01, 'appconnect_time' => 0.0, 'starttransfer_time' => 0.02,
+            'total_time' => 0.015, 'primary_ip' => '10.0.0.1', 'http_version' => 30,
+        ]))->toBe(['connect' => 10.0, 'wait' => 10.0, 'remote' => '10.0.0.1', 'protocol' => 'HTTP/3'])
+            ->and($timing->invoke($lens, ['total_time' => 0.01, 'primary_ip' => '', 'http_version' => CURL_HTTP_VERSION_1_0]))->toBe(['download' => 10.0, 'protocol' => 'HTTP/1.0'])
+            ->and($timing->invoke($lens, ['total_time' => 0.01, 'http_version' => CURL_HTTP_VERSION_1_1, 'redirect_time' => 0.002, 'redirect_count' => 1]))
+            ->toBe(['download' => 10.0, 'redirect' => 2.0, 'protocol' => 'HTTP/1.1', 'redirects' => 1]);
+    });
+
+    it('falls back to the wall clock when the transfer stats cannot be read', function (): void {
+        $duration = new ReflectionMethod(HttpClientLens::class, 'duration');
+        $lens = app(HttpClientLens::class);
+
+        expect($duration->invoke($lens, null, ['total_time' => new stdClass()]))->toBeNull()
+            ->and($duration->invoke($lens, app(Eyepiece::class)->now(), ['total_time' => new stdClass()]))->toBeFloat();
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(HttpClientLens::class);
+        $presentation = $lens->presentation();
+
+        expect($lens->description())->toContain('Http::pool()')
+            ->and($lens->advice())->toStartWith('Look here when an outgoing API call')
+            ->and($presentation->tabView)->toBe('monocle::tabs.http')
+            ->and($presentation->detailsView)->toBe('monocle::details.http')
+            ->and($presentation->formats)->toBe(['status' => ['http-status'], 'pool' => ['prefix', '#']]);
     });
 });

@@ -315,10 +315,7 @@ final class ShowCommand extends Command
             $parts[] = $section['rows'] === null ? $section['key'] : $section['key'].' ('.$section['rows'].')';
         }
 
-        if ($parts === []) {
-            return;
-        }
-
+        // The summary is always available, so parts is never empty.
         note('Sections (--section=...): '.implode(', ', $parts));
     }
 

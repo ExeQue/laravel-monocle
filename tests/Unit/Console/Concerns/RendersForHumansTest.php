@@ -90,4 +90,10 @@ describe(RendersForHumans::class, function (): void {
             ->toContain('slow')
             ->toContain('broken');
     });
+
+    it('prints no paging line for an empty page', function (): void {
+        $this->helper->paging(['offset' => 0, 'returned' => 0, 'total' => 0, 'next_offset' => null]);
+
+        expect($this->output->fetch())->toBe('');
+    });
 });

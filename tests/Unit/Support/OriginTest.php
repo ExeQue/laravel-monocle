@@ -6,6 +6,8 @@ namespace Tests\Unit\Support;
 
 use ExeQue\Monocle\Support\Origin;
 use ReflectionFunction;
+use ReflectionMethod;
+use RuntimeException;
 
 covers(Origin::class);
 
@@ -136,6 +138,115 @@ describe(Origin::class, function (): void {
         file_put_contents($orphan, "<?php return \ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1);");
 
         expect((include $orphan)['file'])->toEndWith('tests/Unit/Support/OriginTest.php');
+
+        exec('rm -rf '.escapeshellarg($base));
+    });
+
+    describe('relations and magic reads', function (): void {
+        it('names the relation method a model property read loaded', function (): void {
+            $post = (require dirname(__DIR__, 2).'/Fixtures/vendor/acme/origin/library.php')['post'];
+
+            expect(fn () => $post->author)->toThrow(RuntimeException::class, 'Origin captured.');
+
+            $origin = $post::$origin;
+
+            expect($origin['file'])->toBe('tests/Unit/Support/OriginTest.php')
+                ->and($origin['via']['file'])->toBe('tests/Fixtures/vendor/acme/origin/library.php')
+                ->and($origin['via']['call'])->toBe($post::class.'->author')
+                ->and($origin['via']['line'])->toBeInt();
+        });
+
+        it('keeps __get as via when no relation was loaded', function (): void {
+            $magic = (require dirname(__DIR__, 2).'/Fixtures/vendor/acme/origin/library.php')['magic'];
+
+            $origin = $magic->anything;
+
+            expect($origin['file'])->toBe('tests/Unit/Support/OriginTest.php')
+                ->and($origin['via']['call'])->toBe($magic::class.'->__get');
+        });
+
+        it('looks for the relation method in the arguments of a given trace', function (): void {
+            $model = new class () extends \Illuminate\Database\Eloquent\Model {
+                public function comments(): void
+                {
+                }
+            };
+            $read = fn (array ...$relationFrames): ?array => Origin::capture('/app', 3, [], [
+                ['file' => '/app/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php', 'line' => 5, 'class' => 'X', 'type' => '->', 'function' => 'getAttribute'],
+                ['file' => '/app/app/Http/Controllers/PostController.php', 'line' => 12, 'class' => 'App\\Models\\Post', 'type' => '->', 'function' => '__get'],
+                ...$relationFrames,
+            ])['via'];
+
+            $viaGet = ['file' => 'vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php', 'line' => 5, 'call' => 'App\\Models\\Post->__get'];
+
+            expect($read(
+                ['function' => 'getRelationshipFromMethod', 'args' => [42]],
+                ['function' => 'getRelationshipFromMethod', 'object' => $model, 'args' => ['comments']],
+            ))->toMatchArray(['call' => $model::class.'->comments', 'line' => (new ReflectionMethod($model, 'comments'))->getStartLine()])
+                ->and($read(['function' => 'getRelationshipFromMethod', 'args' => ['comments']]))->toBe($viaGet)
+                ->and($read(['function' => 'getRelationshipFromMethod', 'class' => 'App\\Models\\Post', 'args' => ['missing']]))->toBe($viaGet)
+                ->and($read())->toBe($viaGet);
+        });
+    });
+
+    describe('incomplete frames', function (): void {
+        it('reports no call for a frame without a function', function (): void {
+            $origin = Origin::capture('/app', 3, [], [
+                ['file' => '/app/app/Actions/Charge.php', 'line' => 3],
+                ['file' => '/app/app/Http/Controllers/PayController.php', 'line' => 9],
+            ]);
+
+            expect($origin['call'])->toBeNull()
+                ->and($origin['frames'][0]['call'])->toBeNull();
+        });
+
+        it('names no macro when the magic call cannot be traced to one', function (): void {
+            $library = '/app/vendor/acme/lib/src/Lib.php';
+            $user = '/app/app/Http/Controllers/PageController.php';
+
+            $classless = Origin::capture('/app', 3, [], [
+                ['file' => $library, 'line' => 3, 'class' => 'X', 'type' => '->', 'function' => 'run'],
+                ['file' => $user, 'line' => 12, 'class' => 7, 'type' => '->', 'function' => '__call'],
+            ]);
+            $outermost = Origin::capture('/app', 3, [], [
+                ['file' => $library, 'line' => 4, 'class' => 'X', 'type' => '->', 'function' => 'run'],
+                ['file' => $user, 'line' => 12, 'class' => 'Illuminate\\Support\\Stringable', 'type' => '->', 'function' => '__call'],
+            ]);
+
+            expect($classless['via'])->toBe(['file' => 'vendor/acme/lib/src/Lib.php', 'line' => 3, 'call' => '7->__call'])
+                ->and($outermost['via'])->toBe(['file' => 'vendor/acme/lib/src/Lib.php', 'line' => 4, 'call' => 'Illuminate\\Support\\Stringable->__call']);
+        });
+
+        it('skips registered macros that do not hold the calling line', function (): void {
+            $macroable = (require dirname(__DIR__, 2).'/Fixtures/vendor/acme/origin/library.php')['macroable'];
+            $first = new ReflectionFunction((fn () => static::$macros['first'])->call($macroable));
+            $between = $first->getEndLine() + 1;
+
+            $origin = Origin::capture('/base', 3, [], [
+                ['file' => $first->getFileName(), 'line' => $between, 'class' => 'X', 'type' => '->', 'function' => 'helper'],
+                ['file' => '/base/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php', 'line' => 120, 'class' => $macroable::class, 'type' => '->', 'function' => '{closure}'],
+                ['file' => '/base/app/Http/Controllers/PageController.php', 'line' => 12, 'class' => $macroable::class, 'type' => '->', 'function' => '__call'],
+                ['file' => '/base/vendor/laravel/framework/src/Illuminate/Routing/Controller.php', 'line' => 9, 'class' => 'X', 'type' => '->', 'function' => 'y'],
+            ]);
+
+            expect($origin['via'])->toBe(['file' => $first->getFileName(), 'line' => $between, 'call' => $macroable::class.'->{closure}']);
+        });
+    });
+
+    it('reads the source of a compiled blade file once', function (): void {
+        $base = sys_get_temp_dir().'/monocle-origin-'.bin2hex(random_bytes(4));
+        $compiledDir = $base.'/storage/framework/views';
+        mkdir($compiledDir, 0777, true);
+
+        $compiled = $compiledDir.'/cached.php';
+        file_put_contents($compiled, "<?php return \\ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1); /**PATH {$base}/resources/views/cached.blade.php ENDPATH**/");
+
+        $first = include $compiled;
+        file_put_contents($compiled, "<?php return \\ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1); /**PATH {$base}/resources/views/changed.blade.php ENDPATH**/");
+        $second = include $compiled;
+
+        expect($first['file'])->toBe('resources/views/cached.blade.php')
+            ->and($second['file'])->toBe('resources/views/cached.blade.php');
 
         exec('rm -rf '.escapeshellarg($base));
     });

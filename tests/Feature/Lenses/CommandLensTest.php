@@ -10,6 +10,8 @@ use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+use Mockery;
+use RuntimeException;
 
 covers(CommandLens::class);
 
@@ -175,5 +177,52 @@ describe(CommandLens::class, function (): void {
         Artisan::call('monocle:list');
 
         expect($count('command'))->toBe(0);
+    });
+    it('records nothing for a nested command while the active capture is discarded', function (): void {
+        $eyepiece = app(\ExeQue\Monocle\Eyepiece::class);
+        $eyepiece->start(CaptureType::Request);
+        $eyepiece->discard();
+
+        Artisan::call('monocle-test:ok');
+
+        expect($eyepiece->active()->type)->toBe(CaptureType::Request)
+            ->and($eyepiece->active()->rows('commands'))->toBe([])
+            ->and($eyepiece->active()->spansOfKind('command'))->toBe([]);
+    });
+
+    it('ignores a finished command without a capture of its own', function () use ($count): void {
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $output = new \Symfony\Component\Console\Output\NullOutput();
+
+        event(new \Illuminate\Console\Events\CommandFinished('monocle-test:ok', $input, $output, 0));
+
+        expect(app(\ExeQue\Monocle\Eyepiece::class)->active())->toBeNull()
+            ->and($count('command'))->toBe(0);
+    });
+
+    it('records no class for a command the kernel does not know', function (): void {
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $output = new \Symfony\Component\Console\Output\NullOutput();
+
+        event(new \Illuminate\Console\Events\CommandStarting('monocle-test:unknown', $input, $output));
+
+        expect(app(\ExeQue\Monocle\Eyepiece::class)->active()->section('command'))->toMatchArray(['name' => 'monocle-test:unknown', 'class' => null]);
+    });
+
+    it('records no class when the console kernel cannot list its commands', function (): void {
+        $kernel = Mockery::mock(\Illuminate\Contracts\Console\Kernel::class);
+        $kernel->shouldReceive('all')->andThrow(new RuntimeException('kernel unavailable'));
+        $this->app->instance(\Illuminate\Contracts\Console\Kernel::class, $kernel);
+
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $output = new \Symfony\Component\Console\Output\NullOutput();
+
+        event(new \Illuminate\Console\Events\CommandStarting('env', $input, $output));
+
+        expect(app(\ExeQue\Monocle\Eyepiece::class)->active()->section('command'))->toMatchArray(['name' => 'env', 'class' => null]);
+    });
+
+    it('advises the agent when to look at it', function (): void {
+        expect(app(CommandLens::class)->advice())->toContain('exit code');
     });
 });

@@ -56,4 +56,19 @@ describe(AuthLens::class, function (): void {
     it('summarizes nothing when there was no authentication', function (): void {
         expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(AuthLens::class);
+
+        expect($lens->description())->toContain('credential keys tried')
+            ->and($lens->advice())->toEndWith('lockouts.')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.auth');
+    });
+
+    it('records nothing while no capture is recording', function (): void {
+        app(Eyepiece::class)->discard();
+
+        event(new Login('web', $this->user, false));
+
+        expect(app(Eyepiece::class)->active()->rows('auth'))->toBe([]);
+    });
 });

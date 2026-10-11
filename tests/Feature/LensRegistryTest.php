@@ -15,7 +15,9 @@ use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
 use ExeQue\Monocle\LensRegistry;
 use Tests\Fixtures\CounterEvent;
 use Tests\Fixtures\CounterLens;
+use Tests\Fixtures\LedgerLens;
 use Tests\Fixtures\MissingPackageLens;
+use Tests\Fixtures\PaymentsLens;
 
 covers(LensRegistry::class, LensAlreadyBootedException::class);
 
@@ -106,5 +108,39 @@ describe(LensRegistry::class, function (): void {
         $registry->boot(app(Eyepiece::class));
 
         expect($registry->summarizers())->toHaveCount(1);
+    });
+
+    it('boots only once', function () use ($freshRegistry): void {
+        $registry = $freshRegistry([CounterLens::class => true]);
+
+        expect($registry->isBooted())->toBeFalse();
+
+        $registry->boot(app(Eyepiece::class));
+        $registry->boot(app(Eyepiece::class));
+
+        expect($registry->isBooted())->toBeTrue()
+            ->and(CounterLens::$booted)->toBe(1)
+            ->and($registry->booted())->toHaveCount(1);
+    });
+
+    it('finds the section of an extension whose lens has not booted', function () use ($freshRegistry): void {
+        expect($freshRegistry([])->sectionOf(app(ImpersonateLens::class)))->toBe('auth');
+    });
+
+    it('collects presentations, letting a section\'s own lens win over an included one', function () use ($freshRegistry): void {
+        $registry = $freshRegistry([CounterLens::class => true, PaymentsLens::class => true, LedgerLens::class => true]);
+        $registry->boot(app(Eyepiece::class));
+
+        $presentations = $registry->presentations();
+
+        expect(array_keys($presentations))->toEqualCanonicalizing(['payments', 'ledger_notes', 'ledger'])
+            ->and($presentations['payments']->label)->toBe('Payments')
+            ->and($presentations['ledger_notes']->label)->toBe('Notes')
+            ->and($presentations['ledger']->label)->toBe('Ledger');
+    });
+
+    it('advises with the whole description when it has no sentence end', function () use ($freshRegistry): void {
+        expect($freshRegistry([LedgerLens::class => true, CounterLens::class => true])->advice())
+            ->toBe(['ledger' => 'Ledger entries', 'counter' => 'Counts CounterEvent dispatches.']);
     });
 });

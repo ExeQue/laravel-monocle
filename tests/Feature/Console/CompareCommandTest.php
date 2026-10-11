@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use ExeQue\Monocle\Console\CompareCommand;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -80,5 +83,22 @@ describe(CompareCommand::class, function (): void {
         expect($output)->toContain('[baseline]')
             ->toContain('Queries run a different number of times')
             ->toContain('Cache hit rate');
+    });
+
+    it('leaves out phases and categories when neither capture has spans', function (): void {
+        foreach (['idle-a', 'idle-b'] as $id) {
+            $capture = new Capture($id, CaptureType::Command, microtime(true));
+            $capture->name = $id;
+            $capture->status = '0';
+            $capture->endedAt = $capture->startedAt + 0.01;
+            app(StoreManager::class)->store()->put($capture);
+        }
+
+        Artisan::call('monocle:compare', ['a' => 'idle-a', 'b' => 'idle-b']);
+
+        expect(Artisan::output())->toContain('A: idle-a')
+            ->toContain('Duration')
+            ->not->toContain('Phases')
+            ->not->toContain('Categories');
     });
 });

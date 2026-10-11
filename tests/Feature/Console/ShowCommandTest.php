@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use ExeQue\Monocle\Console\ShowCommand;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\Fixtures\ConsoleSummaryLens;
+use Tests\TestCase;
 
 covers(ShowCommand::class);
 
@@ -84,5 +89,59 @@ describe(ShowCommand::class, function (): void {
 
     it('fails with the error for unknown captures', function (): void {
         $this->artisan('monocle:show', ['id' => 'missing'])->assertFailed();
+    });
+
+    it('names the label, tags, parent and children in the header', function (): void {
+        TestCase::$bootConfig = ['monocle.lenses.'.ConsoleSummaryLens::class => true];
+        $this->refreshApplication();
+
+        Route::get('/parent', fn (): string => 'ok');
+        $this->get('/parent', ['X-Monocle-Label' => 'baseline'])->assertOk();
+        $parent = latestCapture()->id;
+
+        $child = new Capture('child-run', CaptureType::Job, microtime(true), parentId: $parent, traceId: $parent);
+        $child->name = 'ChildJob';
+        $child->status = 'processed';
+        $child->endedAt = $child->startedAt + 0.01;
+        app(StoreManager::class)->store()->put($child);
+
+        Artisan::call('monocle:show', ['id' => $parent]);
+        $output = Artisan::output();
+
+        expect($output)->toContain('Label: baseline')
+            ->toContain('Tags: ')
+            ->toContain('beta')
+            ->toContain('Children: 1 (monocle:trace '.$parent.')')
+            ->toContain('cache.used')
+            ->not->toContain('cache.unused');
+
+        Artisan::call('monocle:show', ['id' => 'child-run']);
+
+        expect(Artisan::output())->toContain('Parent: '.$parent.' (monocle:show '.$parent.')');
+    });
+
+    it('leaves out empty totals, breakdowns and spans of an empty capture', function (): void {
+        $capture = new Capture('idle', CaptureType::Command, microtime(true));
+        $capture->name = 'idle';
+        $capture->status = '0';
+        $capture->endedAt = $capture->startedAt;
+        app(StoreManager::class)->store()->put($capture);
+
+        Artisan::call('monocle:show', ['id' => 'idle', '--section' => ['summary', 'timeline']]);
+        $output = Artisan::output();
+
+        expect($output)->toContain('idle [command]')
+            ->toContain('No spans.')
+            ->not->toContain('Phase')
+            ->not->toContain('Category')
+            ->not->toContain('Value');
+    });
+
+    it('renders a data section as a key/value table', function (): void {
+        Artisan::call('monocle:show', ['--section' => ['request']]);
+
+        expect(Artisan::output())->toContain('Request')
+            ->toContain('method')
+            ->toContain('GET');
     });
 });

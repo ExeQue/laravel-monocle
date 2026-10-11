@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Reader;
 
 use ExeQue\Monocle\Console\CompareCommand;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Mcp\Tools\CompareCaptures;
 use ExeQue\Monocle\Reader\CaptureComparer;
@@ -65,5 +67,25 @@ describe(CaptureComparer::class, function (): void {
         $output = json_decode(trim(Artisan::output()), true);
 
         expect($output['totals']['queries']['delta'])->toBe(-2);
+    });
+
+    it('lists query shapes whose count changed', function (): void {
+        $capture = function (string $id, int $times): Capture {
+            $capture = new Capture($id, CaptureType::Request, microtime(true));
+            $capture->endedAt = microtime(true);
+            $capture->sections = ['queries' => array_fill(0, $times, ['shape' => 'select * from things', 'duration' => 1.0])];
+
+            return $capture;
+        };
+
+        $result = app(CaptureComparer::class)->compare($capture('a', 2), $capture('b', 5));
+
+        expect($result['queries']['changed'])->toBe([[
+            'shape' => 'select * from things',
+            'a_count' => 2,
+            'b_count' => 5,
+            'a_ms' => 2.0,
+            'b_ms' => 5.0,
+        ]]);
     });
 });

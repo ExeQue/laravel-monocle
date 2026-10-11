@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses\Packages\Spatie;
 
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
 use Illuminate\Support\Facades\Route;
 use Spatie\ResponseCache\Facades\ResponseCache;
@@ -44,5 +45,21 @@ describe(ResponseCacheLens::class, function (): void {
         $this->get('/clear')->assertOk();
 
         expect(array_column(latestCapture()->rows('response_cache'), 'event'))->toContain('clearing', 'cleared');
+    });
+
+    it('summarizes nothing for requests that did not touch the cache', function (): void {
+        Route::get('/uncached', fn () => 'fresh');
+
+        $this->get('/uncached')->assertOk();
+
+        expect(app(ResponseCacheLens::class)->summarize(latestCapture()))->toEqual(Summary::make());
+    });
+
+    it('describes its rows and shows them on the response cache tab', function (): void {
+        $lens = app(ResponseCacheLens::class);
+
+        expect($lens->description())->toContain('clearing_failed')
+            ->and($lens->advice())->toStartWith('Look here when a change does not show up')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.response_cache');
     });
 });

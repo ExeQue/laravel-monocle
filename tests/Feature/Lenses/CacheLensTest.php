@@ -7,6 +7,9 @@ namespace Tests\Feature\Lenses;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\CacheLens;
+use Illuminate\Cache\Events\CacheFlushed;
+use Illuminate\Cache\Events\KeyForgetFailed;
+use Illuminate\Cache\Events\KeyWriteFailed;
 use Illuminate\Support\Facades\Cache;
 
 covers(CacheLens::class);
@@ -104,5 +107,64 @@ describe(CacheLens::class, function (): void {
         $lens->configure(['slow_ms' => 50]);
 
         expect($lens->summarize($capture)->warnings)->toBe([]);
+    });
+    it('records failed writes, failed forgets and flushes', function (): void {
+        event(new KeyWriteFailed('array', 'k', 'v', 30));
+        event(new KeyForgetFailed('array', 'k'));
+        event(new CacheFlushed('array'));
+
+        $rows = app(Eyepiece::class)->finalize()->rows('cache');
+
+        expect(array_column($rows, 'type'))->toBe(['write_failed', 'forget_failed', 'flush'])
+            ->and($rows[0]['ttl'])->toBe(30)
+            ->and($rows[2])->toMatchArray(['store' => 'array', 'key' => null, 'duration' => null]);
+    });
+
+    it('records nothing while no capture is recording', function (): void {
+        app(Eyepiece::class)->discard();
+
+        Cache::get('a');
+        event(new CacheFlushed('array'));
+
+        expect(app(Eyepiece::class)->active()->rows('cache'))->toBe([]);
+    });
+
+    it('names stores without a configured driver and skips reads without a key or from vendor code', function (): void {
+        $capture = app(Eyepiece::class)->finalize();
+        $vendor = ['file' => 'vendor/acme/lib/Cache.php', 'line' => 3, 'vendor' => true];
+        $capture->sections['cache'] = [
+            ['n' => 1, 'type' => 'hit', 'key' => 'a', 'store' => null, 'duration' => 30.0],
+            ['n' => 2, 'type' => 'miss', 'key' => 'b', 'store' => 'unknown', 'duration' => 30.0],
+            ['n' => 3, 'type' => 'hit', 'store' => 'array', 'duration' => 0.1],
+            ['n' => 4, 'type' => 'hit', 'key' => 'v', 'store' => 'array', 'duration' => 0.1, 'origin' => $vendor],
+            ['n' => 5, 'type' => 'hit', 'key' => 'v', 'store' => 'array', 'duration' => 0.1, 'origin' => $vendor],
+        ];
+        $lens = app(CacheLens::class);
+        $lens->configure(['repeat_threshold' => 2]);
+
+        expect($lens->summarize($capture)->warnings)->toBe([
+            'Slow cache hit (30.0 ms) on the default store: a',
+            'Slow cache miss (30.0 ms) on the "unknown" store: b',
+        ]);
+    });
+
+    it('describes itself for the agent and the dashboard', function (): void {
+        $lens = app(CacheLens::class);
+        $presentation = $lens->presentation();
+
+        expect($lens->description())->toContain('repeat_of')
+            ->and($lens->advice())->toStartWith('Look here when data is stale')
+            ->and($presentation->tabView)->toBe('monocle::tabs.cache')
+            ->and($presentation->formats)->toHaveKeys(['type', 'repeat_of'])
+            ->and($presentation->highlights)->toBe(['repeat_of' => 'warn', 'slow' => 'warn']);
+    });
+    it('records no size for a value that cannot be serialized', function (): void {
+        event(new \Illuminate\Cache\Events\KeyWritten('array', 'callback', fn (): int => 1, 60));
+
+        $row = app(Eyepiece::class)->finalize()->rows('cache')[0];
+
+        expect($row['type'])->toBe('write')
+            ->and($row)->toHaveKey('value_size_bytes')
+            ->and($row['value_size_bytes'])->toBeNull();
     });
 });

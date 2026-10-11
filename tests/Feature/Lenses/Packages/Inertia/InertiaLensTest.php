@@ -4,13 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses\Packages\Inertia;
 
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens;
 use ExeQue\Monocle\LensRegistry;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Routing\Events\PreparingResponse;
+use Illuminate\Routing\Events\ResponsePrepared;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Inertia\Inertia;
+use Inertia\Response as InertiaResponse;
+use Inertia\Support\Header;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
 
 covers(InertiaLens::class);
 
@@ -50,8 +58,8 @@ describe(InertiaLens::class, function (): void {
             ->and($rows['orders'])->toMatchArray(['type' => 'plain', 'shared' => false, 'sent' => true, 'size_bytes' => strlen('[{"id":1},{"id":2}]')])
             ->and($rows['customer'])->toMatchArray(['type' => 'closure', 'sent' => true])
             ->and($rows['stats'])->toMatchArray(['type' => 'defer', 'sent' => false, 'size_bytes' => null, 'group' => 'metrics', 'omitted' => 'deferred'])
-            ->and($rows['stats']['defined_at'])->toEndWith('InertiaLensTest.php:31')
-            ->and($rows['customer']['defined_at'])->toEndWith('InertiaLensTest.php:30')
+            ->and($rows['stats']['defined_at'])->toEndWith('InertiaLensTest.php:39')
+            ->and($rows['customer']['defined_at'])->toEndWith('InertiaLensTest.php:38')
             ->and($rows['tags']['defined_at'] ?? null)->toBeNull()
             ->and($rows['note'])->toMatchArray(['type' => 'closure', 'sent' => true, 'size_bytes' => 2])
             ->and($rows['note']['value'])->toBe('')
@@ -59,7 +67,7 @@ describe(InertiaLens::class, function (): void {
             ->and($rows['settings']['value']['api_token'])->not->toBe('tok_4c8e1a7f9b2d')
             ->and($rows['orders']['value'])->toBe([['id' => 1], ['id' => 2]])
             ->and($rows['stats']['value'])->toBeNull()
-            ->and($rows['note']['defined_at'])->toEndWith('InertiaLensTest.php:28')
+            ->and($rows['note']['defined_at'])->toEndWith('InertiaLensTest.php:36')
             ->and(latestCapture()->health['failures'] ?? [])->toBe([])
             ->and($rows['orders']['defined_at'] ?? null)->toBeNull()
             ->and($rows['filters'])->toMatchArray(['type' => 'optional', 'sent' => false, 'omitted' => 'optional'])
@@ -193,5 +201,72 @@ describe(InertiaLens::class, function (): void {
 
         expect($capture->rows('inertia'))->toBe([])
             ->and($capture->rows('inertia_pages'))->toBe([]);
+    });
+    it('says what it records and how it is shown', function () use ($lens): void {
+        expect($lens()->description())->toContain('inertia_pages')
+            ->and($lens()->advice())->toContain('Inertia page')
+            ->and($lens()->presentation())->toBeInstanceOf(Presentation::class);
+    });
+
+    it('records a prop a rescued deferred resolver threw in as rescued', function () use ($props): void {
+        Route::get('/rescued', fn () => Inertia::render('Rescued', [
+            'broken' => Inertia::defer(fn () => throw new RuntimeException('boom'), 'g', rescue: true),
+        ]));
+
+        $this->get('/rescued', [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => 'v1',
+            'X-Inertia-Partial-Component' => 'Rescued',
+            'X-Inertia-Partial-Data' => 'broken',
+        ])->assertOk();
+
+        expect($props()['broken'])->toMatchArray(['sent' => false, 'omitted' => 'rescued']);
+    });
+
+    it('records a once prop the client already has as loaded once', function () use ($props): void {
+        Route::get('/once', fn () => Inertia::render('Once', ['token' => Inertia::once(fn (): string => 'abc')]));
+
+        $this->get('/once', ['X-Inertia' => 'true', 'X-Inertia-Version' => 'v1', 'X-Inertia-Except-Once-Props' => 'token'])->assertOk();
+
+        expect($props()['token'])->toMatchArray(['type' => 'once', 'sent' => false, 'omitted' => 'loaded once']);
+    });
+
+    it('reads positional, dotted, vendor and native props and falls back to omitted', function (): void {
+        $eyepiece = app(Eyepiece::class);
+        $eyepiece->start(CaptureType::Request);
+
+        $inertia = new InertiaResponse('Manual', [], [
+            0 => 'positional',
+            'auth.user' => ['id' => 1],
+            'header' => new Header(),
+            'now' => time(...),
+            'framework' => app()->version(...),
+            'missing' => 1,
+        ]);
+        $page = ['component' => 'Manual', 'props' => ['auth' => ['user' => ['id' => 1]], 'header' => [], 'now' => 1, 'framework' => '12']];
+
+        event(new PreparingResponse(request(), $inertia));
+        event(new ResponsePrepared(request(), new HttpResponse(view('inertia-app', ['page' => $page]))));
+
+        $rows = array_column($eyepiece->finalize()->rows('inertia'), null, 'prop');
+
+        expect(array_keys($rows))->toBe(['auth', 'header', 'now', 'framework', 'missing'])
+            ->and($rows['auth']['type'])->toBe('plain')
+            ->and($rows['header']['type'])->toBe('plain')
+            ->and($rows['now']['defined_at'] ?? null)->toBeNull()
+            ->and($rows['framework']['defined_at'] ?? null)->toBeNull()
+            ->and($rows['missing'])->toMatchArray(['sent' => false, 'omitted' => 'omitted']);
+    });
+
+    it('records nothing when the prepared response holds no Inertia page', function (): void {
+        $eyepiece = app(Eyepiece::class);
+        $eyepiece->start(CaptureType::Request);
+
+        foreach ([new Response('raw'), new HttpResponse('plain')] as $response) {
+            event(new PreparingResponse(request(), new InertiaResponse('Manual', [], ['a' => 1])));
+            event(new ResponsePrepared(request(), $response));
+        }
+
+        expect($eyepiece->finalize()->rows('inertia_pages'))->toBe([]);
     });
 });

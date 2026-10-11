@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use ExeQue\Monocle\Lenses\ViewsLens;
@@ -12,6 +15,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Compilers\BladeCompiler;
+use InvalidArgumentException;
 
 covers(ViewsLens::class, TimedEngine::class);
 
@@ -88,5 +92,36 @@ describe(ViewsLens::class, function (): void {
             ->and($engine)->toBeInstanceOf(TimedEngine::class)
             ->and($engine->getCompiler())->toBeInstanceOf(BladeCompiler::class)
             ->and($engine->inner())->not->toBeInstanceOf(TimedEngine::class);
+    });
+
+    it('skips engines that cannot be resolved', function (): void {
+        $lens = app(ViewsLens::class);
+        $lens->configure(['engines' => ['missing-engine', 'blade']]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        expect(app('view.engine.resolver')->resolve('blade'))->toBeInstanceOf(TimedEngine::class)
+            ->and(fn () => app('view.engine.resolver')->resolve('missing-engine'))->toThrow(InvalidArgumentException::class);
+    });
+
+    it('summarizes nothing without views', function (): void {
+        expect(app(ViewsLens::class)->summarize(new Capture('capture', CaptureType::Request, microtime(true))))->toEqual(Summary::make());
+    });
+
+    it('counts a view span without a parent as top-level time', function (): void {
+        $capture = new Capture('capture', CaptureType::Command, microtime(true));
+        $span = new Span('view', 'report', 'view', null, null, null);
+        $span->start = 0.0;
+        $span->end = 12.5;
+        $capture->spans['view'] = $span;
+        $capture->sections['views'] = [['view' => 'report', 'path' => 'resources/views/report.blade.php', 'duration' => 12.5]];
+
+        expect(app(ViewsLens::class)->summarize($capture)->totals['views_ms'])->toBe(12.5);
+    });
+
+    it('presents views as a table grouped by view and engine', function (): void {
+        $presentation = app(ViewsLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.views')
+            ->and($presentation->groupings)->toBe(['view' => 'by view', 'engine' => 'by engine']);
     });
 });

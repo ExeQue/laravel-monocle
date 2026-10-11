@@ -67,9 +67,12 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, RequiresPac
         ];
 
         foreach ($events as $class => $row) {
+            // Event missing from older spatie/laravel-responsecache versions.
+            // @codeCoverageIgnoreStart
             if (! class_exists($class)) {
                 continue;
             }
+            // @codeCoverageIgnoreEnd
 
             $this->eyepiece->listen($class, function (object $event) use ($row): void {
                 if ($this->eyepiece->recording()) {

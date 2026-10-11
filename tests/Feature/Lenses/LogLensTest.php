@@ -42,4 +42,32 @@ describe(LogLens::class, function (): void {
 
         expect(app(LogLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+
+    it('ignores log messages written while not recording', function (): void {
+        config(['logging.default' => 'null']);
+
+        Log::info('Outside any capture');
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        expect(app(Eyepiece::class)->finalize()->rows('log'))->toBe([]);
+    });
+
+    it('does not record its own failure reports', function (): void {
+        config(['logging.default' => 'null']);
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        Log::warning('Monocle failed to record a row');
+        Log::warning('Something else');
+
+        expect(array_column(app(Eyepiece::class)->finalize()->rows('log'), 'message'))->toBe(['Something else']);
+    });
+
+    it('presents the log as a table grouped by message', function (): void {
+        $presentation = app(LogLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.log')
+            ->and($presentation->groupings)->toBe(['message' => 'by message'])
+            ->and($presentation->formats)->toBe(['level' => ['level'], 'context' => ['fields']]);
+    });
 });

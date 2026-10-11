@@ -57,9 +57,12 @@ final class McpLens implements Advises, Lens, Presentable, RequiresPackages, Sum
 
     public function boot(Application $app, Eyepiece $eyepiece): void
     {
+        // Laravel/mcp versions without method contracts.
+        // @codeCoverageIgnoreStart
         if (! interface_exists(Method::class)) {
             return;
         }
+        // @codeCoverageIgnoreEnd
 
         $except = array_values((array) $eyepiece->config('mcp.except_servers', []));
 
@@ -78,9 +81,12 @@ final class McpLens implements Advises, Lens, Presentable, RequiresPackages, Sum
         ];
 
         foreach ($methods as $method) {
+            // Method handler missing from older laravel/mcp versions.
+            // @codeCoverageIgnoreStart
             if (! class_exists($method)) {
                 continue;
             }
+            // @codeCoverageIgnoreEnd
 
             $app->extend($method, fn (Method $inner): TimedMethod => new TimedMethod(
                 inner: $inner instanceof TimedMethod ? $inner->inner() : $inner,

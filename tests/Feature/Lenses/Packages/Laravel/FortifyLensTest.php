@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses\Packages\Laravel;
 
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Laravel\FortifyLens;
+use Illuminate\Auth\GenericUser;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
 use Tests\Fixtures\Models\User;
 
 covers(FortifyLens::class);
@@ -49,5 +53,19 @@ describe(FortifyLens::class, function (): void {
             ->and(collect($failed->rows('auth'))->pluck('event'))->toContain('2fa_failed')
             ->and(app(FortifyLens::class)->summarize($failed)->totals['auth_2fa_failed'])->toBe(1)
             ->and($passed)->toContain('2fa_passed', 'login');
+    });
+
+    it('ignores Fortify events fired while nothing is recording', function (): void {
+        app(Eyepiece::class)->reset();
+
+        event(new TwoFactorAuthenticationFailed(new GenericUser(['id' => 1])));
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        expect(app(Eyepiece::class)->finalize()->rows('auth'))->toBe([]);
+    });
+
+    it('describes the rows it adds and promises never to record recovery codes', function (): void {
+        expect(app(FortifyLens::class)->description())->toContain('2fa_failed', 'Recovery codes are never recorded');
     });
 });

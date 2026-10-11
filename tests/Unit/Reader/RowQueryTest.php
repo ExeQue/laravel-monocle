@@ -52,6 +52,13 @@ describe(RowQuery::class, function (): void {
 
             expect($result['rows'][0]['n'])->toBe(120);
         });
+
+        it('keeps the stored order when the sort field is empty', function () use ($rows): void {
+            $query = RowQuery::fromArray(['sort' => '', 'limit' => 1]);
+
+            expect($query->sort)->toBeNull()
+                ->and($query->apply($rows())['rows'][0]['n'])->toBe(1);
+        });
     });
 
     describe('projection', function () use ($rows): void {

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Install;
 
+use ExeQue\Monocle\Install\Concerns\WritesJson;
 use ExeQue\Monocle\Install\GitignoreWriter;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
+use RuntimeException;
 
-covers(Platform::class, McpConfigWriter::class, GitignoreWriter::class);
+covers(Platform::class, McpConfigWriter::class, GitignoreWriter::class, WritesJson::class);
 
 describe(Platform::class, function (): void {
     beforeEach(function (): void {
@@ -26,6 +28,10 @@ describe(Platform::class, function (): void {
         touch($this->base.'/vendor/bin/sail');
 
         expect(Platform::detect($this->base, ['HOME' => '/nowhere']))->toBe(Platform::Lerd);
+    });
+
+    it('detects lerd from its environment variables', function (): void {
+        expect(Platform::detect($this->base, ['HOME' => '/nowhere', 'LERD_SITE' => 'app']))->toBe(Platform::Lerd);
     });
 
     it('detects sail from the binary plus a compose file', function (): void {
@@ -65,6 +71,13 @@ describe(Platform::class, function (): void {
             ->and(Platform::Sail->mcpCommand('/app'))->toBe(['command' => 'vendor/bin/sail', 'args' => ['artisan', 'mcp:start', 'monocle']])
             ->and(Platform::Herd->mcpCommand('/app'))->toBe(['command' => 'herd', 'args' => ['php', 'artisan', 'mcp:start', 'monocle']])
             ->and(Platform::Php->mcpCommand('/app')['args'])->toBe(['/app/artisan', 'mcp:start', 'monocle']);
+    });
+
+    it('tells the user how to run artisan per platform', function (): void {
+        expect(Platform::Sail->artisan())->toBe('vendor/bin/sail artisan')
+            ->and(Platform::Lerd->artisan())->toBe('lerd artisan')
+            ->and(Platform::Herd->artisan())->toBe('herd php artisan')
+            ->and(Platform::Php->artisan())->toBe('php artisan');
     });
 });
 
@@ -114,6 +127,46 @@ describe(McpConfigWriter::class, function (): void {
             ->and($written)->not->toContain('        ');
     });
 
+    it('treats an empty file as an empty config', function (): void {
+        mkdir(dirname($this->file));
+        file_put_contents($this->file, "  \n");
+
+        expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))->toBe('updated')
+            ->and(json_decode((string) file_get_contents($this->file), true))->toBe(['mcpServers' => ['monocle' => ['command' => 'php', 'args' => []]]]);
+    });
+
+    it('refuses to touch a file that is not plain JSON', function (): void {
+        mkdir(dirname($this->file));
+        file_put_contents($this->file, "{\n  // comment\n}\n");
+
+        expect(fn () => (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
+            ->toThrow(RuntimeException::class, 'does not contain valid JSON');
+    });
+
+    describe('without an error handler that throws on warnings', function (): void {
+        beforeEach(function (): void {
+            set_error_handler(fn (): bool => true);
+        });
+
+        afterEach(function (): void {
+            restore_error_handler();
+        });
+
+        it('fails when the config directory cannot be created', function (): void {
+            touch(dirname($this->file));
+
+            expect(fn () => (new McpConfigWriter())->write($this->file.'/.mcp.json', 'monocle', ['command' => 'php', 'args' => []]))
+                ->toThrow(RuntimeException::class, 'Could not create');
+        });
+
+        it('fails when the config file cannot be written', function (): void {
+            mkdir($this->file, 0777, true);
+
+            expect(fn () => (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
+                ->toThrow(RuntimeException::class, 'Could not write');
+        });
+    });
+
     it('does not write in dry-run mode', function (): void {
         expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []], dryRun: true))->toBe('created')
             ->and(file_exists($this->file))->toBeFalse();
@@ -144,5 +197,22 @@ describe(GitignoreWriter::class, function (): void {
             ->and(file_exists($this->file))->toBeFalse()
             ->and((new GitignoreWriter())->add($this->file, 'storage/monocle/'))->toBe('added')
             ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n");
+    });
+
+    it('adds each missing entry once', function (): void {
+        expect((new GitignoreWriter())->add($this->file, ['storage/monocle/', '/storage/monocle/', '.zed/']))->toBe('added')
+            ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n/.zed/\n");
+    });
+
+    it('fails when the file cannot be written', function (): void {
+        mkdir($this->file);
+        set_error_handler(fn (): bool => true);
+
+        try {
+            expect(fn () => (new GitignoreWriter())->add($this->file, 'storage/monocle/'))->toThrow(RuntimeException::class, 'Could not write');
+        } finally {
+            restore_error_handler();
+            rmdir($this->file);
+        }
     });
 });

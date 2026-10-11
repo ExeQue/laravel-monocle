@@ -4,14 +4,41 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use ArrayObject;
+use Closure;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Lenses\RequestLens;
+use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Auth\GenericUser;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Routing\Events\PreparingResponse;
+use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Routing\Events\Routing;
+use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Laravel\Folio\Events\ViewMatched;
+use Laravel\Folio\MountPath;
+use Laravel\Folio\Pipeline\MatchedView;
+use Laravel\Octane\Events\RequestReceived;
+use Mockery;
+use RuntimeException;
+use Tests\Fixtures\Http\ExplodingCapture;
+use Tests\Fixtures\Http\LockedHeaderBag;
+use Tests\Fixtures\Http\StaticCardCapture;
+use Tests\Fixtures\Http\UnreadableResponse;
+use Tests\Fixtures\Middleware\Abort;
+use Tests\Fixtures\Models\Thing;
 
 covers(\ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class, \ExeQue\Monocle\Lenses\Request\JsonCapture::class, \ExeQue\Monocle\Lenses\Request\TextCapture::class, \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, RequestLens::class);
 
@@ -353,5 +380,270 @@ describe(RequestLens::class, function (): void {
 
         expect(app(CaptureReader::class)->list(Filter::fromArray([]))['total'])->toBe(2)
             ->and(latestCapture()->name)->toBe('GET /ping/2');
+    });
+
+    /**
+     * Run a request through the lens by its events, without the HTTP kernel.
+     *
+     * @param  Closure(Request, RoutingRoute): void|null  $between  runs after the route matched
+     * @param  array<string, mixed>  $parameters  route parameters as bound by the time the route matched
+     */
+    $handle = function (?RoutingRoute $route = null, ?Closure $between = null, bool $prepare = true, array $parameters = []): ?Capture {
+        $route ??= new RoutingRoute(['GET'], '/manual', fn () => 'ok');
+        $request = Request::create('/'.$route->uri());
+        $route->bind($request);
+
+        foreach ($parameters as $name => $value) {
+            $route->setParameter($name, $value);
+        }
+
+        $request->setRouteResolver(fn () => $route);
+
+        event(new Routing($request));
+        event(new RouteMatched($route, $request));
+
+        if ($between !== null) {
+            $between($request, $route);
+        }
+
+        if ($prepare) {
+            event(new PreparingResponse($request, 'ok'));
+        }
+
+        return app(Eyepiece::class)->finalize();
+    };
+
+    $booted = fn (): RequestLens => collect(app(LensRegistry::class)->booted())->first(fn (object $lens): bool => $lens instanceof RequestLens);
+
+    $span = function (Capture $capture, string $id, string $kind, float $start, float $end, array $meta = [], ?string $parentId = null): Span {
+        $span = new Span($id, $id, $kind, $parentId, null, null);
+        $span->start = $start;
+        $span->end = $end;
+        $span->meta = $meta;
+        $capture->spans[$id] = $span;
+
+        return $span;
+    };
+
+    it('opens the bootstrap phase at the start of a capture it starts while the application boots', function (): void {
+        app(Eyepiece::class)->reset();
+        $terminating = null;
+
+        $app = Mockery::mock(Application::class);
+        $app->shouldReceive('runningInConsole')->andReturnFalse();
+        $app->shouldReceive('booted')->andReturnUsing(fn (Closure $callback) => $callback());
+        $app->shouldReceive('terminating')->andReturnUsing(function (Closure $callback) use (&$terminating): void {
+            $terminating = $callback;
+        });
+
+        (new RequestLens(app(Eyepiece::class)))->boot($app);
+
+        $phases = app(Eyepiece::class)->active()->spansOfKind('phase');
+
+        expect(array_map(fn (Span $span): string => $span->name, $phases))->toBe(['bootstrap', 'middleware (request)'])
+            ->and($phases[0]->start)->toBe(0.0)
+            ->and($phases[0]->isOpen())->toBeFalse();
+
+        $terminating();
+
+        expect(app(Eyepiece::class)->active())->toBeNull()
+            ->and(latestCapture()?->type)->toBe(CaptureType::Request);
+
+        $terminating();
+
+        expect(app(Eyepiece::class)->active())->toBeNull();
+    });
+
+    it('keeps the running capture when Octane hands it a request', function (): void {
+        $capture = app(Eyepiece::class)->start(CaptureType::Request);
+
+        event(new RequestReceived(app(), app(), Request::create('/octane')));
+
+        expect(app(Eyepiece::class)->active())->toBe($capture);
+    });
+
+    it('ignores Folio pages and handled requests outside a recording capture', function (): void {
+        $folio = new ViewMatched(new MatchedView(base_path('page.blade.php'), []), new MountPath(base_path(), '/', [], null));
+        $handled = new RequestHandled(Request::create('/x'), new Response('ok'));
+
+        app(Eyepiece::class)->reset();
+        event($folio);
+        event($handled);
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+        app(Eyepiece::class)->discard();
+        event($folio);
+        event($handled);
+
+        expect(app(Eyepiece::class)->active()->sections)->toBe([])
+            ->and($handled->response->headers->has('X-Monocle-Id'))->toBeFalse();
+    });
+
+    it('opens no phase without a capture', function (): void {
+        app(Eyepiece::class)->reset();
+        $lens = app(RequestLens::class);
+
+        (fn () => $this->phase('routing'))->call($lens);
+
+        expect(app(Eyepiece::class)->active())->toBeNull();
+    });
+
+    it('carries on when the response refuses the Monocle headers', function (): void {
+        Route::get('/locked', function () {
+            $response = new Response('ok');
+            $response->headers = new LockedHeaderBag($response->headers->all());
+
+            return $response;
+        });
+
+        $response = $this->get('/locked')->assertOk();
+
+        expect($response->headers->has('X-Monocle-Id'))->toBeFalse()
+            ->and(latestCapture()->section('request')['status'])->toBe(200);
+    });
+
+    it('records Livewire updates when no component is excepted or there are no components', function (): void {
+        Route::post('livewire/update', fn () => 'ok');
+        $component = ['snapshot' => json_encode(['data' => [], 'memo' => ['id' => 'x', 'name' => 'pulse.usage']]), 'updates' => [], 'calls' => []];
+
+        $this->postJson('/livewire/update', ['components' => []])->assertOk();
+
+        expect(latestCapture()?->name)->toBe('POST /livewire/update');
+
+        config(['monocle.except.livewire' => []]);
+        $this->postJson('/livewire/update', ['components' => [$component]])->assertOk();
+
+        expect(app(CaptureReader::class)->list(Filter::fromArray([]))['total'])->toBe(2);
+    });
+
+    it('describes bound models as Class#key and other objects by their class', function () use ($handle): void {
+        $capture = $handle(route: new RoutingRoute(['GET'], '/things', fn () => 'ok'), parameters: [
+            'thing' => (new Thing())->forceFill(['id' => 5]),
+            'options' => new ArrayObject(['compact']),
+        ]);
+
+        expect($capture->section('request')['route']['parameters'])->toBe(['thing' => Thing::class.'#5', 'options' => ArrayObject::class]);
+    });
+
+    it('records responses whose body cannot be read', function () use ($booted): void {
+        $booted()->configure(['capture' => ['headers' => ['X-Card' => StaticCardCapture::class]]]);
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        event(new RequestHandled(Request::create('/unreadable'), new UnreadableResponse('', 200, ['X-Card' => '1'])));
+
+        $request = app(Eyepiece::class)->finalize()->section('request');
+
+        expect($request['response_bytes'])->toBeNull()
+            ->and($request['response_capture'])->toBe(['capture' => StaticCardCapture::class, 'cards' => [['title' => 'Static', 'items' => ['status' => 200]]], 'raw' => null]);
+    });
+
+    it('records the failure of a response capture and keeps the request', function () use ($booted): void {
+        config(['monocle.throw_failures' => false]);
+        $booted()->configure(['capture' => ['headers' => ['X-Card' => ExplodingCapture::class]]]);
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        event(new RequestHandled(Request::create('/exploding'), new Response('ok', 200, ['X-Card' => '1'])));
+
+        $capture = app(Eyepiece::class)->finalize();
+
+        expect($capture->section('request')['response_capture'])->toBeNull()
+            ->and($capture->section('request')['status'])->toBe(200)
+            ->and(array_column($capture->health['failures'], 'message'))->toBe(['capture exploded']);
+    });
+
+    it('captures nothing for a response without a content type', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        event(new RequestHandled(Request::create('/bare'), new Response('ok')));
+
+        $request = app(Eyepiece::class)->finalize()->section('request');
+
+        expect($request['content_type'])->toBeNull()
+            ->and($request['response_capture'])->toBeNull();
+    });
+
+    it('records no user when resolving the user fails', function (): void {
+        $request = Request::create('/guarded');
+        $request->setUserResolver(fn () => throw new RuntimeException('auth down'));
+
+        event(new Routing($request));
+
+        expect(app(Eyepiece::class)->finalize()->section('request')['auth'])->toBeNull();
+    });
+
+    it('adds the database time to the Server-Timing header', function (): void {
+        Route::get('/db', fn () => DB::select('select 1') ? 'ok' : 'no');
+
+        $response = $this->get('/db')->assertOk();
+
+        expect(latestCapture()->rows('queries'))->not->toBeEmpty()
+            ->and($response->headers->get('Server-Timing'))->toContain('db;dur=');
+    });
+
+    it('derives no controller span when no route matched or a route middleware short-circuited', function (): void {
+        Route::get('/aborted', fn () => 'never')->middleware(Abort::class);
+
+        $this->get('/missing')->assertNotFound();
+
+        expect(latestCapture()->spans)->not->toHaveKey('controller');
+
+        $this->get('/aborted')->assertStatus(418);
+
+        expect(latestCapture()->spans)->not->toHaveKey('controller');
+    });
+
+    it('derives no controller span before the controller finished', function () use ($handle, $span): void {
+        $capture = $handle(prepare: false);
+
+        expect($capture->spans)->not->toHaveKey('controller');
+
+        $capture = $handle(between: function () use ($span): void {
+            $capture = app(Eyepiece::class)->active();
+            $now = app(Eyepiece::class)->now();
+            $span($capture, 'late', 'middleware.request', $now + 50, $now + 60, ['passed' => true, 'group' => 'route']);
+        });
+
+        expect($capture->spans)->not->toHaveKey('controller');
+    });
+
+    it('ends the controller at the first response middleware and skips middleware that did not hand on', function () use ($handle, $span): void {
+        $capture = $handle(prepare: false, between: function () use ($span): void {
+            $capture = app(Eyepiece::class)->active();
+            $now = app(Eyepiece::class)->now();
+            $handlePhase = collect($capture->spansOfKind('phase'))->firstWhere('name', 'handle');
+
+            $span($capture, 'blocked', 'middleware.request', $now, $now + 1, ['passed' => false, 'group' => 'global']);
+            $span($capture, 'outer', 'middleware.response', $now + 30, $now + 31);
+            $span($capture, 'inner', 'middleware.response', $now + 20, $now + 21);
+            $span($capture, 'before', 'user', $now - 5, $now - 4, parentId: $handlePhase->id);
+            $span($capture, 'inside', 'user', $now + 5, $now + 6, parentId: $handlePhase->id);
+        });
+
+        $controller = $capture->spans['controller'];
+
+        expect($controller->end)->toBe($capture->spans['inner']->start)
+            ->and($capture->spans['inside']->parentId)->toBe('controller')
+            ->and($capture->spans['before']->parentId)->not->toBe('controller');
+    });
+
+    it('roots the controller span when there is no handle phase', function () use ($handle): void {
+        $capture = $handle(between: function (): void {
+            $capture = app(Eyepiece::class)->active();
+
+            foreach ($capture->spansOfKind('phase') as $phase) {
+                if ($phase->name === 'handle') {
+                    unset($capture->spans[$phase->id]);
+                }
+            }
+        });
+
+        expect($capture->spans['controller']->parentId)->toBeNull();
+    });
+
+    it('presents the request with the auth section', function (): void {
+        $presentation = app(RequestLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.request')
+            ->and($presentation->includes)->toBe(['auth']);
     });
 });

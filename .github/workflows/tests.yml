@@ -153,9 +153,9 @@ jobs:
       - name: Install dependencies
         run: composer update --prefer-stable --prefer-dist --no-interaction
 
-      # Fails the build when line coverage drops below 90 %.
+      # Fails the build when line coverage drops below 100 %.
       - name: Execute tests with coverage
-        run: vendor/bin/pest -p --ci --coverage --min=90
+        run: vendor/bin/pest -p --ci --coverage --min=100
 
   assets:
     # The compiled dashboard assets ship in the repository; fail when they

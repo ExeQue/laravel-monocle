@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use ExeQue\Monocle\Console\TraceCommand;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -70,5 +73,20 @@ describe(TraceCommand::class, function (): void {
 
     it('fails for unknown captures', function (): void {
         $this->artisan('monocle:trace', ['id' => 'missing'])->assertFailed();
+    });
+
+    it('draws a capture whose parent is gone as a root and counts its warnings', function (): void {
+        $orphan = new Capture('orphan', CaptureType::Job, microtime(true), parentId: 'pruned', traceId: 'orphan-trace');
+        $orphan->name = CountdownJob::class;
+        $orphan->status = 'processed';
+        $orphan->endedAt = $orphan->startedAt + 0.01;
+        $orphan->health = ['warnings' => 2];
+        app(StoreManager::class)->store()->put($orphan);
+
+        Artisan::call('monocle:trace', ['id' => 'orphan']);
+        $lines = explode("\n", trim(Artisan::output()));
+
+        expect($lines[0])->toStartWith('job CountdownJob  processed  ')->toContain('2 warnings')->toEndWith('<- requested')
+            ->and(end($lines))->toContain('1 capture,')->toContain('0 failed.');
     });
 });

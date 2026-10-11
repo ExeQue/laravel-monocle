@@ -62,6 +62,13 @@ describe(Masker::class, function (): void {
             ->toBe(['email' => 'a@b.c', 'password' => 'hunt****', 'nested' => ['api_token' => '****']]);
     });
 
+    it('returns input untouched when no pattern is configured', function (): void {
+        $masker = new Masker([], ['', null], new FullMask());
+
+        expect($masker->inputs(['password' => 'secret', 'nested' => ['token' => 'x']]))
+            ->toBe(['password' => 'secret', 'nested' => ['token' => 'x']]);
+    });
+
     it('accepts any callable as mask', function (): void {
         $masker = new Masker(['x-secret'], null, fn (mixed $value, string $key): string => strtoupper($key));
 

@@ -151,4 +151,55 @@ describe(EditorCommand::class, function (): void {
         expect(file_exists($this->dir.'/.monocle.json'))->toBeFalse()
             ->and(file_exists($this->dir.'/.gitignore'))->toBeFalse();
     });
+
+    it('does not ask for the host path when --map is given', function (): void {
+        touch($this->dir.'/.dockerenv');
+        $this->app->instance(Environment::class, new Environment('Linux', [$this->kernel], [], [$this->dir.'/.dockerenv']));
+
+        $this->artisan('monocle:editor', ['--editor' => 'zed', '--map' => [$this->dir.':/home/me/app']])
+            ->assertSuccessful();
+
+        expect(($this->settings)()['paths'])->toBe([$this->dir => '/home/me/app']);
+    });
+
+    it('asks for the Windows path when the project is on a Windows drive', function (): void {
+        $this->artisan('monocle:editor', ['--editor' => 'zed', '--wsl' => 'windows-drive'])
+            ->expectsQuestion("Where is {$this->dir} on the machine your editor runs on?", 'C:/code/app')
+            ->assertSuccessful();
+
+        expect(($this->settings)()['paths'])->toBe([$this->dir => 'C:/code/app']);
+    });
+
+    it('maps the folder the command runs from when it holds the application', function (): void {
+        $cwd = getcwd();
+        chdir(dirname($this->dir));
+
+        try {
+            $this->artisan('monocle:editor', ['--editor' => 'zed', '--wsl' => 'windows-drive'])
+                ->expectsQuestion('Where is '.dirname($this->dir).' on the machine your editor runs on?', 'C:/code')
+                ->assertSuccessful();
+        } finally {
+            chdir($cwd);
+        }
+
+        expect(($this->settings)()['paths'])->toBe([dirname($this->dir) => 'C:/code']);
+    });
+
+    it('maps the base path when the working directory is gone', function (): void {
+        $cwd = getcwd();
+        $gone = $this->dir.'-gone';
+        mkdir($gone);
+        chdir($gone);
+        rmdir($gone);
+
+        try {
+            $this->artisan('monocle:editor', ['--editor' => 'zed', '--wsl' => 'windows-drive'])
+                ->expectsQuestion("Where is {$this->dir} on the machine your editor runs on?", 'C:/code/app')
+                ->assertSuccessful();
+        } finally {
+            chdir($cwd);
+        }
+
+        expect(($this->settings)()['paths'])->toBe([$this->dir => 'C:/code/app']);
+    });
 });

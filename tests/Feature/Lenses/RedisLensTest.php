@@ -7,9 +7,11 @@ namespace Tests\Feature\Lenses;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\RedisLens;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Redis\Connections\Connection;
 use Illuminate\Redis\Events\CommandExecuted;
 use Mockery;
+use RuntimeException;
 
 covers(RedisLens::class);
 
@@ -50,5 +52,34 @@ describe(RedisLens::class, function (): void {
 
         expect($capture->rows('redis'))->toBe([])
             ->and(app(RedisLens::class)->summarize($capture))->toEqual(\ExeQue\Monocle\Data\Summary::make());
+    });
+
+    it('listens for nothing when redis is not bound', function (): void {
+        $app = Mockery::mock(Application::class);
+        $app->shouldReceive('bound')->with('redis')->andReturnFalse();
+        $app->shouldNotReceive('make');
+        $listeners = count(app('events')->getListeners(CommandExecuted::class));
+
+        (new RedisLens(app(Eyepiece::class)))->boot($app);
+
+        expect(app('events')->getListeners(CommandExecuted::class))->toHaveCount($listeners);
+    });
+
+    it('listens for nothing when redis events cannot be enabled', function (): void {
+        $app = Mockery::mock(Application::class);
+        $app->shouldReceive('bound')->with('redis')->andReturnTrue();
+        $app->shouldReceive('make')->with('redis')->andThrow(new RuntimeException('no redis extension'));
+        $listeners = count(app('events')->getListeners(CommandExecuted::class));
+
+        (new RedisLens(app(Eyepiece::class)))->boot($app);
+
+        expect(app('events')->getListeners(CommandExecuted::class))->toHaveCount($listeners);
+    });
+
+    it('presents redis commands as a table grouped by command', function (): void {
+        $presentation = app(RedisLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.redis')
+            ->and($presentation->groupings)->toBe(['command' => 'by command']);
     });
 });

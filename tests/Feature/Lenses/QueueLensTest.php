@@ -4,14 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use Carbon\CarbonImmutable;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
+use Illuminate\Contracts\Bus\Dispatcher as BusDispatcher;
+use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use RuntimeException;
 use Tests\Fixtures\Jobs\CountdownJob;
 use Tests\Fixtures\Jobs\FailingJob;
@@ -183,5 +190,84 @@ describe(QueueLens::class, function (): void {
             ->and($spans[0]->meta['via'])->toBe('dispatchSync')
             ->and($spans[0]->meta['status'])->toBe('processed')
             ->and($spans[0]->duration())->toBeGreaterThanOrEqual(0);
+    });
+
+    it('links no payload to a capture outside a capture or while it is discarded', function (): void {
+        Queue::connection('database')->push(new RecordingJob('outside'));
+
+        app(Eyepiece::class)->start(CaptureType::Command);
+        app(Eyepiece::class)->discard();
+        Queue::connection('database')->push(new RecordingJob('discarded'));
+
+        $payloads = DB::table('jobs')->pluck('payload')->map(fn (string $payload): array => json_decode($payload, true));
+
+        expect($payloads)->toHaveCount(2)
+            ->and($payloads->every(fn (array $payload): bool => ! array_key_exists(QueueLens::PAYLOAD_KEY, $payload)))->toBeTrue()
+            ->and(app(Eyepiece::class)->finalize())->toBeNull();
+    });
+
+    it('records nothing for an inline job while the capture is discarded', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+        app(Eyepiece::class)->discard();
+
+        RecordingJob::dispatch('discarded')->onConnection('sync');
+
+        expect(RecordingJob::$handled)->toBe(1)
+            ->and(app(Eyepiece::class)->active()?->spansOfKind('job'))->toBe([])
+            ->and(app(Eyepiece::class)->active()?->rows('jobs'))->toBe([]);
+    });
+
+    it('marks an inline job that throws as failed on its span', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+
+        expect(fn () => FailingJob::dispatch()->onConnection('sync'))->toThrow(RuntimeException::class, 'job exploded');
+
+        $capture = app(Eyepiece::class)->finalize();
+        $spans = $capture->spansOfKind('job');
+
+        expect($spans)->toHaveCount(1)
+            ->and($spans[0]->isOpen())->toBeFalse()
+            ->and($spans[0]->meta['status'])->toBe('exception')
+            ->and($spans[0]->meta['exception']['message'])->toBe('job exploded')
+            ->and($capture->status)->toBeNull();
+    });
+
+    it('records raw queued payloads with their class name and a date delay', function (): void {
+        app(Eyepiece::class)->start(CaptureType::Command);
+        $delay = CarbonImmutable::parse('2026-01-02 03:04:05', 'UTC');
+
+        event(new JobQueued(null, 'reports', 7, 'App\\Jobs\\BuildReport', json_encode(['data' => []]), $delay));
+
+        $row = app(Eyepiece::class)->finalize()->rows('jobs')[0];
+
+        expect($row)->toMatchArray([
+            'job' => 'App\\Jobs\\BuildReport',
+            'connection' => null,
+            'queue' => 'reports',
+            'delay' => '2026-01-02T03:04:05+00:00',
+            'job_id' => 7,
+            'batch_id' => null,
+            'chained' => 0,
+            'sync' => false,
+            'run' => 7,
+        ]);
+    });
+
+    it('keeps working with a custom bus dispatcher without pipes', function (): void {
+        $dispatcher = Mockery::mock(BusDispatcher::class);
+        $dispatcher->shouldNotReceive('pipeThrough');
+        app()->instance(BusDispatcher::class, $dispatcher);
+
+        (new QueueLens(app(Eyepiece::class)))->boot(app());
+
+        expect(app(BusDispatcher::class))->toBe($dispatcher);
+    });
+
+    it('presents dispatched jobs with a link to their own capture', function (): void {
+        $presentation = app(QueueLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.jobs')
+            ->and($presentation->groupings)->toBe(['job' => 'by job', 'queue' => 'by queue'])
+            ->and($presentation->formats)->toBe(['run' => ['capture', 'job_id']]);
     });
 });

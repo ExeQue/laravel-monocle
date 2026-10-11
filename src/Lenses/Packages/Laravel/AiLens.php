@@ -32,6 +32,8 @@ use Laravel\Ai\Events\ToolInvoked;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\StreamedAgentResponse;
+use Laravel\Ai\Tools\AgentTool;
 use Stringable;
 use Throwable;
 
@@ -76,7 +78,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     public function description(): string
     {
-        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them. Section ai_tools has one row per tool call: tool, class, agent, status, arguments, result (or exception) and duration.';
+        return 'laravel/ai agent invocations: agent class, provider, model, prompt, response text, steps, tool calls, tokens (input, output, cache, reasoning), duration and status. Each invocation is an ai.agent span with ai.step and ai.tool children in the timeline; nested agents hang under the tool that invoked them. Section ai_tools has one row per tool call: tool, class, sub_agent (true when the tool is another agent; class is then that agent), agent, status, arguments, result (or exception) and duration.';
     }
 
     public function advice(): string
@@ -91,10 +93,6 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     public function boot(): void
     {
-        if (! class_exists(PromptingAgent::class)) {
-            return;
-        }
-
         $this->eyepiece->listen(PromptingAgent::class, $this->onPrompting(...));
         $this->eyepiece->listen(AgentPrompted::class, $this->onPrompted(...));
         $this->eyepiece->listen(AgentFailed::class, $this->onFailed(...));
@@ -219,8 +217,9 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
         $response = $event->response;
 
-        // Anything other than an AgentResponse is a stream, which carries no text or usage of its own here.
+        // A streamed run ends with a StreamedAgentResponse (an AgentResponse too) built from its events.
         $isComplete = $response instanceof AgentResponse;
+        $isStreamed = $response instanceof StreamedAgentResponse;
         $text = $isComplete ? $response->text : null;
         $hasStructured = $isComplete && property_exists($response, 'structured');
         $structured = $hasStructured ? Normalizer::value($response->structured ?? null) : null;
@@ -232,7 +231,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         $this->finishAgent($event->invocationId, 'ok', [
             'response' => $this->text($text),
             'structured' => $structured,
-            'streamed' => ! $isComplete,
+            'streamed' => $isStreamed,
             'provider' => $response->meta->provider ?? $span->meta['provider'] ?? null,
             'model' => $response->meta->model ?? $span->meta['model'] ?? null,
         ]);
@@ -363,10 +362,13 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         }
 
         $agent = $this->agents[$invocationId] ?? null;
+        // An agent offered as a tool runs as a sub-agent; name the agent rather than the AgentTool wrapper.
+        $subAgent = $tool instanceof AgentTool ? $tool->agent()::class : null;
 
         $this->eyepiece->push('ai_tools', [
             'tool' => $this->toolName($tool),
-            'class' => $tool::class,
+            'class' => $subAgent ?? $tool::class,
+            'sub_agent' => $subAgent !== null,
             'agent' => $agent?->meta['agent'] ?? null,
             'invocation_id' => $invocationId,
             'tool_invocation_id' => $toolInvocationId,
@@ -389,7 +391,10 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
                 return (string) $result;
             }
 
-            return json_encode(Normalizer::value($result));
+            // Invalid UTF-8 in a tool result must not turn the whole result into false.
+            $json = json_encode(Normalizer::value($result), JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_SLASHES);
+
+            return $json === false ? null : $json;
         });
     }
 
@@ -468,7 +473,10 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
     private function text(?string $text): ?string
     {
         if ($text === null) {
+            // Unreachable: every laravel/ai response carries a string text and tool results are always encoded to one.
+            // @codeCoverageIgnoreStart
             return null;
+            // @codeCoverageIgnoreEnd
         }
 
         if ($this->maxText === null) {
@@ -526,9 +534,9 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
             ->includes([
                 'ai_tools' => Presentation::table()
                     ->label('Tool calls')
-                    ->columns(['tool', 'agent', 'status', 'duration'])
+                    ->columns(['tool', 'sub_agent' => 'Sub-agent', 'agent', 'status', 'duration'])
                     ->detailsOnly(['arguments', 'result', 'exception'])
-                    ->format(['tool' => 'code', 'status' => 'status'])
+                    ->format(['tool' => 'code', 'sub_agent' => ['flag', 'agent', null, 'muted', 'muted'], 'status' => 'status'])
                     ->groupBy(['tool' => 'by tool', 'agent' => 'by agent']),
             ]);
     }

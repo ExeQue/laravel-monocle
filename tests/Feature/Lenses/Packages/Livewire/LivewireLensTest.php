@@ -66,4 +66,20 @@ describe(LivewireLens::class, function (): void {
 
         expect(app(LivewireLens::class)->summarize(latestCapture()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+
+    it('leaves components alone that mounted while nothing was recording', function (): void {
+        config(['monocle.except.paths' => ['*']]);
+
+        Livewire::test(Counter::class)->call('increment', 1)->assertSet('count', 1);
+
+        expect(latestCapture())->toBeNull();
+    });
+
+    it('describes its rows and shows them on the livewire tab', function (): void {
+        $lens = app(LivewireLens::class);
+
+        expect($lens->description())->toContain('render_ms')
+            ->and($lens->advice())->toStartWith('Look here for Livewire components')
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.livewire');
+    });
 });

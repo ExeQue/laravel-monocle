@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Install;
 
 use ExeQue\Monocle\Install\ConfigPublisher;
+use RuntimeException;
 
 covers(ConfigPublisher::class);
 
@@ -51,5 +52,32 @@ describe(ConfigPublisher::class, function (): void {
             ->and(file_get_contents($this->target))->toContain("'limit' => 10,")
             ->and($this->publisher->publish($this->target, ['limit' => 11]))->toBe('updated')
             ->and(file_get_contents($this->target))->toContain("'limit' => 11,");
+    });
+
+    describe('without an error handler that throws on warnings', function (): void {
+        beforeEach(function (): void {
+            set_error_handler(fn (): bool => true);
+        });
+
+        afterEach(function (): void {
+            restore_error_handler();
+        });
+
+        it('fails when the target directory cannot be created', function (): void {
+            mkdir(dirname($this->target, 2));
+            touch(dirname($this->target));
+
+            expect(fn () => $this->publisher->publish($this->target, []))->toThrow(RuntimeException::class, 'Could not create');
+        });
+
+        it('fails when the target cannot be written', function (): void {
+            mkdir($this->target, 0777, true);
+
+            expect(fn () => $this->publisher->publish($this->target, []))->toThrow(RuntimeException::class, 'Could not write');
+        });
+
+        it('fails when the shipped config cannot be read', function (): void {
+            expect(fn () => (new ConfigPublisher('/nowhere/monocle.php'))->render([]))->toThrow(RuntimeException::class, 'Could not read');
+        });
     });
 });

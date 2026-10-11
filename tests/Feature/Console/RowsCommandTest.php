@@ -67,4 +67,18 @@ describe(RowsCommand::class, function (): void {
     it('fails for unknown captures', function (): void {
         $this->artisan('monocle:rows', ['section' => 'queries', 'id' => 'missing'])->assertFailed();
     });
+
+    it('renders a data section as a key/value table', function (): void {
+        Artisan::call('monocle:rows', ['section' => 'request']);
+
+        expect(Artisan::output())->toContain('Request of ')
+            ->toContain('method')
+            ->toContain('GET');
+    });
+
+    it('names the sort in the filter line', function (): void {
+        Artisan::call('monocle:rows', ['section' => 'queries', '--sort' => 'duration', '--dir' => 'desc']);
+
+        expect(Artisan::output())->toContain('sorted by duration desc');
+    });
 });

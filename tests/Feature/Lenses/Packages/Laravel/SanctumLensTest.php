@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses\Packages\Laravel;
 
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Laravel\SanctumLens;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\Events\TokenAuthenticated;
+use Laravel\Sanctum\PersonalAccessToken;
 use Tests\Fixtures\Models\User;
 
 covers(SanctumLens::class);
@@ -38,5 +42,19 @@ describe(SanctumLens::class, function (): void {
             'abilities' => ['orders:read'],
             'owner' => User::class.'#'.$user->id,
         ]);
+    });
+
+    it('ignores tokens authenticated while nothing is recording', function (): void {
+        app(Eyepiece::class)->reset();
+
+        event(new TokenAuthenticated(new PersonalAccessToken(['name' => 'cli'])));
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        expect(app(Eyepiece::class)->finalize()->rows('auth'))->toBe([]);
+    });
+
+    it('describes the token row it adds', function (): void {
+        expect(app(SanctumLens::class)->description())->toContain('token id, name, abilities and owner');
     });
 });

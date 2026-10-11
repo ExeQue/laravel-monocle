@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use ExeQue\Monocle\Console\ListCommand;
+use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
@@ -57,5 +60,20 @@ describe(ListCommand::class, function (): void {
         Artisan::call('monocle:list', ['--json' => true]);
 
         expect(json_decode(Artisan::output(), true))->toMatchArray(['total' => 2, 'next_offset' => null]);
+    });
+
+    it('shows tags, the label and warnings next to the name', function (): void {
+        $capture = new Capture('tagged', CaptureType::Request, microtime(true));
+        $capture->name = 'GET /tagged';
+        $capture->status = '200';
+        $capture->label = 'baseline';
+        $capture->endedAt = $capture->startedAt + 0.01;
+        $capture->health = ['warnings' => 2, 'tags' => [['label' => 'beta', 'tone' => 'muted']]];
+        app(StoreManager::class)->store()->put($capture);
+
+        Artisan::call('monocle:list');
+
+        expect(Artisan::output())->toContain('GET /tagged [beta] (baseline)')
+            ->toContain('2 warnings');
     });
 });

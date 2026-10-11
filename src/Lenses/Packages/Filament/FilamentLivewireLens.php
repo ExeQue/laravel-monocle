@@ -10,7 +10,6 @@ use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
-use Filament\Facades\Filament;
 use Livewire\Component;
 use Throwable;
 
@@ -51,10 +50,6 @@ final class FilamentLivewireLens implements ExtendsLens, Lens, RequiresPackages,
 
     public function boot(): void
     {
-        if (! class_exists(Filament::class)) {
-            return;
-        }
-
         app('livewire')->listen('dehydrate', function (Component $component): void {
             if (! $this->eyepiece->recording()) {
                 return;

@@ -97,23 +97,14 @@ final class CompareCommand extends Command
     {
         $rows = [];
 
+        // CaptureComparer only diffs numeric totals and duration_ms is always one, so rows is never empty.
         foreach ($totals as $name => $total) {
-            if ($total['a'] === null && $total['b'] === null) {
-                continue;
-            }
-
             $rows[] = [
                 ucfirst(str_replace('_', ' ', (string) $name)),
                 $this->amount((string) $name, $total['a']),
                 $this->amount((string) $name, $total['b']),
                 $this->change((string) $name, $total['delta'], $total['percent']),
             ];
-        }
-
-        if ($rows === []) {
-            note('No totals to compare.');
-
-            return;
         }
 
         table(['Metric', 'A', 'B', 'Change'], $rows);

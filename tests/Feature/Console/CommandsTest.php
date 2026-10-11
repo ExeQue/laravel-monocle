@@ -109,6 +109,14 @@ describe(InstallCommand::class, function (): void {
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
     });
 
+    it('rejects a capture limit that is not a positive number', function (string $limit): void {
+        $this->artisan('monocle:install')
+            ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
+            ->expectsQuestion('How many captures should be kept?', $limit)
+            ->expectsOutputToContain('Enter a positive number.')
+            ->assertFailed();
+    })->with(['text' => 'many', 'zero' => '0']);
+
     it('registers with every Laravel Boost agent by default when boost.json exists', function (): void {
         file_put_contents($this->dir.'/boost.json', json_encode(['agents' => ['claude_code', 'copilot', 'codex']]));
 

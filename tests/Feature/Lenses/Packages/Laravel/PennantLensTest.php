@@ -42,6 +42,32 @@ describe(PennantLens::class, function (): void {
             ->and($summary->warnings)->toBe(['Feature new-chekout is not defined; it resolved to false.']);
     });
 
+    it('ignores flag checks made while nothing is recording', function (): void {
+        app(Eyepiece::class)->reset();
+        Feature::define('quiet-flag', fn (): bool => true);
+
+        Feature::active('quiet-flag');
+
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        expect(app(Eyepiece::class)->finalize()->rows('features'))->toBe([]);
+    });
+
+    it('presents flags grouped by feature with unknown sources highlighted', function (): void {
+        $presentation = app(PennantLens::class)->presentation();
+
+        expect($presentation->tabView)->toBe('monocle::tabs.features')
+            ->and($presentation->groupings)->toBe(['feature' => 'by feature'])
+            ->and($presentation->formats)->toBe(['value' => ['bool'], 'source' => ['highlight', ['unknown'], 'warn']]);
+    });
+
+    it('describes the feature rows and when to look at them', function (): void {
+        $lens = app(PennantLens::class);
+
+        expect($lens->description())->toContain('stored', 'resolved', 'unknown')
+            ->and($lens->advice())->toStartWith('Look here when a request took an unexpected branch');
+    });
+
     it('summarizes nothing without flag checks', function (): void {
         expect(app(PennantLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
