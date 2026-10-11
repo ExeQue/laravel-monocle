@@ -39,6 +39,21 @@ const hiddenNames = {
 };
 
 
+/**
+ * How well `query` matches `text` when its letters appear in order ("htc" in "HTTP client"):
+ * lower is closer (a tighter, earlier run of letters), null when they do not all appear.
+ */
+const fuzzyScore = (query, text) => {
+  let at = -1;
+  let first = -1;
+  for (const char of query) {
+    at = text.indexOf(char, at + 1);
+    if (at === -1) return null;
+    if (first === -1) first = at;
+  }
+  return (at - first) + first / 10;
+};
+
 Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   api: config.api,
   captures: [],
@@ -86,6 +101,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     });
     setInterval(() => this.live && !document.hidden && this.load(true), 2500);
     this.$watch('filters', () => this.load(), { deep: true });
+    this.$watch('palette.query', () => { this.palette.index = 0; });
+    addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        return this.palette.open ? this.closePalette() : this.openPalette();
+      }
+    });
     addEventListener('keydown', (e) => {
       if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest?.('input, textarea, select, [contenteditable], [role="tab"]')) return;
       const tabStep = { ArrowRight: 1, i: 1, ArrowLeft: -1, u: -1 }[e.key];
@@ -298,6 +320,53 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return tabs;
   },
 
+
+  /** The command palette: jump to a tab of the open capture, or to another capture. */
+  palette: { open: false, query: '', index: 0 },
+
+  openPalette() {
+    this.palette = { open: true, query: '', index: 0 };
+    this.$nextTick(() => document.getElementById('monocle-palette-input')?.focus());
+  },
+
+  closePalette() {
+    this.palette.open = false;
+  },
+
+  /** Tabs first, then captures; with a query, everything whose name holds its letters in order, closest first. */
+  get paletteItems() {
+    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', run: () => this.openTab(t.key) }));
+    const captures = this.captures.map((c) => ({ id: `capture:${c.id}`, kind: shortType(c.type), label: c.name, hint: ago(c.started_at), run: () => this.select(c.id, this.tab) }));
+    const query = this.palette.query.trim().toLowerCase();
+    if (!query) return [...tabs, ...captures.slice(0, 8)];
+    return [...tabs, ...captures]
+      .map((item) => ({ item, score: fuzzyScore(query, item.label.toLowerCase()) }))
+      .filter((match) => match.score !== null)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 30)
+      .map((match) => match.item);
+  },
+
+  /** Arrow keys move through the list, Enter runs the chosen entry, Escape closes. */
+  paletteKey(e) {
+    const count = this.paletteItems.length;
+    if (e.key === 'Escape') return this.closePalette();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      this.palette.index = count ? (this.palette.index + (e.key === 'ArrowDown' ? 1 : -1) + count) % count : 0;
+      return this.$nextTick(() => document.getElementById(`monocle-palette-${this.palette.index}`)?.scrollIntoView({ block: 'nearest' }));
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      this.runPalette(this.paletteItems[this.palette.index]);
+    }
+  },
+
+  runPalette(item) {
+    if (!item) return;
+    this.closePalette();
+    item.run();
+  },
 
   get summary() { return this.capture?.summary ?? {}; },
   get phases() { return (this.summary.breakdown?.phases ?? []).filter((p) => p.name !== 'other' || p.ms >= 0.05); },

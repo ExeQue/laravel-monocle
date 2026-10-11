@@ -53,6 +53,8 @@
                 </div>
             </template>
         </main>
+
+        <x-monocle::palette />
     </div>
 </body>
 </html>
