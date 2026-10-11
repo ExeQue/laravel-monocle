@@ -16,15 +16,18 @@
                     ></span>
                 </template>
             </div>
-            <div class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-2">
+            <div class="mt-3 grid grid-cols-[10px_minmax(0,1fr)_auto_auto] items-baseline gap-x-3 text-[13px]">
                 <template x-for="p in phases" :key="p.name">
-                    <div class="grid grid-cols-[10px_minmax(0,1fr)_auto] items-baseline gap-x-2 text-[13px]">
+                    <div class="border-line col-span-full grid grid-cols-subgrid border-b border-dashed py-1 last:border-b-0">
                         <i class="size-2.5 self-center rounded-sm" :style="`background:${phaseColor(p.name)}`"></i>
-                        <span><span x-text="p.name"></span>
+                        <span class="min-w-0 truncate"><span x-text="p.name"></span>
                             <span class="text-muted text-xs" x-show="p.count > 1" x-text="'×' + p.count"></span
                         ></span>
-                        <span class="font-mono text-xs tabular-nums" x-text="ms(p.ms)"></span>
-                        <span class="text-muted col-span-2 col-start-2 -mt-1 text-xs" x-text="p.percent + ' %'"></span>
+                        <span class="text-right font-mono text-xs tabular-nums" x-text="ms(p.ms)"></span>
+                        <span
+                            class="text-muted w-12 text-right font-mono text-xs tabular-nums"
+                            x-text="p.percent + ' %'"
+                        ></span>
                     </div>
                 </template>
             </div>
@@ -51,9 +54,25 @@
         </div>
     </div>
     <div class="grid min-w-0 content-start gap-6">
-        <div>
-            <h3 :class="cls.sectionTitle">Warnings</h3>
-            <div class="grid gap-2" x-show="summary.warnings?.length">
+        <div x-data="{ open: true }">
+            <h3 :class="cls.sectionTitle">
+                <button
+                    type="button"
+                    class="inline-flex cursor-pointer items-center gap-1.5 uppercase disabled:cursor-default"
+                    :disabled="! summary.warnings?.length"
+                    :aria-expanded="open"
+                    @click="open = ! open"
+                >
+                    <x-monocle::chevron open="open" x-show="summary.warnings?.length" />
+                    Warnings
+                    <span
+                        class="bg-warn-soft text-warn min-w-5 rounded-full px-1.5 py-px text-center font-mono text-[10.5px] leading-4 normal-case tabular-nums"
+                        x-show="summary.warnings?.length"
+                        x-text="summary.warnings?.length"
+                    ></span>
+                </button>
+            </h3>
+            <div class="grid gap-2" x-show="open && summary.warnings?.length" x-collapse>
                 <template x-for="(w, wi) in summary.warnings" :key="w">
                     <div class="bg-warn-soft grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md px-3 py-2.5">
                         <span class="text-warn pt-0.5 font-mono text-[11px]">!</span>
