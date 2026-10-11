@@ -399,7 +399,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
     // The tabs are the open capture's, so their group carries its name (GET /demo/missing-page).
     const tabGroup = this.summary.name ?? 'Tabs';
-    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: tabGroup, groupIsName: true, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
+    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: tabGroup, groupIsName: true, groupStatus: this.summary.status, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
     const byType = types.flatMap((type) => this.captures.filter((c) => c.type === type).map((c) => capture(c, groupOf[type])));
 
     const match = searchMatcher(this.palette.query);

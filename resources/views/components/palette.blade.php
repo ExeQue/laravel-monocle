@@ -33,11 +33,18 @@
                 <li role="none">
                     <div
                         class="text-muted px-3 pt-2.5 pb-1 text-[11px]"
-                        :class="item.groupIsName ? 'font-mono' : 'tracking-wider uppercase'"
+                        :class="item.groupIsName ? '' : 'tracking-wider uppercase'"
                         role="presentation"
                         x-show="i === 0 || paletteItems[i - 1].group !== item.group"
-                        x-text="item.group"
-                    ></div>
+                    >
+                        <span x-text="item.group"></span>
+                        <span
+                            class="ml-1.5"
+                            :class="statusClass(item.groupStatus)"
+                            x-show="item.groupIsName && item.groupStatus != null"
+                            x-text="item.groupStatus"
+                        ></span>
+                    </div>
                     <div
                         :id="'monocle-palette-' + i"
                         class="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-sm"
