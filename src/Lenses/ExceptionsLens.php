@@ -205,8 +205,13 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
                 continue;
             }
 
+            // Nor Monocle's own wrappers (timed middleware and the like), wherever the package lives.
+            if (str_starts_with($file, dirname(__DIR__).'/')) {
+                continue;
+            }
+
             $line = $frame['line'] ?? '?';
-            $frames[] = $this->relative($file).':'.$line.' '.$this->call($frame);
+            $frames[] = rtrim($this->relative($file).':'.$line.' '.$this->call($frame));
 
             if (count($frames) >= 10) {
                 break;
@@ -225,6 +230,11 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
     {
         if (! isset($frame['class'])) {
             return $frame['function'] ?? '';
+        }
+
+        // A call into Monocle is the app calling something Monocle wrapped (a middleware's $next); its name says nothing about the app.
+        if (str_starts_with($frame['class'], 'ExeQue\\Monocle\\')) {
+            return '';
         }
 
         return $frame['class'].($frame['type'] ?? '::').$frame['function'];

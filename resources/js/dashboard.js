@@ -1,7 +1,7 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
-import { esc, ms, ago, shortType, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml, usePathMappings } from './format.js';
+import { esc, ms, ago, shortType, humanize, fmtValue, maybeLink, nameLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml, usePathMappings } from './format.js';
 import { cls, statusClass, httpStatusClass, tagClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
@@ -579,7 +579,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
 
-  originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
+  originHtml(origin) { return origin?.file ? nameLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },
 }));
 
 Alpine.plugin(collapse);

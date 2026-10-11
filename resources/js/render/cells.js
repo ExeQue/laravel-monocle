@@ -1,4 +1,4 @@
-import { esc, ms, humanize, fmtValue, maybeLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from '../format.js';
+import { esc, ms, humanize, fmtValue, maybeLink, nameLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from '../format.js';
 import { cls, statusClass, httpStatusClass } from '../classes.js';
 import { changesTable, levelClass } from './values.js';
 
@@ -88,7 +88,7 @@ const FORMATS = {
 
 export function cell(row, key, presentation = null, context = {}) {
   const v = row[key];
-  if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${maybeLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
+  if (key === 'origin') return v?.file ? nameLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${nameLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
   const format = presentation?.formats?.[key];
   if (format && FORMATS[format[0]]) return FORMATS[format[0]].call({ ...context, key }, v, row, ...format.slice(1));
   if (key === 'duration' && typeof v === 'number' && typeof row.time === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span><span class="block whitespace-nowrap text-[11px] text-muted">at ${esc(ms(row.time))}</span>`;

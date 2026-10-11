@@ -1,4 +1,4 @@
-import { esc, humanize, fmtValue, maybeLink } from '../format.js';
+import { esc, humanize, fmtValue, maybeLink, copyable, nameLink } from '../format.js';
 import { totalValue } from './totals.js';
 
 /** Field changes as a table: a new field is null in From, a removed one null in To. */
@@ -108,8 +108,8 @@ export function hydrate(html) {
     const extra = el.dataset.class ?? '';
     // data-full keeps the whole name (details show full class names); otherwise it is shortened like everywhere else.
     el.outerHTML = 'full' in el.dataset
-      ? (el.dataset.link ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(el.dataset.link)}">${esc(text)}</a>` : `<span class="${extra}">${esc(text)}</span>`)
-      : maybeLink(text, el.dataset.link, extra);
+      ? copyable(el.dataset.link ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(el.dataset.link)}">${esc(text)}</a>` : `<span class="${extra}">${esc(text)}</span>`, text)
+      : nameLink(text, el.dataset.link, extra);
   });
   root.querySelectorAll('[data-monocle-cards]').forEach((el) => {
     try { el.outerHTML = cardsHtml(JSON.parse(el.dataset.monocleCards)); } catch { /* not cards */ }

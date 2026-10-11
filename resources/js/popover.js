@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml, humanize, classes } from './format.js';
+import { esc, ms, fmtValue, maybeLink, nameLink, copyable, copyButton, isThrowable, exceptionHtml, humanize, classes } from './format.js';
 import { cls } from './classes.js';
 import { changesTable, dot, dottedKey } from './render/values.js';
 
@@ -11,10 +11,10 @@ const pathOf = (n) => { const out = []; for (let p = n.parent; p; p = p.parent) 
 
 export const originHtml = (o) => !o || !o.file ? '' : `
   <div class="${SEC}"><div class="${K}">Origin</div>
-    <div class="font-mono text-xs text-brass break-all">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
-    ${o.call ? `<div class="${SUB} font-mono">${maybeLink(o.call, o.call_link)}</div>` : ''}
-    ${o.via ? `<div class="${SUB}">via <span class="font-mono">${maybeLink(o.via.call ?? o.via.file, o.via.call_link ?? o.via.link)}</span> <span class="font-mono">(${maybeLink(o.via.file + (o.via.line ? ':' + o.via.line : ''), o.via.link)})</span></div>` : ''}
-    ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
+    <div class="font-mono text-xs text-brass break-all">${nameLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
+    ${o.call ? `<div class="${SUB} font-mono">${nameLink(o.call, o.call_link)}</div>` : ''}
+    ${o.via ? `<div class="${SUB}">via <span class="font-mono">${nameLink(o.via.call ?? o.via.file, o.via.call_link ?? o.via.link)}</span> <span class="font-mono">(${nameLink(o.via.file + (o.via.line ? ':' + o.via.line : ''), o.via.link)})</span></div>` : ''}
+    ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${nameLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${nameLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
 
@@ -96,7 +96,7 @@ export function rowBody(row) {
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
     ${rows ? `<div class="${SEC} ${sql || thrown ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${prose.map((k) => `<div class="${SEC}">${codeBlock(humanize(k), row[k])}</div>`).join('')}
-    ${frames ? `<div class="${SEC}"><div class="flex items-center gap-1.5"><div class="${K}">Stack (${frames.length})</div>${copyButton(frames.map((f) => (typeof f === 'string' ? f : `${f.file} ${f.call ?? ''}`.trim())).join('\n'), 'stack')}</div><ol class="m-0 grid list-decimal gap-0.5 pl-6 text-[11.5px] [overflow-wrap:anywhere]">${frames.map((f) => (typeof f === 'string' ? `<li class="font-mono">${esc(f)}</li>` : `<li class="font-mono"><span class="text-brass">${maybeLink(f.file, f.link)}</span> ${f.call ? `<span class="text-muted">${maybeLink(f.call, f.call_link)}</span>` : ''}</li>`)).join('')}</ol></div>` : ''}
+    ${frames ? `<div class="${SEC}"><div class="flex items-center gap-1.5"><div class="${K}">Stack (${frames.length})</div>${copyButton(frames.map((f) => (typeof f === 'string' ? f : `${f.file} ${f.call ?? ''}`.trim())).join('\n'), 'stack')}</div><ol class="m-0 grid list-decimal gap-0.5 pl-6 text-[11.5px] [overflow-wrap:anywhere]">${frames.map((f) => (typeof f === 'string' ? `<li class="font-mono">${copyable(esc(f), f)}</li>` : `<li class="font-mono"><span class="text-brass">${nameLink(f.file, f.link)}</span> ${f.call ? `<span class="text-muted">${nameLink(f.call, f.call_link)}</span>` : ''}</li>`)).join('')}</ol></div>` : ''}
     ${originHtml(row.origin)}`;
 }
 

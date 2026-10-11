@@ -34,6 +34,7 @@ describe(ExceptionsLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['class' => RuntimeException::class, 'message' => 'kaboom', 'code' => 42])
             ->and($rows[0]['file'])->toContain('ExceptionsLensTest.php:')
             ->and($rows[0]['frames'])->toBeArray()
+            ->and(implode(' ', $rows[0]['frames']))->not->toContain('TimedMiddleware')
             ->and($rows[0]['previous'][0])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause'])
             ->and($rows[0])->toMatchArray(['source' => 'native', 'unhandled' => true]);
 
@@ -89,6 +90,34 @@ describe(ExceptionsLens::class, function (): void {
 
         expect($capture->rows('exceptions')[0]['unhandled'])->toBeFalse()
             ->and($eyepiece->finalize()->rows('exceptions')[0]['unhandled'])->toBeFalse();
+    });
+
+    it('leaves Monocle\'s own frames out of the stack', function (): void {
+        Route::get('/measured', function (): never {
+            app(\ExeQue\Monocle\MonocleManager::class)->measure('work', fn () => throw new RuntimeException('inside'));
+        });
+
+        $this->get('/measured')->assertStatus(500);
+
+        $frames = implode(' ', latestCapture()->rows('exceptions')[0]['frames']);
+
+        expect($frames)->toContain('ExceptionsLensTest.php')
+            ->and($frames)->not->toContain('src/')
+            ->and($frames)->not->toContain('MonocleManager');
+    });
+
+    it('keeps the first ten frames of a deep stack', function (): void {
+        Route::get('/deep', function (): never {
+            $dive = function (int $depth) use (&$dive): never {
+                $depth === 0 ? throw new RuntimeException('deep') : $dive($depth - 1);
+            };
+
+            $dive(12);
+        });
+
+        $this->get('/deep')->assertStatus(500);
+
+        expect(latestCapture()->rows('exceptions')[0]['frames'])->toHaveCount(10);
     });
 
     it('does not record exceptions the handler ignores', function (): void {

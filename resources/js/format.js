@@ -74,6 +74,14 @@ export const maybeLink = (text, link, extra = '') => (link
   ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(link)}">${classes(text)}</a>`
   : `<span class="${extra}">${classes(text)}</span>`);
 
+/** Some HTML with a copy button that shows on hover; the button copies `text`, the full name or path. */
+export const copyable = (html, text, what = /(\.php|:\d+)$/.test(text) ? 'path' : 'name') => (text
+  ? `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0">${html}</span>${copyButton(text, what, { hover: true })}</span>`
+  : html);
+
+/** A class name or path, linked to the editor when there is a link, with a copy button. */
+export const nameLink = (text, link, extra = '') => copyable(maybeLink(text, link, extra), text);
+
 export const fmtValue = (v) => {
   if (v === null || v === undefined) return '';
   if (Array.isArray(v) && v.length && v.every((x) => x !== null && typeof x !== 'object')) return v.join(', ');
