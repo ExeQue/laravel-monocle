@@ -75,4 +75,16 @@ async function clickText(page, text) {
     await handle.asElement()?.click();
 }
 
-module.exports = { expandRow, clickText, scrollToTabs };
+// Opens the command palette with its shortcut and, optionally, types a search into it.
+async function openPalette(page, search = '') {
+    await page.keyboard.down('Control');
+    await page.keyboard.press('k');
+    await page.keyboard.up('Control');
+    await page.waitForSelector('#monocle-palette-input', { visible: true });
+
+    if (search !== '') {
+        await page.type('#monocle-palette-input', search);
+    }
+}
+
+module.exports = { expandRow, clickText, scrollToTabs, openPalette };

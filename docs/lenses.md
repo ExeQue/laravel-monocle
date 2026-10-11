@@ -170,6 +170,8 @@ Section `queries`: every query with its SQL, bindings, a ready-to-run version wi
 
 Transaction statements - `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and savepoints - are listed in between, in the order they ran. Repeated queries are recognised even when their values differ, so N+1 problems and duplicates show up as warnings with the line that caused them. A select that looks like an N+1 carries `n_plus_one`: how often its shape ran. The exact same query with the same values counts as a duplicate (`duplicate_of` points at the first one, which carries `repeated`: how many later queries repeated it), not as an N+1. Transactions appear in the timeline with their outcome (committed, rolled back, or left open when the capture ended first).
 
+Totals: time spent, queries, and how many were selects, inserts, updates and deletes, transactions, slow queries and duplicates.
+
 Warnings: slow queries, duplicate queries and possible N+1 queries.
 
 Options:
@@ -281,6 +283,10 @@ Options:
 
 Section `exceptions`: every reported exception with its message, the lines of your code it passed through and the exception that caused it. Each one is reported as an error.
 
+The exception that became the response is marked `unhandled`; the others were reported (with `report()` or `rescue()`) and the request carried on. Each has a `source`: `native` for an exception class built into PHP, `app` for one of your own, or the package that defines it, such as `laravel/framework`. A call through a facade in the stack is named after the facade (`Cache::remember`).
+
+Totals: exceptions, how many were unhandled, how many different classes, and one per source. The tab groups them by exception class or by source.
+
 ### Log
 
 Section `log`: everything written to the log, with level and context. Entries at an error level or above are reported as errors.
@@ -294,6 +300,8 @@ Warning: a check that was denied.
 ### Dumps
 
 Section `dumps`: every `dump()` and `dd()` with the value and where it was called. You still see the output as usual. A capture ended by `dd()` is still stored, marked as ended at shutdown.
+
+A dump folds out to its value, coloured, with every class it names linked to your editor. Passwords and tokens of users are masked, and so is anything listed under `mask.objects` (see [Configuration](configuration.md#masking)).
 
 Warning: `dd()` ended the process before the response was sent.
 

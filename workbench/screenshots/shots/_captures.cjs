@@ -23,4 +23,15 @@ module.exports = {
             await sleep(800);
         },
     },
+    // A list with a bit of everything, for the command palette and the list search: the showcase
+    // (whose jobs then run), a dump, a Livewire page and a page that does not exist.
+    mixed: {
+        key: 'mixed',
+        query: 'uri=showcase',
+        seed: async (page, { base }) => {
+            for (const path of ['/demo/missing-page', '/demo/livewire', '/demo/dump', '/demo/showcase', '/demo/queue/work']) {
+                await page.goto(`${base}${path}`);
+            }
+        },
+    },
 };

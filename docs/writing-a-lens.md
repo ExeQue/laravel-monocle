@@ -581,6 +581,7 @@ Durations (`duration`, `*_ms`), sizes (`*_bytes`), file paths, exceptions, `{fie
 | `['flag', 'yes', 'no']` | `true` or `false` as a word: true in green, false in red. Add two tones (`'ok'`, `'warn'`, `'bad'`, `'muted'`) to pick the colours of false and true, and pass `null` to show nothing for one of them |
 | `'bool'` | `true` in green, `false` muted |
 | `'code'` | the value in full in a monospace font, such as a command line |
+| `['truncate', 80]` | cut after that many characters, the full text in a tooltip |
 | `['prefix', '#']` | the value after a prefix |
 | `['reference', 'repeat of #']` | a badge pointing at another row |
 | `['highlight', ['miss', 'failed'], 'warn']` | the listed values in a colour |

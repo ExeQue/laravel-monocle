@@ -86,6 +86,8 @@ Every section with rows gets a tab, and so does a section of facts (such as the 
 
 Queries that look like an N+1 are marked with how often they ran, duplicates point at the first query like them, and slow queries are marked as slow. Model changes are listed in the Models tab under the counts, login and other auth events in the Request tab, and commands a request or job ran with `Artisan::call()` in a Commands tab.
 
+Each tab starts with the totals of its section, such as queries by kind or exceptions by source. The tab bar stays at the top while you scroll, and with a mouse you can drag it sideways when there are more tabs than fit. Class names, paths and values have a copy button; paths are copied relative to your project.
+
 The tabs follow `dashboard.tabs` in the configuration; see below.
 
 Click a line on the timeline or a row in a table to see its details: the query with its values, every field in full with a button to copy it, the line of your code that caused it and the call chain leading there. With an editor set up (see [Installation](installation.md#opening-files-in-your-editor)), file paths and class names open in your editor.
