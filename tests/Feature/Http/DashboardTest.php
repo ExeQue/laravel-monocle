@@ -146,6 +146,7 @@ describe('dashboard', function (): void {
                 'details_only' => ['card'],
                 'groupings' => [['customer', 'by customer']],
                 'details_view' => true,
+                'includes' => [],
             ]);
         });
 

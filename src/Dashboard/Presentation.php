@@ -111,7 +111,7 @@ final readonly class Presentation
     }
 
     /**
-     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool}
+     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool, includes: list<string>}
      */
     public function toArray(): array
     {
@@ -122,6 +122,7 @@ final readonly class Presentation
             'details_only' => $this->detailsOnly,
             'groupings' => array_map(fn (string $field, string $label): array => [$field, $label], array_keys($this->groupings), $this->groupings),
             'details_view' => $this->detailsView !== null,
+            'includes' => $this->includes,
         ];
     }
 }

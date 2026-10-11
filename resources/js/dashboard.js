@@ -49,7 +49,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   capture: null,
   model: null,
   tab: 'overview',
-  authRows: [],
   openGroups: [],
   openQueries: [],
   queryRows: {},
@@ -57,7 +56,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   tabLoading: false,
   groupBy: 'order',
   rowGroups: {},
-  modelChanges: [],
   logLevels: [],
   customDetails: {},
   openRows: [],
@@ -189,19 +187,19 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       this.queryRows = tab === 'queries' && this.groupBy !== 'order'
         ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
         : {};
-      this.modelChanges = tab === 'models'
-        ? (await this.fetchJson(`${base}/rows/model_changes?limit=500&verbose=1`)).rows ?? []
-        : [];
-      this.authRows = tab === 'request' && this.summary.counts?.auth
-        ? (await this.fetchJson(`${base}/rows/auth?limit=100&verbose=1`)).rows ?? []
-        : [];
-      this.tabData = tab === 'queries' && this.groupBy === 'order'
+      // Sections the tab includes (auth on the request tab) come along under tabData.included.
+      const included = {};
+      for (const key of this.presentationOf(tab)?.includes ?? []) {
+        if (this.summary.counts?.[key]) included[key] = (await this.fetchJson(`${base}/rows/${encodeURIComponent(key)}?limit=500&verbose=1`)).rows ?? [];
+      }
+      const data = tab === 'queries' && this.groupBy === 'order'
         ? await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)
         : tab === 'queries'
         ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
         : tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
           : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=${this.presentationOf(tab)?.groupings?.length ? 500 : 100}&verbose=1`);
+      this.tabData = { ...data, included };
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -435,7 +433,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (this.groups.length) return [];
     const rows = this.tabData?.rows ?? [];
     const own = { key: this.tab, title: null, rows: this.tab === 'log' && this.logLevels.length ? rows.filter((row) => this.logLevels.includes(row.level)) : rows };
-    return this.tab === 'models' ? [own, { key: 'model_changes', title: 'Changes', rows: this.modelChanges }] : [own];
+    const included = Object.entries(this.tabData?.included ?? {}).map(([key, rows]) => ({ key, title: this.presentationOf(key)?.label ?? humanize(key), rows }));
+    return [own, ...included];
   },
 
   get tableColumns() {
@@ -444,18 +443,6 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
 
-  /** The user the request ran as, from the auth section. */
-  get authUser() {
-    const row = [...this.authRows].reverse().find((r) => ['authenticated', 'login', 'token'].includes(r.event) && (r.user || r.owner));
-    if (!row) return null;
-    const user = row.user ?? row.owner;
-    return { user, link: row._links?.user ?? row._links?.owner, via: row.event === 'token' ? `Sanctum token ${row.token_name ?? row.token_id}` : `${row.guard} guard` };
-  },
-
-  /** Auth events worth listing next to the request: attempts, failures, logins, lockouts. */
-  get authEvents() {
-    return this.authRows.filter((r) => r.event !== 'authenticated');
-  },
 
 
   toggleQuery(n) {

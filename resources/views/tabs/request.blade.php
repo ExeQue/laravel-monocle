@@ -1,5 +1,27 @@
 {{-- Request and response: facts, query, payload, files, headers, cookies, the response body and its capture. --}}
-<x-monocle::panel name="request" class="grid gap-6">
+<x-monocle::panel
+    name="request"
+    class="grid gap-6"
+    x-data="{
+        get authRows() {
+            return tabData?.included?.auth ?? []
+        },
+        {{-- The user the request ran as, from the auth section. --}}
+        get authUser() {
+            const row = [...this.authRows].reverse().find((r) => ['authenticated', 'login', 'token'].includes(r.event) && (r.user || r.owner))
+            if (! row) return null
+            return {
+                user: row.user ?? row.owner,
+                link: row._links?.user ?? row._links?.owner,
+                via: row.event === 'token' ? `Sanctum token ${row.token_name ?? row.token_id}` : `${row.guard} guard`,
+            }
+        },
+        {{-- Auth events worth listing next to the request: attempts, failures, logins, lockouts. --}}
+        get authEvents() {
+            return this.authRows.filter((r) => r.event !== 'authenticated')
+        },
+    }"
+>
     <template x-if="request">
         <div class="grid gap-6">
             <x-monocle::request.facts />
