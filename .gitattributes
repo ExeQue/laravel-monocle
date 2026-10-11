@@ -18,3 +18,8 @@
 /docs                   export-ignore
 /package.json           export-ignore
 /package-lock.json      export-ignore
+/.nvmrc                 export-ignore
+/vite.dashboard.config.js export-ignore
+/resources/js           export-ignore
+/resources/css          export-ignore
+/resources/static       export-ignore
