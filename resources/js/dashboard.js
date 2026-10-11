@@ -66,6 +66,7 @@ Alpine.data('monocle', (config) => ({
   capture: null,
   model: null,
   tab: 'overview',
+  authRows: [],
   tabData: null,
   tabLoading: false,
   groupBy: 'order',
@@ -164,6 +165,9 @@ Alpine.data('monocle', (config) => ({
     this.tabLoading = true;
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
+      this.authRows = tab === 'request' && this.summary.counts?.auth
+        ? (await this.fetchJson(`${base}/rows/auth?limit=100&verbose=1`)).rows ?? []
+        : [];
       this.tabData = tab === 'queries' && this.groupBy === 'order'
         ? await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)
         : tab === 'queries'
@@ -251,8 +255,9 @@ Alpine.data('monocle', (config) => ({
     const isRequest = this.summary.type === 'request';
     if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request' });
     if (isRequest && has('session')) tabs.push({ key: 'session', label: 'Session' });
+    const skip = isRequest ? [...SKIP_SECTIONS, 'auth'] : SKIP_SECTIONS;
     if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
-    const sections = (this.capture.available_sections ?? []).filter((s) => !SKIP_SECTIONS.includes(s.key) && s.rows);
+    const sections = (this.capture.available_sections ?? []).filter((s) => !skip.includes(s.key) && s.rows);
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
       tabs.push({ key: s.key, label: humanize(s.key), count: s.rows, description: s.description });
     }
@@ -410,6 +415,19 @@ Alpine.data('monocle', (config) => ({
     return out + esc(text.slice(last));
   },
 
+  /** The user the request ran as, from the auth section. */
+  get authUser() {
+    const row = [...this.authRows].reverse().find((r) => ['authenticated', 'login', 'token'].includes(r.event) && (r.user || r.owner));
+    if (!row) return null;
+    const user = row.user ?? row.owner;
+    return { user, link: row._links?.user ?? row._links?.owner, via: row.event === 'token' ? `Sanctum token ${row.token_name ?? row.token_id}` : `${row.guard} guard` };
+  },
+
+  /** Auth events worth listing next to the request: attempts, failures, logins, lockouts. */
+  get authEvents() {
+    return this.authRows.filter((r) => r.event !== 'authenticated');
+  },
+
   numeric(key) {
     return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
   },
@@ -429,7 +447,7 @@ Alpine.data('monocle', (config) => ({
   },
 
   // Template helpers
-  cls, ms, ago, statusClass, humanize, esc,
+  cls, ms, ago, statusClass, humanize, esc, maybeLink,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
   totalValue([k, v]) {

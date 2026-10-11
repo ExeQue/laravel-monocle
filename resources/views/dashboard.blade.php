@@ -193,10 +193,36 @@
                                 <h3 :class="cls.sectionTitle" class="mb-0">Request</h3>
                                 <p class="m-0 font-mono text-[13px] [overflow-wrap:anywhere]"><b x-text="request.method"></b> <span x-text="request.url"></span></p>
                                 <dl class="m-0 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
-                                    <template x-for="[k, v, path] in [['Route', request.route?.name ?? request.route?.uri, 'route.name'], ['Action', request.route?.action, 'route.action'], ['User', request.auth ? (request.auth.user ?? request.auth.id ?? JSON.stringify(request.auth)) : null, 'auth.user'], ['IP', request.ip, 'ip'], ['User agent', request.user_agent, 'user_agent'], ['Locale', request.locale, 'locale']].filter(([, v]) => v)" :key="k">
+                                    <template x-for="[k, v, path] in [['Route', request.route?.name ?? request.route?.uri, 'route.name'], ['Action', request.route?.action, 'route.action']].filter(([, v]) => v)" :key="k">
+                                        <div class="contents"><dt class="text-muted" x-text="k"></dt><dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]" x-html="linked(v, path)"></dd></div>
+                                    </template>
+                                    <template x-if="authUser">
+                                        <div class="contents"><dt class="text-muted">User</dt><dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]"><span x-html="maybeLink(authUser.user, authUser.link)"></span> <span class="text-muted" x-text="'via ' + authUser.via"></span></dd></div>
+                                    </template>
+                                    <template x-for="[k, v, path] in [['IP', request.ip, 'ip'], ['User agent', request.user_agent, 'user_agent'], ['Locale', request.locale, 'locale']].filter(([, v]) => v)" :key="k">
                                         <div class="contents"><dt class="text-muted" x-text="k"></dt><dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]" x-html="linked(v, path)"></dd></div>
                                     </template>
                                 </dl>
+                            </div>
+
+                            <div x-show="authEvents.length">
+                                <h3 :class="cls.sectionTitle">Authentication</h3>
+                                <div :class="cls.tableWrap">
+                                    <table class="w-full border-collapse text-[13px]">
+                                        <thead><tr><th :class="cls.th">Event</th><th :class="cls.th">Guard</th><th :class="cls.th">User</th><th :class="cls.th">Details</th><th :class="cls.th">Origin</th></tr></thead>
+                                        <tbody>
+                                            <template x-for="(row, i) in authEvents" :key="i">
+                                                <tr class="cursor-pointer hover:bg-sunk" @click="rowPopover($event, row, 'auth')">
+                                                    <td :class="cls.td" :class="['failed', 'lockout'].includes(row.event) && 'text-warn font-medium'" x-text="row.event"></td>
+                                                    <td :class="cls.td" x-text="row.guard ?? ''"></td>
+                                                    <td :class="cls.td" x-html="cell(row, 'user')"></td>
+                                                    <td :class="cls.td" class="font-mono text-xs" x-text="[row.credentials?.length ? 'tried ' + row.credentials.join(', ') : null, row.remember ? 'remember' : null, row.ip, row.abilities?.length ? 'abilities ' + row.abilities.join(', ') : null].filter(Boolean).join(' · ')"></td>
+                                                    <td :class="cls.td" x-html="cell(row, 'origin')"></td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
 
                             <div>
