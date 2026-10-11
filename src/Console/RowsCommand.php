@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
+use ExeQue\Monocle\Console\Concerns\RendersForHumans;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
+
+use function Laravel\Prompts\info;
+use function Laravel\Prompts\note;
+
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -14,6 +20,12 @@ use Symfony\Component\Console\Input\InputOption;
 final class RowsCommand extends Command
 {
     use OutputsJson;
+    use RendersForHumans;
+
+    /**
+     * More scalar columns than this and the rest are left out of the table.
+     */
+    private const int MAX_COLUMNS = 8;
 
     protected $name = 'monocle:rows';
 
@@ -21,15 +33,110 @@ final class RowsCommand extends Command
 
     public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($viewfinder->rows([
+        $where = $this->parseWhere($this->option('where'));
+
+        return $this->respond($viewfinder->rows([
             'id' => $this->argument('id'),
             'section' => $this->argument('section'),
-            'where' => $this->parseWhere($this->option('where')),
+            'where' => $where,
             'fields' => $this->option('field'),
             'kinds' => $this->option('kind'),
             'verbose' => $this->option('verbose-origin'),
             ...$this->optionArgs(['offset', 'limit', 'sort', 'dir']),
-        ]));
+        ]), function (array $data) use ($where): void {
+            info(Str::headline((string) ($data['section'] ?? $this->argument('section'))).' of '.$data['id']);
+            $this->filterLine($where, $data);
+
+            if (array_key_exists('data', $data)) {
+                $this->dotTable($data['data']);
+
+                return;
+            }
+
+            /** @var list<array<string, mixed>> $rows */
+            $rows = $data['rows'] ?? [];
+
+            if (count($rows) === 1) {
+                $this->dotTable($this->readable($rows[0]));
+                $this->paging($data);
+
+                return;
+            }
+
+            $this->rowsTable(array_map($this->readable(...), $rows), $this->columns($rows));
+            $this->paging($data);
+        });
+    }
+
+    /**
+     * The applied where clauses and sort as one line, with how many rows matched.
+     *
+     * @param  list<array{field: string, op: string, value: string|null}>  $where
+     * @param  array<string, mixed>  $data
+     */
+    private function filterLine(array $where, array $data): void
+    {
+        $parts = array_map(fn (array $clause): string => trim("{$clause['field']} {$clause['op']} {$clause['value']}"), $where);
+
+        if ($this->option('sort') !== null) {
+            $parts[] = 'sorted by '.$this->option('sort').' '.($this->option('dir') ?? 'asc');
+        }
+
+        if ($parts === []) {
+            return;
+        }
+
+        $line = 'Filter: '.implode(', ', $parts);
+
+        if (isset($data['total'], $data['filtered_from'])) {
+            $line .= " ({$data['total']} of {$data['filtered_from']} rows match)";
+        }
+
+        note($line);
+    }
+
+    /**
+     * Table columns: the --field ones, or the scalar columns that hold a
+     * value in at least one row, without the origin, capped at MAX_COLUMNS.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<string>
+     */
+    private function columns(array $rows): array
+    {
+        if ($this->option('field') !== []) {
+            return $this->option('field');
+        }
+
+        $keys = array_keys(array_merge(...$rows));
+
+        $columns = array_values(array_filter($keys, function (string $key) use ($rows): bool {
+            if ($key === 'origin') {
+                return false;
+            }
+
+            $values = array_column($rows, $key);
+
+            foreach ($values as $value) {
+                if (is_array($value) && ! array_is_list($value)) {
+                    return false;
+                }
+
+                if (is_array($value) && array_filter($value, is_scalar(...)) !== $value) {
+                    return false;
+                }
+            }
+
+            return array_filter($values, fn (mixed $value): bool => $value !== null && $value !== []) !== [];
+        }));
+
+        $hidden = array_slice($columns, self::MAX_COLUMNS);
+
+        if ($hidden !== []) {
+            note('Not shown: '.implode(', ', $hidden).'. Pick columns with --field.');
+        }
+
+        return array_slice($columns, 0, self::MAX_COLUMNS);
     }
 
     protected function getArguments(): array

@@ -5,14 +5,21 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
+use ExeQue\Monocle\Console\Concerns\RendersForHumans;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
+
+use function Laravel\Prompts\info;
+use function Laravel\Prompts\note;
+use function Laravel\Prompts\table;
+
 use Symfony\Component\Console\Input\InputArgument;
 
 /** @internal */
 final class CompareCommand extends Command
 {
     use OutputsJson;
+    use RendersForHumans;
 
     protected $name = 'monocle:compare';
 
@@ -20,10 +27,10 @@ final class CompareCommand extends Command
 
     public function handle(Viewfinder $viewfinder): int
     {
-        return $this->outputJson($viewfinder->compare([
+        return $this->respond($viewfinder->compare([
             'a' => $this->argument('a'),
             'b' => $this->argument('b'),
-        ]));
+        ]), $this->render(...));
     }
 
     protected function getArguments(): array
@@ -37,5 +44,155 @@ final class CompareCommand extends Command
     protected function getOptions(): array
     {
         return $this->jsonOptions();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function render(array $data): void
+    {
+        info('A: '.$this->captureLine($data['a']));
+        info('B: '.$this->captureLine($data['b']));
+
+        $this->totals($data['totals'] ?? []);
+        $this->lines('Phases', $data['phases'] ?? []);
+        $this->lines('Categories', $data['categories'] ?? []);
+        $this->queries($data['queries'] ?? []);
+
+        foreach (['only_in_a' => 'Only in A', 'only_in_b' => 'Only in B'] as $side => $where) {
+            $this->flags(
+                array_map(fn (string $message): string => "{$where}: {$message}", $data['warnings'][$side] ?? []),
+                array_map(fn (string $message): string => "{$where}: {$message}", $data['errors'][$side] ?? []),
+            );
+        }
+    }
+
+    /**
+     * @param  array{id: string, name: string|null, label: string|null, started_at: string|null}  $capture
+     */
+    private function captureLine(array $capture): string
+    {
+        $line = $capture['name'] ?? $capture['id'];
+
+        if ($capture['label'] !== null) {
+            $line .= " [{$capture['label']}]";
+        }
+
+        return $line.' ('.$this->ago($capture['started_at']).', '.$capture['id'].')';
+    }
+
+    /**
+     * @param  array<string, array{a: mixed, b: mixed, delta: float|int|null, percent: float|null}>  $totals
+     */
+    private function totals(array $totals): void
+    {
+        $rows = [];
+
+        foreach ($totals as $name => $total) {
+            if ($total['a'] === null && $total['b'] === null) {
+                continue;
+            }
+
+            $rows[] = [
+                ucfirst(str_replace('_', ' ', (string) $name)),
+                $this->amount((string) $name, $total['a']),
+                $this->amount((string) $name, $total['b']),
+                $this->change((string) $name, $total['delta'], $total['percent']),
+            ];
+        }
+
+        if ($rows === []) {
+            note('No totals to compare.');
+
+            return;
+        }
+
+        table(['Metric', 'A', 'B', 'Change'], $rows);
+    }
+
+    /**
+     * @param  array<string, array{a_ms: float|null, b_ms: float|null, delta_ms: float|null, a_count: int|null, b_count: int|null}>  $lines
+     */
+    private function lines(string $title, array $lines): void
+    {
+        if ($lines === []) {
+            return;
+        }
+
+        note($title);
+
+        table(['Name', 'A', 'B', 'Change', 'Count A', 'Count B'], array_map(fn (string $name, array $line): array => [
+            $name,
+            $line['a_ms'] === null ? '' : $this->ms($line['a_ms']),
+            $line['b_ms'] === null ? '' : $this->ms($line['b_ms']),
+            $this->change('ms', $line['delta_ms'], null),
+            (string) ($line['a_count'] ?? ''),
+            (string) ($line['b_count'] ?? ''),
+        ], array_keys($lines), $lines));
+    }
+
+    /**
+     * @param  array{only_in_a?: list<array{shape: string, count: int, total_ms: float}>, only_in_b?: list<array{shape: string, count: int, total_ms: float}>, changed?: list<array{shape: string, a_count: int, b_count: int, a_ms: float, b_ms: float}>}  $queries
+     */
+    private function queries(array $queries): void
+    {
+        foreach (['only_in_a' => 'Queries only in A', 'only_in_b' => 'Queries only in B'] as $key => $title) {
+            if (($queries[$key] ?? []) === []) {
+                continue;
+            }
+
+            note($title);
+            table(['Query', 'Count', 'Time'], array_map(fn (array $query): array => [
+                $this->cell($query['shape'], 90),
+                (string) $query['count'],
+                $this->ms($query['total_ms']),
+            ], $queries[$key]));
+        }
+
+        if (($queries['changed'] ?? []) === []) {
+            return;
+        }
+
+        note('Queries run a different number of times');
+        table(['Query', 'Count A', 'Count B', 'Time A', 'Time B'], array_map(fn (array $query): array => [
+            $this->cell($query['shape'], 90),
+            (string) $query['a_count'],
+            (string) $query['b_count'],
+            $this->ms($query['a_ms']),
+            $this->ms($query['b_ms']),
+        ], $queries['changed']));
+    }
+
+    /**
+     * Signed delta and percent: red when it got worse, green when better.
+     * Higher times and counts are worse, except hit counts and hit rates.
+     */
+    private function change(string $name, float|int|null $delta, ?float $percent): string
+    {
+        if ($delta === null) {
+            return '';
+        }
+
+        $text = match (true) {
+            $delta > 0 => '+',
+            $delta < 0 => '-',
+            default => '',
+        }.$this->amount($name, abs($delta));
+
+        if ($percent !== null) {
+            $text .= ' ('.($percent > 0 ? '+' : '').$percent.'%)';
+        }
+
+        if ((float) $delta === 0.0) {
+            return $text;
+        }
+
+        $worse = $delta > 0;
+
+        if (str_contains($name, 'hit')) {
+            $worse = ! $worse;
+        }
+
+        return $worse ? "<fg=red>{$text}</>" : "<fg=green>{$text}</>";
     }
 }

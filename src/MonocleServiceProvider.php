@@ -13,6 +13,7 @@ use ExeQue\Monocle\Console\QueriesCommand;
 use ExeQue\Monocle\Console\RowsCommand;
 use ExeQue\Monocle\Console\ShowCommand;
 use ExeQue\Monocle\Console\TraceCommand;
+use ExeQue\Monocle\Console\TuiCommand;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Http\Middleware\Authorize;
 use ExeQue\Monocle\Install\ConfigPublisher;
@@ -57,6 +58,7 @@ final class MonocleServiceProvider extends ServiceProvider
                 QueriesCommand::class,
                 TraceCommand::class,
                 CompareCommand::class,
+                TuiCommand::class,
             ]);
         }
 

@@ -2,7 +2,7 @@
 
 # Artisan commands
 
-Everything the MCP tools do is also available from artisan. The output is JSON; add `--compact` for a single line.
+Everything the MCP tools do is also available from artisan. Run by a person, the output is formatted for reading: tables, a tree for traces, and warnings and errors in colour. Run by an AI agent (Claude Code, Cursor, Codex, Gemini CLI and others are detected), the output is the same JSON the MCP tools return. Add `--json` (or `--agent`) to get the JSON yourself, and `--compact` for JSON on a single line.
 
 | Command | Same as |
 |---|---|
@@ -13,6 +13,7 @@ Everything the MCP tools do is also available from artisan. The output is JSON; 
 | `monocle:trace [id]` | `monocle-trace` |
 | `monocle:compare <a> [b]` | `monocle-compare` |
 | `monocle:clear` | `monocle-clear` |
+| `monocle:tui` | |
 
 Without an `id` the latest capture is used.
 
@@ -30,4 +31,21 @@ php artisan monocle:clear
 
 `--where` takes `field:op:value` and can be repeated. `--verbose-origin` shows the full call chain behind each `origin`.
 
+`monocle:clear` asks before it deletes anything; add `--force` to skip the question.
+
 The commands work even when recording is turned off, so earlier captures can always be read.
+
+## Terminal UI
+
+`monocle:tui` opens a full-screen browser for captures. The list updates as new captures come in; open one to see a tab per section, rendered like the commands above.
+
+| Key | In the list | In a capture |
+|---|---|---|
+| `j` / `k` or arrows | next / previous capture | scroll |
+| `enter` | open the capture | |
+| `u` / `i`, left / right or tab | | previous / next tab |
+| `J` / `K` | | next / previous capture, same tab |
+| `g` / `G`, Home / End | first / last capture | top / bottom |
+| Page Up / Page Down | a page up / down | a page up / down |
+| `esc` | | back to the list |
+| `q` | quit | quit |
