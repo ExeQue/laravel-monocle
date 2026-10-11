@@ -7,6 +7,7 @@ namespace Tests\Feature\Lenses;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use GuzzleHttp\Psr7\Request as PsrRequest;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Events\ConnectionFailed;
@@ -23,6 +24,18 @@ describe(HttpClientLens::class, function (): void {
         ]);
 
         app(Eyepiece::class)->start(CaptureType::Request);
+    });
+
+    it('records the request payload masked and the response through its capture', function (): void {
+        Http::post('https://api.example.com/orders', ['name' => 'ada', 'password' => 'hunter22hunter22']);
+
+        $row = app(Eyepiece::class)->finalize()->rows('http')[0];
+
+        expect($row['request_payload'])->toBe(['name' => 'ada', 'password' => 'hunt****'])
+            ->and($row['response_capture']['capture'])->toBe(JsonCapture::class)
+            ->and($row['response_capture']['cards'][0]['items'])->toBe(['ok' => true])
+            ->and($row['response_capture']['raw'])->toBe('{"ok":true}')
+            ->and($row['response_body'])->toBeNull();
     });
 
     it('records every request sent in a pool', function (): void {
@@ -98,13 +111,14 @@ describe(HttpClientLens::class, function (): void {
         $lens->configure(['bodies' => true]);
         $lens->boot($this->app, app(Eyepiece::class));
 
-        Http::post('https://api.example.com/orders', ['name' => 'ada']);
+        Http::post('https://down.example.com/orders', ['name' => 'ada']);
 
         $rows = app(Eyepiece::class)->finalize()->rows('http');
         $withBody = collect($rows)->first(fn (array $row): bool => $row['request_body'] !== null);
 
+        // A response without a capture for its content type keeps its body as is.
         expect($withBody['request_body'])->toBe('{"name":"ada"}')
-            ->and($withBody['response_body'])->toBe('{"ok":true}');
+            ->and($withBody['response_body'])->toBe('nope');
     });
 
     it('summarizes nothing without calls', function (): void {

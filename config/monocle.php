@@ -126,6 +126,12 @@ return [
         ScheduleLens::class => true,
         HttpClientLens::class => [
             'bodies' => false,
+            'capture' => [
+                'response_types' => [
+                    'application/json' => JsonCapture::class,
+                    'application/*+json' => JsonCapture::class,
+                ],
+            ],
         ],
         MailLens::class => true,
         FilesystemLens::class => [

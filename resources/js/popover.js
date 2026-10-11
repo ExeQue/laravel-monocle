@@ -8,7 +8,7 @@ import { colorOf, describe, PHASE_COLOR, phaseIndex } from './timeline.js';
 
 const pathOf = (n) => { const out = []; for (let p = n.parent; p; p = p.parent) out.unshift(describe(p)); return out; };
 
-const originHtml = (o) => !o || !o.file ? '' : `
+export const originHtml = (o) => !o || !o.file ? '' : `
   <div class="${SEC}"><div class="${K}">Origin</div>
     <div class="font-mono text-xs text-brass break-all">${maybeLink(o.file + (o.line ? ':' + o.line : ''), o.link)}${o.vendor ? ' <span class="ml-1.5 rounded border border-line px-1 font-mono text-[10px] uppercase tracking-wider text-muted">vendor</span>' : ''}</div>
     ${o.call ? `<div class="${SUB} font-mono">${maybeLink(o.call, o.call_link)}</div>` : ''}

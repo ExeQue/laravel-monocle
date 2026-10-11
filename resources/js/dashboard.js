@@ -4,7 +4,7 @@ import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
-import { setupPopover, rowDetails, rowBody } from './popover.js';
+import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
 import { setupTooltip } from './tooltip.js';
 
 const PHASE_COLORS = {
@@ -442,7 +442,8 @@ Alpine.data('monocle', (config) => ({
 
   columnsOf(rows) {
     const keys = [];
-    for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n' && k !== '_links') keys.push(k);
+    const detailOnly = ['n', '_links', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture'];
+    for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     let used = keys.filter((k) => rows.some((row) => !blank(row[k])));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
@@ -538,6 +539,53 @@ Alpine.data('monocle', (config) => ({
       groups.set(key, g);
     });
     return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms);
+  },
+
+  /** The details of an expanded row: HTTP calls get their own layout, other rows list every field. */
+  details(row, section) {
+    return section === 'http' ? this.httpDetails(row) : rowBody(row);
+  },
+
+  /** An outgoing HTTP call: facts, both header sets, the payload sent and the response received. */
+  httpDetails(row) {
+    const label = 'text-[11px] uppercase tracking-wider text-muted';
+    const td = 'border-t border-line px-2 py-1 align-top font-mono text-xs [overflow-wrap:anywhere]';
+    const kvTable = (entries, what) => entries.length
+      ? `<table class="w-full border-collapse">${entries.map(([k, v]) => `<tr class="group/copy"><td class="${td} w-0 whitespace-nowrap text-muted">${esc(k)}</td><td class="${td}">${this.payloadValue(v)}</td><td class="${td} w-0">${v === null ? '' : copyButton(typeof v === 'object' ? JSON.stringify(v) : String(v), `${what} ${k}`, { hover: true })}</td></tr>`).join('')}</table>`
+      : '<span class="text-xs text-muted">none</span>';
+    const block = (title, html, copy = null) => `<div class="grid min-w-0 content-start gap-1.5"><div class="flex items-center gap-1.5"><div class="${label}">${title}</div>${copy ? copyButton(copy, title.toLowerCase()) : ''}</div>${html}</div>`;
+    const size = (v) => (typeof v !== 'number' ? null : v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B');
+    const facts = [
+      ['Status', row.status ?? 'no response'],
+      ['Duration', row.duration != null ? ms(row.duration) : null],
+      ['Started at', row.time != null ? ms(row.time) : null],
+      ['Sent', size(row.request_bytes)],
+      ['Received', size(row.response_bytes)],
+      ['Pool', row.pool],
+      ['Exception', row.exception ? `${row.exception.class}: ${row.exception.message}` : null],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const capture = row.response_capture;
+    const cards = (capture?.cards ?? []).map((card) => `<div class="grid gap-1 rounded-md border border-line bg-panel p-2.5"><div><b class="text-[13px]">${esc(card.title)}</b>${card.subtitle ? ` <span class="text-xs text-muted">${esc(card.subtitle)}</span>` : ''}</div><dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">${Object.entries(card.items ?? {}).map(([k, v]) => `<dt class="text-muted">${esc(humanize(k))}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${this.cardValue(v, k)}</dd>`).join('')}</dl></div>`).join('');
+    const raw = capture?.raw ?? row.response_body;
+    const type = this.headers(row.response_headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1];
+    const pre = (text) => `<pre class="scroll-quiet m-0 max-h-80 overflow-auto rounded-md border border-line bg-panel p-2.5 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(this.body(text, type))}</pre>`;
+    const response = cards
+      ? `${cards}${raw ? `<details><summary class="cursor-pointer text-xs text-muted">Raw body</summary><div class="mt-1.5">${pre(raw)}</div></details>` : ''}`
+      : raw ? pre(raw) : '<span class="text-xs text-muted">not recorded</span>';
+
+    return `<div class="grid gap-4">
+      <div class="flex flex-wrap items-start gap-1.5 font-mono text-xs"><b>${esc(row.method ?? '')}</b><span class="[overflow-wrap:anywhere]">${esc(row.url ?? '')}</span>${copyButton(row.url ?? '', 'url')}</div>
+      <dl class="m-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">${facts.map(([k, v]) => `<div class="grid gap-0.5"><dt class="${label}">${k}</dt><dd class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">${esc(String(v))}</dd></div>`).join('')}</dl>
+      <div class="grid gap-4 lg:grid-cols-2">
+        ${block('Request headers', kvTable(this.headers(row.request_headers), 'request header'))}
+        ${block('Response headers', kvTable(this.headers(row.response_headers), 'response header'))}
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        ${block('Payload', row.request_payload ? kvTable(this.dot(row.request_payload), 'payload') : row.request_body ? pre(row.request_body) : '<span class="text-xs text-muted">none</span>', row.request_payload ? JSON.stringify(row.request_payload) : row.request_body)}
+        ${block('Response', response, raw)}
+      </div>
+      ${originBlock(row.origin)}
+    </div>`;
   },
 
   toggleRow(key) {

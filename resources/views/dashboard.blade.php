@@ -1482,10 +1482,10 @@
                                                                 x-cloak
                                                             >
                                                                 <div
-                                                                    class="grid max-w-[900px] gap-2.5 pr-3 pb-3 pl-[5rem] text-[13px]"
+                                                                    class="grid max-w-[1200px] gap-2.5 pr-3 pb-3 pl-[5rem] text-[13px]"
                                                                     x-html="
                                                                         openRows.includes('http:' + i)
-                                                                            ? rowBody(tabData.rows[i])
+                                                                            ? details(tabData.rows[i], 'http')
                                                                             : ''
                                                                     "
                                                                 ></div>
@@ -1529,10 +1529,10 @@
                                                     :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
                                                     @click="toggleRow(t.key + ':' + i)"
                                                 >
-                                                    <td :class="cls.td" class="w-8 !pr-0">
+                                                    <td :class="cls.td" class="w-8 !pr-0 whitespace-nowrap">
                                                         <button
                                                             type="button"
-                                                            class="inline-flex cursor-pointer"
+                                                            class="text-muted inline-flex cursor-pointer items-center gap-1 font-mono text-xs tabular-nums"
                                                             :aria-expanded="openRows.includes(t.key + ':' + i)"
                                                             :aria-label="(openRows.includes(t.key + ':' + i)
                                                                 ? 'Hide'
@@ -1555,6 +1555,7 @@
                                                             >
                                                                 <path d="M6 3.5 10.5 8 6 12.5" />
                                                             </svg>
+                                                            <span x-text="row.n ?? i + 1"></span>
                                                         </button>
                                                     </td>
                                                     <template x-for="col in columnsOf(t.rows)" :key="col"
@@ -1578,10 +1579,10 @@
                                                     >
                                                         <div x-show="openRows.includes(t.key + ':' + i)" x-collapse>
                                                             <div
-                                                                class="grid max-w-[900px] gap-2.5 py-3 pl-5 text-[13px]"
+                                                                class="grid max-w-[1200px] gap-2.5 py-3 pl-5 text-[13px]"
                                                                 x-html="
                                                                     openRows.includes(t.key + ':' + i)
-                                                                        ? rowBody(row)
+                                                                        ? details(row, t.key)
                                                                         : ''
                                                                 "
                                                             ></div>
