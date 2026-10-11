@@ -378,7 +378,6 @@ return [
             RedisLens::class,
             EventsLens::class,
             AuthorizationLens::class,
-            MiddlewareLens::class,
             McpLens::class,
             ScheduleLens::class,
         ],
