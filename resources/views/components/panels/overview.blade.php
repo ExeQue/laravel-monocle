@@ -80,22 +80,35 @@
                         </template>
                     </div>
                 </template>
-                <dl class="border-line m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 border-t pt-3 text-[13px]">
+                <dl
+                    class="border-line m-0 grid gap-x-1.5 border-t pt-3 text-[13px]"
+                    :style="`grid-template-columns: auto repeat(${Math.max(1, ...totalGroups.filter((g) => g.label !== 'Overall').map((g) => g.items.length))}, auto auto) minmax(0, 1fr)`"
+                >
                     <template x-for="g in totalGroups.filter((g) => g.label !== 'Overall')" :key="g.label">
-                        <div class="border-line col-span-2 grid grid-cols-subgrid border-b border-dashed py-1.5 last:border-b-0">
-                            <dt class="text-brass text-xs font-semibold" x-text="g.label"></dt>
-                            <dd class="m-0 flex flex-wrap gap-x-3 gap-y-0.5">
-                                <template x-for="t in g.items" :key="t[0]">
-                                    <span>
-                                        <span
-                                            class="font-semibold tabular-nums"
-                                            :class="totalTone(t)"
-                                            x-text="totalValue(t)"
-                                        ></span>
-                                        <span class="text-muted text-xs" x-text="totalLabel(t)"></span>
-                                    </span>
-                                </template>
-                            </dd>
+                        <div class="border-line col-span-full grid grid-cols-subgrid items-baseline border-b border-dashed py-1.5 last:border-b-0">
+                            <dt class="text-brass pr-4 text-xs font-semibold">
+                                <button
+                                    type="button"
+                                    class="cursor-pointer hover:underline"
+                                    x-show="g.tab"
+                                    @click="openTab(g.tab)"
+                                    x-text="g.label"
+                                ></button>
+                                <span x-show="! g.tab" x-text="g.label"></span>
+                            </dt>
+                            <template x-for="t in g.items" :key="t[0]">
+                                <dd class="contents">
+                                    <span
+                                        class="text-right font-semibold whitespace-nowrap tabular-nums"
+                                        :class="totalTone(t)"
+                                        x-text="totalValue(t)"
+                                    ></span>
+                                    <span
+                                        class="text-muted pr-4 text-xs whitespace-nowrap"
+                                        x-text="totalLabel(t)"
+                                    ></span>
+                                </dd>
+                            </template>
                         </div>
                     </template>
                 </dl>
