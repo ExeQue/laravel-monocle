@@ -353,7 +353,7 @@
                             <tbody>
                                 <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
                                     <tr>
-                                        <td :class="cls.td"><div class="font-mono text-xs font-medium [overflow-wrap:anywhere]" x-show="groupBy !== 'shape'" x-text="q.key"></div><code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" :class="groupBy !== 'shape' && 'mt-0.5 text-muted'" x-text="q.example ?? q.key"></code><span x-show="groupBy !== 'caller'" x-html="originHtml(q.origin)"></span></td>
+                                        <td :class="cls.td"><div class="font-mono text-xs font-medium [overflow-wrap:anywhere]" x-show="groupBy === 'table' || groupBy === 'transaction'" x-text="q.key === '(none)' ? 'outside a transaction' : q.key"></div><code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" :class="(groupBy === 'table' || groupBy === 'transaction') && 'mt-0.5 text-muted'" x-text="q.example ?? q.key"></code><span x-html="originHtml(q.origin)"></span></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="q.count"></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.total_ms)"></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.avg_ms)"></td>
