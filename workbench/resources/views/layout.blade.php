@@ -322,14 +322,14 @@
             </svg>
             Monocle demos
         </a>
-        @hasSection('crumbs')
-            <nav class="crumbs" aria-label="Breadcrumb">@yield('crumbs')</nav>
-        @endif
         <div class="themes" role="group" aria-label="Theme">
             <button type="button" data-theme-choice="system">Auto</button>
             <button type="button" data-theme-choice="light">Light</button>
             <button type="button" data-theme-choice="dark">Dark</button>
         </div>
+        @hasSection('crumbs')
+            <nav class="crumbs" aria-label="Breadcrumb">@yield('crumbs')</nav>
+        @endif
         <div class="actions">
             <a class="button primary" href="/_monocle" target="_blank">Open dashboard</a>
             <a class="button" href="/demo/queue/work">
