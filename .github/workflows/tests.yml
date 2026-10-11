@@ -16,6 +16,7 @@ on:
       - 'vite.dashboard.config.js'
       - 'composer.json'
       - 'phpunit.xml'
+      - 'pint.json'
       - '.github/workflows/tests.yml'
   pull_request:
     branches: [ "main" ]
@@ -31,7 +32,39 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    name: Lint
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, libxml, mbstring, zip, intl, gd, exif, fileinfo
+          coverage: none
+
+      # Formatting Blade files runs prettier.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          composer update --prefer-stable --prefer-dist --no-interaction
+          npm ci
+
+      - name: Check code and Blade formatting
+        run: composer lint:test
+
   test:
+    needs: lint
     runs-on: ubuntu-latest
 
     strategy:
@@ -66,6 +99,7 @@ jobs:
         run: vendor/bin/pest -p --ci
 
   coverage:
+    needs: lint
     runs-on: ubuntu-latest
 
     name: Coverage
