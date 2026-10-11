@@ -143,6 +143,7 @@ final readonly class Presentation
      *                                (['flag', 'yes', 'no', 'warn', 'muted'] picks both colours; null leaves a word out)
      *     'bool'                     true or false, true in green
      *     'code'                     the value in full in a monospace font, such as a command
+     *     ['truncate', 80]           cut after that many characters; the full text in a tooltip
      *     ['prefix', '#']            the value after a prefix
      *     ['reference', 'repeat of #'] a badge pointing at another row
      *     ['highlight', ['miss'], 'warn'] the listed values coloured

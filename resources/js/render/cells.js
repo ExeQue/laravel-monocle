@@ -60,6 +60,10 @@ const FORMATS = {
   status: (v) => `<span class="${statusClass(v)}">${esc(v)}</span>`,
   level: (v) => `<span class="font-medium ${levelClass(v)}">${esc(v)}</span>`,
   flag: (v, row, yes = 'yes', no = 'no', tone = 'bad', yesTone = 'ok') => (typeof v !== 'boolean' ? esc(fmtValue(v)) : v ? (yes ? `<span class="${TONES[yesTone] ?? ''}">${esc(yes)}</span>` : '') : no ? `<span class="font-medium ${TONES[tone] ?? ''}">${esc(no)}</span>` : ''),
+  truncate: (v, row, limit = 80) => {
+    const text = fmtValue(v);
+    return text.length > limit ? `<span data-tip="${esc(text.slice(0, 600))}">${esc(text.slice(0, limit))}…</span>` : esc(text);
+  },
   code: (v) => (v === null || v === undefined ? '' : `<code class="font-mono text-xs [overflow-wrap:anywhere]">${esc(fmtValue(v))}</code>`),
   bool: (v) => `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${esc(String(v))}</span>`,
   prefix: (v, row, prefix = '') => (v === null || v === undefined || v === '' ? '' : `<span class="font-mono">${esc(prefix)}${esc(v)}</span>`),
@@ -97,7 +101,7 @@ export function cell(row, key, presentation = null, context = {}) {
   // Long or multi-line text: the first line in the table, all of it in the details.
   if (typeof v === 'string' && (v.includes('\n') || v.length > 160)) return `<span data-tip="${esc(v.slice(0, 600))}">${esc(v.split('\n')[0].slice(0, 160))}…</span>`;
   if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
-  if (Array.isArray(v) && v.length && v.every(isThrowable)) return previousHtml(v, 140);
+  if (Array.isArray(v) && v.length && v.every(isThrowable)) return previousHtml(v, 80);
   if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);
   if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'rule' in c)) {
     return v.map((c) => `<div><span class="font-mono">${esc(c.field)}</span> <span class="text-warn">${esc(c.rule)}${c.parameters?.length ? esc('(' + c.parameters.join(', ') + ')') : ''}</span>${c.message ? ` <span class="text-muted">${esc(c.message)}</span>` : ''}</div>`).join('');
