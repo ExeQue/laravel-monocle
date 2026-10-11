@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Support;
 
+use Closure;
+use ReflectionException;
+use ReflectionFunction;
+use ReflectionProperty;
+
 /**
  * Finds the user-land call site that triggered a recorded operation and a
  * short call chain above it. Vendor and Monocle frames are skipped; compiled
@@ -54,8 +59,12 @@ final class Origin
 
             if (self::isVendor($file, $basePath, $includeVendor)) {
                 if ($kept === []) {
-                    // A macro or magic method says nothing; keep the real method behind it.
-                    if ($called === null || ! self::isMagic($call)) {
+                    $macro = self::isMagic($call) ? self::macro($trace, $index, $basePath) : null;
+
+                    // A magic method says nothing; name the macro behind it, or keep the real method.
+                    if ($macro !== null) {
+                        $called = $macro;
+                    } elseif ($called === null || ! self::isMagic($call)) {
                         $called = ['file' => self::relative($file, $basePath), 'line' => $frame['line'] ?? null, 'call' => $call];
                     }
 
@@ -148,6 +157,49 @@ final class Origin
         }
 
         return true;
+    }
+
+    /**
+     * The macro a __call/__callStatic frame ran: the registered macro whose
+     * closure contains the line the next frame in was called from.
+     *
+     * @param  list<array<string, mixed>>  $trace
+     * @return array{file: string, line: int|null, call: string}|null
+     */
+    private static function macro(array $trace, int $index, string $basePath): ?array
+    {
+        $caller = $trace[$index + 1] ?? [];
+        $class = $caller['class'] ?? null;
+        $inside = $trace[$index - 1] ?? null;
+
+        if (! in_array($caller['function'] ?? null, ['__call', '__callStatic'], true) || ! is_string($class) || $inside === null || ! isset($inside['file'], $inside['line'])) {
+            return null;
+        }
+
+        try {
+            $property = new ReflectionProperty($class, 'macros');
+            $macros = $property->isStatic() ? (array) $property->getValue() : [];
+        } catch (ReflectionException) {
+            return null;
+        }
+
+        foreach ($macros as $name => $macro) {
+            if (! $macro instanceof Closure) {
+                continue;
+            }
+
+            $function = new ReflectionFunction($macro);
+
+            if ($function->getFileName() === $inside['file'] && $inside['line'] >= $function->getStartLine() && $inside['line'] <= $function->getEndLine()) {
+                return [
+                    'file' => self::relative((string) $function->getFileName(), $basePath),
+                    'line' => $function->getStartLine() ?: null,
+                    'call' => $class.($caller['type'] ?? '->').$name,
+                ];
+            }
+        }
+
+        return null;
     }
 
     private static function isMagic(?string $call): bool

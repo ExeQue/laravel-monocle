@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use ExeQue\Monocle\Support\Origin;
+use ReflectionFunction;
 
 covers(Origin::class);
 
@@ -81,6 +82,24 @@ describe(Origin::class, function (): void {
         ]);
 
         expect($origin['via']['call'])->toBe('TailwindMerge\\TailwindMerge->merge');
+    });
+
+    it('names a macro called through __call when it can be found among the registered macros', function (): void {
+        require dirname(__DIR__, 2).'/Fixtures/vendor/acme/strings/macros.php';
+        $closure = new ReflectionFunction((fn () => static::$macros['shout'])->call(new \Illuminate\Support\Stringable()));
+        $vendor = '/app/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php';
+
+        $origin = Origin::capture('/app', 3, [], [
+            ['file' => $closure->getFileName(), 'line' => $closure->getStartLine() + 1, 'class' => 'X', 'type' => '->', 'function' => 'strtoupper'],
+            ['file' => $vendor, 'line' => 120, 'class' => \Illuminate\Support\Stringable::class, 'type' => '->', 'function' => '{closure}'],
+            ['file' => '/app/app/Http/Controllers/PageController.php', 'line' => 12, 'class' => \Illuminate\Support\Stringable::class, 'type' => '->', 'function' => '__call'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/Routing/Controller.php', 'line' => 9, 'class' => 'X', 'type' => '->', 'function' => 'y'],
+        ]);
+
+        expect($origin['via']['call'])->toBe(\Illuminate\Support\Stringable::class.'->shout')
+            ->and($origin['via']['line'])->toBe($closure->getStartLine());
+
+        \Illuminate\Support\Stringable::flushMacros();
     });
 
     it('skips Monocle\'s own source wherever the package is installed', function (): void {
