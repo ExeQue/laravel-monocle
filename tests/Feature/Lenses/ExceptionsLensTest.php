@@ -120,6 +120,27 @@ describe(ExceptionsLens::class, function (): void {
         expect(latestCapture()->rows('exceptions')[0]['frames'])->toHaveCount(10);
     });
 
+    it('names the facade call a frame made, from the line that made it', function (): void {
+        $first = fn (string $code): string => (function () use ($code): string {
+            try {
+                $code === 'facade' ? \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x')) : null;
+                $cache = \Illuminate\Support\Facades\Cache::class;
+                $code === 'variable' ? $cache::remember('k', 1, fn () => throw new RuntimeException('x')) : null;
+                $code === 'eval' ? eval('\\Illuminate\\Support\\Facades\\Cache::remember("k", 1, fn () => throw new \\RuntimeException("x"));') : null;
+            } catch (RuntimeException $exception) {
+                $eyepiece = app(\ExeQue\Monocle\Eyepiece::class);
+                $eyepiece->start(\ExeQue\Monocle\Enums\CaptureType::Request);
+                report($exception);
+
+                return collect($eyepiece->finalize()->rows('exceptions')[0]['frames'])->first(fn (string $frame): bool => str_contains($frame, 'Cache::') || str_contains($frame, 'Facade::'));
+            }
+        })();
+
+        expect($first('facade'))->toEndWith(' Cache::remember')
+            ->and($first('variable'))->toEndWith(' Facade::__callStatic')
+            ->and($first('eval'))->toEndWith(' Facade::__callStatic');
+    });
+
     it('does not record exceptions the handler ignores', function (): void {
         $this->get('/missing')->assertNotFound();
 

@@ -17,7 +17,9 @@ use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Support\Facades\Facade;
 use ReflectionClass;
+use SplFileObject;
 use Throwable;
 
 /**
@@ -237,7 +239,35 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
             return '';
         }
 
+        if ($frame['class'] === Facade::class && $frame['function'] === '__callStatic') {
+            return $this->facadeCall($frame) ?? 'Facade::__callStatic';
+        }
+
         return $frame['class'].($frame['type'] ?? '::').$frame['function'];
+    }
+
+    /**
+     * The trace only says "Facade::__callStatic"; the line that made the call says which
+     * facade and method (Http::pool). ponytail: the first static call on the line, which is
+     * the one meant unless a line chains several facades.
+     *
+     * @param  array<string, mixed>  $frame
+     */
+    private function facadeCall(array $frame): ?string
+    {
+        // eval()'d code has no file to read.
+        if (! is_readable($frame['file'])) {
+            return null;
+        }
+
+        $source = new SplFileObject($frame['file']);
+        $source->seek($frame['line'] - 1);
+
+        if (preg_match('/\\b([A-Z]\\w*)::(\\w+)\\s*\\(/', (string) $source->current(), $match) !== 1) {
+            return null;
+        }
+
+        return $match[1].'::'.$match[2];
     }
 
     private function relative(string $file): string
