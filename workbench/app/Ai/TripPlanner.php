@@ -26,6 +26,7 @@ final class TripPlanner implements Agent, HasTools
 
     public function tools(): iterable
     {
-        return [new WeatherTool(), new ExchangeRateTool()];
+        // An agent in the list is offered as a tool and runs as a sub-agent.
+        return [new WeatherTool(), new PackingAdvisor(), new ExchangeRateTool()];
     }
 }

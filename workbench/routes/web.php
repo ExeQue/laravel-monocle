@@ -30,6 +30,7 @@ use Prism\Prism\ValueObjects\Usage;
 use Spatie\ResponseCache\Facades\ResponseCache;
 use Spatie\ResponseCache\Middlewares\CacheResponse;
 use Workbench\App\Ai\Greeter;
+use Workbench\App\Ai\PackingAdvisor;
 use Workbench\App\Ai\TripPlanner;
 use Workbench\App\Events\PaymentCharged;
 use Workbench\App\Events\PostPublished;
@@ -153,9 +154,11 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         Greeter::fake(['A short, friendly summary.']);
         $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);
 
-        // The model asks for two tools before it answers; laravel/ai runs them (the second fails).
+        // The model asks for a tool, a sub-agent and a tool that fails; laravel/ai runs them.
+        PackingAdvisor::fake(['A raincoat and good shoes.']);
         TripPlanner::fake([
             new ToolCall('call_weather', 'weather', ['city' => 'Aarhus']),
+            new ToolCall('call_packing', 'PackingAdvisor', ['task' => 'What should I pack for Aarhus?']),
             new ToolCall('call_nok', 'exchange_rate', ['currency' => 'NOK']),
             'Pack an umbrella; 100 DKK is about 13.40 EUR.',
         ]);
