@@ -34,6 +34,6 @@ final class MonocleProcessFactory extends Factory
 
     public function newPendingProcess()
     {
-        return (new RecordingPendingProcess($this, $this->recorder))->withFakeHandlers($this->fakeHandlers);
+        return new RecordingPendingProcess($this, $this->recorder)->withFakeHandlers($this->fakeHandlers);
     }
 }

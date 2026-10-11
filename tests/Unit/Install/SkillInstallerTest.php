@@ -50,7 +50,7 @@ describe(SkillInstaller::class, function (): void {
         set_error_handler(fn (): bool => true);
 
         try {
-            expect(fn () => (new SkillInstaller('/nowhere/SKILL.blade.php'))->render())->toThrow(RuntimeException::class, 'Could not read');
+            expect(fn () => new SkillInstaller('/nowhere/SKILL.blade.php')->render())->toThrow(RuntimeException::class, 'Could not read');
         } finally {
             restore_error_handler();
         }

@@ -89,7 +89,7 @@ abstract class TestCase extends BaseTestCase
 
     protected function tearDown(): void
     {
-        (new Filesystem())->deleteDirectory($this->monoclePath);
+        new Filesystem()->deleteDirectory($this->monoclePath);
         self::$bootConfig = [];
 
         parent::tearDown();

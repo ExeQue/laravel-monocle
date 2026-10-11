@@ -68,7 +68,7 @@ describe(FilamentLivewireLens::class, function (): void {
 
     it('leaves alone components it cannot describe or that render while nothing is recording', function (): void {
         $listener = collect((fn (): array => $this->listeners['dehydrate'])->call(app(EventBus::class)))
-            ->first(fn (Closure $listener): bool => (new ReflectionFunction($listener))->getClosureThis() instanceof FilamentLivewireLens);
+            ->first(fn (Closure $listener): bool => new ReflectionFunction($listener)->getClosureThis() instanceof FilamentLivewireLens);
         $unrecorded = new ListBooks();
         $unrecorded->setId('unrecorded');
         $unregistered = new UnregisteredBookPage();

@@ -39,7 +39,7 @@ final class BoostAgents
             return [];
         }
 
-        return array_values(array_filter((new Config())->getAgents(), 'is_string'));
+        return array_values(array_filter(new Config()->getAgents(), 'is_string'));
     }
 
     /**

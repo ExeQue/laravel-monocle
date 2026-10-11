@@ -20,7 +20,7 @@ describe(SectionReader::class, function (): void {
     };
 
     it('names the sections a capture has', function () use ($capture): void {
-        expect((new SectionReader())->sections($capture()))->toBe(['queries', 'request']);
+        expect(new SectionReader()->sections($capture()))->toBe(['queries', 'request']);
     });
 
     it('pages a section of rows and returns a data section whole', function () use ($capture): void {

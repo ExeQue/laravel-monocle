@@ -164,7 +164,7 @@ test('internal classes are marked @internal and public ones are not', function (
         $class = 'ExeQue\Monocle\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
         $isLens = str_starts_with($class, 'ExeQue\Monocle\Lenses\\') && str_ends_with($class, 'Lens');
         $isPublic = $isLens || array_filter($public, fn (string $name): bool => $class === $name || (str_ends_with($name, '\\') && str_starts_with($class, $name))) !== [];
-        $isInternal = str_contains((string) (new ReflectionClass($class))->getDocComment(), '@internal');
+        $isInternal = str_contains((string) new ReflectionClass($class)->getDocComment(), '@internal');
 
         expect($isInternal)->toBe(! $isPublic, $isPublic ? "{$class} is public API but marked @internal" : "{$class} is internal but not marked @internal");
     }

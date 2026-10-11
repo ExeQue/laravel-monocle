@@ -80,7 +80,7 @@ final class EditorCommand extends Command
         $result = $gitignore->add($basePath.'/.gitignore', EditorSettings::FILE, $dryRun);
         $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
 
-        $example = (new EditorLinks($settings, $basePath))->file('artisan', 1);
+        $example = new EditorLinks($settings, $basePath)->file('artisan', 1);
         $this->components->twoColumnDetail('Example link (artisan)', (string) $example);
 
         return self::SUCCESS;

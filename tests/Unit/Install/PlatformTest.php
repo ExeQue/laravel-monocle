@@ -118,7 +118,7 @@ describe(McpConfigWriter::class, function (): void {
         mkdir(dirname($this->file));
         file_put_contents($this->file, "{\n  \"mcpServers\": {\n    \"other\": {\n      \"command\": \"x\"\n    }\n  }\n}\n");
 
-        (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]);
+        new McpConfigWriter()->write($this->file, 'monocle', ['command' => 'php', 'args' => []]);
 
         $written = (string) file_get_contents($this->file);
 
@@ -131,7 +131,7 @@ describe(McpConfigWriter::class, function (): void {
         mkdir(dirname($this->file));
         file_put_contents($this->file, "  \n");
 
-        expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))->toBe('updated')
+        expect(new McpConfigWriter()->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))->toBe('updated')
             ->and(json_decode((string) file_get_contents($this->file), true))->toBe(['mcpServers' => ['monocle' => ['command' => 'php', 'args' => []]]]);
     });
 
@@ -139,7 +139,7 @@ describe(McpConfigWriter::class, function (): void {
         mkdir(dirname($this->file));
         file_put_contents($this->file, "{\n  // comment\n}\n");
 
-        expect(fn () => (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
+        expect(fn () => new McpConfigWriter()->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
             ->toThrow(RuntimeException::class, 'does not contain valid JSON');
     });
 
@@ -155,20 +155,20 @@ describe(McpConfigWriter::class, function (): void {
         it('fails when the config directory cannot be created', function (): void {
             touch(dirname($this->file));
 
-            expect(fn () => (new McpConfigWriter())->write($this->file.'/.mcp.json', 'monocle', ['command' => 'php', 'args' => []]))
+            expect(fn () => new McpConfigWriter()->write($this->file.'/.mcp.json', 'monocle', ['command' => 'php', 'args' => []]))
                 ->toThrow(RuntimeException::class, 'Could not create');
         });
 
         it('fails when the config file cannot be written', function (): void {
             mkdir($this->file, 0777, true);
 
-            expect(fn () => (new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
+            expect(fn () => new McpConfigWriter()->write($this->file, 'monocle', ['command' => 'php', 'args' => []]))
                 ->toThrow(RuntimeException::class, 'Could not write');
         });
     });
 
     it('does not write in dry-run mode', function (): void {
-        expect((new McpConfigWriter())->write($this->file, 'monocle', ['command' => 'php', 'args' => []], dryRun: true))->toBe('created')
+        expect(new McpConfigWriter()->write($this->file, 'monocle', ['command' => 'php', 'args' => []], dryRun: true))->toBe('created')
             ->and(file_exists($this->file))->toBeFalse();
     });
 });
@@ -193,14 +193,14 @@ describe(GitignoreWriter::class, function (): void {
     });
 
     it('creates the file when missing and respects dry-run', function (): void {
-        expect((new GitignoreWriter())->add($this->file, 'storage/monocle/', dryRun: true))->toBe('added')
+        expect(new GitignoreWriter()->add($this->file, 'storage/monocle/', dryRun: true))->toBe('added')
             ->and(file_exists($this->file))->toBeFalse()
-            ->and((new GitignoreWriter())->add($this->file, 'storage/monocle/'))->toBe('added')
+            ->and(new GitignoreWriter()->add($this->file, 'storage/monocle/'))->toBe('added')
             ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n");
     });
 
     it('adds each missing entry once', function (): void {
-        expect((new GitignoreWriter())->add($this->file, ['storage/monocle/', '/storage/monocle/', '.zed/']))->toBe('added')
+        expect(new GitignoreWriter()->add($this->file, ['storage/monocle/', '/storage/monocle/', '.zed/']))->toBe('added')
             ->and(file_get_contents($this->file))->toBe(GitignoreWriter::COMMENT."\n/storage/monocle/\n/.zed/\n");
     });
 
@@ -209,7 +209,7 @@ describe(GitignoreWriter::class, function (): void {
         set_error_handler(fn (): bool => true);
 
         try {
-            expect(fn () => (new GitignoreWriter())->add($this->file, 'storage/monocle/'))->toThrow(RuntimeException::class, 'Could not write');
+            expect(fn () => new GitignoreWriter()->add($this->file, 'storage/monocle/'))->toThrow(RuntimeException::class, 'Could not write');
         } finally {
             restore_error_handler();
             rmdir($this->file);

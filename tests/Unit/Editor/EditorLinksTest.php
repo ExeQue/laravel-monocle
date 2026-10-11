@@ -89,10 +89,10 @@ describe(EditorLinks::class, function (): void {
         });
 
         it('links a method to the line it is declared on', function () use ($links): void {
-            $line = (new ReflectionMethod(EditorLinks::class, 'file'))->getStartLine();
+            $line = new ReflectionMethod(EditorLinks::class, 'file')->getStartLine();
 
             expect($links('vscode', base: '/')->class(EditorLinks::class, 'file'))->toEndWith('src/Editor/EditorLinks.php:'.$line)
-                ->and($links('vscode', base: '/')->class(EditorLinks::class, 'missing'))->toEndWith(':'.(new ReflectionClass(EditorLinks::class))->getStartLine());
+                ->and($links('vscode', base: '/')->class(EditorLinks::class, 'missing'))->toEndWith(':'.new ReflectionClass(EditorLinks::class)->getStartLine());
         });
 
         it('reads the editor from the project .monocle.json', function (): void {
@@ -152,10 +152,10 @@ describe(EditorSettings::class, function (): void {
     });
 
     it('serializes paths as an object and leaves out an unset WSL distro', function (): void {
-        expect(json_encode((new EditorSettings('vscode'))->toArray()))->toBe('{"editor":"vscode","paths":{}}')
+        expect(json_encode(new EditorSettings('vscode')->toArray()))->toBe('{"editor":"vscode","paths":{}}')
             ->and(EditorSettings::fromArray(['project' => 'app'])->project)->toBe('app')
-            ->and((new EditorSettings('phpstorm', [], null, 'app'))->toArray()['project'])->toBe('app')
-            ->and((new EditorSettings('vscode', [], 'Ubuntu'))->toArray()['wsl'])->toBe(['distro' => 'Ubuntu']);
+            ->and(new EditorSettings('phpstorm', [], null, 'app')->toArray()['project'])->toBe('app')
+            ->and(new EditorSettings('vscode', [], 'Ubuntu')->toArray()['wsl'])->toBe(['distro' => 'Ubuntu']);
     });
 });
 

@@ -77,7 +77,7 @@ describe(ConfigPublisher::class, function (): void {
         });
 
         it('fails when the shipped config cannot be read', function (): void {
-            expect(fn () => (new ConfigPublisher('/nowhere/monocle.php'))->render([]))->toThrow(RuntimeException::class, 'Could not read');
+            expect(fn () => new ConfigPublisher('/nowhere/monocle.php')->render([]))->toThrow(RuntimeException::class, 'Could not read');
         });
     });
 });

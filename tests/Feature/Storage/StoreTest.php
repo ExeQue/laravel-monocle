@@ -102,7 +102,7 @@ describe('stores', function (): void {
 
     it('writes a .gitignore into a fresh file store directory', function (): void {
         $path = sys_get_temp_dir().'/monocle-store-'.bin2hex(random_bytes(4));
-        (new FileStore($path, 3, sys_get_temp_dir()))->put(makeCapture('a'));
+        new FileStore($path, 3, sys_get_temp_dir())->put(makeCapture('a'));
 
         expect(file_get_contents($path.'/.gitignore'))->toContain('*');
 
@@ -114,7 +114,7 @@ describe(StoreManager::class, function (): void {
     it('refuses a file path outside the application storage directory', function (): void {
         config(['monocle.storage.driver' => 'file', 'monocle.storage.file.path' => '/tmp/elsewhere']);
 
-        expect(fn () => (new StoreManager($this->app))->store())->toThrow(InvalidArgumentException::class);
+        expect(fn () => new StoreManager($this->app)->store())->toThrow(InvalidArgumentException::class);
     });
 
     it('resolves the configured driver', function (): void {
@@ -133,7 +133,7 @@ describe(StoreManager::class, function (): void {
         config(['monocle.storage.driver' => CacheStore::class]);
         $this->app->bind(CacheStore::class, fn (): CacheStore => new CacheStore(Cache::store('array'), 5, 60));
 
-        expect((new StoreManager($this->app))->store())->toBeInstanceOf(CacheStore::class);
+        expect(new StoreManager($this->app)->store())->toBeInstanceOf(CacheStore::class);
     });
 
     it('accepts drivers registered through the facade', function (): void {
@@ -147,6 +147,6 @@ describe(StoreManager::class, function (): void {
     it('rejects unknown drivers', function (): void {
         config(['monocle.storage.driver' => 'nope']);
 
-        expect(fn () => (new StoreManager($this->app))->store())->toThrow(InvalidStoreDriverException::class);
+        expect(fn () => new StoreManager($this->app)->store())->toThrow(InvalidStoreDriverException::class);
     });
 });

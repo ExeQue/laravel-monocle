@@ -89,7 +89,7 @@ describe(MailLens::class, function (): void {
     });
 
     it('records no duration for a mail sent without a sending event', function (): void {
-        $email = (new Email())->from('noreply@example.com')->to('ada@example.com')->subject('Direct')->text('Hi');
+        $email = new Email()->from('noreply@example.com')->to('ada@example.com')->subject('Direct')->text('Hi');
         $envelope = new Envelope(new Address('noreply@example.com'), [new Address('ada@example.com')]);
 
         event(new MessageSent(new SentMessage(new SymfonySentMessage($email, $envelope))));

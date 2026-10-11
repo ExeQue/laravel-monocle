@@ -217,4 +217,14 @@ describe(ProcessLens::class, function (): void {
 
         expect(app(ProcessLens::class)->summarize($capture)->errors)->toBe(['Process deploy failed (broken pipe).']);
     });
+
+    it('leaves the output size of a quiet process unknown rather than 0', function (): void {
+        Process::quietly()->run(['php', '-r', 'echo "hello";']);
+
+        $row = app(Eyepiece::class)->finalize()->rows('processes')[0];
+
+        expect($row['output_bytes'])->toBeNull()
+            ->and($row['error_output_bytes'])->toBeNull()
+            ->and($row['successful'])->toBeTrue();
+    });
 });

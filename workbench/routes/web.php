@@ -152,7 +152,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         }
 
         Greeter::fake(['A short, friendly summary.']);
-        $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);
+        $summary = (string) new Greeter()->prompt('Summarize: '.$post->body);
 
         // The model asks for a tool, a sub-agent and a tool that fails; laravel/ai runs them.
         PackingAdvisor::fake(['A raincoat and good shoes.']);
@@ -163,13 +163,13 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
             'Pack an umbrella; 100 DKK is about 13.40 EUR.',
         ]);
         try {
-            (new TripPlanner())->prompt('Plan a weekend in Aarhus.');
+            new TripPlanner()->prompt('Plan a weekend in Aarhus.');
         } catch (RuntimeException) {
             // laravel/ai lets a failing tool end the run; the failed call and agent are recorded.
         }
 
         // Prism, with a tool the workbench provider runs.
-        $packingList = (new PrismTool())->as('packing_list')->for('What to pack for a city')
+        $packingList = new PrismTool()->as('packing_list')->for('What to pack for a city')
             ->withStringParameter('city', 'The city')
             ->using(function (string $city): string {
                 usleep(25_000);
@@ -518,7 +518,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
     Route::get('ai', function () use ($result): View {
         Greeter::fake(['Hello Ada, lovely to meet you!']);
 
-        return $result('Agent call', (string) (new Greeter())->prompt('Say hi to Ada'));
+        return $result('Agent call', (string) new Greeter()->prompt('Say hi to Ada'));
     })->name('ai');
 
     Route::get('prism', function () use ($result): View {

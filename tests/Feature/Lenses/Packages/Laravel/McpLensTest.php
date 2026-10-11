@@ -112,7 +112,7 @@ describe(McpLens::class, function (): void {
         $inner = Mockery::mock(Method::class);
         $inner->shouldReceive('handle')->andReturn(JsonRpcResponse::error(1, -32601, 'Method not found'));
 
-        (new TimedMethod($inner, app(Eyepiece::class), []))->handle(new JsonRpcRequest(1, 'prompts/get', ['name' => 'missing']), mcpContext());
+        new TimedMethod($inner, app(Eyepiece::class), [])->handle(new JsonRpcRequest(1, 'prompts/get', ['name' => 'missing']), mcpContext());
 
         expect(latestCapture()->section('mcp'))->toMatchArray(['method' => 'prompts/get', 'primitive' => 'missing', 'is_error' => true]);
     });

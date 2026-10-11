@@ -199,7 +199,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
             return false;
         }
 
-        $file = (new ReflectionClass($class))->getFileName();
+        $file = new ReflectionClass($class)->getFileName();
 
         return is_string($file) && str_contains(str_replace('\\', '/', $file), '/vendor/');
     }

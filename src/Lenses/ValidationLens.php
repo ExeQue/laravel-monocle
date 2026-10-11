@@ -87,7 +87,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
             return;
         }
 
-        $current = (new ReflectionProperty(Factory::class, 'resolver'))->getValue($factory);
+        $current = new ReflectionProperty(Factory::class, 'resolver')->getValue($factory);
 
         if ($this->isOurResolver($current)) {
             return;

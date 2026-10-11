@@ -55,7 +55,7 @@ describe(AiLens::class, function (): void {
     it('records a faked agent run end to end', function (): void {
         Greeter::fake(['Hello Ada!']);
 
-        $response = (new Greeter())->prompt('Say hi to Ada');
+        $response = new Greeter()->prompt('Say hi to Ada');
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('ai');
@@ -122,8 +122,8 @@ describe(AiLens::class, function (): void {
         $lens->boot($this->app, app(Eyepiece::class));
 
         Greeter::fake(['A very long answer', 'Yo']);
-        (new Greeter())->prompt('Say hi to Ada');
-        (new Greeter())->prompt('Hi');
+        new Greeter()->prompt('Say hi to Ada');
+        new Greeter()->prompt('Hi');
 
         $rows = app(Eyepiece::class)->finalize()->rows('ai');
         $truncated = collect($rows)->firstWhere('response', 'A ver...');

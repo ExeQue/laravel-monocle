@@ -182,7 +182,7 @@ describe(Origin::class, function (): void {
             expect($read(
                 ['function' => 'getRelationshipFromMethod', 'args' => [42]],
                 ['function' => 'getRelationshipFromMethod', 'object' => $model, 'args' => ['comments']],
-            ))->toMatchArray(['call' => $model::class.'->comments', 'line' => (new ReflectionMethod($model, 'comments'))->getStartLine()])
+            ))->toMatchArray(['call' => $model::class.'->comments', 'line' => new ReflectionMethod($model, 'comments')->getStartLine()])
                 ->and($read(['function' => 'getRelationshipFromMethod', 'args' => ['comments']]))->toBe($viaGet)
                 ->and($read(['function' => 'getRelationshipFromMethod', 'class' => 'App\\Models\\Post', 'args' => ['missing']]))->toBe($viaGet)
                 ->and($read())->toBe($viaGet);

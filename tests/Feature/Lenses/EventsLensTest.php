@@ -87,7 +87,7 @@ describe(EventsLens::class, function (): void {
     it('lists no listeners when the dispatcher cannot tell them', function (): void {
         $app = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
         $app->shouldReceive('make')->with(\Illuminate\Contracts\Events\Dispatcher::class)->andReturn(Mockery::mock(\Illuminate\Contracts\Events\Dispatcher::class));
-        (new EventsLens(app(Eyepiece::class)))->boot($app);
+        new EventsLens(app(Eyepiece::class))->boot($app);
 
         event('custom.string', ['hello']);
 
@@ -103,7 +103,7 @@ describe(EventsLens::class, function (): void {
         ]);
         $app = Mockery::mock(\Illuminate\Contracts\Foundation\Application::class);
         $app->shouldReceive('make')->with(\Illuminate\Contracts\Events\Dispatcher::class)->andReturn($dispatcher);
-        (new EventsLens(app(Eyepiece::class)))->boot($app);
+        new EventsLens(app(Eyepiece::class))->boot($app);
 
         event('custom.raw', []);
 

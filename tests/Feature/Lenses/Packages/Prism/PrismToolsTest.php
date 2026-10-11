@@ -58,11 +58,11 @@ describe(TracedProvider::class, function (): void {
     beforeEach(function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
 
-        $this->weather = (new Tool())->as('weather')->for('Weather')->withStringParameter('city', 'City')
+        $this->weather = new Tool()->as('weather')->for('Weather')->withStringParameter('city', 'City')
             ->using(fn (string $city): string => "sunny in {$city}");
-        $this->broken = (new Tool())->as('broken')->for('Breaks')->withStringParameter('city', 'City')
+        $this->broken = new Tool()->as('broken')->for('Breaks')->withStringParameter('city', 'City')
             ->using(fn (string $city): string => throw new RuntimeException('no forecast'));
-        $this->rich = (new Tool())->as('rich')->for('Rich output')->withStringParameter('city', 'City')
+        $this->rich = new Tool()->as('rich')->for('Rich output')->withStringParameter('city', 'City')
             ->using(fn (string $city): ToolOutput => new ToolOutput("rich {$city}"));
     });
 

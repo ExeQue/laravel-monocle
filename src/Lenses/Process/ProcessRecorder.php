@@ -9,6 +9,7 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
+use Illuminate\Process\ProcessResult as IlluminateProcessResult;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -156,6 +157,20 @@ final class ProcessRecorder
     }
 
     /**
+     * Whether the process ran with quietly(), so its output was never kept.
+     * Only a real run knows; a faked result keeps what it was given.
+     */
+    private function outputDisabled(ProcessResult $result): bool
+    {
+        if (! $result instanceof IlluminateProcessResult) {
+            return false;
+        }
+
+        // The Symfony process is a protected property of the result.
+        return (fn (): bool => $this->process->isOutputDisabled())->call($result);
+    }
+
+    /**
      * Output length, or null when unknown or disabled with quietly().
      *
      * @param  'output'|'errorOutput'  $stream
@@ -163,6 +178,11 @@ final class ProcessRecorder
     private function bytes(?ProcessResult $result, string $stream): ?int
     {
         if ($result === null) {
+            return null;
+        }
+
+        // Laravel reports a quiet process's output as '', which would read as 0 bytes.
+        if ($this->outputDisabled($result)) {
             return null;
         }
 

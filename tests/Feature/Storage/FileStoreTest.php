@@ -47,7 +47,7 @@ describe(FileStore::class, function (): void {
     it('clears nothing when the directory does not exist yet', function () use ($directory): void {
         $path = $directory();
 
-        (new FileStore($path, 3, sys_get_temp_dir()))->clear();
+        new FileStore($path, 3, sys_get_temp_dir())->clear();
 
         expect(is_dir($path))->toBeFalse();
     });
@@ -70,7 +70,7 @@ describe(FileStore::class, function (): void {
         file_put_contents($blocker, 'a file where a directory should be');
 
         try {
-            expect(fn () => (new FileStore($blocker.'/store', 3, sys_get_temp_dir()))->put($capture('c1')))
+            expect(fn () => new FileStore($blocker.'/store', 3, sys_get_temp_dir())->put($capture('c1')))
                 ->toThrow(RuntimeException::class, 'could not create the storage directory');
         } finally {
             unlink($blocker);

@@ -240,11 +240,11 @@ describe(PrismLens::class, function (): void {
     it('overrides every public method a Prism provider declares', function (): void {
         $declared = array_map(
             fn (ReflectionMethod $method): string => $method->getName(),
-            (new ReflectionClass(Provider::class))->getMethods(ReflectionMethod::IS_PUBLIC),
+            new ReflectionClass(Provider::class)->getMethods(ReflectionMethod::IS_PUBLIC),
         );
 
         foreach ($declared as $method) {
-            expect((new ReflectionMethod(TracedProvider::class, $method))->getDeclaringClass()->getName())
+            expect(new ReflectionMethod(TracedProvider::class, $method)->getDeclaringClass()->getName())
                 ->toBe(TracedProvider::class, "TracedProvider does not override {$method}()");
         }
     });

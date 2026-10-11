@@ -258,7 +258,7 @@ describe(QueueLens::class, function (): void {
         $dispatcher->shouldNotReceive('pipeThrough');
         app()->instance(BusDispatcher::class, $dispatcher);
 
-        (new QueueLens(app(Eyepiece::class)))->boot(app());
+        new QueueLens(app(Eyepiece::class))->boot(app());
 
         expect(app(BusDispatcher::class))->toBe($dispatcher);
     });

@@ -88,7 +88,7 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
         $dumper = new CliDumper();
         $dumper->setColors(false);
 
-        $cloned = (new VarCloner())->cloneVar($value);
+        $cloned = new VarCloner()->cloneVar($value);
         $text = (string) $dumper->dump($cloned, true);
 
         $this->eyepiece->push('dumps', [

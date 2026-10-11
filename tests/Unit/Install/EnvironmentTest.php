@@ -22,10 +22,10 @@ describe(Environment::class, function (): void {
     });
 
     it('detects WSL from the Linux kernel', function (): void {
-        expect((new Environment('Linux', [$this->wsl]))->isWsl())->toBeTrue()
-            ->and((new Environment('Linux', ['/missing', $this->wsl]))->isWsl())->toBeTrue()
-            ->and((new Environment('Linux', [$this->plain]))->isWsl())->toBeFalse()
-            ->and((new Environment('Linux', ['/missing']))->isWsl())->toBeFalse();
+        expect(new Environment('Linux', [$this->wsl])->isWsl())->toBeTrue()
+            ->and(new Environment('Linux', ['/missing', $this->wsl])->isWsl())->toBeTrue()
+            ->and(new Environment('Linux', [$this->plain])->isWsl())->toBeFalse()
+            ->and(new Environment('Linux', ['/missing'])->isWsl())->toBeFalse();
     });
 
     it('never reports WSL on macOS or Windows', function (string $os): void {
@@ -36,17 +36,17 @@ describe(Environment::class, function (): void {
     })->with(['Darwin', 'Windows']);
 
     it('reads the distro name from the WSL shell', function (): void {
-        expect((new Environment('Linux', [], ['WSL_DISTRO_NAME' => 'Ubuntu']))->wslDistro())->toBe('Ubuntu')
-            ->and((new Environment('Linux', [], ['WSL_DISTRO_NAME' => '']))->wslDistro())->toBeNull()
-            ->and((new Environment('Linux', [], []))->wslDistro())->toBeNull();
+        expect(new Environment('Linux', [], ['WSL_DISTRO_NAME' => 'Ubuntu'])->wslDistro())->toBe('Ubuntu')
+            ->and(new Environment('Linux', [], ['WSL_DISTRO_NAME' => ''])->wslDistro())->toBeNull()
+            ->and(new Environment('Linux', [], [])->wslDistro())->toBeNull();
     });
 
     it('knows when it runs inside a container', function (): void {
         $marker = sys_get_temp_dir().'/monocle-dockerenv-'.bin2hex(random_bytes(4));
         touch($marker);
 
-        expect((new Environment('Linux', [], [], [$marker]))->inContainer())->toBeTrue()
-            ->and((new Environment('Linux', [], [], ['/missing/.dockerenv']))->inContainer())->toBeFalse();
+        expect(new Environment('Linux', [], [], [$marker])->inContainer())->toBeTrue()
+            ->and(new Environment('Linux', [], [], ['/missing/.dockerenv'])->inContainer())->toBeFalse();
 
         unlink($marker);
     });

@@ -23,7 +23,7 @@ describe(TimelineBuilder::class, function (): void {
             $capture->spans[$id] = $span;
         }
 
-        $rows = array_column((new TimelineBuilder())->build($capture), null, 'id');
+        $rows = array_column(new TimelineBuilder()->build($capture), null, 'id');
 
         expect($rows['stopped'])->not->toHaveKey('ended_by')
             ->and($rows['cut']['ended_by'])->toBe('capture-end');

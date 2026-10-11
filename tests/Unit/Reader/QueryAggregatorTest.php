@@ -18,7 +18,7 @@ describe(QueryAggregator::class, function (): void {
             ['n' => 2, 'sql' => 'select 2', 'duration' => 1.0, 'origin' => ['file' => 'app/A.php', 'line' => 3]],
         ]];
 
-        $groups = (new QueryAggregator())->group($capture, 'caller');
+        $groups = new QueryAggregator()->group($capture, 'caller');
 
         expect(array_column($groups, 'key'))->toBe(['unknown', 'app/A.php:3']);
     });

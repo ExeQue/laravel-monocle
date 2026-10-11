@@ -11,6 +11,9 @@
         "ordered_imports": true,
         "multiline_promoted_properties": {
             "minimum_number_of_parameters": 1
+        },
+        "new_expression_parentheses": {
+            "use_parentheses": false
         }
     }
 }

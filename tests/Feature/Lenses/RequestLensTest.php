@@ -436,7 +436,7 @@ describe(RequestLens::class, function (): void {
             $terminating = $callback;
         });
 
-        (new RequestLens(app(Eyepiece::class)))->boot($app);
+        new RequestLens(app(Eyepiece::class))->boot($app);
 
         $phases = app(Eyepiece::class)->active()->spansOfKind('phase');
 
@@ -518,7 +518,7 @@ describe(RequestLens::class, function (): void {
 
     it('describes bound models as Class#key and other objects by their class', function () use ($handle): void {
         $capture = $handle(route: new RoutingRoute(['GET'], '/things', fn () => 'ok'), parameters: [
-            'thing' => (new Thing())->forceFill(['id' => 5]),
+            'thing' => new Thing()->forceFill(['id' => 5]),
             'options' => new ArrayObject(['compact']),
         ]);
 

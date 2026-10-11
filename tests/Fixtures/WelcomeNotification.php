@@ -19,6 +19,6 @@ final class WelcomeNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())->subject('Welcome aboard')->line('Hello there.');
+        return new MailMessage()->subject('Welcome aboard')->line('Hello there.');
     }
 }

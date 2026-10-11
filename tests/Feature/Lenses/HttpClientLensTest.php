@@ -94,7 +94,7 @@ describe(HttpClientLens::class, function (): void {
     });
 
     it('splits cURL transfer stats into phases', function (): void {
-        $timing = (new ReflectionMethod(HttpClientLens::class, 'timing'))->invoke(app(HttpClientLens::class), [
+        $timing = new ReflectionMethod(HttpClientLens::class, 'timing')->invoke(app(HttpClientLens::class), [
             'namelookup_time' => 0.004, 'connect_time' => 0.014, 'appconnect_time' => 0.044, 'pretransfer_time' => 0.0441,
             'starttransfer_time' => 0.244, 'total_time' => 0.25, 'redirect_time' => 0.0, 'redirect_count' => 0,
             'primary_ip' => '93.184.216.34', 'primary_port' => 443, 'http_version' => CURL_HTTP_VERSION_2_0,
@@ -104,7 +104,7 @@ describe(HttpClientLens::class, function (): void {
             'dns' => 4.0, 'connect' => 10.0, 'tls' => 30.0, 'wait' => 199.9, 'download' => 6.0,
             'remote' => '93.184.216.34:443', 'protocol' => 'HTTP/2',
         ])
-            ->and((new ReflectionMethod(HttpClientLens::class, 'timing'))->invoke(app(HttpClientLens::class), []))->toBeNull();
+            ->and(new ReflectionMethod(HttpClientLens::class, 'timing')->invoke(app(HttpClientLens::class), []))->toBeNull();
     });
 
     it('records every request sent in a pool', function (): void {

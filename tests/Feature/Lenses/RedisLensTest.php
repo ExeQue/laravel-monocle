@@ -60,7 +60,7 @@ describe(RedisLens::class, function (): void {
         $app->shouldNotReceive('make');
         $listeners = count(app('events')->getListeners(CommandExecuted::class));
 
-        (new RedisLens(app(Eyepiece::class)))->boot($app);
+        new RedisLens(app(Eyepiece::class))->boot($app);
 
         expect(app('events')->getListeners(CommandExecuted::class))->toHaveCount($listeners);
     });
@@ -71,7 +71,7 @@ describe(RedisLens::class, function (): void {
         $app->shouldReceive('make')->with('redis')->andThrow(new RuntimeException('no redis extension'));
         $listeners = count(app('events')->getListeners(CommandExecuted::class));
 
-        (new RedisLens(app(Eyepiece::class)))->boot($app);
+        new RedisLens(app(Eyepiece::class))->boot($app);
 
         expect(app('events')->getListeners(CommandExecuted::class))->toHaveCount($listeners);
     });

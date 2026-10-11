@@ -20,8 +20,8 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->link('\\'.TimelinePresenter::class.'->present'))->toContain('TimelinePresenter.php:')
             ->and($presenter->link(TimelinePresenter::class.'@present'))->toContain('TimelinePresenter.php:')
             ->and($presenter->link(TimelinePresenter::class.'#12'))->toContain('TimelinePresenter.php:')
-            ->and($presenter->link('\\'.TimelinePresenter::class.'->present'))->toEndWith(':'.(new ReflectionMethod(TimelinePresenter::class, 'present'))->getStartLine())
-            ->and($presenter->link(TimelinePresenter::class.'::present'))->not->toEndWith(':'.(new ReflectionClass(TimelinePresenter::class))->getStartLine())
+            ->and($presenter->link('\\'.TimelinePresenter::class.'->present'))->toEndWith(':'.new ReflectionMethod(TimelinePresenter::class, 'present')->getStartLine())
+            ->and($presenter->link(TimelinePresenter::class.'::present'))->not->toEndWith(':'.new ReflectionClass(TimelinePresenter::class)->getStartLine())
             ->and($presenter->link('app/Models/User.php:12'))->toBe('vscode://file/app/app/Models/User.php:12')
             ->and($presenter->link('resources\\views\\page.blade.php'))->toBe('vscode://file/app/resources/views/page.blade.php:1')
             ->and($presenter->link('https://example.com/a.js'))->toBeNull()
@@ -44,7 +44,7 @@ describe(TimelinePresenter::class, function (): void {
             'app/Livewire/Gallery.php:44' => 'vscode://file/app/app/Livewire/Gallery.php:44',
             TimelinePresenter::class.'->present' => $presenter->link(TimelinePresenter::class.'->present'),
         ])
-            ->and((new TimelinePresenter(new EditorLinks(null, '/app')))->textLinks($warning))->toBe([])
+            ->and(new TimelinePresenter(new EditorLinks(null, '/app'))->textLinks($warning))->toBe([])
             ->and($presenter->textLinks('HTTP call failed: POST https://hooks.example.invalid/published (see https://curl.se/libcurl/c/libcurl-errors.html)'))->toBe([]);
     });
 
