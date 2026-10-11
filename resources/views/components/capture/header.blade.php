@@ -128,6 +128,12 @@
                 x-show="t.count"
                 x-text="t.count"
             ></span>
+            <span
+                class="text-warn font-mono text-xs font-bold"
+                x-show="t.problems"
+                :data-tip="t.problems + (t.problems === 1 ? ' problem found' : ' problems found')"
+                :aria-label="t.problems + (t.problems === 1 ? ' problem found' : ' problems found')"
+            >!</span>
         </button>
     </template>
 </nav>

@@ -44,7 +44,6 @@
                                         cls.td,
                                         numeric(col) && '!text-right tabular-nums',
                                         ! longValue(row[col]) && '![overflow-wrap:break-word]',
-                                        col === 'origin' && 'min-w-56',
                                         ['model', 'action', 'key', 'type'].includes(col) && 'whitespace-nowrap',
                                         narrow(col) && 'w-0 whitespace-nowrap',
                                     ]"

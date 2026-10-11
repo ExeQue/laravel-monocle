@@ -48,15 +48,22 @@ final class SummaryBuilder
             'memory_peak_mb' => isset($capture->health['memory_peak_bytes']) ? round($capture->health['memory_peak_bytes'] / 1048576, 1) : null,
         ];
         $warnings = [];
+        $problems = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
             $totals = [...$totals, ...($contribution['totals'] ?? [])];
-            $warnings = [...$warnings, ...array_values($contribution['warnings'] ?? [])];
+            $flagged = array_values($contribution['warnings'] ?? []);
+            $warnings = [...$warnings, ...$flagged];
+
+            if ($flagged !== []) {
+                $problems[$summarizer->key()] = ($problems[$summarizer->key()] ?? 0) + count($flagged);
+            }
         }
 
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {
             $warnings[] = "Response status {$capture->status}.";
+            $problems['request'] = ($problems['request'] ?? 0) + 1;
         }
 
         foreach ((array) ($capture->health['failures'] ?? []) as $failure) {
@@ -92,6 +99,7 @@ final class SummaryBuilder
             'totals' => $totals,
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
+            'problems' => $problems,
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],
         ];

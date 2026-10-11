@@ -36,7 +36,7 @@ export function columnLabel(col) {
 
 /** Columns that only hold a short word or code and take as little width as they can. */
 export function narrow(key) {
-  return ['method', 'status'].includes(key);
+  return ['method', 'status', 'origin'].includes(key);
 }
 
 export function numeric(key) {

@@ -9,7 +9,7 @@
                     <th scope="col" :class="cls.th">Guard</th>
                     <th scope="col" :class="cls.th">User</th>
                     <th scope="col" :class="cls.th">Details</th>
-                    <th scope="col" :class="cls.th">Origin</th>
+                    <th scope="col" :class="cls.th" class="w-0 whitespace-nowrap">Origin</th>
                 </tr>
             </thead>
             <tbody>
@@ -36,7 +36,7 @@
                                     .join(' · ')
                             "
                         ></td>
-                        <td :class="cls.td" x-html="cell(row, 'origin')"></td>
+                        <td :class="cls.td" class="w-0 whitespace-nowrap" x-html="cell(row, 'origin')"></td>
                     </tr>
                 </template>
             </tbody>

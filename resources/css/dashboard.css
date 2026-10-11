@@ -74,15 +74,23 @@
   [x-cloak] { display: none !important; }
 }
 
-/* Scrollbars stay out of sight until the area is hovered or reached by keyboard, then show in bronze. */
+/* Scrollbars stay out of sight until the area is hovered or reached by keyboard, then fade in, in bronze. */
+@property --scroll-thumb {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 @utility scroll-quiet {
+  --scroll-thumb: transparent;
   scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-  &:hover, &:focus-visible, &:has(:focus-visible) { scrollbar-color: var(--brass) transparent; }
+  scrollbar-color: var(--scroll-thumb) transparent;
+  transition: --scroll-thumb 0.25s ease;
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+  &:hover, &:focus-visible, &:has(:focus-visible) { --scroll-thumb: var(--brass); }
   &::-webkit-scrollbar { width: 8px; height: 8px; }
   &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: transparent; border-radius: 8px; }
-  &:hover::-webkit-scrollbar-thumb, &:focus-visible::-webkit-scrollbar-thumb, &:has(:focus-visible)::-webkit-scrollbar-thumb { background: var(--brass); }
+  &::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; }
   &::-webkit-scrollbar-thumb:hover { background: var(--brass-2); }
 }
 

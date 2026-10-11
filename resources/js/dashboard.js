@@ -307,19 +307,20 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   get tabs() {
     if (!this.capture) return [];
     const counts = this.capture.summary?.counts ?? {};
+    const problems = this.capture.summary?.problems ?? {};
     const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
     const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key && s.rows !== 0);
     const isRequest = this.summary.type === 'request';
-    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request' });
+    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request', problems: problems.request ?? 0 });
     if (isRequest && has('session')) tabs.push({ key: 'session', label: 'Session' });
     const skip = isRequest ? [...SKIP_SECTIONS, 'auth'] : SKIP_SECTIONS;
-    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries });
+    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries, problems: problems.queries ?? 0 });
     const sections = (this.capture.available_sections ?? []).filter((s) => !skip.includes(s.key) && s.rows);
     // Model changes are shown in the Models tab, under the counts.
     const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
     if (changes && !sections.some((s) => s.key === 'models')) sections.push({ ...changes, key: 'models', rows: 0 });
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
-      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows || changes?.rows, description: s.description });
+      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key] ?? 0 });
     }
     if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
