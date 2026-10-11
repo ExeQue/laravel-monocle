@@ -78,8 +78,7 @@ describe(InstallCommand::class, function (): void {
         $config = include config_path('monocle.php');
 
         expect($config['storage']['limit'])->toBe(42)
-            ->and($config['storage']['driver'])->toBe('cache')
-            ->and(file_get_contents(base_path('.gitignore')))->not->toContain('/config/monocle.php');
+            ->and($config['storage']['driver'])->toBe('cache');
     });
 
     it('asks for every choice interactively and publishes the result', function (): void {
@@ -89,14 +88,12 @@ describe(InstallCommand::class, function (): void {
             ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
             ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'yes')
-            ->expectsConfirmation('Keep config/monocle.php out of git?', 'yes')
             ->expectsOutputToContain('herd php artisan mcp:start monocle')
             ->assertSuccessful();
 
         $config = include config_path('monocle.php');
 
-        expect(file_get_contents(base_path('.gitignore')))->toContain('/config/monocle.php')
-            ->and($config['storage']['limit'])->toBe(75)
+        expect($config['storage']['limit'])->toBe(75)
             ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'headers' => ['X-Inertia' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'routes' => ['*livewire.update' => ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class]]])
             ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->not->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
@@ -130,7 +127,6 @@ describe(InstallCommand::class, function (): void {
             ->expectsChoice('How does your MCP client start PHP?', 'php', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
             ->expectsChoice('Register the MCP server in', ['boost'], ['boost' => 'Laravel Boost agents (claude_code)', '.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'no')
-            ->expectsConfirmation('Keep config/monocle.php out of git?', 'no')
             ->expectsOutputToContain('Boost: claude_code')
             ->assertSuccessful();
 

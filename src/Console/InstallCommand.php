@@ -68,7 +68,7 @@ final class InstallCommand extends Command
             $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
         }
 
-        $this->ignoreFiles($gitignore, $ide, $basePath, $choices['driver'] === 'file', $choices['ignore_config'], $dryRun);
+        $this->ignoreFiles($gitignore, $ide, $basePath, $choices['driver'] === 'file', $dryRun);
 
         $next = [
             'Restart your MCP client so it picks up the new server.',
@@ -86,7 +86,7 @@ final class InstallCommand extends Command
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, ignore_config: bool}
+     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool}
      */
     private function askChoices(BoostAgents $boost): array
     {
@@ -105,7 +105,6 @@ final class InstallCommand extends Command
             ->select('How does your MCP client start PHP?', $platforms, $this->option('platform') ?: $detected->value, name: 'platform')
             ->multiselect('Register the MCP server in', $targets, $this->option('file') ?: $this->defaultTargets($boost), required: true, name: 'files')
             ->confirm('Publish config/monocle.php with these choices?', true, name: 'publish')
-            ->confirm('Keep config/monocle.php out of git?', false, hint: 'For a setup each developer keeps for themselves.', name: 'ignore_config')
             ->submit();
 
         return [
@@ -114,12 +113,11 @@ final class InstallCommand extends Command
             'platform' => (string) $answers['platform'],
             'files' => array_values($answers['files']),
             'publish' => (bool) $answers['publish'],
-            'ignore_config' => (bool) $answers['ignore_config'],
         ];
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, ignore_config: bool}
+     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool}
      */
     private function choicesFromOptions(BoostAgents $boost): array
     {
@@ -128,7 +126,6 @@ final class InstallCommand extends Command
             'platform' => (string) ($this->option('platform') ?: Platform::detect($this->laravel->basePath())->value),
             'files' => array_values((array) $this->option('file')) ?: $this->defaultTargets($boost),
             'publish' => (bool) $this->option('publish'),
-            'ignore_config' => (bool) $this->option('ignore-config'),
         ];
     }
 
@@ -166,19 +163,18 @@ final class InstallCommand extends Command
     }
 
     /**
-     * Keep the personal editor settings, the captures (with the file store)
-     * and, when asked, the config out of version control; keep the captures
-     * out of the IDE's index too.
+     * Keep the personal editor settings and, with the file store, the
+     * captures out of version control; keep the captures out of the IDE's
+     * index too.
      */
-    private function ignoreFiles(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $fileStore, bool $ignoreConfig, bool $dryRun): void
+    private function ignoreFiles(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $fileStore, bool $dryRun): void
     {
         $config = $this->laravel->make('config');
         $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
         $base = rtrim($basePath, '/').'/';
         $storage = $fileStore && str_starts_with($path, $base) ? substr($path, strlen($base)) : null;
 
-        $configFile = $ignoreConfig ? substr($this->laravel->configPath('monocle.php'), strlen($base)) : null;
-        $result = $gitignore->add($base.'.gitignore', array_values(array_filter([$storage === null ? null : $storage.'/', EditorSettings::FILE, $configFile])), $dryRun);
+        $result = $gitignore->add($base.'.gitignore', array_filter([$storage === null ? null : $storage.'/', EditorSettings::FILE]), $dryRun);
         $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
 
         if ($storage === null) {
@@ -196,7 +192,6 @@ final class InstallCommand extends Command
             new InputOption('platform', null, InputOption::VALUE_REQUIRED, 'Override detection: sail|lerd|herd|php'),
             new InputOption('file', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Where to register the MCP server: "boost" for every Laravel Boost agent, or a config file relative to the project root. Default: boost when boost.json exists, otherwise .mcp.json'),
             new InputOption('publish', null, InputOption::VALUE_NONE, 'Publish config/monocle.php (non-interactive runs skip it unless this is set)'),
-            new InputOption('ignore-config', null, InputOption::VALUE_NONE, 'Add config/monocle.php to .gitignore'),
             new InputOption('driver', null, InputOption::VALUE_REQUIRED, 'Storage driver for captures: file|cache'),
             new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'How many captures to keep'),
             new InputOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be written without touching files'),
