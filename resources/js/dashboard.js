@@ -103,6 +103,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const fromHash = location.hash.replace(/^#/, '').split('/');
     if (fromHash[0]) { this.selectedId = fromHash[0]; this.tab = fromHash[1] || 'overview'; }
     this.load();
+    // A link or an edited address opens that capture and tab; our own replaceState calls do not fire this.
+    addEventListener('hashchange', () => {
+      const [id, tab = 'overview'] = location.hash.replace(/^#/, '').split('/');
+      if (!id) return;
+      if (id !== this.selectedId) this.select(id, tab);
+      else if (tab !== this.tab) this.openTab(tab);
+    });
     setInterval(() => this.live && !document.hidden && this.load(true), 2500);
     this.$watch('filters', () => this.load(), { deep: true });
     addEventListener('keydown', (e) => {

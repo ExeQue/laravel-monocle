@@ -54,7 +54,7 @@
         </div>
     </div>
     <div class="grid min-w-0 content-start gap-6">
-        <div x-data="{ all: false }">
+        <div x-data="{ all: false }" x-init="$watch('selectedId', () => (all = false))">
             <h3 class="flex items-center gap-1.5" :class="cls.sectionTitle">
                 Warnings / Errors
                 <x-monocle::badge count="summary.warnings?.length ?? 0" class="bg-warn-soft text-warn" />

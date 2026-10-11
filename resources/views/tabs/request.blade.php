@@ -10,9 +10,8 @@
                 <x-monocle::kv-table rows="dot(request.query)" />
             </x-monocle::section>
 
-            <x-monocle::section title="Payload">
+            <x-monocle::section title="Payload" show="dot(request.input).length || request.files?.length">
                 <x-monocle::kv-table rows="dot(request.input)" x-show="dot(request.input).length" />
-                <p :class="cls.empty" x-show="! dot(request.input).length && ! request.files?.length">No body.</p>
                 <div class="mt-3" :class="cls.tableWrap" x-show="request.files?.length">
                     <table class="w-full border-collapse text-[13px]">
                         <thead>
