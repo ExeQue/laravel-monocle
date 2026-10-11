@@ -428,6 +428,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
     Route::get('inertia', fn () => Inertia::render('Dashboard', [
         'user' => ['name' => 'Ada'],
         'posts' => Post::query()->limit(3)->pluck('title'),
+        'greeting' => fn () => '',
         'stats' => Inertia::defer(fn (): array => ['posts' => Post::query()->count()]),
         'activity' => Inertia::defer(fn (): array => ['today' => 3], 'sidebar'),
         'filters' => Inertia::optional(fn (): array => ['status' => 'open']),
