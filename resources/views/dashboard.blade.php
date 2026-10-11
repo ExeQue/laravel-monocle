@@ -709,7 +709,8 @@
                                                         <td
                                                             :class="cls.td"
                                                             class="text-muted w-56 font-mono text-xs"
-                                                            x-text="k"
+                                                            :data-tip="k.length > 40 ? k : ''"
+                                                            x-text="k.length > 40 ? k.slice(0, 40) + '…' : k"
                                                         ></td>
                                                         <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
                                                     </tr>
@@ -1226,7 +1227,7 @@
                                                     :class="[
                                                         cls.td,
                                                         numeric(col) && '!text-right tabular-nums',
-                                                        longValue(row[col]) && '[overflow-wrap:anywhere]',
+                                                        ! longValue(row[col]) && '![overflow-wrap:break-word]',
                                                         col === 'origin' && 'min-w-56',
                                                     ]"
                                                     x-html="cell(row, col)"

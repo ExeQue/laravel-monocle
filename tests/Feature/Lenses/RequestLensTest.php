@@ -90,6 +90,17 @@ describe(RequestLens::class, function (): void {
             ->and($cookies[config('session.cookie')])->not->toBe('session-id-value');
     });
 
+    it('keeps the raw value of cookies the application could not decrypt', function (): void {
+        Route::middleware('web')->get('/cookies', fn () => 'ok');
+
+        $this->withUnencryptedCookie('appearance', 'dark')
+            ->withHeader('Cookie', 'appearance=dark')
+            ->get('/cookies')
+            ->assertOk();
+
+        expect(latestCapture()->section('request')['cookies']['appearance'])->toBe('dark');
+    });
+
     it('keeps bodies only for the configured content types', function (): void {
         $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens);
         Route::get('/html', fn () => '<p>hi</p>');

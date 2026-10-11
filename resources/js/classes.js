@@ -9,7 +9,7 @@ export const cls = {
   empty: 'rounded-md border border-dashed border-line p-6 text-center text-muted',
   tableWrap: 'scroll-quiet overflow-x-auto rounded-md border border-line bg-panel',
   th: 'whitespace-nowrap border-b border-line bg-sunk px-3 py-2 text-left text-xs font-medium text-muted',
-  td: 'border-b border-line px-3 py-2 align-top break-words [tr:last-child>&]:border-b-0',
+  td: 'border-b border-line px-3 py-2 align-top [overflow-wrap:anywhere] [tr:last-child>&]:border-b-0',
   origin: 'block font-mono text-[11.5px] text-brass',
 };
 

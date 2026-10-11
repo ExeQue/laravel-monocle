@@ -427,11 +427,38 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         $sensitive = [(string) $this->app->make('config')->get('session.cookie'), 'XSRF-TOKEN'];
         $cookies = [];
 
+        $raw = $this->rawCookies($request);
+
         foreach ($request->cookies->all() as $name => $value) {
+            // Cookies the application could not decrypt (unencrypted ones, or another app's on the same host) keep their raw value.
+            if ($value === null && isset($raw[$name])) {
+                $value = Str::limit($raw[$name], 80);
+            }
+
             $cookies[$name] = in_array($name, $sensitive, true) ? $masker->mask($value, (string) $name) : $value;
         }
 
         return $masker->inputs($cookies);
+    }
+
+    /**
+     * The cookies as the browser sent them, before decryption.
+     *
+     * @return array<string, string>
+     */
+    private function rawCookies(Request $request): array
+    {
+        $cookies = [];
+
+        foreach (explode(';', (string) $request->headers->get('Cookie')) as $pair) {
+            [$name, $value] = array_pad(explode('=', trim($pair), 2), 2, '');
+
+            if ($name !== '') {
+                $cookies[str_replace('.', '_', rawurldecode($name))] = rawurldecode($value);
+            }
+        }
+
+        return $cookies;
     }
 
     /**

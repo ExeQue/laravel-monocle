@@ -16,6 +16,8 @@ const originHtml = (o) => !o || !o.file ? '' : `
     ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
+const placeholdersHtml = (sql) => `<div class="${SEC}"><div class="${K}">Query with placeholders</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(sql)}</pre></div>`;
+
 function metaRows(meta) {
   const links = meta._links ?? {};
   return Object.entries(meta)
@@ -44,6 +46,7 @@ function nodeDetails(model, n) {
       ${n.children.length ? `<div class="grid gap-0.5"><span class="${K}">Children</span><b class="tabular-nums">${n.children.length}</b></div>` : ''}
     </div>
     ${d.sql ? `<div class="${SEC}"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(d.sql)}</pre></div>` : ''}
+    ${d.placeholders ? placeholdersHtml(d.placeholders) : ''}
     ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${n.redis?.length ? `<div class="${SEC}"><div class="${K}">Redis commands</div>${n.redis.map((r) => `<div class="${SUB} font-mono">${esc(r.name)} <span class="tabular-nums">${ms(r.e - r.s)}</span></div>`).join('')}</div>` : ''}
     ${originHtml(d.origin)}`;
@@ -59,6 +62,7 @@ export function rowDetails(row, section) {
     <div class="flex items-center gap-2"><span class="${cls.type}">${esc(section)}</span>${row.n ? `<span class="font-mono text-[11px] text-muted">#${esc(row.n)}</span>` : ''}<button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
     ${sql ? '' : `<div class="font-semibold [overflow-wrap:anywhere]">${esc(String(title))}</div>`}
     ${sql ? `<div class="${SEC} border-t-0 pt-0"><div class="${K}">Query</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(sql)}</pre></div>` : ''}
+    ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
     ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${originHtml(row.origin)}`;
 }

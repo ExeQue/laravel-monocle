@@ -95,6 +95,7 @@ final readonly class TimelinePresenter
             'e' => round($start + (float) ($row['duration'] ?? 0), 3),
             'd' => [
                 'sql' => $row['sql_with_bindings'] ?? null,
+                'placeholders' => isset($row['sql_with_bindings'], $row['sql']) && $row['sql'] !== $row['sql_with_bindings'] ? $row['sql'] : null,
                 'meta' => $this->meta(array_diff_key($row, array_flip(self::HIDDEN_KEYS))),
                 'origin' => $this->origin($row['origin'] ?? null),
             ],

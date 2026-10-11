@@ -480,11 +480,11 @@ Alpine.data('monocle', (config) => ({
     const frames = q.origin?.frames ?? [];
 
     return `<div class="grid gap-3 text-xs">
+      <div class="grid gap-1"><div class="${label}">Query with placeholders</div><code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql ?? '')}</code></div>
       <div class="grid gap-1"><div class="${label}">Bindings</div>${bindings.length
         ? `<table class="w-auto border-collapse"><tbody>${bindings.map((b, i) => `<tr><td class="pr-3 font-mono text-muted tabular-nums">?${i + 1}</td><td class="font-mono [overflow-wrap:anywhere]">${b === null ? '<span class="text-muted">null</span>' : esc(fmtValue(b))}</td></tr>`).join('')}</tbody></table>`
         : '<span class="text-muted">none</span>'}</div>
       <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1">${facts.map(([k, v]) => `<dt class="text-muted">${k}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${esc(String(v))}</dd>`).join('')}</dl>
-      <div class="grid gap-1"><div class="${label}">Query with placeholders</div><code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql ?? '')}</code></div>
       ${frames.length ? `<div class="grid gap-1"><div class="${label}">Call chain</div><ol class="m-0 grid list-decimal gap-0.5 pl-5">${frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></div>` : ''}
     </div>`;
   },
