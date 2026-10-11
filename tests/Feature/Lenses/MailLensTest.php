@@ -49,10 +49,10 @@ describe(MailLens::class, function (): void {
 
         $summary = app(MailLens::class)->summarize($capture);
 
-        expect($summary['totals'])->toBe(['mail_sent' => 1, 'notifications_sent' => 1]);
+        expect($summary->totals())->toBe(['mail_sent' => 1, 'notifications_sent' => 1]);
     });
 
     it('summarizes nothing without mail', function (): void {
-        expect(app(MailLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(MailLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
     });
 });

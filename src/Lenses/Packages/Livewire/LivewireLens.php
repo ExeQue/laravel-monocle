@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -131,12 +132,12 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
         $this->spans = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('livewire');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $calls = 0;
@@ -150,10 +151,10 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
             }
         }
 
-        return [
-            'totals' => ['livewire_components' => count($rows), 'livewire_calls' => $calls],
-            'warnings' => $warnings,
-        ];
+        return new Summary(
+            totals: ['livewire_components' => count($rows), 'livewire_calls' => $calls],
+            warnings: $warnings,
+        );
     }
 
     private function hook(string $event, callable $callback): void

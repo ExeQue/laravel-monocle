@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Laravel\Mcp\Server\Contracts\Method;
@@ -82,29 +83,29 @@ final class McpLens implements Advises, Lens, Presentable, Summarizable
         }
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('mcp');
         $own = $capture->section('mcp');
 
         if ($rows === [] && $own === []) {
-            return [];
+            return new Summary();
         }
 
         $calls = $rows === [] ? [$own] : $rows;
         $errors = array_filter($calls, fn (array $row): bool => (bool) ($row['is_error'] ?? false));
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'mcp_calls' => count($calls),
                 'mcp_errors' => count($errors),
                 'mcp_ms' => round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3),
             ],
-            'warnings' => array_map(
+            warnings: array_map(
                 fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
                 array_slice(array_values($errors), 0, 3),
             ),
-        ];
+        );
     }
 
     public function presentation(): Presentation

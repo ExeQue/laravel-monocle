@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
@@ -56,24 +57,24 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
         ]));
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('scheduled_tasks');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $failed = array_filter($rows, fn (array $row): bool => $row['outcome'] === 'failed');
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'scheduled_tasks_run' => count(array_filter($rows, fn (array $row): bool => str_starts_with($row['outcome'], 'finished'))),
                 'scheduled_tasks_skipped' => count(array_filter($rows, fn (array $row): bool => $row['outcome'] === 'skipped')),
                 'scheduled_tasks_failed' => count($failed),
             ],
-            'warnings' => array_map(fn (array $row): string => "Scheduled task failed: {$row['command']}", array_values($failed)),
-        ];
+            warnings: array_map(fn (array $row): string => "Scheduled task failed: {$row['command']}", array_values($failed)),
+        );
     }
 
     /**

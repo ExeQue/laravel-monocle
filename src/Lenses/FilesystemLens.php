@@ -11,6 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Filesystem\MonocleFilesystemManager;
 use Illuminate\Contracts\Foundation\Application;
@@ -70,12 +71,12 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
         Storage::clearResolvedInstance('filesystem');
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('filesystem');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $read = 0;
@@ -101,16 +102,16 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             }
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'filesystem_ops' => count($rows),
                 'filesystem_ms' => round($ms, 3),
                 'filesystem_bytes_read' => $read,
                 'filesystem_bytes_written' => $written,
                 'filesystem_by_disk' => $byDisk,
             ],
-            'warnings' => array_slice($failed, 0, 3),
-        ];
+            warnings: array_slice($failed, 0, 3),
+        );
     }
 
     public function presentation(): Presentation

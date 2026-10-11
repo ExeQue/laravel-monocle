@@ -52,8 +52,8 @@ final class SummaryBuilder
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
-            $totals = [...$totals, ...($contribution['totals'] ?? [])];
-            $flagged = array_values($contribution['warnings'] ?? []);
+            $totals = [...$totals, ...$contribution->totals()];
+            $flagged = $contribution->warnings();
             $warnings = [...$warnings, ...$flagged];
 
             if ($flagged !== []) {

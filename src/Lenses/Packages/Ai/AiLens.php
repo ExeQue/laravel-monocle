@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -102,12 +103,12 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
         $this->usage = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('ai');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $tokens = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
@@ -133,15 +134,15 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
             }
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'ai_calls' => count($rows),
                 'ai_ms' => round($ms, 3),
                 'ai_tokens' => $tokens,
                 'ai_by_model' => $byModel,
             ],
-            'warnings' => array_slice($warnings, 0, 5),
-        ];
+            warnings: array_slice($warnings, 0, 5),
+        );
     }
 
     private function onPrompting(PromptingAgent $event): void

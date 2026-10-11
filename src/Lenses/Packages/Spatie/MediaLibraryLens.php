@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
@@ -84,27 +85,27 @@ final class MediaLibraryLens implements Advises, Lens, Presentable, Summarizable
         }
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('media');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $conversions = array_values(array_filter($rows, fn (array $row): bool => $row['event'] === 'conversion'));
         $ms = round(array_sum(array_column($conversions, 'duration')), 1);
 
-        return [
-            'totals' => array_filter([
+        return new Summary(
+            totals: array_filter([
                 'media_added' => count($rows) - count($conversions),
                 'media_conversions' => count($conversions),
                 'media_conversion_ms' => $conversions === [] ? null : $ms,
             ], fn (mixed $value): bool => $value !== null && $value !== 0),
-            'warnings' => $capture->type === CaptureType::Request && $conversions !== []
+            warnings: $capture->type === CaptureType::Request && $conversions !== []
                 ? [sprintf('%d media conversion(s) ran during the request (%s ms); queued conversions keep the response fast.', count($conversions), $ms)]
                 : [],
-        ];
+        );
     }
 
     private function recording(): bool

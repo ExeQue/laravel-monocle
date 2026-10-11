@@ -31,13 +31,13 @@ describe('warnings for library code', function (): void {
             $query(1, $library, slow: true),
             $query(2, $library, duplicateOf: 1),
             $query(3, $library),
-        ]]))['warnings'];
+        ]]))->warnings();
 
         expect($warnings)->toHaveCount(1)
             ->and($warnings[0])->toStartWith('Possible N+1: 3 x')
             ->and($warnings[0])->toContain('vendor/acme/lib/Thing.php:3');
 
-        $own = app(DatabaseLens::class)->summarize($capture(['queries' => [$query(1, $app, slow: true), $query(2, $app, duplicateOf: 1)]]))['warnings'];
+        $own = app(DatabaseLens::class)->summarize($capture(['queries' => [$query(1, $app, slow: true), $query(2, $app, duplicateOf: 1)]]))->warnings();
 
         expect(implode("\n", $own))->toContain('Slow query')->toContain('1 duplicate queries');
     });
@@ -46,23 +46,23 @@ describe('warnings for library code', function (): void {
         $reads = fn (array $origin): array => array_map(fn (int $n): array => ['n' => $n, 'type' => 'hit', 'key' => 'k', 'store' => 'array', 'duration' => 2.0, 'origin' => $origin], range(1, 6));
         $lens = app(CacheLens::class);
 
-        expect($lens->summarize($capture(['cache' => $reads($library)]))['warnings'])->toBe([])
-            ->and($lens->summarize($capture(['cache' => $reads($app)]))['warnings'])->toHaveCount(1);
+        expect($lens->summarize($capture(['cache' => $reads($library)]))->warnings())->toBe([])
+            ->and($lens->summarize($capture(['cache' => $reads($app)]))->warnings())->toHaveCount(1);
     });
 
     it('leaves out repeated views shipped by packages', function () use ($capture): void {
         $views = fn (string $path): array => array_map(fn (): array => ['view' => 'pager', 'path' => $path, 'duration' => 5.0], range(1, 12));
         $lens = app(ViewsLens::class);
 
-        expect($lens->summarize($capture(['views' => $views('vendor/acme/views/pager.blade.php')]))['warnings'])->toBe([])
-            ->and($lens->summarize($capture(['views' => $views('resources/views/pager.blade.php')]))['warnings'])->toHaveCount(1);
+        expect($lens->summarize($capture(['views' => $views('vendor/acme/views/pager.blade.php')]))->warnings())->toBe([])
+            ->and($lens->summarize($capture(['views' => $views('resources/views/pager.blade.php')]))->warnings())->toHaveCount(1);
     });
 
     it('leaves out slow middleware shipped by packages', function () use ($capture): void {
         $span = fn (string $id, string $class): array => ['id' => $id, 'kind' => 'middleware.request', 'name' => class_basename($class), 'start' => 0, 'end' => 80, 'meta' => ['class' => $class]];
         $lens = app(MiddlewareLens::class);
 
-        expect($lens->summarize($capture([], [$span('a', \Illuminate\Session\Middleware\StartSession::class)]))['warnings'])->toBe([])
-            ->and($lens->summarize($capture([], [$span('b', \ExeQue\Monocle\Http\Middleware\Authorize::class)]))['warnings'])->toHaveCount(1);
+        expect($lens->summarize($capture([], [$span('a', \Illuminate\Session\Middleware\StartSession::class)]))->warnings())->toBe([])
+            ->and($lens->summarize($capture([], [$span('b', \ExeQue\Monocle\Http\Middleware\Authorize::class)]))->warnings())->toHaveCount(1);
     });
 });

@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Redis\Events\CommandExecuted;
@@ -67,12 +68,12 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('redis');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $byCommand = [];
@@ -86,13 +87,13 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
 
         arsort($byCommand);
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'redis_commands' => count($rows),
                 'redis_ms' => round($ms, 3),
                 'redis_by_command' => $byCommand,
             ],
-        ];
+        );
     }
 
     public function presentation(): Presentation

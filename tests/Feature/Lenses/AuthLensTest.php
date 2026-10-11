@@ -44,8 +44,8 @@ describe(AuthLens::class, function (): void {
             ->and($rows[3]['guard'])->toBe('web')
             ->and($rows[3])->not->toHaveKey('origin')
             ->and($rows[2])->toHaveKey('origin')
-            ->and($summary['totals'])->toBe(['auth_user' => GenericUser::class.'#5', 'auth_failed' => 1])
-            ->and($summary['warnings'])->toBe([]);
+            ->and($summary->totals())->toBe(['auth_user' => GenericUser::class.'#5', 'auth_failed' => 1])
+            ->and($summary->warnings())->toBe([]);
     });
 
     it('records the Sanctum token a request authenticated with', function (): void {
@@ -110,7 +110,7 @@ describe(AuthLens::class, function (): void {
 
         expect($challenged)->toContain('2fa_challenged')
             ->and(collect($failed->rows('auth'))->pluck('event'))->toContain('2fa_failed')
-            ->and(app(AuthLens::class)->summarize($failed)['totals']['auth_2fa_failed'])->toBe(1)
+            ->and(app(AuthLens::class)->summarize($failed)->totals()['auth_2fa_failed'])->toBe(1)
             ->and($passed)->toContain('2fa_passed', 'login');
     });
 
@@ -120,10 +120,10 @@ describe(AuthLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->rows('auth')[0])->toMatchArray(['event' => 'lockout', 'ip' => '10.0.0.1'])
-            ->and(app(AuthLens::class)->summarize($capture)['warnings'])->toBe(['A login was locked out after too many attempts.']);
+            ->and(app(AuthLens::class)->summarize($capture)->warnings())->toBe(['A login was locked out after too many attempts.']);
     });
 
     it('summarizes nothing when there was no authentication', function (): void {
-        expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
     });
 });

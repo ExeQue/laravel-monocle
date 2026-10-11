@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
 use Illuminate\Cache\Events\CacheEvent;
@@ -102,7 +103,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $this->firstRead = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('cache');
         $counts = ['hit' => 0, 'miss' => 0, 'write' => 0, 'forget' => 0];
@@ -122,9 +123,9 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         arsort($keys);
         $reads = $counts['hit'] + $counts['miss'];
 
-        return [
-            'warnings' => $this->repeatWarnings($rows),
-            'totals' => [
+        return new Summary(
+            warnings: $this->repeatWarnings($rows),
+            totals: [
                 'cache_hits' => $counts['hit'],
                 'cache_misses' => $counts['miss'],
                 'cache_hit_rate' => $reads === 0 ? null : round($counts['hit'] / $reads * 100, 1),
@@ -133,7 +134,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
                 'cache_ms' => round($ms, 3),
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
             ],
-        ];
+        );
     }
 
     /**

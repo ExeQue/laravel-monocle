@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Auth\Events\Attempting;
 use Illuminate\Auth\Events\Authenticated;
@@ -107,12 +108,12 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
         }
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('auth');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $counts = array_count_values(array_column($rows, 'event'));
@@ -124,15 +125,15 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        return [
-            'totals' => array_filter([
+        return new Summary(
+            totals: array_filter([
                 'auth_user' => $user,
                 'auth_failed' => $counts['failed'] ?? null,
                 'auth_lockouts' => $counts['lockout'] ?? null,
                 'auth_2fa_failed' => $counts['2fa_failed'] ?? null,
             ], fn (mixed $value): bool => $value !== null),
-            'warnings' => isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : [],
-        ];
+            warnings: isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : [],
+        );
     }
 
     /**

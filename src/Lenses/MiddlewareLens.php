@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use Illuminate\Contracts\Foundation\Application;
@@ -91,7 +92,7 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $requests = $capture->spansOfKind('middleware.request');
         $own = [];
@@ -116,13 +117,13 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
             }
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'middleware_count' => count($requests),
                 'middleware_self_ms' => round(array_sum($own), 3),
             ],
-            'warnings' => $warnings,
-        ];
+            warnings: $warnings,
+        );
     }
 
     /**

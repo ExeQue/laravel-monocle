@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
@@ -66,14 +67,14 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
         self::$reset++;
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $count = count($capture->rows('counter'));
 
-        return [
-            'totals' => ['counter_events' => $count],
-            'warnings' => $count > 2 ? ['Too many counter events.'] : [],
-        ];
+        return new Summary(
+            totals: ['counter_events' => $count],
+            warnings: $count > 2 ? ['Too many counter events.'] : [],
+        );
     }
 
     public static function clear(): void

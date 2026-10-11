@@ -14,6 +14,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
 use Illuminate\Database\Events\QueryExecuted;
@@ -98,7 +99,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $this->transactions = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = array_values(array_filter($capture->rows('queries'), fn (array $row): bool => ($row['type'] ?? null) !== 'transaction'));
         $total = 0.0;
@@ -148,16 +149,16 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             }
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'queries' => count($rows),
                 'query_ms' => round($total, 3),
                 'queries_by_type' => $byType,
                 'slow_queries' => count($slow),
                 'duplicate_queries' => $duplicates,
             ],
-            'warnings' => $warnings,
-        ];
+            warnings: $warnings,
+        );
     }
 
     private function onQuery(QueryExecuted $event): void

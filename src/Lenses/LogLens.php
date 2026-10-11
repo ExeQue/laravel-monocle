@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -59,12 +60,12 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('log');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $byLevel = [];
@@ -78,10 +79,10 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        return [
-            'totals' => ['log_captures' => count($rows), 'log_by_level' => $byLevel],
-            'warnings' => $warnings,
-        ];
+        return new Summary(
+            totals: ['log_captures' => count($rows), 'log_by_level' => $byLevel],
+            warnings: $warnings,
+        );
     }
 
     /**

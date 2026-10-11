@@ -70,15 +70,15 @@ describe(EloquentLens::class, function (): void {
 
         $summary = app(EloquentLens::class)->summarize(app(Eyepiece::class)->finalize());
 
-        expect($summary['totals']['models_retrieved'])->toBe(2)
-            ->and($summary['totals']['models_written'])->toBe(1)
-            ->and($summary['totals']['models_top_retrieved'])->toBe([Thing::class => 2]);
+        expect($summary->totals()['models_retrieved'])->toBe(2)
+            ->and($summary->totals()['models_written'])->toBe(1)
+            ->and($summary->totals()['models_top_retrieved'])->toBe([Thing::class => 2]);
     });
 
     it('writes nothing when no models were touched', function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->sections)->not->toHaveKey('models')
-            ->and(app(EloquentLens::class)->summarize($capture)['totals']['models_retrieved'])->toBe(0);
+            ->and(app(EloquentLens::class)->summarize($capture)->totals()['models_retrieved'])->toBe(0);
     });
 });

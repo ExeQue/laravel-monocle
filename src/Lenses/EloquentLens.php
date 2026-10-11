@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Database\Eloquent\Model;
 
@@ -79,7 +80,7 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
         $this->counts = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $retrieved = 0;
         $written = 0;
@@ -96,13 +97,13 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
 
         arsort($top);
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'models_retrieved' => $retrieved,
                 'models_written' => $written,
                 'models_top_retrieved' => array_slice($top, 0, 3, true),
             ],
-        ];
+        );
     }
 
     private function record(string $action, mixed $model): void

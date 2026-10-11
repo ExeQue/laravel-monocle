@@ -11,6 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
@@ -59,20 +60,20 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
         $this->previous = VarDumper::setHandler($this->handler);
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('dumps');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $dd = count(array_filter($rows, fn (array $row): bool => (bool) $row['is_dd']));
 
-        return [
-            'totals' => ['dumps' => count($rows), 'dd_calls' => $dd],
-            'warnings' => $dd > 0 ? ['dd() ended the process before the response was sent.'] : [],
-        ];
+        return new Summary(
+            totals: ['dumps' => count($rows), 'dd_calls' => $dd],
+            warnings: $dd > 0 ? ['dd() ended the process before the response was sent.'] : [],
+        );
     }
 
     private function record(mixed $value, ?string $label): void

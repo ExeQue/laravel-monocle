@@ -11,6 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Mail\Events\MessageSending;
@@ -107,20 +108,20 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
         $this->pending = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('mail');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'mail_sent' => count(array_filter($rows, fn (array $row): bool => $row['type'] === 'mail')),
                 'notifications_sent' => count(array_filter($rows, fn (array $row): bool => $row['type'] === 'notification')),
             ],
-        ];
+        );
     }
 
     /**

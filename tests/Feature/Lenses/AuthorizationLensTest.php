@@ -43,14 +43,14 @@ describe(AuthorizationLens::class, function (): void {
 
         $summary = app(AuthorizationLens::class)->summarize($capture);
 
-        expect($summary['totals'])->toBe(['authorization_checks' => 4, 'authorization_denied' => 2])
-            ->and($summary['warnings'])->toBe([
+        expect($summary->totals())->toBe(['authorization_checks' => 4, 'authorization_denied' => 2])
+            ->and($summary->warnings())->toBe([
                 'Authorization denied: view-report for '.GenericUser::class.'#7',
                 'Authorization denied: publish for '.GenericUser::class.'#7',
             ]);
     });
 
     it('summarizes nothing without checks', function (): void {
-        expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
     });
 });

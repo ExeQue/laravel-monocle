@@ -40,7 +40,7 @@ describe(ValidationLens::class, function (): void {
             ->and($failed['name']['message'])->toContain('3')
             ->and($row['fields'])->toBe(4)
             ->and($row['input'])->toBe(['name' => 'Rumpelstiltskin', 'plan' => 'gold', 'password' => 'hunt****'])
-            ->and(app(ValidationLens::class)->summarize($capture)['totals'])->toBe(['validations' => 1, 'validation_failed' => 1]);
+            ->and(app(ValidationLens::class)->summarize($capture)->totals())->toBe(['validations' => 1, 'validation_failed' => 1]);
     });
 
     it('records custom rule classes, closures and rules given as arrays', function (): void {

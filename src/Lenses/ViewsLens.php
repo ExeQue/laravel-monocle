@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use Illuminate\Contracts\Foundation\Application;
@@ -86,12 +87,12 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
         }
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('views');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $topLevel = 0.0;
@@ -123,14 +124,14 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
             }
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'views_rendered' => count($rows),
                 'views_ms' => round($topLevel, 3),
                 'views_most_rendered' => array_slice($repeats, 0, 3, true),
             ],
-            'warnings' => $warnings,
-        ];
+            warnings: $warnings,
+        );
     }
 
     public function presentation(): Presentation

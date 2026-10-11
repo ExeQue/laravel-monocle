@@ -48,8 +48,8 @@ describe(DumpLens::class, function (): void {
 
         $summary = app(DumpLens::class)->summarize($capture);
 
-        expect($summary['totals'])->toBe(['dumps' => 2, 'dd_calls' => 0])
-            ->and($summary['warnings'])->toBe([]);
+        expect($summary->totals())->toBe(['dumps' => 2, 'dd_calls' => 0])
+            ->and($summary->warnings())->toBe([]);
     });
 
     it('flags dd() in the summary', function (): void {
@@ -57,8 +57,8 @@ describe(DumpLens::class, function (): void {
 
         $summary = app(DumpLens::class)->summarize(app(Eyepiece::class)->finalize());
 
-        expect($summary['totals']['dd_calls'])->toBe(1)
-            ->and($summary['warnings'][0])->toContain('dd() ended the process');
+        expect($summary->totals()['dd_calls'])->toBe(1)
+            ->and($summary->warnings()[0])->toContain('dd() ended the process');
     });
 
     it('records nothing outside a capture', function (): void {

@@ -16,6 +16,7 @@ use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
@@ -144,15 +145,15 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->responsePreparedAt = null;
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $request = $capture->section('request');
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'response_bytes' => $request['response_bytes'] ?? null,
             ],
-        ];
+        );
     }
 
     private function onRouting(Routing $event): void

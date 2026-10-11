@@ -88,9 +88,9 @@ describe(FilesystemLens::class, function (): void {
 
         $summary = app(FilesystemLens::class)->summarize($capture);
 
-        expect($summary['totals'])->toMatchArray(['filesystem_bytes_read' => 11, 'filesystem_bytes_written' => 11, 'filesystem_by_disk' => ['spy' => count($rows)]])
-            ->and($summary['totals']['filesystem_ops'])->toBe(count($rows))
-            ->and($summary['warnings'][0])->toContain('Filesystem read failed on spy:missing.txt');
+        expect($summary->totals())->toMatchArray(['filesystem_bytes_read' => 11, 'filesystem_bytes_written' => 11, 'filesystem_by_disk' => ['spy' => count($rows)]])
+            ->and($summary->totals()['filesystem_ops'])->toBe(count($rows))
+            ->and($summary->warnings()[0])->toContain('Filesystem read failed on spy:missing.txt');
     });
 
     it('records streams and checksums and forwards unknown calls', function (): void {
@@ -113,6 +113,6 @@ describe(FilesystemLens::class, function (): void {
     });
 
     it('summarizes nothing without operations', function (): void {
-        expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(new \ExeQue\Monocle\Data\Summary());
     });
 });

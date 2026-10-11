@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Events\Dispatcher;
 use Workbench\App\Events\PaymentCharged;
@@ -61,27 +62,28 @@ final class PaymentsLens implements Lens, Presentable, Summarizable
      * Totals for the overview: how many payments, how much was charged and
      * how many were declined; each decline is also a warning.
      */
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $payments = $capture->rows('payments');
 
+        $summary = Summary::make();
+
         if ($payments === []) {
-            return [];
+            return $summary;
         }
 
-        $declined = array_values(array_filter($payments, fn (array $payment): bool => $payment['status'] !== 'paid'));
+        $declined = array_filter($payments, fn (array $payment): bool => $payment['status'] !== 'paid');
         $charged = array_sum(array_map(fn (array $payment): int => $payment['status'] === 'paid' ? $payment['amount'] : 0, $payments));
 
-        return [
-            'totals' => [
-                'payments' => count($payments),
-                'payments_charged' => number_format($charged / 100, 2).' '.($payments[0]['currency'] ?? ''),
-                'payments_declined' => count($declined),
-            ],
-            'warnings' => array_map(
-                fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
-                $declined,
-            ),
-        ];
+        $summary
+            ->total('payments', count($payments))
+            ->total('payments_charged', number_format($charged / 100, 2).' '.$payments[0]['currency'])
+            ->total('payments_declined', count($declined));
+
+        foreach ($declined as $payment) {
+            $summary->warning("Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.");
+        }
+
+        return $summary;
     }
 }

@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Auth\Access\Response;
@@ -61,26 +62,26 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('authorization');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $denied = array_values(array_filter($rows, fn (array $row): bool => $row['allowed'] === false));
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'authorization_checks' => count($rows),
                 'authorization_denied' => count($denied),
             ],
-            'warnings' => array_map(
+            warnings: array_map(
                 fn (array $row): string => sprintf('Authorization denied: %s for %s', $row['ability'], $row['user'] ?? 'guest'),
                 array_slice($denied, 0, 3),
             ),
-        ];
+        );
     }
 
     public function presentation(): Presentation

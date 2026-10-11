@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
@@ -89,7 +90,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
         $this->phase = null;
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('jobs');
         $totals = [
@@ -107,7 +108,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             }
         }
 
-        return ['totals' => $totals, 'warnings' => $warnings];
+        return new Summary(totals: $totals, warnings: $warnings);
     }
 
     private function registerPayloadHook(): void

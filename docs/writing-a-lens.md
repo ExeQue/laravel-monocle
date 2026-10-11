@@ -95,20 +95,24 @@ App\Monocle\StripeLens::class => ['slow_ms' => 300],
 
 ## Totals and warnings
 
-Implement `Summarizable` to add to the summary in `monocle-show`:
+Implement `Summarizable` to add to the summary in `monocle-show` and on the dashboard's overview:
 
 ```php
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Data\Summary;
 
-public function summarize(Capture $capture): array
+public function summarize(Capture $capture): Summary
 {
     $rows = $capture->rows('stripe');
     $failed = array_filter($rows, fn (array $row): bool => $row['error'] !== null);
 
-    return [
-        'totals' => ['stripe_calls' => count($rows)],
-        'warnings' => $failed === [] ? [] : [count($failed).' Stripe call(s) failed.'],
-    ];
+    $summary = Summary::make()->total('stripe_calls', count($rows));
+
+    if ($failed !== []) {
+        $summary->warning(count($failed).' Stripe call(s) failed.');
+    }
+
+    return $summary;
 }
 ```
 
@@ -283,6 +287,7 @@ use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 
@@ -328,14 +333,16 @@ final class MissingTranslationsLens implements Finalizable, Lens, Resettable, Su
         $this->missing = [];
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('missing_translations');
+        $summary = Summary::make()->total('missing_translations', count($rows));
 
-        return [
-            'totals' => ['missing_translations' => count($rows)],
-            'warnings' => $rows === [] ? [] : [count($rows).' translation key(s) have no translation, e.g. '.$rows[0]['key'].'.'],
-        ];
+        if ($rows !== []) {
+            $summary->warning(count($rows).' translation key(s) have no translation, e.g. '.$rows[0]['key'].'.');
+        }
+
+        return $summary;
     }
 }
 ```

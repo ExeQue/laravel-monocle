@@ -42,7 +42,7 @@ describe(ScheduleLens::class, function (): void {
 
         $summary = app(ScheduleLens::class)->summarize($capture);
 
-        expect($summary['totals'])->toBe(['scheduled_tasks_run' => 1, 'scheduled_tasks_skipped' => 1, 'scheduled_tasks_failed' => 1])
-            ->and($summary['warnings'][0])->toContain('backup:run');
+        expect($summary->totals())->toBe(['scheduled_tasks_run' => 1, 'scheduled_tasks_skipped' => 1, 'scheduled_tasks_failed' => 1])
+            ->and($summary->warnings()[0])->toContain('backup:run');
     });
 });

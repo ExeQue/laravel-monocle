@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -85,12 +86,12 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('events');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $unhandled = array_values(array_unique(array_column(
@@ -98,12 +99,12 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
             'event',
         )));
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'events' => count($rows),
                 'events_without_listeners' => count($unhandled),
             ],
-        ];
+        );
     }
 
     private function ignored(string $event): bool

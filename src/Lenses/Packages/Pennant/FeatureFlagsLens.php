@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Laravel\Pennant\Events\FeatureDeleted;
@@ -75,23 +76,23 @@ final class FeatureFlagsLens implements Advises, Lens, Presentable, Summarizable
         }
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('features');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
         $unknown = array_values(array_unique(array_column(array_filter($rows, fn (array $row): bool => $row['source'] === 'unknown'), 'feature')));
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'features_checked' => count(array_unique(array_column($rows, 'feature'))),
                 'features_resolved' => count(array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved')),
             ],
-            'warnings' => array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown),
-        ];
+            warnings: array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown),
+        );
     }
 
     public function presentation(): Presentation

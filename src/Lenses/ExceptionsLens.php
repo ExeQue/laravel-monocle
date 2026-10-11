@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Contracts\Debug\ExceptionHandler;
@@ -63,21 +64,21 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
         });
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('exceptions');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
-        return [
-            'totals' => ['exceptions' => count($rows)],
-            'warnings' => array_map(
+        return new Summary(
+            totals: ['exceptions' => count($rows)],
+            warnings: array_map(
                 fn (array $row): string => sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']),
                 array_slice($rows, 0, 3),
             ),
-        ];
+        );
     }
 
     /**

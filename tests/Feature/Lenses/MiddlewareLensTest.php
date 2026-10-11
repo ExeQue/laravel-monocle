@@ -98,7 +98,7 @@ describe(MiddlewareLens::class, function (): void {
             ->filter(fn (Span $span): bool => $span->name === 'SleepBefore' && str_starts_with($span->kind, 'middleware.'))
             ->sum(fn (Span $span): float => $span->duration());
 
-        expect($summary['totals']['middleware_count'])->toBe(2)
-            ->and($summary['warnings'])->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $own));
+        expect($summary->totals()['middleware_count'])->toBe(2)
+            ->and($summary->warnings())->toContain(sprintf('Middleware SleepBefore spent %.1f ms of its own time.', $own));
     });
 });

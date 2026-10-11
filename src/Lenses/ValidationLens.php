@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Foundation\Application;
@@ -110,21 +111,21 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         $this->validators = new SplObjectStorage();
     }
 
-    public function summarize(Capture $capture): array
+    public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('validation');
 
         if ($rows === []) {
-            return [];
+            return new Summary();
         }
 
-        return [
-            'totals' => [
+        return new Summary(
+            totals: [
                 'validations' => count($rows),
                 'validation_failed' => count(array_filter($rows, fn (array $row): bool => ! $row['passed'])),
             ],
-            'warnings' => [],
-        ];
+            warnings: [],
+        );
     }
 
     private function watch(Validator $validator): void
