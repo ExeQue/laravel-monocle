@@ -21,7 +21,14 @@ use Laravel\Prompts\Key;
 final class Browser
 {
     /** @var list<array<string, mixed>> */
+    private array $all = [];
+
+    /** @var list<array<string, mixed>> the captures that match the filter */
     private array $captures = [];
+
+    private string $filter = '';
+
+    private bool $filtering = false;
 
     private int $selected = 0;
 
@@ -50,8 +57,33 @@ final class Browser
 
     public function refresh(): void
     {
+        $this->all = $this->viewfinder->list(['limit' => 200])['rows'] ?? [];
+        $this->applyFilter();
+    }
+
+    /**
+     * Keep the captures whose name, type, status, route, label or tags
+     * contain every word of the filter, and the selection where it was.
+     */
+    private function applyFilter(): void
+    {
         $selectedId = $this->captures[$this->selected]['id'] ?? null;
-        $this->captures = $this->viewfinder->list(['limit' => 200])['rows'] ?? [];
+        $words = preg_split('/\s+/', mb_strtolower(trim($this->filter)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $this->captures = array_values(array_filter($this->all, function (array $capture) use ($words): bool {
+            $haystack = mb_strtolower(implode(' ', [
+                $capture['name'] ?? '', $capture['type'] ?? '', $capture['status'] ?? '', $capture['route'] ?? '', $capture['label'] ?? '',
+                ...array_column($capture['tags'] ?? [], 'label'),
+            ]));
+
+            foreach ($words as $word) {
+                if (! str_contains($haystack, $word)) {
+                    return false;
+                }
+            }
+
+            return true;
+        }));
 
         $index = array_search($selectedId, array_column($this->captures, 'id'), true);
         $this->selected = $index === false ? 0 : $index;
@@ -66,6 +98,12 @@ final class Browser
     {
         $page = max(1, $height - 6);
 
+        if ($this->filtering) {
+            $this->handleFilter($key);
+
+            return;
+        }
+
         if ($this->openId === null) {
             $this->handleList($key, $page);
 
@@ -75,9 +113,35 @@ final class Browser
         $this->handleCapture($key, $page);
     }
 
+    private function handleFilter(string $key): void
+    {
+        match (true) {
+            $key === Key::ENTER, $key === "\r", $key === Key::DOWN, $key === Key::DOWN_ARROW => $this->filtering = false,
+            $key === Key::ESCAPE, $key === Key::CTRL_C => $this->clearFilter(),
+            $key === Key::BACKSPACE, $key === Key::CTRL_H => $this->typeFilter(mb_substr($this->filter, 0, -1)),
+            mb_strlen($key) === 1 && ctype_print($key) => $this->typeFilter($this->filter.$key),
+            default => null,
+        };
+    }
+
+    private function typeFilter(string $filter): void
+    {
+        $this->filter = $filter;
+        $this->selected = 0;
+        $this->applyFilter();
+    }
+
+    private function clearFilter(): void
+    {
+        $this->filtering = false;
+        $this->typeFilter('');
+    }
+
     private function handleList(string $key, int $page): void
     {
         match (true) {
+            $key === '/' => $this->filtering = true,
+            $key === Key::ESCAPE => $this->clearFilter(),
             $key === 'q', $key === Key::CTRL_C => $this->quit = true,
             $key === 'j', $key === Key::DOWN, $key === Key::DOWN_ARROW => $this->select($this->selected + 1),
             $key === 'k', $key === Key::UP, $key === Key::UP_ARROW => $this->select($this->selected - 1),
@@ -188,10 +252,21 @@ final class Browser
      */
     private function listLines(int $width, int $height): array
     {
-        $lines = [$this->bold(' Monocle ').$this->dim(count($this->captures).' captures'), ''];
+        $count = $this->filter === '' ? count($this->all).' captures' : count($this->captures).' of '.count($this->all).' captures';
+        $filter = match (true) {
+            $this->filtering => '  /'.$this->filter."\e[7m \e[27m",
+            $this->filter !== '' => '  '.$this->color('36', '/'.$this->filter),
+            default => '',
+        };
+
+        $lines = [$this->bold(' Monocle ').$this->dim($count).$filter, ''];
+
+        if ($this->all === []) {
+            return [...$lines, $this->dim(' No captures yet. Make a request, run a job or a command.')];
+        }
 
         if ($this->captures === []) {
-            return [...$lines, $this->dim(' No captures yet. Make a request, run a job or a command.')];
+            return [...$lines, $this->dim(' No captures match the filter.')];
         }
 
         $visible = max(1, $height - 4);
@@ -267,7 +342,7 @@ final class Browser
     private function footer(): string
     {
         $keys = $this->openId === null
-            ? 'j/k move  enter open  g/G first/last  q quit'
+            ? ($this->filtering ? 'type to filter  enter keep  esc clear' : 'j/k move  enter open  / filter  g/G first/last  q quit')
             : 'u/i tab  j/k scroll  J/K next/previous capture  esc back  q quit';
 
         return $this->dim(' '.$keys);

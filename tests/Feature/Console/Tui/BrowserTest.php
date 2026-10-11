@@ -76,6 +76,35 @@ describe(Browser::class, function (): void {
         expect($this->browser->quitting())->toBeTrue();
     });
 
+    it('filters the list by what is typed after /', function (): void {
+        foreach (['/', 'f', 'i', 'r'] as $key) {
+            $this->browser->handle($key, 20);
+        }
+
+        $frame = $this->browser->frame(120, 20);
+
+        expect($frame)->toContain('1 of 2 captures')
+            ->and($frame)->toContain('GET /first')
+            ->and($frame)->not->toContain('GET /second');
+
+        $this->browser->handle(Key::ENTER, 20);
+        $this->browser->handle(Key::ENTER, 20);
+
+        expect($this->browser->frame(120, 20))->toContain('GET /first')
+            ->and($this->rendered[0][0])->toBe('monocle:show');
+    });
+
+    it('clears the filter with escape', function (): void {
+        $this->browser->handle('/', 20);
+        $this->browser->handle('x', 20);
+
+        expect($this->browser->frame(120, 20))->toContain('No captures match the filter.');
+
+        $this->browser->handle(Key::ESCAPE, 20);
+
+        expect($this->browser->frame(120, 20))->toContain('2 captures');
+    });
+
     it('cuts lines to the width without counting colour codes', function (): void {
         foreach (explode(PHP_EOL, $this->browser->frame(30, 10)) as $line) {
             expect(mb_strwidth((string) preg_replace('/\e\[[0-9;?]*[A-Za-z]/', '', $line)))->toBeLessThanOrEqual(30);
