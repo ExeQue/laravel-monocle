@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -294,6 +295,19 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         return $result('Dispatch a job', 'ProcessReport ran on the sync queue.');
     })->name('queue');
+
+    Route::get('queue/database', function () use ($result): View {
+        ProcessReport::dispatch('monthly-sales')->onConnection('database');
+
+        return $result('Queue a job', 'ProcessReport is waiting on the database queue. Work the queue to run it as a capture of its own.');
+    })->name('queue.database');
+
+    Route::get('queue/work', function () use ($result): View {
+        // A separate process, like a real worker: each job it runs is a capture of its own.
+        $run = Process::path(dirname(__DIR__, 2))->timeout(60)->run([PHP_BINARY, 'vendor/bin/testbench', 'queue:work', 'database', '--stop-when-empty']);
+
+        return $result('Work the queue', trim($run->output().$run->errorOutput()) ?: 'The queue was empty.');
+    })->name('queue.work');
 
     Route::get('queue/chain', function () use ($result): View {
         ImportBatch::dispatch();
