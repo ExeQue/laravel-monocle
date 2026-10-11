@@ -23,7 +23,8 @@ One row per middleware run, in the order the request passed through them.
 | `duration` | its own time: `request_ms` and `response_ms` together. The time of the middleware further in and of the controller is not included. | ms | - |
 | `time` | when it started, from the start of the capture | ms | - |
 | `passed` | whether it handed the request on | true/false | - |
-| `short_circuited_with` | the status of the response it returned itself, for example `302` when `guest` redirects a logged-in user | - | null when it handed the request on, or stopped by throwing instead of returning a response |
+| `short_circuited_with` | the status of the response it returned itself, for example `302` when `guest` redirects a logged-in user, or the status the exception it threw turns into: `401` for `auth`, `403` for `can`, `429` for `throttle`, `422` for a validation error, the exception's own status for HTTP exceptions and `500` for anything else | - | null when it handed the request on |
+| `threw` | the class of the exception it stopped the request with | - | null when it handed the request on or returned a response |
 | `slow` | its own time reached `slow_ms` and it is not package middleware | true/false | - |
 
 On the timeline each middleware has a `middleware.request` span for the work before and a `middleware.response` span for the work after. Middleware with a `terminate()` method also gets a `middleware.terminate` span (named `Class::terminate`) in the `terminate` phase; that time is not part of its row.
@@ -38,7 +39,8 @@ On the timeline each middleware has a `middleware.request` span for the work bef
 Warnings:
 
 - `Middleware <Name> spent <n> ms of its own time.` when one middleware's own time, before and after added up over all its runs in the request, is at least `slow_ms`. Middleware shipped by a package (its class lives in `vendor/`) is left out, since its time is not yours to fix.
-- `Middleware <Name> short-circuited the request (<status>).` for every middleware that did not hand the request on, such as `guest` redirecting a logged-in user. When it stopped the request by throwing, as `auth`, `can` and `throttle` do, the status reads `no response`.
+- `Middleware <Name> short-circuited the request (<status>).` for every middleware that did not hand the request on, such as `guest` redirecting a logged-in user.
+- `Middleware <Name> short-circuited the request by throwing <Exception> (<status>).` when it stopped the request by throwing, as `auth`, `can` and `throttle` do. The exception is rethrown unchanged, so the application handles it as usual.
 
 The lens raises no errors.
 
@@ -48,7 +50,7 @@ The Middleware tab lists the rows with the columns **Middleware**, **Group**, **
 
 **by group** groups the rows into `global` and `route`, each with its count and time.
 
-Click a row to see all its fields, including the parameters, the status it stopped the request with and when it started.
+Click a row to see all its fields, including the parameters, the status it stopped the request with, the exception it threw and when it started.
 
 The `middleware (request)` and `handle` phases on the overview and the Timeline tab show the same spans in context: global middleware runs in `middleware (request)`, route middleware in `handle`, around the `controller` span.
 
@@ -65,10 +67,10 @@ Answers which middleware took the time, and whether it was spent before or after
 Why a request never reached its controller:
 
 ```json
-monocle-rows {"id": "latest", "section": "middleware", "where": [{"field": "passed", "op": "=", "value": "0"}], "fields": ["middleware", "parameters", "short_circuited_with"]}
+monocle-rows {"id": "latest", "section": "middleware", "where": [{"field": "passed", "op": "=", "value": "0"}], "fields": ["middleware", "parameters", "short_circuited_with", "threw"]}
 ```
 
-Returns the middleware that did not hand the request on (`passed` is false), with the status it returned, or null when it threw.
+Returns the middleware that did not hand the request on (`passed` is false), with the status it answered with and, when it threw, the exception class.
 
 The middleware spans in the timeline:
 

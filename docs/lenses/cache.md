@@ -7,7 +7,7 @@ Part of [what gets recorded](../lenses.md).
 ![The Cache tab](../images/35-lens-cache-light.webp#gh-light-mode-only)
 ![The Cache tab](../images/35-lens-cache-dark.webp#gh-dark-mode-only)
 
-The cache lens records every cache hit, miss, write, forget and flush made through Laravel's cache while a request, job or command is captured, including failed writes and forgets. Repeated reads of the same key point back at the first read, so you can see what could be remembered for the request.
+The cache lens records every cache hit, miss, write, forget and flush made through Laravel's cache while a request, job or command is captured, including failed writes, forgets and flushes. Repeated reads of the same key point back at the first read, so you can see what could be remembered for the request.
 
 ## Rows
 
@@ -16,7 +16,7 @@ Section `cache`, one row per operation, in the order they happened.
 | Field | Meaning | Unit | Missing when |
 | --- | --- | --- | --- |
 | `n` | Row number in the capture. | - | absent on flushes |
-| `type` | `hit`, `miss`, `write`, `write_failed`, `forget`, `forget_failed` or `flush`. | - | never |
+| `type` | `hit`, `miss`, `write`, `write_failed`, `forget`, `forget_failed`, `flush` or `flush_failed`. | - | never |
 | `store` | Name of the cache store, as in `config/cache.php`. | - | `null` when the store has no name |
 | `key` | The cache key, without the store prefix. | - | `null` on flushes |
 | `tags` | Cache tags used for the call. | - | empty list without tags; absent on flushes |
@@ -24,7 +24,7 @@ Section `cache`, one row per operation, in the order they happened.
 | `slow` | `true` when `duration` is at least `slow_ms`. | - | absent on flushes |
 | `ttl` | Time to live given with the write. | seconds | `null` on reads and forgets, and on writes without expiry; absent on flushes |
 | `value_size_bytes` | Size of the value, serialized. | bytes | absent on misses, forgets, failed operations and flushes; `null` when the value cannot be serialized |
-| `value` | The value read or written. | - | absent unless `values` is `true`; only on hits and writes |
+| `value` | The value read or written, masked when the key matches the [input masking](../configuration.md#masking) pattern. | - | absent unless `values` is `true`; only on hits and writes |
 | `repeat_of` | On a read: row number of the first read of the same key on the same store. | - | `null` on the first read; absent on writes, forgets and flushes |
 | `time` | When the call started, from the start of the capture. | ms | never |
 | `origin` | The line in your code that made the call. | - | `null` when [`origin`](../configuration.md#origin) is turned off |
@@ -108,7 +108,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except) - requests and commands listed there are not recorded.
 - [`origin`](../configuration.md#origin) - whether each call gets the line of your code that made it, and which of your own packages in `vendor/` count as your code for the repeated read warning.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the Cache tab goes among the tabs; it is listed as `CacheLens::class`.
-- [Masking](../configuration.md#masking) does not apply to cache rows. Leave `values` off when cached values should not be kept.
+- [Masking](../configuration.md#masking) - with `values` on, the value of a key that matches the input pattern (such as `api_token`) is masked. Other values are kept as they are, so leave `values` off when cached values should not be kept.
 - Laravel's own `config/cache.php` names the stores; the slow call warning reads the store's driver from there.
 
 ```php
@@ -130,5 +130,4 @@ No extra packages are needed.
 
 - Only calls made through Laravel's cache repository are recorded. `increment()`, `decrement()`, locks, and `add()` with an expiry on stores that support it fire no cache events and do not appear. On Redis they show up in the [Redis lens](redis.md).
 - Reads made with `many()` have no duration.
-- A failed flush is not recorded.
 - Values are only kept with `values` turned on.

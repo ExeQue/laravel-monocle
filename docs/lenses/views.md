@@ -99,7 +99,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except) - requests and commands listed there are not recorded.
 - [`origin`](../configuration.md#origin) - whether each render gets the line of your code that rendered it.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the Views tab goes among the tabs; it is listed as `ViewsLens::class`.
-- [Masking](../configuration.md#masking) does not apply to view data. Leave `data` off when the values passed to views should not be kept.
+- [Masking](../configuration.md#masking) - with `data` on, values passed to views under a key matching `mask.inputs` are masked, also inside nested arrays and collections. Entries keyed by `ViewsLens::class` apply to this lens only.
 - Laravel's own `config/view.php` sets the view paths that decide view names.
 
 ```php

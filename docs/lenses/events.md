@@ -70,7 +70,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except): requests and commands that are not recorded at all, so their events are not recorded either.
 - [`origin`](../configuration.md#origin): whether rows carry the line of your code that dispatched the event, and how many call frames.
 
-Event payloads are not masked.
+Payload keys and event properties matching [`mask.inputs`](../configuration.md#masking) are masked, also inside nested arrays and collections. Entries keyed by `EventsLens::class` apply to this lens only.
 
 ```php
 use ExeQue\Monocle\Lenses\EventsLens;
@@ -98,4 +98,4 @@ No extra packages are needed.
 - Listeners are the ones registered for the exact event name when it fires. Wildcard listeners such as `Event::listen('orders.*', ...)` are not listed.
 - Listeners are not timed, and the lens does not show whether a listener is queued.
 - With a custom event dispatcher that cannot list its listeners, `listeners` is always empty.
-- Payloads are not masked, so sensitive values in event properties are stored as they are.
+- Masking goes by key or property name. A secret stored under a name that does not match `mask.inputs` is stored as it is.

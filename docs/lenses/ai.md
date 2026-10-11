@@ -48,8 +48,8 @@ Rows in `ai` have no `origin`.
 | `invocation_id` | The `invocation_id` of the calling agent run. Match it against `ai` rows. | - | never |
 | `tool_invocation_id` | The id of this tool call. | - | never |
 | `status` | `ok` or `failed`. | - | never |
-| `arguments` | The arguments the model passed to the tool. | - | never |
-| `result` | What the tool returned, as text: strings as they are, other values as JSON. Shortened to `max_text` characters when set. | - | the tool failed |
+| `arguments` | The arguments the model passed to the tool, [masked](../configuration.md#masking) like request input. | - | never |
+| `result` | What the tool returned, as text: strings as they are, other values as JSON. A result with keys (an array, an object or JSON text) is masked like request input. Shortened to `max_text` characters when set. | - | the tool failed |
 | `exception` | The exception the tool threw. | - | the tool succeeded |
 | `duration` | How long the tool took. For a sub-agent, this includes the sub-agent's whole run. | ms | never |
 | `time` | When the call started, counted from the start of the capture. | ms | never |
@@ -67,12 +67,12 @@ The summary gets these totals when the capture has at least one `ai` row:
 
 | Total | Label | Value |
 | --- | --- | --- |
-| `ai_ms` | spent | The `duration` of every `ai` row added up, in ms. A sub-agent's time counts in its own row and again in its caller's row. |
+| `ai_ms` | spent | The `duration` of the top-level `ai` rows added up, in ms: rows whose `parent_invocation_id` is not another row. A sub-agent runs inside its caller's time, so it is not added again. |
 | `ai_tokens` | - | `input`, `output`, `cache_read`, `cache_write` and `reasoning` tokens over all rows. |
 | `ai_by_model` | - | The number of runs per `provider/model`. |
-| `ai_calls` | calls | The number of `ai` rows. |
-| `ai_tool_ms` | in tools | The `duration` of every `ai_tools` row added up, in ms. Only when there were tool calls. |
-| `ai_tool_calls` | tool calls | The number of `ai_tools` rows. Only when there were tool calls. |
+| `ai_calls` | calls | The number of `ai` rows, sub-agents included. |
+| `ai_tool_ms` | in tools | The `duration` of the tool calls made by top-level runs added up, in ms. A sub-agent's tool calls run inside the tool call that started it, so they are not added again. Only when there were tool calls. |
+| `ai_tool_calls` | tool calls | The number of `ai_tools` rows, sub-agents' tool calls included. Only when there were tool calls. |
 
 The overview also lists the time agents took among what the time was spent on. There, only agents that were not started from another agent count, so nested time is not counted twice.
 
@@ -85,10 +85,10 @@ See [Warnings and errors](../dashboard.md#warnings-and-errors) for how they are 
 
 ## In the dashboard
 
-The **AI** tab has two tables, both in the order things happened. There are no grouping chips on this tab.
+The **AI** tab has two tables, both in the order things happened.
 
 - The agent runs (`ai`). The columns are the fields that have a value in some row, up to eight, with `duration` last. `status` is coloured.
-- **Tool calls** (`ai_tools`), with the columns tool, Sub-agent, agent, status and duration, plus where in your code it came from. The Sub-agent column says `agent` for a tool that is another agent and is empty otherwise.
+- **Tool calls** (`ai_tools`), with the columns tool, Sub-agent, agent, status and duration, plus where in your code it came from. The Sub-agent column says `agent` for a tool that is another agent and is empty otherwise. Its chips group the tool calls by tool or by agent, each group with its count, failures and timing.
 
 Click a row to fold it out. An agent run shows every field, with the prompt and response as text blocks. A tool call shows its fields plus the arguments, the result or the exception, and the line in your code that led to it.
 
@@ -149,7 +149,7 @@ Other settings that affect this lens:
 - [`origin`](../configuration.md#origin) - whether tool call rows get an `origin`, and how many lines of the call chain it has.
 - [`except`](../configuration.md#except) - agents run in a request or command that is not recorded are not recorded either.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the AI tab sits among the tabs.
-- [Masking](../configuration.md#masking) does not apply to this lens: prompts, responses, arguments and results are stored as they are.
+- [Masking](../configuration.md#masking) - tool arguments, and tool results with keys, are masked like request input. Use `AiLens::class` as the key under `mask.inputs` for patterns that only apply here. Prompts and responses are free text and are stored as they are.
 
 ```php
 use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
@@ -166,6 +166,6 @@ use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
 
 - Needs `laravel/ai`. Without it the lens does nothing.
 - Records only agent runs that happen while a capture is being recorded.
-- Prompts, responses, tool arguments and results are not masked.
+- Prompts, responses and plain-text tool results are not masked.
 - Attachments are counted on the `ai.agent` span but not stored.
-- `ai_ms` and `ai_tool_ms` add up nested time: a sub-agent's run counts on its own and again inside the tool call that started it.
+- `ai_ms` and `ai_tool_ms` count time only at the top: a sub-agent's run and its tool calls are part of the tool call that started them. A sub-agent whose caller is still running when the capture ends counts as top-level.

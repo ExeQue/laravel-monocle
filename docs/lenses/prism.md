@@ -18,6 +18,7 @@ A row is written when the call ends. For a stream, that is when it has been read
 | Field | Meaning | Unit | Missing when |
 | --- | --- | --- | --- |
 | `operation` | `text`, `structured`, `stream`, `embeddings`, `images`, `moderation`, `text_to_speech` or `speech_to_text`. | - | never |
+| `nested` | `true` when the call was made while another Prism call ran, such as from one of its tools. | - | never (`false`) |
 | `provider` | The provider the call used. | - | the request does not name one |
 | `model` | The model, taken from the response when it reports one. | - | the request and response do not name one |
 | `status` | `ok`, `failed`, or `abandoned` for a stream that was not read to the end. | - | never |
@@ -42,9 +43,10 @@ A row is written when the call ends. For a stream, that is when it has been read
 | Field | Meaning | Unit | Missing when |
 | --- | --- | --- | --- |
 | `tool` | The tool's name. | - | never |
+| `nested` | `true` when the call that ran the tool is itself `nested`. | - | never (`false`) |
 | `status` | `ok` or `failed`. | - | never |
-| `arguments` | The arguments the model passed to the tool. | - | never |
-| `result` | The text the tool returned, shortened to `max_text` characters when set. | - | the tool failed, or returned something other than text |
+| `arguments` | The arguments the model passed to the tool, [masked](../configuration.md#masking) like request input. | - | never |
+| `result` | The text the tool returned. JSON text with keys is masked like request input. Shortened to `max_text` characters when set. | - | the tool failed, or returned something other than text |
 | `exception` | The exception the tool threw. | - | the tool succeeded |
 | `duration` | How long the tool took, including any Prism calls it made itself. | ms | never |
 | `time` | When the tool started, counted from the start of the capture. | ms | never |
@@ -64,12 +66,12 @@ The summary gets these totals when the capture has at least one `prism` row:
 
 | Total | Label | Value |
 | --- | --- | --- |
-| `prism_ms` | spent | The `duration` of every `prism` row added up, in ms. A call made inside a tool counts in its own row and again in the call that ran the tool. |
+| `prism_ms` | spent | The `duration` of the `prism` rows that are not `nested` added up, in ms. A call made inside a tool runs in the time of the call that ran the tool, so it is not added again. |
 | `prism_tokens` | - | `input`, `output`, `cache_read`, `cache_write` and `reasoning` tokens over all rows. |
 | `prism_by_model` | - | The number of calls per `provider/model`. |
-| `prism_calls` | calls | The number of `prism` rows. |
-| `prism_tool_ms` | in tools | The `duration` of every `prism_tools` row added up, in ms. Only when tools ran. |
-| `prism_tool_calls` | tool calls | The number of `prism_tools` rows. Only when tools ran. |
+| `prism_calls` | calls | The number of `prism` rows, nested calls included. |
+| `prism_tool_ms` | in tools | The `duration` of the `prism_tools` rows that are not `nested` added up, in ms. Only when tools ran. |
+| `prism_tool_calls` | tool calls | The number of `prism_tools` rows, nested ones included. Only when tools ran. |
 
 This lens reports no warnings. It reports these errors, at most five per capture:
 
@@ -83,10 +85,10 @@ See [Warnings and errors](../dashboard.md#warnings-and-errors) for how they are 
 
 ## In the dashboard
 
-The **Prism** tab has two tables, both in the order things happened. There are no grouping chips on this tab.
+The **Prism** tab has two tables, both in the order things happened.
 
 - The calls (`prism`). The columns are the fields that have a value in some row, up to eight, with `duration` last. `status` is coloured.
-- **Tool calls** (`prism_tools`), with the columns tool, status and duration, plus where in your code it came from.
+- **Tool calls** (`prism_tools`), with the columns tool, status and duration, plus where in your code it came from. Its chips group the tool calls by tool, each group with its count, failures and timing.
 
 Click a row to fold it out. A call shows every field, with the prompt and response as text blocks. A tool call shows its fields plus the arguments, the result or the exception.
 
@@ -147,7 +149,7 @@ Other settings that affect this lens:
 - [`origin`](../configuration.md#origin) - whether rows get an `origin`, and how many lines of the call chain it has.
 - [`except`](../configuration.md#except) - calls made in a request or command that is not recorded are not recorded either.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the Prism tab sits among the tabs.
-- [Masking](../configuration.md#masking) does not apply to this lens: prompts, responses, arguments and results are stored as they are.
+- [Masking](../configuration.md#masking) - tool arguments, and JSON tool results with keys, are masked like request input. Use `PrismLens::class` as the key under `mask.inputs` for patterns that only apply here. Prompts and responses are free text and are stored as they are.
 
 ```php
 use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
@@ -165,6 +167,6 @@ use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
 - Needs `prism-php/prism`. Without it the lens does nothing.
 - Calls made with `Prism::fake()` are recorded too.
 - Only tools given to Prism as `Tool` objects are timed.
-- Prompts, responses, tool arguments and results are not masked.
+- Prompts, responses and plain-text tool results are not masked.
 - The HTTP requests Prism sends to the provider are recorded by the [HTTP client](http-client.md) lens, not here.
-- `prism_ms` and `prism_tool_ms` add up nested time: a call made inside a tool counts on its own and again inside the tool and the call that ran it.
+- `prism_ms` and `prism_tool_ms` count time only at the top: a call made while another call ran, and the tools it ran, are part of that call. Work your code does between two events of a stream it reads is not, so a call made there counts on its own while the stream's `duration` includes it too.

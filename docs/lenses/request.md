@@ -132,9 +132,9 @@ The lens is listed under `lenses` in `config/monocle.php`, keyed by `RequestLens
 |---|---|---|
 | `capture.response_types` | `application/json` and `application/*+json` with `JsonCapture`, `text/html` with `InertiaCapture` | content type (wildcards allowed) => capture class |
 | `capture.headers` | `X-Inertia` with `InertiaCapture` | response header => capture class |
-| `capture.routes` | `*livewire.update` with `LivewireUpdateCapture` in the published config; none when the key is left out | route name (wildcards allowed) => capture class |
+| `capture.routes` | `*livewire.update` with `LivewireUpdateCapture` | route name (wildcards allowed) => capture class |
 
-Each key replaces its default when you set it, so list the entries you want to keep. With `RequestLens::class => true`, no route has a capture, and Livewire updates are shown with the JSON capture instead of one card per component.
+Each key replaces its default when you set it, so list the entries you want to keep. With `RequestLens::class => true`, all three defaults apply, so Livewire updates get one card per component.
 
 Other configuration that affects this lens:
 

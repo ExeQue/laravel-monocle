@@ -78,7 +78,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except) keeps whole requests and commands out of recording, including what they log.
 - Your logging configuration (`config/logging.php`) has no effect on what is recorded: messages below a channel's level are recorded too, and so are messages sent to the `null` channel.
 
-No mask settings apply to this lens: messages and context are kept as they are.
+- [`mask.log`](../configuration.md#masking) is the expression for context keys to mask (default `/pass|token|secret|authorization/i`, masked with `mask.using`). It is separate from `mask.inputs`; `''` keeps context as written. Messages themselves are never masked.
 
 ```php
 // config/monocle.php
@@ -88,11 +88,16 @@ use ExeQue\Monocle\Lenses\LogLens;
     // ...
     LogLens::class => true,    // false to turn it off
 ],
+
+'mask' => [
+    // ...
+    'log' => '/pass|token|secret|authorization|iban/i',
+],
 ```
 
 ## Requirements and limits
 
 - Nothing to install: it listens to Laravel's log events.
 - Only messages written through Laravel's logger (the `Log` facade, `logger()`, `info()` and the exception handler's own logging) are recorded. Output written straight to a file or with `error_log()` is not.
-- Context is not masked, so a password or token put into the context is stored as it is.
+- Context keys that match `mask.log` (by default the same expression as input: `password`, `api_token` ...) are masked; a secret written into the message text itself is not. Set `mask.log` to `''` to keep context as written.
 - Messages Monocle writes about its own recording failures are left out.

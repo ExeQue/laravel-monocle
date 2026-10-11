@@ -99,7 +99,7 @@ Other settings that affect this lens:
 - [`mcp.except_servers`](../configuration.md#mcp) - servers whose calls are never recorded, matched by name in any letter case. Default `['monocle', 'laravel-boost']`, so calls to Monocle's own server and to Laravel Boost are left out. Setting it replaces the default.
 - [`except`](../configuration.md#except) - calls over HTTP to a path in `except.paths` are not recorded, since the request is not.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the MCP tab sits among the tabs.
-- [Masking](../configuration.md#masking) does not apply to this lens: arguments are stored as they are.
+- [Masking](../configuration.md#masking) - argument keys matching `mask.inputs` are masked, also inside nested arguments. Entries keyed by `McpLens::class` apply to this lens only.
 
 ```php
 use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
@@ -120,5 +120,5 @@ use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
 
 - Needs `laravel/mcp`. Without it the lens does nothing.
 - Records the servers your application provides, not MCP servers your application calls as a client.
-- Arguments are not masked.
+- Arguments are masked by key only. A secret under a key that does not match `mask.inputs` is stored as it is.
 - The answer a call returned is not stored; only whether it was an error and how many chunks it streamed.

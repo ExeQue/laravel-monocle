@@ -25,7 +25,7 @@ On a capture of type `command`, a set of facts:
 |---|---|---|
 | `name` | The command name, such as `orders:prune` | never |
 | `class` | The command class | null for closure commands defined in `routes/console.php` |
-| `arguments` | The arguments given, by name | empty when none were given |
+| `arguments` | The arguments given, by name, with secret-looking values masked | empty when none were given |
 | `options` | The options given, by name, with secret-looking values masked | empty when none were given |
 | `exit_code` | The exit code | only absent if the command never finished (for example the process was killed) |
 
@@ -37,7 +37,7 @@ On any capture, one row per command called with `Artisan::call()` (or the consol
 |---|---|---|---|
 | `name` | The command name | - | never |
 | `class` | The command class | - | null for closure commands, or when the command is unknown |
-| `arguments` | The arguments given, by name | - | empty when none were given |
+| `arguments` | The arguments given, by name, masked like the capture's own | - | empty when none were given |
 | `options` | The options given, by name, masked like the capture's own | - | empty when none were given |
 | `exit_code` | The exit code | - | never |
 | `failed` | `true` when the exit code is not 0 | - | never |
@@ -59,7 +59,9 @@ When the capture has rows in `commands`:
 
 Error: `Command <name> failed (exit code <code>).` for each called command with a non-zero exit code, at most three messages per capture. The `commands_failed` total counts them all.
 
-The lens reports no warnings. The exit code of a command capture itself is shown as its status; a non-zero exit code there is not reported as an error by this lens.
+On a command capture, also the error `Command exited with code <code>.` when the command exited with a non-zero code. The capture then counts as having errors, so it shows up with `has_errors` and the dashboard's error filter. Exit code 0 is a success.
+
+The lens reports no warnings.
 
 ## In the dashboard
 
@@ -99,8 +101,8 @@ The lens has no options.
 
 Other settings that affect this lens:
 
-- [`except.commands`](../configuration.md#except): commands that are never recorded, neither as their own capture nor as a row when called with `Artisan::call()`. Patterns support `*` and can include arguments: `'mcp:start monocle'` matches that command only with that argument. The default list holds Monocle's own commands, queue workers, `schedule:work`, `schedule:finish`, `package:discover`, `test`, `tinker` and the long-running commands of Boost, Horizon, Pulse, Reverb, Octane, Nightwatch and spatie/laravel-health. Setting the key replaces the list, so keep the defaults you need.
-- [`mask.inputs`](../configuration.md#masking) and `mask.using`: option names matching `inputs` (by default `/pass|token|secret|authorization/i`) have their value masked with `using` (by default a partial mask). Key an entry by `CommandLens::class` to mask more for commands only. Arguments are not masked.
+- [`except.commands`](../configuration.md#except): commands that are never recorded, neither as their own capture nor as a row when called with `Artisan::call()`. Patterns support `*` and can include arguments: `'mcp:start monocle'` matches that command only with that argument. The default list holds Monocle's own commands, queue workers, `schedule:work`, `package:discover`, `test`, `tinker` and the long-running commands of Boost, Horizon, Pulse, Reverb, Octane, Nightwatch and spatie/laravel-health. Setting the key replaces the list, so keep the defaults you need.
+- [`mask.inputs`](../configuration.md#masking) and `mask.using`: argument and option names matching `inputs` (by default `/pass|token|secret|authorization/i`) have their value masked with `using` (by default a partial mask). Key an entry by `CommandLens::class` to mask more for commands only.
 - [`origin`](../configuration.md#origin): whether `commands` rows carry the line that called the command.
 
 ```php
@@ -114,7 +116,7 @@ use ExeQue\Monocle\Lenses\CommandLens;
     'commands' => [
         // the defaults (shortened here; keep the full list from the published config)
         'monocle:*', 'mcp:start monocle',
-        'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish', 'package:discover', 'test', 'tinker',
+        'queue:work', 'queue:listen', 'schedule:work', 'package:discover', 'test', 'tinker',
         'horizon*',
         // your own long-running or noisy commands
         'app:websocket-server',
@@ -135,6 +137,6 @@ use ExeQue\Monocle\Lenses\CommandLens;
 No extra packages are needed.
 
 - Commands called from inside a command with `$this->call()` or `$this->callSilently()` are not recorded as rows or spans; their work counts toward the calling command. `Artisan::call()` is recorded.
-- Arguments are stored as given, without masking. Pass secrets as options so they are masked.
+- Arguments and options are masked by their name only. A secret passed under a name that does not match `mask.inputs` is stored as given.
 - The command's console output is not recorded.
 - A long-running command you add yourself stays one open capture until it ends; add it to `except.commands`.

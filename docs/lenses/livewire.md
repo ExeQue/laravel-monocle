@@ -100,7 +100,7 @@ Other settings that affect it:
 - [`except.livewire`](../configuration.md#except) - Livewire updates where every component name matches one of these patterns are not recorded at all. Default `['pulse.*']`, so the Pulse dashboard polling itself is left out.
 - [`except.paths`](../configuration.md#except) - Livewire's script, source map, JS and CSS files (`livewire-*/livewire*.js`, `livewire-*/*.map`, `livewire-*/js/*`, `livewire-*/css/*`) are not recorded by default.
 - `RequestLens` option `capture.routes` - `'*livewire.update' => LivewireUpdateCapture::class` gives the Request tab its component cards. Leave the entry out to keep only the raw response. See [Request](request.md#response-captures).
-- [Masking](../configuration.md#masking) - `mask.inputs` masks parameters and updates on the Request tab cards.
+- [Masking](../configuration.md#masking) - `mask.inputs` masks parameters and updates, both on the `livewire` rows and on the Request tab cards. On the rows, an update is masked when its property path matches, and a method parameter when the name the method gives it matches, so `login($password)` is masked however it was called. Entries keyed by `LivewireLens::class` apply to the rows only.
 - `FilamentLivewireLens` adds Filament fields to these rows and runs only while `LivewireLens` is on. See [Filament](filament.md#configuration).
 - [`dashboard.tabs`](../configuration.md#dashboard) - `LivewireLens::class` in the list places the Livewire tab.
 
@@ -135,6 +135,6 @@ Setting `capture.routes` replaces its default, so keep the other `capture` keys 
 
 - Needs `livewire/livewire`. Without it the lens does nothing.
 - Only the server side is recorded. What happens in the browser, such as Alpine code, `wire:model` changes that are not sent to the server and JavaScript-only actions, is not.
-- `calls` and `updates` hold what reached the server. Values on the `livewire` rows are stored as they were sent; the cards on the Request tab are the ones masked like request input.
+- `calls` and `updates` hold what reached the server, with matching values masked.
 - An update whose components all match `except.livewire` is not recorded at all, not even as a request.
 - The first page load that mounts components is recorded with `lifecycle: mount`; the update requests that follow are separate captures.

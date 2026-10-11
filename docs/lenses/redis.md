@@ -13,7 +13,7 @@ Section `redis`, one row per command, in the order they ran.
 | Field | Meaning | Unit | Missing when |
 | --- | --- | --- | --- |
 | `command` | The command, as it was called, such as `get`, `setex` or `eval`. | - | never |
-| `parameters` | The arguments sent with the command. | - | empty list when there were none |
+| `parameters` | The arguments sent with the command, with credentials and secret values masked (see [Masking](../configuration.md#masking) below). | - | empty list when there were none |
 | `connection` | Name of the Redis connection, as in `config/database.php`. | - | never |
 | `duration` | How long the command took. | ms | never |
 | `time` | When the command started, from the start of the capture. | ms | never |
@@ -78,7 +78,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except) - requests and commands listed there are not recorded.
 - [`origin`](../configuration.md#origin) - whether each command gets the line of your code that led to it.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the Redis tab goes among the tabs; it is listed as `RedisLens::class`.
-- [Masking](../configuration.md#masking) does not apply to Redis rows: parameters, including cached values, are recorded as they are. Turn the lens off when they should not be kept.
+- [Masking](../configuration.md#masking) - every argument of `AUTH` and the username and password after `AUTH` in `HELLO` are masked. Values written by `SET`, `SETNX`, `SETEX`, `PSETEX`, `GETSET`, `APPEND`, `MSET`, `MSETNX`, `HSET`, `HSETNX` and `HMSET` are masked when their key (or hash field) matches `mask.inputs`. Other parameters, such as values read back or written by other commands, are recorded as they are. Entries keyed by `RedisLens::class` apply to this lens only.
 - Laravel's own `config/database.php` (the `redis` block) defines the connections whose names appear in `connection`.
 
 ```php

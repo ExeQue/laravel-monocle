@@ -96,7 +96,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except): processes started during a request or command that is not recorded are not recorded either.
 - [`origin`](../configuration.md#origin): whether rows carry the line of your code that started the process.
 
-Command lines are not masked; none of the [masking](../configuration.md#masking) settings apply to them.
+Command lines are masked with [`mask.inputs`](../configuration.md#masking): the value of a long option whose name matches, written as `--password=secret` or `--token secret`, and the value of a variable set in front of the command, such as `DB_PASSWORD=secret php artisan migrate`. Entries keyed by `ProcessLens::class` apply to this lens only.
 
 ```php
 use ExeQue\Monocle\Lenses\ProcessLens;
@@ -114,5 +114,5 @@ No extra packages are needed.
 
 - Only processes started through the `Process` facade (or Laravel's process factory from the container) are recorded. Symfony's `Process` used directly, `exec()`, `shell_exec()`, `system()`, `passthru()`, `proc_open()` and backticks are not.
 - The output itself is not stored, only its size.
-- Command lines are stored as they were run, so a secret passed on the command line is visible in the capture.
+- Only named values are masked. A secret passed as a short option (`-p secret`), as a plain argument, or through `Process::env()` is not recognised; variables passed with `env()` are not recorded at all.
 - Only processes started while a capture is being recorded are kept.

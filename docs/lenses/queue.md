@@ -86,7 +86,7 @@ In the capture list, the **Jobs** filter shows only job captures. A job capture'
 ![A request and the jobs it set off](../images/20-trace-light.webp#gh-light-mode-only)
 ![A request and the jobs it set off](../images/20-trace-dark.webp#gh-dark-mode-only)
 
-The facts in the `job` section are not shown as a tab; read them with `monocle-show` (below). Jobs that ran on the spot show on the **Timeline** as `job` spans.
+A job capture has a **Job** tab with the facts of the `job` section: class, connection, queue, job id, attempt, maximum tries, batch, remaining chain, payload size and the exception it threw. Jobs that ran on the spot show on the **Timeline** as `job` spans.
 
 ## For agents
 

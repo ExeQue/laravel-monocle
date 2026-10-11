@@ -17,8 +17,8 @@ Section `queries`, one row per query or transaction statement, in the order they
 | --- | --- | --- | --- |
 | `n` | Row number in the capture, counting queries and transaction statements together. | - | never |
 | `sql` | The SQL with `?` placeholders, as it was sent. For transaction rows: `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK`, `SAVEPOINT transN`, `RELEASE SAVEPOINT transN` or `ROLLBACK TO SAVEPOINT transN`. | - | never |
-| `bindings` | The values for the placeholders, in order. | - | empty list when `bindings` is `false`, and on transaction rows |
-| `sql_with_bindings` | The SQL with the values filled in, ready to copy and run. | - | `null` when the values could not be filled in; use `sql` then |
+| `bindings` | The values for the placeholders, in order. Values for a sensitive column are masked, see [Masking](#masking). | - | empty list when `bindings` is `false`, and on transaction rows |
+| `sql_with_bindings` | The SQL with the values filled in, ready to copy and run. Masked values are filled in masked. | - | the same as `sql` when `bindings` is `false`; `null` when the values could not be filled in, use `sql` then |
 | `connection` | Name of the database connection. | - | never |
 | `driver` | Driver of the connection, such as `mysql`, `pgsql` or `sqlite`. | - | `null` on transaction rows, or when the driver could not be read |
 | `duration` | How long the query took. | ms | `null` on transaction rows |
@@ -126,7 +126,7 @@ The lens is listed in the `lenses` block of `config/monocle.php`, keyed by its c
 | --- | --- | --- |
 | `slow_ms` | `70` | A query taking at least this many ms is marked `slow` and can give a slow query warning. |
 | `n_plus_one_threshold` | `3` | How many times a select shape must run with different values to be marked `n_plus_one` and give a possible N+1 warning. |
-| `bindings` | `true` | `false` leaves the values out of `bindings`. `sql_with_bindings` is still filled in with the values. |
+| `bindings` | `true` | `false` leaves the values out of every recorded field: `bindings` is empty and `sql_with_bindings` keeps the `?` placeholders. Duplicates are still found. |
 | `ignore_tables` | `['telescope_*', 'pulse_*']` | Queries that only touch these tables are not recorded. `*` is a wildcard. A query that also touches another table, or names no table, is kept. |
 
 Other settings that affect this lens:
@@ -135,7 +135,7 @@ Other settings that affect this lens:
 - [`except`](../configuration.md#except) - requests and commands listed there are not recorded, so their queries are not either.
 - [`origin`](../configuration.md#origin) - whether each query gets the line of your code that ran it, how many lines of the call chain, and which of your own packages in `vendor/` count as your code.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the Queries tab goes among the tabs; it is listed as `DatabaseLens::class`.
-- [Masking](../configuration.md#masking) does not apply to queries: values are recorded as they are. To keep a table's values out entirely, add it to `ignore_tables`; turning `bindings` off still leaves the values in `sql_with_bindings`.
+- [Masking](../configuration.md#masking) - the `mask.inputs` pattern decides which columns have their values masked, see below.
 
 ```php
 use ExeQue\Monocle\Lenses\DatabaseLens;
@@ -150,11 +150,33 @@ use ExeQue\Monocle\Lenses\DatabaseLens;
 ],
 ```
 
+### Masking
+
+A value is masked when the column it belongs to matches the [`mask.inputs`](../configuration.md#masking) pattern, the same pattern that masks request input. With the default pattern, values for columns such as `password` and `remember_token` are masked in `bindings` and in `sql_with_bindings`. The column is found for values written as:
+
+- `column = ?`, `column != ?`, `column <> ?`, `column like ?` and `column not like ?`
+- `column in (?, ?)` and `column not in (?, ?)`
+- `update table set a = ?, b = ?`
+- `insert into table (a, b) values (?, ?)`, with any number of rows
+
+Quoted names such as `"users"."password"` or `` `password` `` count by their column name. A value whose column cannot be found this way, such as `length(password) > ?`, is recorded as it is. Duplicates are found from the real values, so masking does not change `duplicate_of`.
+
+To mask more columns for queries only, key a pattern by the lens:
+
+```php
+'mask' => [
+    'inputs' => ['/pass|token|secret|authorization/i', DatabaseLens::class => '/iban|ssn/i'],
+],
+```
+
+To keep every value out, set `bindings` to `false`. To keep a table out entirely, add it to `ignore_tables`.
+
 ## Requirements and limits
 
 No extra packages are needed.
 
 - Only queries that go through Laravel's database connections are recorded. Statements run on the raw PDO object are not.
 - Transaction statements have no duration.
+- Values are only masked when their column can be read from the SQL text next to the `?`. Values in raw expressions, function calls or `between` are not masked; turn `bindings` off when those can hold secrets.
 - `tables` is read from the SQL text, so tables in unusual syntax may be missed. A query with no tables found is never left out by `ignore_tables`.
 - Queries run while no capture is recording are not listed.

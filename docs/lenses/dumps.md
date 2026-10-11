@@ -48,6 +48,11 @@ A row folds out to:
 - whether it was called through `dump()` or `dd()`, and when
 - the line of code that called it
 
+A dump of a model that holds other models, such as a post with its author and comments loaded, folds out to the whole tree:
+
+![A dump of a post with its author and comments](../images/47-lens-dumps-nested-light.webp#gh-light-mode-only)
+![A dump of a post with its author and comments](../images/47-lens-dumps-nested-dark.webp#gh-dark-mode-only)
+
 ## For agents
 
 `monocle-rows`: what the latest capture dumped, and from where. Leave out `tokens`, which repeats the value.
