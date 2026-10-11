@@ -27,7 +27,7 @@ final readonly class Summary
      * @param  list<string>  $warnings  things worth a look
      * @param  list<string>  $errors  things that failed
      */
-    public function __construct(
+    private function __construct(
         public array $totals = [],
         public array $labels = [],
         public array $units = [],

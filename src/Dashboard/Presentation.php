@@ -15,7 +15,7 @@ final readonly class Presentation
 {
     use Immutable;
 
-    public function __construct(
+    private function __construct(
         public ?string $label = null,
         /** @var array<string, string|null> column => label (null: from the column name) */
         public array $columns = [],

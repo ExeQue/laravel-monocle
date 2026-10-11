@@ -81,11 +81,4 @@ describe(Summary::class, function (): void {
         expect($summary->totals)->toBe(['kept' => 2])
             ->and($summary->warnings)->toBe([]);
     });
-
-    it('takes totals and warnings up front too', function (): void {
-        $summary = (new Summary(totals: ['a' => 1], warnings: ['w']))->total('b', 2);
-
-        expect($summary->totals)->toBe(['a' => 1, 'b' => 2])
-            ->and($summary->warnings)->toBe(['w']);
-    });
 });
