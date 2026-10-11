@@ -1,7 +1,7 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
-import { esc, ms, ago, humanize, fmtValue, maybeLink, classes } from './format.js';
+import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails } from './popover.js';
@@ -32,6 +32,9 @@ const TOTAL_GROUPS = [
   ['Features', (k) => k.startsWith('features_')],
   ['Authorization', (k) => k.startsWith('authorization_')],
 ];
+/** Table columns whose values are worth copying: keys, urls, names, paths, messages. */
+const COPY_COLUMNS = ['key', 'keys', 'url', 'path', 'destination', 'view', 'name', 'class', 'message', 'command', 'job', 'event', 'listener', 'ability', 'subject', 'to', 'from', 'tool', 'model', 'feature', 'component', 'prompt', 'response', 'text', 'file', 'id', 'uuid', 'job_id', 'batch_id', 'value', 'sql'];
+
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 const TAB_ORDER = ['exceptions', 'validation', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
@@ -496,10 +499,13 @@ Alpine.data('monocle', (config) => ({
     const bindings = q.bindings ?? [];
     const frames = q.origin?.frames ?? [];
 
+    const heading = (text, copy, what) => `<div class="flex items-center gap-1.5"><div class="${label}">${text}</div>${copy ? copyButton(copy, what) : ''}</div>`;
+
     return `<div class="grid gap-3 text-xs">
-      <div class="grid gap-1"><div class="${label}">Query with placeholders</div><code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql ?? '')}</code></div>
-      <div class="grid gap-1"><div class="${label}">Bindings</div>${bindings.length
-        ? `<table class="w-auto border-collapse"><tbody>${bindings.map((b, i) => `<tr><td class="pr-3 font-mono text-muted tabular-nums">?${i + 1}</td><td class="font-mono [overflow-wrap:anywhere]">${b === null ? '<span class="text-muted">null</span>' : esc(fmtValue(b))}</td></tr>`).join('')}</tbody></table>`
+      ${q.sql_with_bindings ? `<div class="grid gap-1">${heading('Query', q.sql_with_bindings, 'query with bindings')}<code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql_with_bindings)}</code></div>` : ''}
+      <div class="grid gap-1">${heading('Query with placeholders', q.sql ?? '', 'query with placeholders')}<code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql ?? '')}</code></div>
+      <div class="grid gap-1">${heading('Bindings', bindings.length ? JSON.stringify(bindings) : '', 'bindings as JSON')}${bindings.length
+        ? `<table class="w-fit border-collapse"><tbody>${bindings.map((b, i) => `<tr class="group/copy"><td class="pr-3 font-mono text-muted tabular-nums">?${i + 1}</td><td class="font-mono [overflow-wrap:anywhere]">${b === null ? '<span class="text-muted">null</span>' : esc(fmtValue(b))}</td><td class="pl-2">${b === null ? '' : copyButton(fmtValue(b), `binding ${i + 1}`, { hover: true })}</td></tr>`).join('')}</tbody></table>`
         : '<span class="text-muted">none</span>'}</div>
       <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1">${facts.map(([k, v]) => `<dt class="text-muted">${k}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${esc(String(v))}</dd>`).join('')}</dl>
       ${frames.length ? `<div class="grid gap-1"><div class="${label}">Call chain</div><ol class="m-0 grid list-decimal gap-0.5 pl-5">${frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></div>` : ''}
@@ -561,11 +567,12 @@ Alpine.data('monocle', (config) => ({
     if (key === 'passed' && typeof v === 'boolean') return v ? '<span class="text-ok">passed</span>' : '<span class="font-medium text-warn">failed</span>';
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
-    return row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);
+    const html = row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);
+    return COPY_COLUMNS.includes(key) && text !== '' ? `<span class="group/copy">${html} ${copyButton(text, humanize(key).toLowerCase(), { hover: true })}</span>` : html;
   },
 
   // Template helpers
-  cls, ms, ago, statusClass, humanize, esc, maybeLink,
+  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
   totalValue([k, v]) {

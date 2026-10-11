@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink } from './format.js';
+import { esc, ms, fmtValue, maybeLink, copyButton } from './format.js';
 import { cls } from './classes.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
@@ -16,8 +16,6 @@ const originHtml = (o) => !o || !o.file ? '' : `
     ${o.frames?.length ? `<details><summary class="cursor-pointer text-xs text-muted">Call chain (${o.frames.length})</summary><ol class="mt-1 grid gap-0.5 pl-4.5 text-[11.5px] [overflow-wrap:anywhere] list-decimal">${o.frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></details>` : ''}
   </div>`;
 
-/** A small button copying `text`; the click is handled in setupPopover. */
-const copyButton = (text, what) => `<button type="button" class="shrink-0 cursor-pointer rounded p-0.5 text-muted hover:text-brass focus-visible:text-brass" data-pop-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy"><svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3.5V9A1.5 1.5 0 0 0 4 10.5h1.5"/></svg></button>`;
 
 const codeBlock = (title, text) => `<div class="flex items-center justify-between gap-2"><div class="${K}">${title}</div>${copyButton(text, title.toLowerCase())}</div><pre class="m-0 whitespace-pre-wrap rounded-md bg-sunk p-2 font-mono text-xs [overflow-wrap:anywhere]">${esc(text)}</pre>`;
 
@@ -93,23 +91,6 @@ function phaseDetails(model, p) {
  * Click a timeline row, block or phase bar to open its details next to the
  * click. getModel() returns the timeline model of the open capture.
  */
-/** Copy a detail value and confirm on the button for a moment. */
-function copyValue(button) {
-  const done = () => {
-    button.dataset.tip = 'Copied';
-    button.classList.add('!text-ok');
-    setTimeout(() => { button.dataset.tip = 'Copy'; button.classList.remove('!text-ok'); }, 1200);
-  };
-  navigator.clipboard?.writeText(button.dataset.popCopy).then(done, () => {
-    const area = Object.assign(document.createElement('textarea'), { value: button.dataset.popCopy });
-    document.body.append(area);
-    area.select();
-    document.execCommand('copy');
-    area.remove();
-    done();
-  });
-}
-
 export function setupPopover(root, getModel) {
   const pop = document.createElement('div');
   pop.className = 'pop pop-arrow scroll-quiet fixed z-50 grid max-h-[min(70vh,520px)] w-[min(380px,calc(100vw-32px))] gap-2.5 overflow-auto rounded-lg border border-line bg-panel p-3.5 text-[13px] text-fg shadow-[0_12px_32px_rgba(0,0,0,.18),0_2px_6px_rgba(0,0,0,.08)]';
@@ -180,8 +161,6 @@ export function setupPopover(root, getModel) {
   document.addEventListener('click', (e) => {
     if (e.target.closest('.pop')) {
       if (e.target.closest('[data-pop-close]')) close();
-      const copy = e.target.closest('[data-pop-copy]');
-      if (copy) copyValue(copy);
       const jump = e.target.closest('[data-pop-node]');
       if (jump) {
         const el = root.querySelector(`[data-node="${jump.dataset.popNode}"]`);

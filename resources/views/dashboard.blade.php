@@ -478,6 +478,7 @@
                                     <h3 :class="cls.sectionTitle" class="mb-0">Request</h3>
                                     <p class="m-0 font-mono text-[13px] [overflow-wrap:anywhere]">
                                         <b x-text="request.method"></b> <span x-text="request.url"></span>
+                                        <span x-html="copyButton(request.url, 'url')"></span>
                                     </p>
                                     <dl class="m-0 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
                                         <template
@@ -493,8 +494,12 @@
                                             <div class="contents">
                                                 <dt class="text-muted" x-text="k"></dt>
                                                 <dd
-                                                    class="m-0 font-mono text-xs [overflow-wrap:anywhere]"
-                                                    x-html="linked(v, path)"
+                                                    class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]"
+                                                    x-html="
+                                                        linked(v, path) +
+                                                        ' ' +
+                                                        copyButton(String(v), k.toLowerCase(), { hover: true })
+                                                    "
                                                 ></dd>
                                             </div>
                                         </template>
@@ -521,8 +526,12 @@
                                             <div class="contents">
                                                 <dt class="text-muted" x-text="k"></dt>
                                                 <dd
-                                                    class="m-0 font-mono text-xs [overflow-wrap:anywhere]"
-                                                    x-html="linked(v, path)"
+                                                    class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]"
+                                                    x-html="
+                                                        linked(v, path) +
+                                                        ' ' +
+                                                        copyButton(String(v), k.toLowerCase(), { hover: true })
+                                                    "
                                                 ></dd>
                                             </div>
                                         </template>
@@ -620,8 +629,18 @@
                                                         </td>
                                                         <td
                                                             :class="cls.td"
-                                                            class="font-mono text-xs"
-                                                            x-html="payloadValue(v)"
+                                                            class="group/copy font-mono text-xs"
+                                                            x-html="
+                                                                payloadValue(v) +
+                                                                ' ' +
+                                                                copyButton(
+                                                                    typeof v === 'object'
+                                                                        ? JSON.stringify(v)
+                                                                        : String(v),
+                                                                    k,
+                                                                    { hover: true },
+                                                                )
+                                                            "
                                                         ></td>
                                                         <td
                                                             :class="cls.td"
@@ -692,7 +711,10 @@
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>
-                                                        <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
+                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
+                                                            <span x-text="v"></span>
+                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
+                                                        </td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -713,7 +735,10 @@
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>
-                                                        <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
+                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
+                                                            <span x-text="v"></span>
+                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
+                                                        </td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -750,7 +775,10 @@
                                                             :data-tip="k.length > 32 ? k : ''"
                                                             x-text="shortName(k)"
                                                         ></td>
-                                                        <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
+                                                        <td :class="cls.td" class="group/copy font-mono text-xs">
+                                                            <span x-text="v"></span>
+                                                            <span x-html="copyButton(String(v), k, { hover: true })"></span>
+                                                        </td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -775,6 +803,11 @@
                                                 x-text="v[1]"
                                             ></button>
                                         </template>
+                                        <span
+                                            class="ml-auto"
+                                            x-show="request.response_capture?.raw"
+                                            x-html="copyButton(request.response_capture?.raw ?? '', 'response body')"
+                                        ></span>
                                     </div>
                                     <pre
                                         class="scroll-quiet border-line bg-panel m-0 max-h-[480px] overflow-auto rounded-md border p-3 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
@@ -835,7 +868,10 @@
                             <div class="grid gap-4">
                                 <p class="text-muted m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
                                     <span>Driver <b class="text-fg font-mono" x-text="session.driver"></b></span>
-                                    <span>Session <b class="text-fg font-mono" x-text="session.id"></b></span>
+                                    <span
+                                        >Session <b class="text-fg font-mono" x-text="session.id"></b>
+                                        <span x-html="copyButton(session.id ?? '', 'session id')"></span
+                                    ></span>
                                     <span x-show="session.flash?.length"
                                         >Flashed for the next request:
                                         <b class="text-fg font-mono" x-text="session.flash?.join(', ')"></b
@@ -868,8 +904,16 @@
                                                     ></td>
                                                     <td
                                                         :class="cls.td"
-                                                        class="font-mono text-xs"
-                                                        x-html="linked(v, 'data.' + k)"
+                                                        class="group/copy font-mono text-xs"
+                                                        x-html="
+                                                            linked(v, 'data.' + k) +
+                                                            ' ' +
+                                                            copyButton(
+                                                                typeof v === 'object' ? JSON.stringify(v) : String(v),
+                                                                k,
+                                                                { hover: true },
+                                                            )
+                                                        "
                                                     ></td>
                                                 </tr>
                                             </template>
@@ -962,10 +1006,19 @@
                                                 </button>
                                             </td>
                                             <td :class="cls.td">
-                                                <code
-                                                    class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                    x-text="q.sql_with_bindings ?? q.sql"
-                                                ></code>
+                                                <span class="group/copy flex items-start gap-1.5">
+                                                    <code
+                                                        class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                        x-text="q.sql_with_bindings ?? q.sql"
+                                                    ></code>
+                                                    <span
+                                                        x-html="
+                                                            copyButton(q.sql_with_bindings ?? q.sql, 'query', {
+                                                                hover: true,
+                                                            })
+                                                        "
+                                                    ></span>
+                                                </span>
                                                 <span class="mt-1 flex flex-wrap items-center gap-2">
                                                     <span x-html="originHtml(q.origin)"></span>
                                                     <span
@@ -1034,7 +1087,7 @@
                                 </thead>
                                 <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
                                     <tbody>
-                                        <tr class="hover:bg-sunk cursor-pointer" @click="toggleGroup(q.key)">
+                                        <tr class="hover:bg-sunk group/copy cursor-pointer" @click="toggleGroup(q.key)">
                                             <td :class="cls.td">
                                                 <div class="flex items-start gap-1.5">
                                                     <button
@@ -1069,13 +1122,30 @@
                                                                 q.key === '(none)' ? 'outside a transaction' : q.key
                                                             "
                                                         ></div>
-                                                        <code
-                                                            class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                            :class="(groupBy === 'table' ||
-                                                                groupBy === 'transaction') &&
-                                                            'mt-0.5 text-muted'"
-                                                            x-text="groupBy === 'shape' ? q.key : (q.example ?? q.key)"
-                                                        ></code>
+                                                        <span class="flex items-start gap-1.5">
+                                                            <code
+                                                                class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                                :class="(groupBy === 'table' ||
+                                                                    groupBy === 'transaction') &&
+                                                                'mt-0.5 text-muted'"
+                                                                x-text="
+                                                                    groupBy === 'shape' ? q.key : (q.example ?? q.key)
+                                                                "
+                                                            ></code>
+                                                            <span
+                                                                x-html="
+                                                                    copyButton(
+                                                                        groupBy === 'shape'
+                                                                            ? q.key
+                                                                            : (q.example ?? q.key),
+                                                                        'query',
+                                                                        {
+                                                                            hover: true,
+                                                                        },
+                                                                    )
+                                                                "
+                                                            ></span>
+                                                        </span>
                                                         <span x-html="originHtml(q.origin)"></span>
                                                     </div>
                                                 </div>
@@ -1098,12 +1168,12 @@
                                             ></td>
                                         </tr>
                                         <tr x-show="openGroups.includes(q.key)" x-cloak>
-                                            <td colspan="5" class="border-line bg-sunk/50 border-b px-3 py-0">
+                                            <td colspan="5" class="border-line bg-sunk/50 border-b p-0">
                                                 <div x-show="openGroups.includes(q.key)" x-collapse>
                                                     <template x-for="n in q.rows ?? []" :key="n">
                                                         <div class="border-line border-b last:border-b-0">
                                                             <div
-                                                                class="hover:bg-sunk grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 py-1.5 text-xs"
+                                                                class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
                                                                 @click="toggleQuery(n)"
                                                             >
                                                                 <button
@@ -1133,14 +1203,27 @@
                                                                     <span x-text="'#' + n"></span>
                                                                 </button>
                                                                 <div class="min-w-0">
-                                                                    <code
-                                                                        class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                                        x-text="
-                                                                            queryRows[n]?.sql_with_bindings ??
-                                                                            queryRows[n]?.sql ??
-                                                                            '...'
-                                                                        "
-                                                                    ></code>
+                                                                    <span class="flex items-start gap-1.5">
+                                                                        <code
+                                                                            class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                                            x-text="
+                                                                                queryRows[n]?.sql_with_bindings ??
+                                                                                queryRows[n]?.sql ??
+                                                                                '...'
+                                                                            "
+                                                                        ></code>
+                                                                        <span
+                                                                            x-html="
+                                                                                copyButton(
+                                                                                    queryRows[n]?.sql_with_bindings ??
+                                                                                        queryRows[n]?.sql ??
+                                                                                        '',
+                                                                                    'query',
+                                                                                    { hover: true },
+                                                                                )
+                                                                            "
+                                                                        ></span>
+                                                                    </span>
                                                                     <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
                                                                     <span
                                                                         class="text-muted font-mono text-[11px]"
@@ -1158,7 +1241,7 @@
                                                             </div>
                                                             <div x-show="openQueries.includes(n)" x-collapse x-cloak>
                                                                 <div
-                                                                    class="pb-3 pl-[4.25rem]"
+                                                                    class="pr-3 pb-3 pl-[5rem]"
                                                                     x-html="
                                                                         queryRows[n] ? queryDetails(queryRows[n]) : ''
                                                                     "
@@ -1310,10 +1393,13 @@
                                                         </svg>
                                                     </button>
                                                     <div class="min-w-0">
-                                                        <code
-                                                            class="block font-mono text-xs [overflow-wrap:anywhere]"
-                                                            x-text="g.key"
-                                                        ></code>
+                                                        <span class="group/copy flex items-start gap-1.5">
+                                                            <code
+                                                                class="block font-mono text-xs [overflow-wrap:anywhere]"
+                                                                x-text="g.key"
+                                                            ></code>
+                                                            <span x-html="copyButton(g.key, httpGroup, { hover: true })"></span>
+                                                        </span>
                                                         <span x-html="originHtml(g.origin)"></span>
                                                     </div>
                                                 </div>
@@ -1341,11 +1427,11 @@
                                             ></td>
                                         </tr>
                                         <tr x-show="openGroups.includes(g.key)" x-cloak>
-                                            <td colspan="6" class="border-line bg-sunk/50 border-b px-3 py-0">
+                                            <td colspan="6" class="border-line bg-sunk/50 border-b p-0">
                                                 <div x-show="openGroups.includes(g.key)" x-collapse>
                                                     <template x-for="i in g.rows" :key="i">
                                                         <div
-                                                            class="border-line hover:bg-sunk grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 border-b py-1.5 text-xs last:border-b-0"
+                                                            class="border-line hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 border-b px-3 py-1.5 text-xs last:border-b-0"
                                                             @click="rowPopover($event, tabData.rows[i], 'http')"
                                                         >
                                                             <span
@@ -1427,10 +1513,16 @@
                             <template x-for="[k, v] in Object.entries(tabData?.data ?? {})" :key="k">
                                 <div class="border-line grid grid-cols-[minmax(120px,220px)_minmax(0,1fr)] gap-3 border-b py-1.5">
                                     <dt class="text-muted text-[12.5px]" x-text="k"></dt>
-                                    <dd
-                                        class="m-0 font-mono text-xs [overflow-wrap:anywhere]"
-                                        x-text="typeof v === 'object' ? JSON.stringify(v) : v"
-                                    ></dd>
+                                    <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
+                                        <span x-text="typeof v === 'object' ? JSON.stringify(v) : v"></span>
+                                        <span
+                                            x-html="
+                                                copyButton(typeof v === 'object' ? JSON.stringify(v) : String(v), k, {
+                                                    hover: true,
+                                                })
+                                            "
+                                        ></span>
+                                    </dd>
                                 </div>
                             </template>
                         </dl>
