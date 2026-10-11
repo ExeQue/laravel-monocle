@@ -50,7 +50,7 @@ These record something only when the package is installed; otherwise they do not
 | [Inertia](https://inertiajs.com) | [Inertia](#inertia) | `inertia`, `inertia_pages` | the page, every prop with its type and size, deferred props and partial reloads |
 | [lab404/laravel-impersonate](https://github.com/404labfr/laravel-impersonate) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
-| [Prism](https://prismphp.com) | [Prism](#prism) | `prism` | text, structured, stream, embeddings, image and audio calls with tokens |
+| [Prism](https://prismphp.com) | [Prism](#prism) | `prism`, `prism_tools` | text, structured, stream, embeddings, image and audio calls with tokens, and tool calls with their time |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai`, `ai_tools` | agents, steps, tool calls with their time, and tokens |
 | [Laravel Folio](https://laravel.com/docs/folio) | part of [Request](#request), see [Folio](#folio) | `request` | the page file a request matched |
@@ -336,7 +336,7 @@ Inertia responses are also shown as a card on the Request tab: the component, it
 
 ### Prism
 
-Section `prism`: calls made with `prism-php/prism` - operation (text, structured, stream, embeddings, images, moderation, text to speech, speech to text), provider, model, prompt, response, structured output, finish reason, steps, tool calls, the tools offered, tokens, duration and status. Each call is shown in the timeline; a stream shows its steps. A stream that is not read to the end has the status `abandoned`. The HTTP requests Prism sends to the provider are in the `http` section too.
+Section `prism`: calls made with `prism-php/prism` - operation (text, structured, stream, embeddings, images, moderation, text to speech, speech to text), provider, model, prompt, response, structured output, finish reason, steps, tool calls, the tools offered, tokens, duration and status. Each call is shown in the timeline; a stream shows its steps. A stream that is not read to the end has the status `abandoned`. Section `prism_tools`, on the same tab: one row per tool Prism ran - tool, status, arguments, result or exception, and how long it took; each is also shown in the timeline under its call. The overview adds the time spent in tools and the number of tool calls. The HTTP requests Prism sends to the provider are in the `http` section too.
 
 Needs `prism-php/prism`. Calls made with `Prism::fake()` are recorded as well.
 

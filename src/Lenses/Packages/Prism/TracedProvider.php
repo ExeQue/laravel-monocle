@@ -36,8 +36,10 @@ use Prism\Prism\Text\Request as TextRequest;
 use Prism\Prism\Text\Response as TextResponse;
 use Prism\Prism\Tool;
 use Prism\Prism\ValueObjects\EmbeddingsUsage;
+use Prism\Prism\ValueObjects\ToolOutput;
 use Prism\Prism\ValueObjects\Usage;
 use Throwable;
+use WeakMap;
 
 /**
  * Decorates a Prism provider: every call becomes a prism.call span and a row
@@ -47,6 +49,9 @@ use Throwable;
  */
 final class TracedProvider extends Provider
 {
+    /** @var WeakMap<Tool, true>|null Tools whose closure is already timed. */
+    private static ?WeakMap $timedTools = null;
+
     public function __construct(
         private readonly Provider $inner,
         private readonly Eyepiece $eyepiece,
@@ -107,6 +112,7 @@ final class TracedProvider extends Provider
 
         $facts = $this->requestFacts('stream', $request);
         $span = $this->eyepiece->span($this->spanName($facts), 'prism.call')->start($facts);
+        $this->timeTools($request);
         $step = null;
         $text = '';
 
@@ -210,6 +216,7 @@ final class TracedProvider extends Provider
 
         $facts = $this->requestFacts($operation, $request);
         $span = $this->eyepiece->span($this->spanName($facts), 'prism.call')->start($facts);
+        $this->timeTools($request);
 
         try {
             $response = $call();
@@ -236,6 +243,86 @@ final class TracedProvider extends Provider
             'prompt' => $this->truncate($this->prompt($request)),
             'tools' => $this->toolNames($request),
         ];
+    }
+
+    /**
+     * Prism runs the tools itself and tells no one, so each tool offered with
+     * the request gets its closure wrapped once: every call becomes a
+     * prism.tool span and a prism_tools row with its time.
+     */
+    private function timeTools(object $request): void
+    {
+        if (! method_exists($request, 'tools')) {
+            return;
+        }
+
+        self::$timedTools ??= new WeakMap();
+
+        foreach ($request->tools() as $tool) {
+            if (! $tool instanceof Tool) {
+                continue;
+            }
+
+            if (isset(self::$timedTools[$tool])) {
+                continue;
+            }
+
+            self::$timedTools[$tool] = true;
+            $run = $this->runTool(...);
+
+            // Tool::$fn is protected; swap it from inside the tool.
+            (function () use ($run): void {
+                $inner = $this->fn;
+                $this->fn = fn (mixed ...$arguments): mixed => $run($this, $inner, $arguments);
+            })->call($tool);
+        }
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $arguments
+     */
+    private function runTool(Tool $tool, callable $inner, array $arguments): mixed
+    {
+        if (! $this->eyepiece->recording()) {
+            return $inner(...$arguments);
+        }
+
+        $span = $this->eyepiece->span($tool->name(), 'prism.tool')->start(['tool' => $tool->name()]);
+        $started = hrtime(true);
+
+        try {
+            $output = $inner(...$arguments);
+        } catch (Throwable $exception) {
+            $this->recordTool($tool, $span, $arguments, $started, exception: $exception);
+
+            throw $exception;
+        }
+
+        $this->recordTool($tool, $span, $arguments, $started, output: $output);
+
+        return $output;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $arguments
+     */
+    private function recordTool(Tool $tool, Span $span, array $arguments, int $started, mixed $output = null, ?Throwable $exception = null): void
+    {
+        $ms = round((hrtime(true) - $started) / 1_000_000, 3);
+        $status = $exception === null ? 'ok' : 'failed';
+        $result = $output instanceof ToolOutput ? $output->result : (is_string($output) ? $output : null);
+        $described = $exception === null ? null : ThrowableChain::describe($exception);
+
+        $span->stop(['status' => $status, 'tool_ms' => $ms]);
+
+        $this->eyepiece->push('prism_tools', [
+            'tool' => $tool->name(),
+            'status' => $status,
+            'arguments' => Normalizer::normalize($arguments),
+            'result' => $this->truncate($result),
+            'exception' => $described,
+            'duration' => $ms,
+        ]);
     }
 
     /**

@@ -44,7 +44,7 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
 
     public function description(): string
     {
-        return 'prism-php/prism calls: operation (text, structured, stream, embeddings, images, moderation, text_to_speech, speech_to_text), provider, model, prompt, response text, structured output, finish reason, steps, tool calls, tools offered, tokens (input, output, cache, reasoning), duration and status (ok, failed, abandoned for a stream not read to the end). Each call is a prism.call span in the timeline; streams get prism.step children.';
+        return 'prism-php/prism calls: operation (text, structured, stream, embeddings, images, moderation, text_to_speech, speech_to_text), provider, model, prompt, response text, structured output, finish reason, steps, tool calls, tools offered, tokens (input, output, cache, reasoning), duration and status (ok, failed, abandoned for a stream not read to the end). Each call is a prism.call span in the timeline; streams get prism.step children and tool calls prism.tool children. Section prism_tools has one row per tool call: tool, status, arguments, result (or exception) and duration.';
     }
 
     public function advice(): string
@@ -63,10 +63,6 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
      */
     public function boot(Application $app): void
     {
-        if (! class_exists(PrismManager::class)) {
-            return;
-        }
-
         $wrap = fn (PrismManager $manager, Application $app): TracedPrismManager => new TracedPrismManager(
             inner: $manager instanceof TracedPrismManager ? $manager->inner() : $manager,
             eyepiece: $this->eyepiece,
@@ -93,6 +89,7 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
             return Summary::make();
         }
 
+        $tools = $capture->rows('prism_tools');
         $tokens = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
         $ms = 0.0;
         $byModel = [];
@@ -111,8 +108,23 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
                 $errors[] = sprintf('Prism %s on %s failed: %s', $row['operation'], $model, $row['exception']['message'] ?? '');
             }
 
+            // Timed tool calls report their own failures below; a stream also names them.
+            if ($tools !== []) {
+                continue;
+            }
+
             foreach ($row['failed_tools'] ?? [] as $tool) {
                 $errors[] = sprintf('Tool %s failed during Prism %s on %s.', $tool, $row['operation'], $model);
+            }
+        }
+
+        $toolMs = 0.0;
+
+        foreach ($tools as $tool) {
+            $toolMs += (float) ($tool['duration'] ?? 0);
+
+            if ($tool['status'] === 'failed') {
+                $errors[] = sprintf('Prism tool %s failed: %s', $tool['tool'], $tool['exception']['message'] ?? '');
             }
         }
 
@@ -123,11 +135,25 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
                 'prism_by_model' => $byModel,
             ])
             ->total('prism_calls', count($rows), 'calls')
+            ->when($tools !== [])
+            ->total('prism_tool_ms', round($toolMs, 3), 'in tools', Unit::Milliseconds)
+            ->when($tools !== [])
+            ->total('prism_tool_calls', count($tools), 'tool calls')
             ->errors(array_slice($errors, 0, 5));
     }
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.prism')->format(['status' => 'status']);
+        return Presentation::table()
+            ->tab('monocle::tabs.prism')
+            ->format(['status' => 'status'])
+            ->includes([
+                'prism_tools' => Presentation::table()
+                    ->label('Tool calls')
+                    ->columns(['tool', 'status', 'duration'])
+                    ->detailsOnly(['arguments', 'result', 'exception'])
+                    ->format(['tool' => 'code', 'status' => 'status'])
+                    ->groupBy(['tool' => 'by tool']),
+            ]);
     }
 }
