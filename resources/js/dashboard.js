@@ -74,7 +74,13 @@ const hiddenNames = {
 };
 
 /** A {field, from, to} list as a small table. */
-const changesTable = (changes) => `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]">${esc(c.field)}</td><td class="px-1.5 py-0.5 align-top font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 align-top font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
+/** Field changes as a table: a new field has nothing in From, a removed one nothing in To. */
+const changesTable = (changes) => {
+  const td = 'px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]';
+  const tag = (text) => `<span class="rounded border border-line px-1 font-sans text-[10.5px] text-muted">${text}</span>`;
+  const value = (v) => esc(fmtValue(v));
+  return `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="${td}">${esc(c.field)}</td><td class="${td} text-bad">${c.from === null ? tag('new') : value(c.from)}</td><td class="${td} text-ok">${c.to === null ? tag('removed') : value(c.to)}</td></tr>`).join('')}</tbody></table>`;
+};
 
 Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   api: config.api,
@@ -718,6 +724,17 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   /** A name cut to 32 characters, for header and cookie names; the full name is in a tooltip. */
   shortName(name) {
     return name.length > 32 ? name.slice(0, 32) + '…' : name;
+  },
+
+  /** A dot-notated key with its parents toned down, so the field itself stands out. */
+  dottedKey(key) {
+    const at = String(key).lastIndexOf('.');
+    return at < 0 ? esc(key) : `<span class="text-muted">${esc(key.slice(0, at + 1))}</span>${esc(key.slice(at + 1))}`;
+  },
+
+  /** A url with its query string decoded for reading; copying keeps it as sent. */
+  readableUrl(url) {
+    try { return decodeURI(String(url ?? '')).replace(/%5B/gi, '[').replace(/%5D/gi, ']'); } catch { return url; }
   },
 
   /** A column header: `time` is an offset into the capture, not a duration. */

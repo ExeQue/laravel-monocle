@@ -477,7 +477,7 @@
                                 <div class="grid gap-2">
                                     <h3 :class="cls.sectionTitle" class="mb-0">Request</h3>
                                     <p class="m-0 font-mono text-[13px] [overflow-wrap:anywhere]">
-                                        <b x-text="request.method"></b> <span x-text="request.url"></span>
+                                        <b x-text="request.method"></b> <span x-text="readableUrl(request.url)"></span>
                                         <span x-html="copyButton(request.url, 'url')"></span>
                                     </p>
                                     <dl class="m-0 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
@@ -601,7 +601,7 @@
                                                         <td
                                                             :class="cls.td"
                                                             class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
-                                                            x-text="k"
+                                                            x-html="dottedKey(k)"
                                                         ></td>
                                                         <td
                                                             :class="cls.td"
@@ -637,7 +637,7 @@
                                                         <td
                                                             :class="cls.td"
                                                             class="w-0 pr-6 font-mono text-xs whitespace-nowrap"
-                                                            x-text="k"
+                                                            x-html="dottedKey(k)"
                                                         ></td>
                                                         <td
                                                             :class="cls.td"
@@ -901,7 +901,7 @@
                                                 <tr>
                                                     <td
                                                         :class="cls.td"
-                                                        class="text-muted w-72 font-mono text-xs"
+                                                        class="text-muted w-0 pr-6 font-mono text-xs whitespace-nowrap"
                                                         x-text="k"
                                                     ></td>
                                                     <td
