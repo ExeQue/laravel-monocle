@@ -206,7 +206,7 @@ return [
             // Monocle
             'monocle:*', 'mcp:start monocle',
             // Laravel
-            'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish', 'package:discover', 'test',
+            'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish', 'package:discover', 'test', 'tinker',
             // Laravel Boost
             'boost:*',
             // Laravel Horizon
