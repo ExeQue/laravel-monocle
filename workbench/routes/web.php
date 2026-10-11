@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Closure;
 use ExeQue\Monocle\Facades\Monocle;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
