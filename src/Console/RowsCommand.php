@@ -63,7 +63,7 @@ final class RowsCommand extends Command
                 return;
             }
 
-            $this->rowsTable(array_map($this->readable(...), $rows), $this->columns($rows));
+            $this->rowsTable(array_map($this->readable(...), $rows), $this->pickColumns($rows));
             $this->paging($data);
         });
     }
@@ -102,41 +102,19 @@ final class RowsCommand extends Command
      * @param  list<array<string, mixed>>  $rows
      * @return list<string>
      */
-    private function columns(array $rows): array
+    private function pickColumns(array $rows): array
     {
         if ($this->option('field') !== []) {
             return $this->option('field');
         }
 
-        $keys = array_keys(array_merge(...$rows));
-
-        $columns = array_values(array_filter($keys, function (string $key) use ($rows): bool {
-            if ($key === 'origin') {
-                return false;
-            }
-
-            $values = array_column($rows, $key);
-
-            foreach ($values as $value) {
-                if (is_array($value) && ! array_is_list($value)) {
-                    return false;
-                }
-
-                if (is_array($value) && array_filter($value, is_scalar(...)) !== $value) {
-                    return false;
-                }
-            }
-
-            return array_filter($values, fn (mixed $value): bool => $value !== null && $value !== []) !== [];
-        }));
-
-        $hidden = array_slice($columns, self::MAX_COLUMNS);
+        [$shown, $hidden] = $this->columns($rows, self::MAX_COLUMNS);
 
         if ($hidden !== []) {
             note('Not shown: '.implode(', ', $hidden).'. Pick columns with --field.');
         }
 
-        return array_slice($columns, 0, self::MAX_COLUMNS);
+        return $shown;
     }
 
     protected function getArguments(): array

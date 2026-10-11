@@ -28,8 +28,6 @@ final class ShowCommand extends Command
     /**
      * Row columns that repeat another column or only matter to machines.
      */
-    private const array NOISY_COLUMNS = ['id', 'shape', 'shape_hash', 'sql_with_bindings', 'bindings', 'meta'];
-
     private const int MAX_COLUMNS = 7;
 
     protected $name = 'monocle:show';
@@ -247,53 +245,12 @@ final class ShowCommand extends Command
         }
 
         $rows = $section['rows'] ?? [];
-        $this->rowsTable(array_map($this->readable(...), $rows), $this->usefulColumns($rows));
+        $this->rowsTable(array_map($this->readable(...), $rows), $this->columns($rows, self::MAX_COLUMNS)[0]);
 
         // monocle:show has no --offset; the next page comes from monocle:rows.
         $this->paging($section, 'php artisan monocle:rows '.($section['section'] ?? '').' '.$id);
     }
 
-
-    /**
-     * Columns that are scalar in every row and set in at least one, without
-     * the noisy ones, at most MAX_COLUMNS of them.
-     *
-     * @param  list<array<string, mixed>>  $rows
-     * @return list<string>
-     */
-    private function usefulColumns(array $rows): array
-    {
-        $scalar = [];
-
-        foreach ($rows as $row) {
-            foreach ($row as $key => $value) {
-                $scalar[$key] = ($scalar[$key] ?? true) && ! is_array($value);
-            }
-        }
-
-        $useful = [];
-
-        foreach (array_keys(array_filter($scalar)) as $key) {
-            if (in_array($key, self::NOISY_COLUMNS, true)) {
-                continue;
-            }
-
-            if (array_filter(array_column($rows, $key), fn (mixed $value): bool => $value !== null) === []) {
-                continue;
-            }
-
-            $useful[] = (string) $key;
-        }
-
-        $columns = array_slice($useful, 0, self::MAX_COLUMNS);
-
-        // The duration matters on every row section that has one.
-        if (in_array('duration', $useful, true) && ! in_array('duration', $columns, true)) {
-            $columns[self::MAX_COLUMNS - 1] = 'duration';
-        }
-
-        return $columns;
-    }
 
     /**
      * @param  list<array{key: string, rows: int|null}>  $sections

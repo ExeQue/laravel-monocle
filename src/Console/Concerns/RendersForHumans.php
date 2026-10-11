@@ -146,6 +146,46 @@ trait RendersForHumans
     }
 
     /**
+     * The columns worth a table: plain values (or lists of them) set in at
+     * least one row, without noisy ones such as SQL shapes, bindings and
+     * origins, at most $max of them, always keeping the duration.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array{0: list<string>, 1: list<string>} the columns shown and the ones left out
+     */
+    protected function columns(array $rows, int $max = 8): array
+    {
+        $noisy = ['id', 'origin', 'shape', 'shape_hash', 'sql_with_bindings', 'bindings', 'meta'];
+        $useful = [];
+
+        foreach (array_keys(array_merge(...$rows)) as $key) {
+            if (in_array($key, $noisy, true)) {
+                continue;
+            }
+
+            $values = array_column($rows, $key);
+
+            if (array_filter($values, fn (mixed $value): bool => is_array($value) && array_filter($value, is_scalar(...)) !== $value) !== []) {
+                continue;
+            }
+
+            if (array_filter($values, fn (mixed $value): bool => $value !== null && $value !== []) === []) {
+                continue;
+            }
+
+            $useful[] = (string) $key;
+        }
+
+        $shown = array_slice($useful, 0, $max);
+
+        if (in_array('duration', $useful, true) && ! in_array('duration', $shown, true)) {
+            $shown[$max - 1] = 'duration';
+        }
+
+        return [$shown, array_values(array_diff($useful, $shown))];
+    }
+
+    /**
      * Nested data as a two-column table of dot.notated keys and values,
      * the way the dashboard shows input and payloads.
      */
