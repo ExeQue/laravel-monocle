@@ -44,6 +44,10 @@ use Throwable;
  */
 final class RequestLens implements Advises, Configurable, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
+    private string $exceptPattern = '';
+
+    private ?string $exceptPatternFor = null;
+
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
 
@@ -296,14 +300,29 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         }
 
         $dashboard = trim((string) $this->eyepiece->config('dashboard.path', '_monocle'), '/');
+        $patterns = [$dashboard, $dashboard.'/*', ...(array) $this->eyepiece->config('except.paths', [])];
 
-        foreach ([$dashboard, $dashboard.'/*', ...(array) $this->eyepiece->config('except.paths', [])] as $pattern) {
-            if ($request->is($pattern)) {
-                return true;
-            }
+        return preg_match($this->exceptPattern($patterns), $request->decodedPath()) === 1;
+    }
+
+    /**
+     * The except paths as one regex, built once: matching them one by one
+     * with Request::is() compiles a regex per pattern on every request.
+     * Same rules as Str::is(): `*` matches anything, the rest literally.
+     *
+     * @param  list<string>  $patterns
+     */
+    private function exceptPattern(array $patterns): string
+    {
+        $key = implode("\n", $patterns);
+
+        if ($this->exceptPatternFor !== $key) {
+            $alternatives = array_map(fn (string $pattern): string => str_replace('\\*', '.*', preg_quote($pattern, '#')), $patterns);
+            $this->exceptPattern = '#^(?:'.implode('|', $alternatives).')\z#u';
+            $this->exceptPatternFor = $key;
         }
 
-        return false;
+        return $this->exceptPattern;
     }
 
     /**

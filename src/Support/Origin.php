@@ -40,6 +40,9 @@ final class Origin
 
     private static ?string $ownDirectory = null;
 
+    /** @var array<string, array{file: string, line: int|null, call: string}> Relation methods already looked up. */
+    private static array $relations = [];
+
     /** Library code that only passes the operation along. */
     private const array PLUMBING = [
         '/laravel/framework/src/Illuminate/Database/',
@@ -142,7 +145,7 @@ final class Origin
         ];
 
         if ($called !== null && str_ends_with((string) $called['call'], '->__get')) {
-            $called = self::relation($live ? debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 120) : $trace, $basePath) ?? $called;
+            $called = self::relation($live ? self::traceWithArguments($trace) : $trace, $basePath) ?? $called;
         }
 
         if ($called !== null) {
@@ -256,6 +259,39 @@ final class Origin
      * @param  list<array<string, mixed>>  $trace  a backtrace with arguments
      * @return array{file: string, line: int|null, call: string}|null
      */
+    /**
+     * The relation's name is an argument, so the trace is taken again with
+     * arguments, but only as deep as the frame that holds it.
+     *
+     * @param  list<array<string, mixed>>  $trace
+     * @return list<array<string, mixed>>
+     */
+    private static function traceWithArguments(array $trace): array
+    {
+        foreach ($trace as $index => $frame) {
+            if (($frame['function'] ?? null) === 'getRelationshipFromMethod') {
+                // One more frame: this method sits between capture() and the trace it took.
+                return array_slice(debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, $index + 2), 1);
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array{file: string, line: int|null, call: string}
+     */
+    private static function relationDefinition(string $class, string $method, string $basePath): array
+    {
+        $reflection = new ReflectionMethod($class, $method);
+
+        return [
+            'file' => self::relative((string) $reflection->getFileName(), $basePath),
+            'line' => $reflection->getStartLine() ?: null,
+            'call' => $class.'->'.$method,
+        ];
+    }
+
     private static function relation(array $trace, string $basePath): ?array
     {
         foreach ($trace as $frame) {
@@ -271,13 +307,7 @@ final class Origin
                 return null;
             }
 
-            $reflection = new ReflectionMethod($class, $method);
-
-            return [
-                'file' => self::relative((string) $reflection->getFileName(), $basePath),
-                'line' => $reflection->getStartLine() ?: null,
-                'call' => $class.'->'.$method,
-            ];
+            return self::$relations[$class.'->'.$method] ??= self::relationDefinition($class, $method, $basePath);
         }
 
         return null;

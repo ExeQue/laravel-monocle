@@ -283,8 +283,34 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
     /**
      * The number of the Http::pool() or Http::batch() sending this request, if any.
      */
+    private function insidePool(): bool
+    {
+        foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 80) as $frame) {
+            $class = $frame['class'] ?? null;
+
+            if ($class === null) {
+                continue;
+            }
+
+            if ($frame['function'] === 'pool' && is_a($class, PendingRequest::class, true)) {
+                return true;
+            }
+
+            if ($frame['function'] === 'send' && is_a($class, Batch::class, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function pool(): ?int
     {
+        // Most calls are not pooled: look for the pool's frame cheaply before asking for objects.
+        if (! $this->insidePool()) {
+            return null;
+        }
+
         foreach (debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT | DEBUG_BACKTRACE_IGNORE_ARGS, 80) as $frame) {
             $owner = $frame['object'] ?? null;
 
