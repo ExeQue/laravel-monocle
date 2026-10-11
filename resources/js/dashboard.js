@@ -634,6 +634,9 @@ Alpine.data('monocle', (config) => ({
     if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
     if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
     if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
+    // File paths look like origins everywhere.
+    if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
+    if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${esc(Array.isArray(rules) ? rules.map(fmtValue).join(' | ') : String(rules).split('|').join(' | '))}</span></div>`).join('');
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
     if (key === 'previous' && Array.isArray(v) && v.length && v.every(isThrowable)) return previousHtml(v, 140);
