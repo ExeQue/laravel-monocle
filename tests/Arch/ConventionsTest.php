@@ -63,7 +63,10 @@ test('immutables are final readonly classes built only through their own methods
     foreach ($immutables as $immutable) {
         expect($immutable->isFinal())->toBeTrue("{$immutable->name} is not final")
             ->and($immutable->isReadOnly())->toBeTrue("{$immutable->name} is not readonly")
-            ->and($immutable->getConstructor()?->isPrivate())->toBeTrue("{$immutable->name} has no private constructor");
+            ->and($immutable->getConstructor()?->isPrivate())->toBeTrue("{$immutable->name} has no private constructor")
+            ->and($immutable->getMethod('make')->isStatic())->toBeTrue("{$immutable->name}::make() is not static")
+            ->and($immutable->getMethod('make')->getNumberOfParameters())->toBe(0, "{$immutable->name}::make() takes arguments")
+            ->and($immutable->getConstructor()?->getNumberOfRequiredParameters())->toBe(0, "{$immutable->name} cannot be made without arguments");
     }
 });
 

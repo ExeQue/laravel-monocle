@@ -36,11 +36,6 @@ final readonly class Summary
     ) {
     }
 
-    public static function make(): self
-    {
-        return new self();
-    }
-
     /**
      * One total. The label says what the value counts ("failed", "time"); the
      * name is used when it is left out. A Unit formats the value; a string is

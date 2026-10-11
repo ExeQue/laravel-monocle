@@ -30,7 +30,7 @@ final readonly class Presentation
 
     public static function table(): self
     {
-        return new self();
+        return self::make();
     }
 
     /**

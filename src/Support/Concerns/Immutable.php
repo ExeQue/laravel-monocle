@@ -10,6 +10,14 @@ namespace ExeQue\Monocle\Support\Concerns;
 trait Immutable
 {
     /**
+     * An empty instance to build on with the fluent methods.
+     */
+    public static function make(): static
+    {
+        return new static();
+    }
+
+    /**
      * A new instance built from this one's properties, with the given ones
      * replaced. Every property must be a promoted constructor parameter.
      *

@@ -54,13 +54,13 @@
         </div>
     </div>
     <div class="grid min-w-0 content-start gap-6">
-        <div x-data="{ open: true, all: false }">
-            <x-monocle::fold-heading open="open">
+        <div x-data="{ all: false }">
+            <h3 class="flex items-center gap-1.5" :class="cls.sectionTitle">
                 Warnings / Errors
                 <x-monocle::badge count="summary.warnings?.length ?? 0" class="bg-warn-soft text-warn" />
                 <x-monocle::badge count="summary.errors?.length ?? 0" class="bg-bad-soft text-bad" />
-            </x-monocle::fold-heading>
-            <div class="grid gap-2" x-show="open && problemList.length" x-collapse>
+            </h3>
+            <div class="grid gap-2" x-show="problemList.length">
                 <template x-for="p in problemList.slice(0, all ? undefined : 3)" :key="p.text">
                     <div
                         class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md px-3 py-2.5"
@@ -82,7 +82,7 @@
         </div>
         <div x-data="{ open: true }">
             <x-monocle::fold-heading open="open">Totals</x-monocle::fold-heading>
-            <div class="grid gap-4" x-show="open" x-collapse>
+            <div class="grid gap-4">
                 <template x-for="g in totalGroups.filter((g) => g.label === 'Overall')" :key="g.label">
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
                         <template x-for="t in g.items" :key="t[0]">
@@ -97,7 +97,11 @@
                         </template>
                     </div>
                 </template>
-                <dl class="border-line m-0 grid grid-cols-[auto_repeat(3,auto_minmax(0,1fr))] gap-x-1.5 border-t pt-3 text-[13px]">
+                <dl
+                    x-show="open"
+                    x-collapse
+                    class="border-line m-0 grid grid-cols-[auto_repeat(3,auto_minmax(0,1fr))] gap-x-1.5 border-t pt-3 text-[13px]"
+                >
                     <template x-for="g in totalGroups.filter((g) => g.label !== 'Overall')" :key="g.label">
                         <div class="border-line col-span-full grid grid-cols-subgrid items-baseline border-b border-dashed py-1.5 last:border-b-0">
                             <dt
