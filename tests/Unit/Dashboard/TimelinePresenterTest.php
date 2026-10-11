@@ -96,6 +96,18 @@ describe(TimelinePresenter::class, function (): void {
             ->and($row['exception']['previous'][0]['file_link'])->toBe('vscode://file/app/app/X.php:3');
     });
 
+    it('links rule classes and closures in validation rules', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(new EditorSettings('vscode'), '/app'));
+        $row = $presenter->row(['rules' => [
+            'slug' => 'required|'.EditorLinks::class.' {"max":40}',
+            'body' => 'string|Closure (routes/web.php:57)',
+        ]]);
+
+        expect($row['_links']['rules'])->toHaveKeys(['Closure (routes/web.php:57)', EditorLinks::class.' {"max":40}'])
+            ->and($row['_links']['rules']['Closure (routes/web.php:57)'])->toBe('vscode://file/app/routes/web.php:57')
+            ->and($row['_links']['rules'])->not->toHaveKey('required');
+    });
+
     it('links nothing without an editor', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
 

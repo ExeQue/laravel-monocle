@@ -249,6 +249,16 @@ final readonly class TimelinePresenter
                 $meta[$key] = $value = $this->throwable($value);
             }
 
+            if ($key === 'rules' && is_array($value) && ! array_is_list($value)) {
+                $ruleLinks = $this->ruleLinks($value);
+
+                if ($ruleLinks !== []) {
+                    $links['rules'] = $ruleLinks;
+                }
+
+                continue;
+            }
+
             if ($key === 'frames' && is_array($value) && array_is_list($value)) {
                 $meta[$key] = $value = array_map(fn (mixed $frame): mixed => is_string($frame) ? $this->frame($frame) : $frame, $value);
             }
@@ -354,6 +364,31 @@ final readonly class TimelinePresenter
         }
 
         return $throwable;
+    }
+
+    /**
+     * Editor links for rule classes ("App\Rules\Slug {...}") and closures
+     * ("Closure (path:line)") in validation rules, keyed by the rule.
+     *
+     * @param  array<array-key, mixed>  $rules  field => "rule|rule"
+     * @return array<string, string>
+     */
+    private function ruleLinks(array $rules): array
+    {
+        $links = [];
+
+        foreach ($rules as $field) {
+            foreach (is_string($field) ? explode('|', $field) : [] as $rule) {
+                $target = preg_match('/^Closure \((.+)\)$/', $rule, $match) === 1 ? $match[1] : explode(' ', $rule, 2)[0];
+                $link = str_contains($target, '\\') || str_contains($target, '.php') ? $this->link($target) : null;
+
+                if ($link !== null) {
+                    $links[$rule] = $link;
+                }
+            }
+        }
+
+        return $links;
     }
 
     /**

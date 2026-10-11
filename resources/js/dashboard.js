@@ -625,7 +625,7 @@ Alpine.data('monocle', (config) => ({
       const text = typeof v === 'object' ? JSON.stringify(v) : String(v);
       return `<span class="group/copy"><span class="font-mono" ${text.length > 120 ? `data-tip="${esc(text.slice(0, 1000))}"` : ''}>${esc(text.length > 120 ? text.slice(0, 120) + '…' : text)}</span> ${copyButton(text, `${field} input`, { hover: true })}</span>`;
     };
-    const rules = (r) => (Array.isArray(r) ? r : String(r ?? '').split('|')).filter(Boolean).map((x) => `<span class="mr-1 inline-block rounded border border-line px-1 font-mono text-[11px]">${classes(x)}</span>`).join('');
+    const rules = (r) => (Array.isArray(r) ? r : String(r ?? '').split('|')).filter(Boolean).map((x) => `<span class="mr-1 inline-block rounded border border-line px-1 font-mono text-[11px]">${maybeLink(x, row._links?.rules?.[x])}</span>`).join('');
     const result = (field) => failed[field]
       ? failed[field].map((f) => `<div class="text-bad"><span class="font-mono text-[11px]">${esc(f.rule)}${f.parameters?.length ? esc('(' + f.parameters.join(', ') + ')') : ''}</span> ${esc(f.message ?? '')}</div>`).join('')
       : '<span class="text-ok">passed</span>';
@@ -684,7 +684,7 @@ Alpine.data('monocle', (config) => ({
     if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
     // File paths look like origins everywhere.
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
-    if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => classes(r)).join(' | ')}</span></div>`).join('');
+    if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('');
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
