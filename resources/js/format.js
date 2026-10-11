@@ -19,10 +19,19 @@ const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json'
 
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
+/**
+ * Escaped text with every namespaced class name shortened to its basename;
+ * the full name shows in a tooltip.
+ */
+export const classes = (text) => esc(text).replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)/g, (full, base) => {
+  const name = full.replace(/^\\/, '');
+  return `<span class="cursor-help" data-tip="${name}"><span aria-hidden="true">${base}</span><span class="sr-only">${name}</span></span>`;
+});
+
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link
-  ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass ${extra}" href="${esc(link)}">${esc(text)}</a>`
-  : `<span class="${extra}">${esc(text)}</span>`);
+  ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass ${extra}" href="${esc(link)}">${classes(text)}</a>`
+  : `<span class="${extra}">${classes(text)}</span>`);
 
 export const fmtValue = (v) => {
   if (v === null || v === undefined) return '';

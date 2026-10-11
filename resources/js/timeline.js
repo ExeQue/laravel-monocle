@@ -150,7 +150,7 @@ export function renderTimeline(model, kinds) {
     const h = count === 1 ? 12 : Math.max(4, Math.floor(18 / count));
     return {
       height: Math.max(26, top + count * (h + 2) + 6),
-      html: packed.map(({ it, lane }, k) => `<span class="absolute min-w-0.5 cursor-pointer rounded-[1px] shadow-[0_0_0_1px_var(--panel)] hover:brightness-110 ${k % 2 ? 'brightness-[.82] saturate-[1.1]' : ''}" data-node="${it.id}" title="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${it.color ? colorOf(it) : (color ?? colorOf(it))}"></span>`).join(''),
+      html: packed.map(({ it, lane }, k) => `<span class="absolute min-w-0.5 cursor-pointer rounded-[1px] shadow-[0_0_0_1px_var(--panel)] hover:brightness-110 ${k % 2 ? 'brightness-[.82] saturate-[1.1]' : ''}" data-node="${it.id}" data-tip="${esc(describe(it))} · ${ms(it.e - it.s)}" style="left:${pct(it.s)}%;width:${pct(it.e) - pct(it.s)}%;top:${top + lane * (h + 2)}px;height:${h}px;background:${it.color ? colorOf(it) : (color ?? colorOf(it))}"></span>`).join(''),
     };
   };
 
@@ -165,19 +165,19 @@ export function renderTimeline(model, kinds) {
     if (!marks.length) return { height: 0, html: '' };
     return {
       height: 6,
-      html: marks.map((m) => `<span class="absolute h-1 min-w-[3px] cursor-pointer rounded-[1px] hover:brightness-110" data-node="${m.id}" title="${esc(describe(m))} · ${ms(m.e - m.s)}" style="left:${pct(m.s)}%;width:${pct(m.e) - pct(m.s)}%;top:${top}px;background:${colorOf(m)}"></span>`).join(''),
+      html: marks.map((m) => `<span class="absolute h-1 min-w-[3px] cursor-pointer rounded-[1px] hover:brightness-110" data-node="${m.id}" data-tip="${esc(describe(m))} · ${ms(m.e - m.s)}" style="left:${pct(m.s)}%;width:${pct(m.e) - pct(m.s)}%;top:${top}px;background:${colorOf(m)}"></span>`).join(''),
     };
   };
 
   const spanRow = (n, depth) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" role="button" aria-haspopup="dialog">
       <span class="${NAME}" style="padding-left:${10 + depth * 12}px"><span class="${KIND}">${n.kind}</span></span>
-      <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
+      <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" data-tip="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
       <span class="${DUR}">${ms(n.e - n.s)}</span>
     </div>`;
 
   const open = (id, def) => `tlOpen('${id}', ${def})`;
 
-  const toggleCell = (id, def, depth, text) => `<button type="button" class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" @click="tlToggle('${id}', ${def})" :aria-expanded="${open(id, def)}" style="padding-left:${6 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform duration-200 ease-out" :class="${open(id, def)} && 'rotate-90'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg><span class="min-w-0 truncate" title="${text.replace(/<[^>]*>/g, '').replace(/"/g, '&quot;')}">${text}</span></button>`;
+  const toggleCell = (id, def, depth, text) => `<button type="button" class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" @click="tlToggle('${id}', ${def})" :aria-expanded="${open(id, def)}" style="padding-left:${6 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform duration-200 ease-out" :class="${open(id, def)} && 'rotate-90'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg><span class="min-w-0 truncate" data-tip="${text.replace(/<[^>]*>/g, '').replace(/"/g, '&quot;')}">${text}</span></button>`;
 
   const fold = (id, def, html) => (html ? `<div x-show="${open(id, def)}" x-collapse${def ? '' : ' x-cloak'}>${html}</div>` : '');
 

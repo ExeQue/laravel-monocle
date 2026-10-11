@@ -70,7 +70,7 @@
                         <span x-text="ago(c.started_at)"></span>
                     </span>
                 </button>
-                <button type="button" class="absolute right-3 bottom-2 rounded px-1.5 text-[11px] text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 max-[860px]:opacity-100" @click.stop="hide(c.route ?? c.name)" :title="'Hide ' + (c.route ?? c.name)" x-text="'hide ' + ({ request: 'route', command: 'command', job: 'job', mcp: 'call' }[c.type] ?? 'these')"></button>
+                <button type="button" class="absolute right-3 bottom-2 rounded px-1.5 text-[11px] text-muted opacity-0 group-hover:opacity-100 hover:text-fg focus-visible:opacity-100 max-[860px]:opacity-100" @click.stop="hide(c.route ?? c.name)" :data-tip="'Hide ' + (c.route ?? c.name)" x-text="'hide ' + ({ request: 'route', command: 'command', job: 'job', mcp: 'call' }[c.type] ?? 'these')"></button>
                 </div>
             </template>
             <p class="m-4" :class="cls.empty" x-show="!captures.length && !error" x-text="filters.type || filters.q || filters.errors || hidden.length ? 'No captures match these filters.' : 'No captures yet. Open a page, run a job or a command, and it shows up here.'"></p>
@@ -79,14 +79,15 @@
         </div>
     </aside>
 
-    <main class="scroll-quiet flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:[scrollbar-gutter:stable] min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" aria-live="polite">
+    <main class="scroll-quiet flex min-h-0 min-w-0 flex-1 flex-col gap-5 px-4 pt-5 pb-10 min-[861px]:overflow-y-auto min-[861px]:[scrollbar-gutter:stable] min-[861px]:overscroll-contain min-[861px]:px-6" x-ref="detail" :aria-busy="tabLoading">
+        <p class="sr-only" role="status" aria-live="polite" x-text="status"></p>
         <p :class="cls.empty" x-show="!capture">Select a capture.</p>
         <template x-if="capture">
             <div class="flex min-w-0 flex-col gap-5">
                 <header class="flex flex-wrap items-center gap-x-3 gap-y-2.5">
                     <h2 class="m-0 min-w-0 text-2xl font-bold text-balance [overflow-wrap:anywhere]" x-text="summary.name"></h2>
                     <span class="font-mono text-xs" :class="statusClass(summary.status)" x-text="summary.type === 'command' && summary.status !== null ? 'exit ' + summary.status : (summary.status ?? '')"></span>
-                    <span class="rounded-full border border-line px-2 font-mono text-xs text-muted" x-show="capture.context?.route" x-text="capture.context?.route" title="Route name"></span>
+                    <span class="rounded-full border border-line px-2 font-mono text-xs text-muted" x-show="capture.context?.route" x-text="capture.context?.route" data-tip="Route name"></span>
                     <span class="rounded-full border border-dashed border-brass px-2 text-xs text-brass" x-show="summary.label" x-text="'label: ' + summary.label"></span>
                 </header>
                 <div class="flex flex-wrap items-center gap-x-[18px] gap-y-1.5 text-[13px] text-muted">
@@ -96,13 +97,13 @@
                     <span class="font-mono text-xs [overflow-wrap:anywhere]" x-show="capture.context?.command_class" x-html="linkHtml(capture.context?.command_class, capture.context?.command_link)"></span>
                     <span class="inline-flex items-center gap-1">
                         <span class="font-mono text-xs select-all" x-text="capture.id"></span>
-                        <button type="button" class="rounded p-0.5 text-muted hover:text-brass" @click="copy(capture.id, 'id')" :title="copied === 'id' ? 'Copied' : 'Copy id'" :aria-label="copied === 'id' ? 'Copied' : 'Copy capture id'">
+                        <button type="button" class="rounded p-0.5 text-muted hover:text-brass" @click="copy(capture.id, 'id')" :data-tip="copied === 'id' ? 'Copied' : 'Copy id'" :aria-label="copied === 'id' ? 'Copied' : 'Copy capture id'">
                             <svg x-show="copied !== 'id'" class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>
                             <svg x-show="copied === 'id'" x-cloak class="size-3.5 text-ok" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg>
                         </button>
                     </span>
                     <span x-text="summary.started_at ? ago(summary.started_at) : ''"></span>
-                    <button type="button" class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-xs text-muted hover:border-brass hover:text-brass" @click="copy(agentPrompt, 'prompt')" title="Copy a prompt that asks your coding agent to look into this capture through the Monocle MCP server">
+                    <button type="button" class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-xs text-muted hover:border-brass hover:text-brass" @click="copy(agentPrompt, 'prompt')" data-tip="Copy a prompt that asks your coding agent to look into this capture through the Monocle MCP server">
                         <svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></svg>
                         <span x-text="copied === 'prompt' ? 'Copied' : 'Copy agent prompt'"></span>
                     </button>
@@ -112,21 +113,21 @@
                     <span x-show="summary.children?.length">Dispatched <button type="button" :class="cls.link" @click="openTab('trace')" x-text="summary.children?.length + ' job(s)'"></button></span>
                 </div>
 
-                <nav class="scroll-quiet flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b border-line" role="tablist" x-ref="tabs">
+                <nav class="scroll-quiet flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b border-line" role="tablist" aria-label="Capture sections" x-ref="tabs">
                     <template x-for="t in tabs" :key="t.key">
-                        <button type="button" class="group flex shrink-0 snap-start items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :title="t.description ?? ''" @click="openTab(t.key)" :aria-selected="tab === t.key">
+                        <button type="button" class="group flex shrink-0 snap-start items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-muted aria-selected:border-brass aria-selected:font-semibold aria-selected:text-fg" role="tab" :id="'monocle-tab-' + t.key" :aria-controls="panelId(t.key)" :tabindex="tab === t.key ? 0 : -1" :data-tip="t.description ?? ''" @click="openTab(t.key)" @keydown.right.prevent="stepTab(1)" @keydown.left.prevent="stepTab(-1)" :aria-selected="tab === t.key">
                             <span class="grid after:invisible after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-label)]" :data-label="t.label" x-text="t.label"></span><span class="min-w-5 rounded-full bg-sunk px-1.5 py-px text-center font-mono text-[10.5px] leading-4 text-muted tabular-nums group-aria-selected:bg-brass group-aria-selected:text-on-brass" x-show="t.count" x-text="t.count"></span>
                         </button>
                     </template>
                 </nav>
 
-                <section x-show="tab === 'overview'" class="grid grid-cols-1 gap-6 min-[1101px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+                <section id="monocle-panel-overview" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'overview'" class="grid grid-cols-1 gap-6 min-[1101px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
                     <div class="grid min-w-0 content-start gap-6">
                         <div x-show="phases.length">
                             <h3 :class="cls.sectionTitle">Where the time went</h3>
-                            <div class="flex h-[26px] overflow-hidden rounded bg-sunk" role="img" aria-label="Time per phase">
+                            <div class="flex h-[26px] overflow-hidden rounded bg-sunk" role="img" :aria-label="'Time per phase: ' + phases.map((p) => p.name + ' ' + ms(p.ms)).join(', ')">
                                 <template x-for="p in phases" :key="p.name">
-                                    <span class="h-full min-w-0.5" :title="p.name + ': ' + ms(p.ms)" :style="`width:${p.percent}%;background:${phaseColor(p.name)}`"></span>
+                                    <span class="h-full min-w-0.5" :data-tip="p.name + ': ' + ms(p.ms)" :style="`width:${p.percent}%;background:${phaseColor(p.name)}`"></span>
                                 </template>
                             </div>
                             <div class="mt-3 grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-x-4 gap-y-2">
@@ -184,9 +185,9 @@
                     </div>
                 </section>
 
-                <section x-show="tab === 'timeline'" @click="timelineClick($event)" x-html="timelineHtml"></section>
+                <section id="monocle-panel-timeline" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'timeline'" @click="timelineClick($event)" x-html="timelineHtml"></section>
 
-                <section x-show="tab === 'request'" class="grid gap-6">
+                <section id="monocle-panel-request" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'request'" class="grid gap-6">
                     <template x-if="request">
                         <div class="grid gap-6">
                             <div class="grid gap-2">
@@ -209,7 +210,7 @@
                                 <h3 :class="cls.sectionTitle">Authentication</h3>
                                 <div :class="cls.tableWrap">
                                     <table class="w-full border-collapse text-[13px]">
-                                        <thead><tr><th :class="cls.th">Event</th><th :class="cls.th">Guard</th><th :class="cls.th">User</th><th :class="cls.th">Details</th><th :class="cls.th">Origin</th></tr></thead>
+                                        <thead><tr><th scope="col" :class="cls.th">Event</th><th scope="col" :class="cls.th">Guard</th><th scope="col" :class="cls.th">User</th><th scope="col" :class="cls.th">Details</th><th scope="col" :class="cls.th">Origin</th></tr></thead>
                                         <tbody>
                                             <template x-for="(row, i) in authEvents" :key="i">
                                                 <tr class="cursor-pointer hover:bg-sunk" @click="rowPopover($event, row, 'auth')">
@@ -229,7 +230,7 @@
                                 <h3 :class="cls.sectionTitle">Payload</h3>
                                 <div :class="cls.tableWrap" x-show="dot(request.query).length || dot(request.input).length">
                                     <table class="w-full border-collapse text-[13px]">
-                                        <thead><tr><th :class="cls.th">Key</th><th :class="cls.th">Value</th><th :class="cls.th" class="max-sm:hidden">From</th></tr></thead>
+                                        <thead><tr><th scope="col" :class="cls.th">Key</th><th scope="col" :class="cls.th">Value</th><th scope="col" :class="cls.th" class="max-sm:hidden">From</th></tr></thead>
                                         <tbody>
                                             <template x-for="[k, v, from] in [...dot(request.query).map((e) => [...e, 'query']), ...dot(request.input).map((e) => [...e, 'body'])]" :key="from + k">
                                                 <tr><td :class="cls.td" class="min-w-32 font-mono text-xs break-words"><span x-text="k"></span><span class="block text-[10px] text-muted sm:hidden" x-text="from"></span></td><td :class="cls.td" class="font-mono text-xs" x-html="payloadValue(v)"></td><td :class="cls.td" class="text-xs text-muted max-sm:hidden" x-text="from"></td></tr>
@@ -240,7 +241,7 @@
                                 <p :class="cls.empty" x-show="!dot(request.query).length && !dot(request.input).length && !request.files?.length">No query string or body.</p>
                                 <div class="mt-3" :class="cls.tableWrap" x-show="request.files?.length">
                                     <table class="w-full border-collapse text-[13px]">
-                                        <thead><tr><th :class="cls.th">File field</th><th :class="cls.th">Name</th><th :class="cls.th">Type</th><th :class="cls.th" class="text-right">Size</th></tr></thead>
+                                        <thead><tr><th scope="col" :class="cls.th">File field</th><th scope="col" :class="cls.th">Name</th><th scope="col" :class="cls.th">Type</th><th scope="col" :class="cls.th" class="text-right">Size</th></tr></thead>
                                         <tbody>
                                             <template x-for="f in request.files ?? []" :key="f.key + f.name">
                                                 <tr><td :class="cls.td" class="font-mono text-xs" x-text="f.key"></td><td :class="cls.td" x-text="f.name"></td><td :class="cls.td" class="text-xs text-muted" x-text="f.mime"></td><td :class="cls.td" class="text-right tabular-nums" x-text="f.size"></td></tr>
@@ -319,7 +320,7 @@
                     </template>
                 </section>
 
-                <section x-show="tab === 'session'">
+                <section id="monocle-panel-session" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'session'">
                     <template x-if="session">
                         <div class="grid gap-4">
                             <p class="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
@@ -345,7 +346,7 @@
                     </template>
                 </section>
 
-                <section x-show="tab === 'queries'">
+                <section id="monocle-panel-queries" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'queries'">
                     <div class="mb-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted">Show
                         <template x-for="g in [['order', 'in order'], ['shape', 'by query'], ['caller', 'by caller'], ['table', 'by table'], ['transaction', 'by transaction']]" :key="g[0]">
                             <button type="button" :class="cls.chip" @click="groupBy = g[0]; openTab('queries')" :aria-pressed="groupBy === g[0]" x-text="g[1]"></button>
@@ -353,7 +354,7 @@
                     </div>
                     <div :class="cls.tableWrap" x-show="groupBy === 'order' && tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
-                            <thead><tr><th :class="cls.th" class="text-right">#</th><th :class="cls.th">Query</th><th :class="cls.th" class="text-right">At</th><th :class="cls.th" class="text-right">Time</th></tr></thead>
+                            <thead><tr><th scope="col" :class="cls.th" class="text-right">#</th><th scope="col" :class="cls.th">Query</th><th scope="col" :class="cls.th" class="text-right">At</th><th scope="col" :class="cls.th" class="text-right">Time</th></tr></thead>
                             <tbody>
                                 <template x-for="q in tabData?.rows ?? []" :key="q.n">
                                     <tr class="cursor-pointer hover:bg-sunk" :class="q.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, q, 'queries')">
@@ -376,7 +377,7 @@
                     </div>
                     <div :class="cls.tableWrap" x-show="groupBy !== 'order' && tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
-                            <thead><tr><th :class="cls.th" x-text="{ shape: 'Query', caller: 'Caller', table: 'Table', transaction: 'Transaction' }[groupBy] ?? 'Query'"></th><th :class="[cls.th, '!text-right']">Count</th><th :class="[cls.th, '!text-right']">Total</th><th :class="[cls.th, '!text-right']">Avg</th><th :class="[cls.th, '!text-right']">Max</th></tr></thead>
+                            <thead><tr><th scope="col" :class="cls.th" x-text="{ shape: 'Query', caller: 'Caller', table: 'Table', transaction: 'Transaction' }[groupBy] ?? 'Query'"></th><th scope="col" :class="[cls.th, '!text-right']">Count</th><th scope="col" :class="[cls.th, '!text-right']">Total</th><th scope="col" :class="[cls.th, '!text-right']">Avg</th><th scope="col" :class="[cls.th, '!text-right']">Max</th></tr></thead>
                             <tbody>
                                 <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
                                     <tr>
@@ -393,7 +394,7 @@
                     <button type="button" class="mt-2.5" :class="cls.link" x-show="groupBy === 'order' && tabData?.next_offset != null" @click="loadMore()" x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"></button>
                 </section>
 
-                <section x-show="tab === 'trace'">
+                <section id="monocle-panel-trace" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="tab === 'trace'">
                     <div class="grid gap-1.5">
                         <template x-for="x in tabData?.captures ?? []" :key="x.id">
                             <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-3 rounded-md border border-line bg-panel px-3 py-2" :class="x.id === selectedId ? 'border-brass shadow-[inset_3px_0_0_var(--brass)]' : ''" :style="`margin-left:${(x.depth ?? 0) * 24}px`">
@@ -409,10 +410,10 @@
                     </div>
                 </section>
 
-                <section x-show="!['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)">
+                <section id="monocle-panel-rows" role="tabpanel" :aria-labelledby="'monocle-tab-' + tab" tabindex="0" x-show="!['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)">
                     <div :class="cls.tableWrap" x-show="tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
-                            <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="[cls.th, numeric(col) && '!text-right']" x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"></th></template></tr></thead>
+                            <thead><tr><template x-for="col in tableColumns" :key="col"><th scope="col" :class="[cls.th, numeric(col) && '!text-right']" x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"></th></template></tr></thead>
                             <tbody>
                                 <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
                                     <tr class="cursor-pointer hover:bg-sunk" :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, row, tab)"><template x-for="col in tableColumns" :key="col"><td :class="[cls.td, numeric(col) && '!text-right tabular-nums']" x-html="cell(row, col)"></td></template></tr>

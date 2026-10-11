@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink } from './format.js';
+import { esc, ms, fmtValue, maybeLink, classes } from './format.js';
 import { cls } from './classes.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
@@ -22,7 +22,7 @@ function metaRows(meta) {
     .filter(([k, v]) => k !== '_links' && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0))
     .map(([k, v]) => {
       const text = (k === 'duration' || k === 'time' || k.endsWith('_ms')) && typeof v === 'number' ? ms(v) : fmtValue(v);
-      return `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(text, links[k]) : esc(text)}</td></tr>`;
+      return `<tr><th class="whitespace-nowrap py-0.5 pr-2.5 text-left align-top text-xs font-medium text-muted">${esc(k)}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${links[k] ? maybeLink(text, links[k]) : classes(text)}</td></tr>`;
     })
     .join('');
 }
@@ -87,6 +87,7 @@ export function setupPopover(root, getModel) {
   pop.className = 'pop pop-arrow scroll-quiet fixed z-50 grid max-h-[min(70vh,520px)] w-[min(380px,calc(100vw-32px))] gap-2.5 overflow-auto rounded-lg border border-line bg-panel p-3.5 text-[13px] text-fg shadow-[0_12px_32px_rgba(0,0,0,.18),0_2px_6px_rgba(0,0,0,.08)]';
   pop.hidden = true;
   pop.setAttribute('role', 'dialog');
+  pop.setAttribute('aria-label', 'Details');
   document.body.append(pop);
   let target = null;
 

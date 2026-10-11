@@ -1,10 +1,11 @@
 import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
-import { esc, ms, ago, humanize, fmtValue, maybeLink } from './format.js';
+import { esc, ms, ago, humanize, fmtValue, maybeLink, classes } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails } from './popover.js';
+import { setupTooltip } from './tooltip.js';
 
 const PHASE_COLORS = {
   bootstrap: 'var(--c-phase)', 'middleware (request)': 'var(--c-mw)', routing: 'var(--c-phase)', controller: 'var(--c-ctrl)', command: 'var(--c-ctrl)', job: 'var(--c-ctrl)',
@@ -53,7 +54,7 @@ const hiddenNames = {
 };
 
 /** A {field, from, to} list as a small table. */
-const changesTable = (changes) => `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]">${esc(c.field)}</td><td class="px-1.5 py-0.5 align-top font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 align-top font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
+const changesTable = (changes) => `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]">${esc(c.field)}</td><td class="px-1.5 py-0.5 align-top font-mono text-bad [overflow-wrap:anywhere]">${c.from === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.from))}</td><td class="px-1.5 py-0.5 align-top font-mono text-ok [overflow-wrap:anywhere]">${c.to === null ? '<span class="text-muted">null</span>' : esc(fmtValue(c.to))}</td></tr>`).join('')}</tbody></table>`;
 
 Alpine.data('monocle', (config) => ({
   api: config.api,
@@ -78,6 +79,7 @@ Alpine.data('monocle', (config) => ({
   confirmClear: false,
   listOpen: false,
   copied: null,
+  status: '',
   responseView: 'pretty',
   wide: true,
 
@@ -86,6 +88,7 @@ Alpine.data('monocle', (config) => ({
     this.wide = wide.matches;
     wide.addEventListener('change', (e) => { this.wide = e.matches; });
     this.popover = setupPopover(this.$refs.detail, () => this.model);
+    setupTooltip();
     const fromHash = location.hash.replace(/^#/, '').split('/');
     if (fromHash[0]) { this.selectedId = fromHash[0]; this.tab = fromHash[1] || 'overview'; }
     this.load();
@@ -139,6 +142,7 @@ Alpine.data('monocle', (config) => ({
     try {
       const capture = await this.fetchJson(`${this.api}/${encodeURIComponent(id)}`);
       this.capture = capture;
+      this.status = `Showing ${capture.summary?.name ?? 'capture'}`;
       this.model = { tree: indexTree(capture.timeline), duration: capture.summary?.totals?.duration_ms ?? this.duration(capture) };
       if (!['overview', 'timeline'].includes(this.tab) && !this.tabs.some((t) => t.key === this.tab)) this.tab = 'overview';
       history.replaceState(null, '', `#${id}/${this.tab}`);
@@ -323,7 +327,7 @@ Alpine.data('monocle', (config) => ({
   linked(value, path) {
     if (value === null || (Array.isArray(value) && !value.length)) return `<span class="text-muted">${value === null ? 'null' : '[]'}</span>`;
     const link = this.tabData?.links?.[path];
-    return link ? maybeLink(fmtValue(value), link) : esc(fmtValue(value));
+    return link ? maybeLink(fmtValue(value), link) : classes(fmtValue(value));
   },
 
   changesTable(changes) { return changesTable(changes); },
@@ -344,6 +348,7 @@ Alpine.data('monocle', (config) => ({
       node.remove();
     }
     this.copied = what;
+    this.status = what === 'id' ? 'Capture id copied' : 'Agent prompt copied';
     setTimeout(() => { if (this.copied === what) this.copied = null; }, 1500);
   },
 
@@ -371,6 +376,18 @@ Alpine.data('monocle', (config) => ({
     this.popover.openDetails(event.currentTarget, rowDetails(row, section), event.clientX);
   },
 
+  panelId(key) {
+    return 'monocle-panel-' + (['overview', 'timeline', 'request', 'session', 'queries', 'trace'].includes(key) ? key : 'rows');
+  },
+
+  /** Arrow keys move between tabs, as in any tab list. */
+  stepTab(direction) {
+    const keys = this.tabs.map((t) => t.key);
+    const next = keys[(keys.indexOf(this.tab) + direction + keys.length) % keys.length];
+    this.openTab(next);
+    this.$nextTick(() => document.getElementById('monocle-tab-' + next)?.focus());
+  },
+
   linkHtml(text, link) { return text ? maybeLink(text, link) : ''; },
 
   /** One item of a response capture card. */
@@ -380,7 +397,7 @@ Alpine.data('monocle', (config) => ({
     if (Array.isArray(value) && value.length && value.every((v) => v && typeof v === 'object' && !Array.isArray(v))) {
       const cols = [...new Set(value.flatMap((v) => Object.keys(v)))];
       const cell = (v) => (v === null || v === undefined ? '<span class="text-muted">-</span>' : esc(typeof v === 'object' ? JSON.stringify(v) : String(v)));
-      return `<table class="w-full border-collapse text-xs"><thead><tr>${cols.map((c) => `<th class="px-1.5 py-0.5 text-left font-medium text-muted">${esc(humanize(c))}</th>`).join('')}</tr></thead><tbody>${value.map((row) => `<tr class="border-t border-line">${cols.map((c) => `<td class="px-1.5 py-0.5 align-top [overflow-wrap:anywhere]">${cell(row[c])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      return `<table class="w-full border-collapse text-xs"><thead><tr>${cols.map((c) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${esc(humanize(c))}</th>`).join('')}</tr></thead><tbody>${value.map((row) => `<tr class="border-t border-line">${cols.map((c) => `<td class="px-1.5 py-0.5 align-top [overflow-wrap:anywhere]">${cell(row[c])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
     }
     if (key === 'body' && typeof value === 'string') return `<pre class="m-0 max-h-96 overflow-auto whitespace-pre-wrap">${esc(value)}</pre>`;
     if (Array.isArray(value) && value.every((v) => v === null || typeof v !== 'object')) return value.map((v) => `<div>${esc(fmtValue(v))}</div>`).join('');
@@ -443,7 +460,7 @@ Alpine.data('monocle', (config) => ({
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
-    return row._links?.[key] ? maybeLink(shown, row._links[key]) : esc(shown);
+    return row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);
   },
 
   // Template helpers
