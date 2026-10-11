@@ -11,11 +11,14 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
+use Illuminate\Http\Client\Batch;
 use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Events\RequestSending;
 use Illuminate\Http\Client\Events\ResponseReceived;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Request;
 use Throwable;
+use WeakMap;
 
 /**
  * Outgoing HTTP client calls with masked headers and query, sizes, status
@@ -25,12 +28,18 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
 {
     private bool $bodies = false;
 
-    /** @var array<int, float> */
+    /** @var array<int, array{at: float, pool: int|null}> */
     private array $pending = [];
+
+    /** @var WeakMap<object, int> The pool or batch each running Http::pool() / Http::batch() was given. */
+    private WeakMap $pools;
+
+    private int $poolCount = 0;
 
     public function __construct(
         private readonly Eyepiece $eyepiece
     ) {
+        $this->pools = new WeakMap();
     }
 
     public function key(): string
@@ -40,7 +49,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
 
     public function description(): string
     {
-        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag and the exception for connection failures. Bodies only with the option bodies=true.';
+        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, the exception for connection failures, and pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
     }
 
     public function advice(): string
@@ -56,11 +65,11 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     public function boot(): void
     {
         $this->eyepiece->listen(RequestSending::class, function (RequestSending $event): void {
-            $this->pending[spl_object_id($event->request)] = $this->eyepiece->now();
+            $this->pending[spl_object_id($event->request)] = ['at' => $this->eyepiece->now(), 'pool' => $this->pool()];
         });
 
         $this->eyepiece->listen(ResponseReceived::class, function (ResponseReceived $event): void {
-            $started = $this->take($event->request);
+            $pending = $this->take($event->request);
 
             if (! $this->eyepiece->recording()) {
                 return;
@@ -75,14 +84,16 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'response_headers' => $this->eyepiece->masker()->headers($event->response->headers()),
                 'response_bytes' => strlen($body),
                 'response_body' => $this->bodies ? $body : null,
-                'duration' => $this->duration($started, $event->response->handlerStats()),
+                'duration' => $this->duration($pending['at'] ?? null, $event->response->handlerStats()),
                 'failed' => $status >= 400,
                 'exception' => null,
+                'pool' => $pending['pool'] ?? null,
             ]);
         });
 
         $this->eyepiece->listen(ConnectionFailed::class, function (ConnectionFailed $event): void {
-            $started = $this->take($event->request);
+            $pending = $this->take($event->request);
+            $started = $pending['at'] ?? null;
 
             if (! $this->eyepiece->recording()) {
                 return;
@@ -97,6 +108,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
                 'failed' => true,
                 'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
+                'pool' => $pending['pool'] ?? null,
             ]);
         });
     }
@@ -104,6 +116,8 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     public function reset(): void
     {
         $this->pending = [];
+        $this->pools = new WeakMap();
+        $this->poolCount = 0;
     }
 
     public function summarize(Capture $capture): array
@@ -168,7 +182,30 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         return str_replace($query, $masked, $url);
     }
 
-    private function take(Request $request): ?float
+    /**
+     * The number of the Http::pool() or Http::batch() sending this request, if any.
+     */
+    private function pool(): ?int
+    {
+        foreach (debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT | DEBUG_BACKTRACE_IGNORE_ARGS, 80) as $frame) {
+            $owner = $frame['object'] ?? null;
+
+            if ($owner instanceof PendingRequest && $frame['function'] === 'pool') {
+                return $this->pools[$owner] ??= ++$this->poolCount;
+            }
+
+            if ($owner instanceof Batch && $frame['function'] === 'send') {
+                return $this->pools[$owner] ??= ++$this->poolCount;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{at: float, pool: int|null}|null
+     */
+    private function take(Request $request): ?array
     {
         $id = spl_object_id($request);
         $started = $this->pending[$id] ?? null;

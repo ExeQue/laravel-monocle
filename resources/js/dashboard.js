@@ -75,6 +75,7 @@ Alpine.data('monocle', (config) => ({
   tabData: null,
   tabLoading: false,
   groupBy: 'order',
+  httpGroup: 'order',
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
   foldable: [],
@@ -187,7 +188,7 @@ Alpine.data('monocle', (config) => ({
         ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
         : tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
-          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=100&verbose=1`);
+          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=${tab === 'http' ? 500 : 100}&verbose=1`);
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -487,6 +488,32 @@ Alpine.data('monocle', (config) => ({
       <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1">${facts.map(([k, v]) => `<dt class="text-muted">${k}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${esc(String(v))}</dd>`).join('')}</dl>
       ${frames.length ? `<div class="grid gap-1"><div class="${label}">Call chain</div><ol class="m-0 grid list-decimal gap-0.5 pl-5">${frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></div>` : ''}
     </div>`;
+  },
+
+  /** HTTP calls grouped by endpoint (ids in the path collapsed), host, pool or status. */
+  get httpGroups() {
+    if (this.tab !== 'http' || this.httpGroup === 'order') return [];
+    const host = (url) => { try { return new URL(url).host; } catch { return '?'; } };
+    const endpoint = (row) => `${row.method} ${String(row.url ?? '').split('?')[0].replace(/\/(\d+|[0-9a-f-]{32,36}|[0-9a-f]{24,})(?=\/|$)/gi, '/{id}')}`;
+    const keyOf = {
+      endpoint,
+      host: (row) => host(row.url),
+      pool: (row) => (row.pool == null ? 'not pooled' : `pool ${row.pool}`),
+      status: (row) => (row.status == null ? 'no response' : String(row.status)),
+    }[this.httpGroup];
+    const groups = new Map();
+    (this.tabData?.rows ?? []).forEach((row, i) => {
+      const key = keyOf(row);
+      const g = groups.get(key) ?? { key, count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
+      const ms = Number(row.duration ?? 0);
+      g.count++;
+      g.failed += row.failed ? 1 : 0;
+      g.total_ms += ms;
+      g.max_ms = Math.max(g.max_ms, ms);
+      g.rows.push(i);
+      groups.set(key, g);
+    });
+    return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms);
   },
 
   toggleGroup(key) {

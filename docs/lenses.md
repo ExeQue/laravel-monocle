@@ -193,7 +193,7 @@ Section `scheduled_tasks` on the `schedule:run` capture: each task with its sche
 
 ### HTTP client
 
-Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Secrets in headers and query strings are masked.
+Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. Secrets in headers and query strings are masked.
 
 Option: `bodies` (false) - also record request and response bodies.
 

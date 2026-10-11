@@ -61,6 +61,28 @@ describe(TimelinePresenter::class, function (): void {
         expect(array_column($presenter->present($capture), 'color', 'name'))->toBe(['a' => 'teal', 'b' => '#abc', 'c' => null]);
     });
 
+    it('hangs requests sent in one pool under a pool node', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
+        $capture = \ExeQue\Monocle\Data\Capture::fromArray([
+            'id' => 'c1', 'type' => 'request', 'started_at' => 0.0, 'ended_at' => 0.1,
+            'spans' => [['id' => 'h', 'kind' => 'phase', 'name' => 'handle', 'start' => 0, 'end' => 100]],
+            'sections' => ['http' => [
+                ['method' => 'GET', 'url' => 'https://a.test/1', 'time' => 10, 'duration' => 20, 'failed' => false, 'pool' => 1],
+                ['method' => 'GET', 'url' => 'https://a.test/2', 'time' => 11, 'duration' => 30, 'failed' => true, 'pool' => 1],
+                ['method' => 'GET', 'url' => 'https://a.test/3', 'time' => 50, 'duration' => 5, 'failed' => false, 'pool' => null],
+            ]],
+        ]);
+
+        $handle = $presenter->present($capture)[0];
+        $pool = $handle['children'][0];
+
+        expect(array_column($handle['children'], 'kind'))->toBe(['http.pool', 'http'])
+            ->and($pool['name'])->toBe('pool of 2 requests')
+            ->and([$pool['s'], $pool['e']])->toBe([10.0, 41.0])
+            ->and($pool['d']['meta'])->toBe(['requests' => 2, 'failed' => 1])
+            ->and(array_column($pool['children'], 'name'))->toBe(['GET https://a.test/1', 'GET https://a.test/2']);
+    });
+
     it('links nothing without an editor', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
 

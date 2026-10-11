@@ -34,7 +34,24 @@ describe(HttpClientLens::class, function (): void {
         $rows = app(Eyepiece::class)->finalize()->rows('http');
 
         expect(array_column($rows, 'status'))->toEqualCanonicalizing([201, 503])
-            ->and(array_column($rows, 'duration'))->each->not->toBeNull();
+            ->and(array_column($rows, 'duration'))->each->not->toBeNull()
+            ->and(array_column($rows, 'pool'))->toBe([1, 1]);
+    });
+
+    it('numbers each pool and batch and leaves single requests out of them', function (): void {
+        Http::pool(fn ($pool) => [$pool->get('https://api.example.com/a'), $pool->get('https://api.example.com/b')]);
+        Http::get('https://api.example.com/single');
+        Http::batch(fn ($batch) => [$batch->get('https://api.example.com/c'), $batch->get('https://api.example.com/d')])->send();
+
+        $rows = app(Eyepiece::class)->finalize()->rows('http');
+
+        expect(array_column($rows, 'pool', 'url'))->toBe([
+            'https://api.example.com/a' => 1,
+            'https://api.example.com/b' => 1,
+            'https://api.example.com/single' => null,
+            'https://api.example.com/c' => 2,
+            'https://api.example.com/d' => 2,
+        ]);
     });
 
     it('records calls with masked query and headers, sizes and status', function (): void {

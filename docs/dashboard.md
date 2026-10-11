@@ -8,6 +8,8 @@ Captures Monocle flagged show how many warnings they have. Filter the list by ty
 
 **Copy agent prompt** in the header copies a prompt for your coding agent: the capture, its totals, what Monocle flagged and how to dig in through the MCP server. Paste it into the agent to have it look into that request.
 
+The queries and HTTP tabs list calls in order or grouped: queries by query, caller, table or transaction, HTTP calls by endpoint, host, pool or status. Each group shows its count and timing and expands to the calls in it.
+
 Click a line on the timeline to see its details: the query with its values, the line of your code that caused it and the call chain leading there. With an editor set up (see [Installation](installation.md#opening-files-in-your-editor)), file paths and class names open in your editor.
 
 ## Access
@@ -54,4 +56,4 @@ or, with Docker:
 docker compose up serve
 ```
 
-Then open `http://localhost:8000`. The start page lists every demo, one or more per lens, with a short description. Trigger one and open the dashboard at `/_monocle` to inspect the capture it recorded. The database is rebuilt and seeded each time the server starts; the seeded users share the password `password`.
+Then open `http://localhost:8000`. The start page lists every demo, one or more per lens, with a short description. **Publish a post** at the top runs most lenses in a single request, for a full timeline. Trigger one and open the dashboard at `/_monocle` to inspect the capture it recorded. The database is rebuilt and seeded each time the server starts; the seeded users share the password `password`.

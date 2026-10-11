@@ -72,8 +72,16 @@ Route::prefix('demo')->group(function () use ($result): void {
 
         $enrich = Monocle::span('enrich post')->start();
 
-        Http::fake(['api.example.test/*' => Http::response(['views' => 1204], 200)]);
+        Http::fake([
+            'api.example.test/posts/*' => Http::response(['views' => 1204], 200),
+            'social.example.test/*' => Http::sequence()->push(['shared' => true], 201)->push(['shared' => true], 201)->push(['error' => 'Rate limited'], 429),
+        ]);
         $stats = Http::get('https://api.example.test/posts/'.$post->id.'/stats')->json();
+        Http::pool(fn ($pool) => [
+            $pool->as('mastodon')->post('https://social.example.test/mastodon/share', ['post' => $post->id]),
+            $pool->as('bluesky')->post('https://social.example.test/bluesky/share', ['post' => $post->id]),
+            $pool->as('linkedin')->post('https://social.example.test/linkedin/share', ['post' => $post->id]),
+        ]);
 
         Greeter::fake(['A short, friendly summary.']);
         $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);

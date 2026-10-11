@@ -183,19 +183,24 @@ export function renderTimeline(model, kinds) {
 
   /**
    * Consecutive same-lens siblings (and their same-lens descendants) fold into one group row.
-   * User spans are named by the developer and always keep a row of their own.
+   * User spans are named by the developer and always keep a row of their own; a pool keeps its
+   * row too and shows its requests one per row, so they can be seen running side by side.
    */
   const nodes = (children, depth, plain = null) => {
     let html = '';
     for (let i = 0; i < children.length; i++) {
       const n = children[i];
       const lens = lensOf(n);
+      if (n.kind === 'http.pool') {
+        html += spanRow(n, depth) + nodes(n.children, depth + 1, 'http');
+        continue;
+      }
       if (lens === 'phase' || lens === 'user' || lens === plain) {
         html += spanRow(n, depth) + nodes(n.children, depth + 1, plain === lens ? plain : null);
         continue;
       }
       let j = i;
-      while (j + 1 < children.length && lensOf(children[j + 1]) === lens) j++;
+      while (j + 1 < children.length && lensOf(children[j + 1]) === lens && children[j + 1].kind !== 'http.pool') j++;
       const run = children.slice(i, j + 1);
       const members = run.flatMap((r) => closure(r, lens, []));
       if (members.length < 2) {

@@ -55,7 +55,7 @@ final readonly class TimelinePresenter
             }
         }
 
-        return $this->tree($nodes);
+        return $this->tree($this->pools($nodes, $capture));
     }
 
     /**
@@ -162,6 +162,48 @@ final readonly class TimelinePresenter
         }
 
         return $depth;
+    }
+
+    /**
+     * Requests sent together by Http::pool() or Http::batch() hang under one
+     * node spanning all of them.
+     *
+     * @param  array<string, array<string, mixed>>  $nodes
+     * @return array<string, array<string, mixed>>
+     */
+    private function pools(array $nodes, Capture $capture): array
+    {
+        $members = [];
+
+        foreach ($capture->rows('http') as $index => $row) {
+            if (is_int($row['pool'] ?? null) && isset($nodes["http:{$index}"])) {
+                $members[$row['pool']][] = "http:{$index}";
+            }
+        }
+
+        foreach ($members as $pool => $ids) {
+            $rows = array_map(fn (string $id): array => $nodes[$id], $ids);
+            $failed = count(array_filter($ids, fn (string $id): bool => (bool) ($capture->rows('http')[(int) substr($id, 5)]['failed'] ?? false)));
+
+            $nodes["http.pool:{$pool}"] = [
+                'id' => "http.pool:{$pool}",
+                'parent' => $rows[0]['parent'],
+                'kind' => 'http.pool',
+                'name' => sprintf('pool of %d %s', count($ids), count($ids) === 1 ? 'request' : 'requests'),
+                's' => min(array_column($rows, 's')),
+                'e' => max(array_column($rows, 'e')),
+                'd' => [
+                    'meta' => ['requests' => count($ids), 'failed' => $failed],
+                    'origin' => $rows[0]['d']['origin'],
+                ],
+            ];
+
+            foreach ($ids as $id) {
+                $nodes[$id]['parent'] = "http.pool:{$pool}";
+            }
+        }
+
+        return $nodes;
     }
 
     /**
