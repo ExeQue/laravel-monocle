@@ -143,85 +143,47 @@ return [
     'except' => [
         'paths' => [
             // Laravel
-            'up',
-            'broadcasting/auth',
-            '.well-known/appspecific/*',
-
+            'up', 'broadcasting/auth', '.well-known/appspecific/*',
             // Livewire
-            'livewire-*/livewire*.js',
-            'livewire-*/*.map',
-            'livewire-*/js/*',
-            'livewire-*/css/*',
-
+            'livewire-*/livewire*.js', 'livewire-*/*.map', 'livewire-*/js/*', 'livewire-*/css/*',
             // Livewire Flux
             'flux/*',
-
             // Laravel Horizon
-            'horizon',
-            'horizon/*',
-
+            'horizon', 'horizon/*',
             // Laravel Telescope
-            'telescope',
-            'telescope/*',
-
+            'telescope', 'telescope/*',
             // Laravel Pulse
-            'pulse',
-            'pulse/*',
-
+            'pulse', 'pulse/*',
             // Laravel Boost
             '_boost/browser-logs',
-
             // Clockwork
-            '__clockwork*',
-            'clockwork',
-            'clockwork/*',
-
+            '__clockwork*', 'clockwork', 'clockwork/*',
             // Laravel Debugbar
             '_debugbar*',
-
             // Ignition
             '_ignition*',
-
             // spatie/laravel-health (Oh Dear)
             'oh-dear-health-check-results',
         ],
         'commands' => [
             // Monocle
-            'monocle:*',
-            'mcp:start monocle',
-
+            'monocle:*', 'mcp:start monocle',
             // Laravel
-            'queue:work',
-            'queue:listen',
-            'schedule:work',
-            'schedule:finish',
-            'package:discover',
-            'test',
-
+            'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish', 'package:discover', 'test',
             // Laravel Boost
             'boost:*',
-
             // Laravel Horizon
             'horizon*',
-
             // Laravel Pulse
-            'pulse:check',
-            'pulse:work',
-
+            'pulse:check', 'pulse:work',
             // Laravel Reverb
-            'reverb:start',
-            'reverb:restart',
-
+            'reverb:start', 'reverb:restart',
             // Laravel Octane
-            'octane:start',
-            'octane:status',
-
+            'octane:start', 'octane:status',
             // Laravel Nightwatch
             'nightwatch:agent',
-
             // spatie/laravel-health
-            'health:schedule-check-heartbeat',
-            'health:queue-check-heartbeat',
+            'health:schedule-check-heartbeat', 'health:queue-check-heartbeat',
         ],
         'livewire' => [
             // Laravel Pulse
