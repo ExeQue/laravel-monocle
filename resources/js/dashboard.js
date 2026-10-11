@@ -379,6 +379,12 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return lines.join('\n');
   },
 
+  /** Monocle's own time recording the open tab's section, when it took any. */
+  get tabOverhead() {
+    const ms = this.summary.monocle_by_section?.[this.tab];
+    return typeof ms === 'number' && ms > 0 ? ms : null;
+  },
+
   /** What a total is made of (name => value in the total's unit), when the summary splits it up. */
   totalDetails(t) {
     const details = this.summary.details?.[t[0]];

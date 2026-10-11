@@ -41,6 +41,15 @@
 
                     @include('monocle::tabs.table', ['section' => null, 'known' => ['overview', 'timeline', 'trace', ...array_keys($tabs)]])
                     <p class="text-muted text-xs" x-show="tabLoading">Loading...</p>
+                    <p
+                        class="text-muted border-line border-t pt-3 text-xs"
+                        x-show="! tabLoading && tabOverhead !== null"
+                        x-text="
+                            'Monocle spent ' +
+                            ms(tabOverhead) +
+                            ' recording this, not counting the application code it called.'
+                        "
+                    ></p>
                 </div>
             </template>
         </main>

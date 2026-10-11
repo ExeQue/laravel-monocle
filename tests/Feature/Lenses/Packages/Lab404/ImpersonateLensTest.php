@@ -35,6 +35,16 @@ describe(ImpersonateLens::class, function (): void {
             ->and($rows[1])->toMatchArray(['event' => 'impersonation_ended', 'user' => GenericUser::class.'#5', 'impersonated_by' => GenericUser::class.'#1']);
     });
 
+    it('counts its recording time on the auth tab it adds to', function (): void {
+        event(new TakeImpersonation(new GenericUser(['id' => 1, 'password' => 'x']), $this->user));
+
+        $capture = app(Eyepiece::class)->finalize();
+        $summary = app(SummaryBuilder::class)->build($capture, children: false);
+
+        expect($capture->health['overhead_by'])->toHaveKey('auth_impersonate')
+            ->and($summary['monocle_by_section'])->toHaveKey('auth')->not->toHaveKey('auth_impersonate');
+    });
+
     it('marks the authenticated user as impersonated while an impersonation lasts', function (): void {
         config(['laravel-impersonate.session_key' => 'impersonated_by', 'laravel-impersonate.session_guard' => 'impersonator_guard']);
         session()->put('impersonated_by', 1);

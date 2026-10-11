@@ -132,6 +132,7 @@ final class SummaryBuilder
             'units' => $units,
             'headlines' => array_values(array_unique($headlines)),
             'details' => $details,
+            'monocle_by_section' => $this->overheadBySection((array) ($capture->health['overhead_by'] ?? [])),
             'groups' => array_diff_key($groups, array_flip($headlines)),
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
@@ -296,5 +297,30 @@ final class SummaryBuilder
     public function phases(Capture $capture): array
     {
         return $capture->spansOfKind('phase');
+    }
+
+    /**
+     * Monocle's own time per section: a lens that adds to another lens's
+     * section counts on that section, so each tab shows what recording it took.
+     *
+     * @param  array<string, float>  $byLens
+     * @return array<string, float>
+     */
+    private function overheadBySection(array $byLens): array
+    {
+        $sections = [];
+
+        foreach ($this->registry->booted() as $lens) {
+            $sections[$lens->key()] = $this->registry->sectionOf($lens);
+        }
+
+        $bySection = [];
+
+        foreach ($byLens as $owner => $ms) {
+            $section = $sections[$owner] ?? $owner;
+            $bySection[$section] = round(($bySection[$section] ?? 0) + $ms, 3);
+        }
+
+        return $bySection;
     }
 }

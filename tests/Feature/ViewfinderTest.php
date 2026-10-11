@@ -94,6 +94,8 @@ describe(Viewfinder::class, function (): void {
             ->and($summary['totals']['monocle_percent'])->toBe(round($summary['totals']['monocle_ms'] / $summary['totals']['duration_ms'] * 100, 1))
             ->and($summary['labels']['monocle_ms'])->toBe('monocle')
             ->and($summary['details']['monocle_ms'])->toBe(latestCapture()->health['overhead_by'])->not->toBeEmpty()
+            ->and($summary['monocle_by_section'])->toHaveKey('queries')
+            ->and(round(array_sum($summary['monocle_by_section']), 2))->toBe(round(array_sum($summary['details']['monocle_ms']), 2))
             ->and($summary['groups'])->toMatchArray(['queries' => 'queries'])
             ->and($summary['groups'])->not->toHaveKey('response_bytes')
             ->and($summary['flags'])->toContain(['level' => 'error', 'section' => 'request', 'message' => 'Response status 500.'])
