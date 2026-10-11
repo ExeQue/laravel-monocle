@@ -7,4 +7,134 @@ Part of [what gets recorded](../lenses.md).
 ![A command capture](../images/43-lens-commands-light.webp#gh-light-mode-only)
 ![A command capture](../images/43-lens-commands-dark.webp#gh-dark-mode-only)
 
-Section `command`: every artisan command is recorded as its own capture, with its arguments, options (secrets masked) and exit code. A command called from somewhere else, like `Artisan::call()` inside a request, job or another command, appears in that capture's timeline and as a row in section `commands`: name, class, arguments, options (masked), exit code, duration and the line that called it. A request or job that called commands gets a **Commands** tab; on a command capture they are listed on its own tab. A non-zero exit code marks the row as failed and is reported as an error. Totals: `commands_ms` (time spent), `commands` and `commands_failed`.
+The Artisan commands lens records every artisan command you run as a capture of its own, with its arguments, options and exit code. A command called while another capture is running, such as `Artisan::call()` inside a request, job or command, is recorded as part of that capture instead.
+
+## How commands are captured
+
+- `php artisan orders:prune --days=30` run from a terminal, cron or the scheduler becomes a capture of type `command`, named `artisan orders:prune`. Its status is the exit code. Everything the command does (queries, cache calls, HTTP calls, jobs it dispatches) belongs to that capture, and jobs it dispatches are linked to it like jobs dispatched by a request; see [Queue](queue.md#how-jobs-are-linked).
+- `Artisan::call('orders:prune')` inside a request, job or another command does not start a new capture. It becomes a `command` span on the timeline of the running capture and a row in its `commands` section.
+- Long-running commands such as `queue:work`, `horizon` and `schedule:work` are not recorded (see [Configuration](#configuration)). The jobs a worker runs are recorded as job captures.
+
+## Rows
+
+### Section `command`
+
+On a capture of type `command`, a set of facts:
+
+| Key | Meaning | Missing when |
+|---|---|---|
+| `name` | The command name, such as `orders:prune` | never |
+| `class` | The command class | null for closure commands defined in `routes/console.php` |
+| `arguments` | The arguments given, by name | empty when none were given |
+| `options` | The options given, by name, with secret-looking values masked | empty when none were given |
+| `exit_code` | The exit code | only absent if the command never finished (for example the process was killed) |
+
+### Section `commands`
+
+On any capture, one row per command called with `Artisan::call()` (or the console kernel's `call()`) while the capture ran:
+
+| Field | Meaning | Unit | Missing when |
+|---|---|---|---|
+| `name` | The command name | - | never |
+| `class` | The command class | - | null for closure commands, or when the command is unknown |
+| `arguments` | The arguments given, by name | - | empty when none were given |
+| `options` | The options given, by name, masked like the capture's own | - | empty when none were given |
+| `exit_code` | The exit code | - | never |
+| `failed` | `true` when the exit code is not 0 | - | never |
+| `duration` | How long the command took | ms | never |
+| `time` | When it started, counted from the start of the capture | ms | never |
+| `origin` | The file and line in your code that called it, with a short call chain | - | when origins are turned off |
+
+Options that were not given (null, `false` or empty) are left out, and so are arguments without a value.
+
+## Totals, warnings and errors
+
+When the capture has rows in `commands`:
+
+| Total | Label | Unit | Meaning |
+|---|---|---|---|
+| `commands_ms` | spent | ms | Time spent in the called commands, summed |
+| `commands` | commands | count | Commands called |
+| `commands_failed` | failed | count | Called commands with a non-zero exit code |
+
+Error: `Command <name> failed (exit code <code>).` for each called command with a non-zero exit code, at most three messages per capture. The `commands_failed` total counts them all.
+
+The lens reports no warnings. The exit code of a command capture itself is shown as its status; a non-zero exit code there is not reported as an error by this lens.
+
+## In the dashboard
+
+A command capture has a **Command** tab with the facts above: name, class, arguments, options and exit code. The header shows the exit code next to the title, and the timeline starts with a `bootstrap` phase (booting the framework) when the command was started from the `artisan` script, followed by a `command` phase.
+
+A request or job that called commands gets a **Commands** tab with the called commands in order, with their name, class, exit code, whether they failed and duration. Failed rows are tinted red. Group the rows **by command**. Click a row to fold it out to the arguments and options, and the line of your code that called it. On a command capture, the commands it called are listed in its **Command** tab, under the facts.
+
+Use the **Commands** filter in the capture list to see only command captures.
+
+## For agents
+
+The latest run of a command, with its arguments, options and exit code. `monocle-list` with:
+
+```json
+{"type": "command", "search": "orders:prune", "limit": 1}
+```
+
+then `monocle-show` with the id it returned:
+
+```json
+{"id": "01a12c76-...", "sections": ["summary", "command"]}
+```
+
+Commands a request called with `Artisan::call()` that failed. `monocle-rows` with:
+
+```json
+{"section": "commands", "where": [{"field": "failed", "op": "=", "value": "1"}], "fields": ["name", "arguments", "options", "exit_code", "origin"]}
+```
+
+Where the time of a slow command went: `monocle-show` with `"sections": ["summary", "timeline"]` on the command capture, then `monocle-queries` on the same id for its queries. See [For AI agents](../agents.md#tools).
+
+## Configuration
+
+Turn the lens on or off in the `lenses` block of `config/monocle.php`, keyed by the lens class: `true` runs it, `false` turns it off. See [Lenses](../configuration.md#lenses).
+
+The lens has no options.
+
+Other settings that affect this lens:
+
+- [`except.commands`](../configuration.md#except): commands that are never recorded, neither as their own capture nor as a row when called with `Artisan::call()`. Patterns support `*` and can include arguments: `'mcp:start monocle'` matches that command only with that argument. The default list holds Monocle's own commands, queue workers, `schedule:work`, `schedule:finish`, `package:discover`, `test`, `tinker` and the long-running commands of Boost, Horizon, Pulse, Reverb, Octane, Nightwatch and spatie/laravel-health. Setting the key replaces the list, so keep the defaults you need.
+- [`mask.inputs`](../configuration.md#masking) and `mask.using`: option names matching `inputs` (by default `/pass|token|secret|authorization/i`) have their value masked with `using` (by default a partial mask). Key an entry by `CommandLens::class` to mask more for commands only. Arguments are not masked.
+- [`origin`](../configuration.md#origin): whether `commands` rows carry the line that called the command.
+
+```php
+use ExeQue\Monocle\Lenses\CommandLens;
+
+'lenses' => [
+    CommandLens::class => true,
+],
+
+'except' => [
+    'commands' => [
+        // the defaults (shortened here; keep the full list from the published config)
+        'monocle:*', 'mcp:start monocle',
+        'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish', 'package:discover', 'test', 'tinker',
+        'horizon*',
+        // your own long-running or noisy commands
+        'app:websocket-server',
+        'import:run nightly',
+    ],
+],
+
+'mask' => [
+    'inputs' => [
+        '/pass|token|secret|authorization/i',
+        CommandLens::class => '/api[-_]?key|dsn/i',
+    ],
+],
+```
+
+## Requirements and limits
+
+No extra packages are needed.
+
+- Commands called from inside a command with `$this->call()` or `$this->callSilently()` are not recorded as rows or spans; their work counts toward the calling command. `Artisan::call()` is recorded.
+- Arguments are stored as given, without masking. Pass secrets as options so they are masked.
+- The command's console output is not recorded.
+- A long-running command you add yourself stays one open capture until it ends; add it to `except.commands`.
