@@ -1,0 +1,59 @@
+// Helpers shots share. Not a shot itself: files starting with _ are helpers.
+
+// Scrolls the capture's pane (`main`, the page itself never scrolls) so `element` sits
+// at the top of the picture, under the sticky tab bar. Instant, so the picture is not taken mid-scroll.
+function scrollPaneTo(element) {
+    const pane = document.querySelector('main');
+
+    if (! element || ! pane) {
+        return;
+    }
+
+    // The tab bar is sticky, so the element goes just below it rather than behind it.
+    const tabs = element.closest('[role="tablist"]') ? 0 : document.querySelector('[role="tablist"]')?.offsetHeight ?? 0;
+    const top = element.getBoundingClientRect().top - pane.getBoundingClientRect().top + pane.scrollTop - tabs - 12;
+    pane.scrollTo({ top, behavior: 'instant' });
+}
+
+// Folds out the first row on the open tab whose text contains `text`, waits for its
+// details (they are fetched when the row opens) and scrolls the row to the top.
+async function expandRow(page, text) {
+    const findRow = (needle) => [...document.querySelectorAll('main tbody tr, main li')]
+        .find((row) => row.offsetParent !== null && row.textContent.includes(needle) && row.querySelector('[aria-expanded="false"]'));
+
+    // A tab loads its rows after it opens.
+    await page.waitForFunction(findRow, { timeout: 8000 }, text).catch(() => console.warn(`no row with "${text}"`));
+
+    await page.evaluate((needle, find) => {
+        const row = new Function(`return (${find})`)()(needle);
+        row?.setAttribute('data-shot-row', '');
+        row?.querySelector('[aria-expanded="false"]')?.click();
+    }, text, findRow.toString());
+
+    await page.waitForFunction(() => {
+        const details = document.querySelector('[data-shot-row]')?.nextElementSibling;
+
+        return details?.offsetParent !== null && (details?.textContent.trim().length ?? 0) > 20;
+    }, { timeout: 8000 }).catch(() => console.warn(`no details for "${text}"`));
+
+    await page.evaluate(`(${scrollPaneTo})(document.querySelector('[data-shot-row]'))`);
+}
+
+// Scrolls the capture's pane so the tab bar is at its top, past the capture's header.
+async function scrollToTabs(page) {
+    await page.evaluate(`(${scrollPaneTo})(document.querySelector('[role="tablist"]'))`);
+}
+
+// Clicks the first visible element on the open tab whose own text is `text`, with a real
+// mouse click so a popover opens next to it.
+async function clickText(page, text) {
+    const findElement = (needle) => [...document.querySelectorAll('main *')]
+        .find((element) => element.offsetParent !== null && element.childElementCount === 0 && element.textContent.trim() === needle);
+
+    await page.waitForFunction(findElement, { timeout: 8000 }, text).catch(() => console.warn(`no element "${text}"`));
+
+    const handle = await page.evaluateHandle(findElement, text);
+    await handle.asElement()?.click();
+}
+
+module.exports = { expandRow, clickText, scrollToTabs };

@@ -2,7 +2,7 @@
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'monocle-time',
+    name: '11-monocle-time',
     capture: captures.showcase,
     tab: 'overview',
     prepare: async (page) => {

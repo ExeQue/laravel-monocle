@@ -1,8 +1,8 @@
-// Outgoing HTTP calls, including failures.
+// Agents and their tool calls.
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'http',
+    name: '18-ai',
     capture: captures.showcase,
-    tab: 'http',
+    tab: 'ai',
 };

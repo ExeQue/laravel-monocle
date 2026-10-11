@@ -2,7 +2,7 @@
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'trace',
+    name: '20-trace',
     capture: captures.countdown,
     tab: 'trace',
 };

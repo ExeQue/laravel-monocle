@@ -2,7 +2,7 @@
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'only-errors',
+    name: '22-only-errors',
     capture: captures.showcase,
     tab: 'overview',
     prepare: (page) => page.click('#monocle-errors'),

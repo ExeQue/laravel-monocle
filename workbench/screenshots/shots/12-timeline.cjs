@@ -1,8 +1,8 @@
-// The overview of the showcase request.
+// The timeline of the showcase request.
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'overview',
+    name: '12-timeline',
     capture: captures.showcase,
-    tab: 'overview',
+    tab: 'timeline',
 };

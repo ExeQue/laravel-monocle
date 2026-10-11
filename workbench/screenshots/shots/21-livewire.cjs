@@ -2,7 +2,7 @@
 const captures = require('./_captures.cjs');
 
 module.exports = {
-    name: 'livewire',
+    name: '21-livewire',
     capture: captures.livewire,
     tab: 'livewire',
 };
