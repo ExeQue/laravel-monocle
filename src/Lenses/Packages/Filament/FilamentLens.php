@@ -476,7 +476,8 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             $this->eyepiece->push('filament', $table, origin: false);
         }
 
-        if ($this->touched || Filament::isServing()) {
+        // The facts go with the rows they explain; on their own they would be a tab of their own.
+        if ($capture->rows('filament') !== []) {
             $this->context();
         }
     }

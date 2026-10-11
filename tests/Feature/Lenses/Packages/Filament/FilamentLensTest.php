@@ -198,6 +198,13 @@ describe(FilamentLens::class, function (): void {
         expect($lens()->summarize(app(Eyepiece::class)->finalize())->warnings)->toBe(['Filament table on ListBooks loaded 2 records without pagination.']);
     });
 
+    it('leaves the panel facts out when Filament did nothing to show', function (): void {
+        Livewire::test(\Filament\Livewire\Notifications::class);
+
+        expect(latestCapture()->rows('filament'))->toBe([])
+            ->and(latestCapture()->rows('filament_context'))->toBe([]);
+    });
+
     it('records nothing outside Filament', function () use ($lens): void {
         $this->get('/nothing-here');
 
