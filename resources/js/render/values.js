@@ -1,12 +1,11 @@
 import { esc, humanize, fmtValue, maybeLink } from '../format.js';
 import { totalValue } from './totals.js';
 
-/** Field changes as a table: a new field has nothing in From, a removed one nothing in To. */
+/** Field changes as a table: a new field is null in From, a removed one null in To. */
 export const changesTable = (changes) => {
   const td = 'px-1.5 py-0.5 align-top font-mono [overflow-wrap:anywhere]';
-  const tag = (text) => `<span class="rounded border border-line px-1 font-sans text-[10.5px] text-muted">${text}</span>`;
   const value = (v) => esc(fmtValue(v));
-  return `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="${td}">${esc(c.field)}</td><td class="${td} text-bad">${c.from === null ? tag('new') : value(c.from)}</td><td class="${td} text-ok">${c.to === null ? tag('removed') : value(c.to)}</td></tr>`).join('')}</tbody></table>`;
+  return `<table class="w-full table-fixed border-collapse text-xs"><colgroup><col class="w-[28%]"><col class="w-[36%]"><col class="w-[36%]"></colgroup><thead><tr>${['Field', 'From', 'To'].map((h) => `<th scope="col" class="px-1.5 py-0.5 text-left font-medium text-muted">${h}</th>`).join('')}</tr></thead><tbody>${changes.map((c) => `<tr class="border-t border-line"><td class="${td}">${esc(c.field)}</td><td class="${td} text-bad">${c.from === null ? '<span class="text-muted">null</span>' : value(c.from)}</td><td class="${td} text-ok">${c.to === null ? '<span class="text-muted">null</span>' : value(c.to)}</td></tr>`).join('')}</tbody></table>`;
 };
 
 /** Nested input, cookies and session data as dot.notated key/value pairs. */
