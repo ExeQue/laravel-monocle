@@ -53,7 +53,8 @@ describe(CommandLens::class, function (): void {
             ->and($capture->sections)->not->toHaveKey('request')
             ->and($capture->health['open_spans_at_finalize'])->toBe(0)
             ->and($summary['warnings'])->toBe([])
-            ->and($summary['totals']['memory_peak_mb'])->toBeGreaterThan(0);
+            ->and($summary['totals']['memory_peak_mb'])->toBeGreaterThan(0)
+            ->and(array_column($summary['breakdown']['phases'], 'name'))->toContain('command');
     });
 
     it('records the class behind a command', function (): void {
