@@ -117,7 +117,7 @@
 </div>
 
 <nav
-    class="scroll-quiet scroll-slim border-line bg-bg sticky -top-5 z-10 flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b py-1.5"
+    class="scroll-quiet scroll-slim border-line bg-bg sticky -top-5 z-10 flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b py-1.5 select-none"
     role="tablist"
     aria-label="Capture sections"
     x-ref="tabs"

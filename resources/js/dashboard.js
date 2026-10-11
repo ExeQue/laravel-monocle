@@ -6,6 +6,7 @@ import { cls, statusClass, httpStatusClass, tagClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
 import { setupTooltip } from './tooltip.js';
+import { setupDragScroll } from './drag-scroll.js';
 import * as values from './render/values.js';
 import * as cells from './render/cells.js';
 import * as details from './render/details.js';
@@ -72,6 +73,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     wide.addEventListener('change', (e) => { this.wide = e.matches; });
     this.popover = setupPopover(this.$refs.detail, () => this.model);
     setupTooltip();
+    setupDragScroll('[role="tablist"]');
     const fromHash = location.hash.replace(/^#/, '').split('/');
     if (fromHash[0]) { this.selectedId = fromHash[0]; this.tab = fromHash[1] || 'overview'; }
     this.load();
