@@ -385,10 +385,10 @@
                 <section x-show="!['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)">
                     <div :class="cls.tableWrap" x-show="tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
-                            <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="cls.th" x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"></th></template></tr></thead>
+                            <thead><tr><template x-for="col in tableColumns" :key="col"><th :class="[cls.th, numeric(col) && '!text-right']" x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"></th></template></tr></thead>
                             <tbody>
                                 <template x-for="(row, i) in tabData?.rows ?? []" :key="i">
-                                    <tr class="cursor-pointer hover:bg-sunk" :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, row, tab)"><template x-for="col in tableColumns" :key="col"><td :class="cls.td" x-html="cell(row, col)"></td></template></tr>
+                                    <tr class="cursor-pointer hover:bg-sunk" :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''" @click="rowPopover($event, row, tab)"><template x-for="col in tableColumns" :key="col"><td :class="[cls.td, numeric(col) && '!text-right tabular-nums']" x-html="cell(row, col)"></td></template></tr>
                                 </template>
                             </tbody>
                         </table>

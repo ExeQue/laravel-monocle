@@ -390,6 +390,10 @@ Alpine.data('monocle', (config) => ({
     return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
+  numeric(key) {
+    return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
+  },
+
   cell(row, key) {
     const v = row[key];
     if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${maybeLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
