@@ -7,6 +7,7 @@ namespace Workbench\App\Providers;
 use ExeQue\Monocle\Lenses\FilesystemLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Support\Masks\FullMask;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -16,10 +17,13 @@ use Laravel\Folio\Folio;
 use Laravel\Pennant\Feature;
 use Livewire\Livewire;
 use Prism\Prism\PrismManager;
+use RuntimeException;
 use Workbench\App\Cache\SlowStore;
+use Workbench\App\Console\Commands\FailingCommand;
 use Workbench\App\Console\Commands\GreetCommand;
 use Workbench\App\Events\PostPublished;
 use Workbench\App\Listeners\NotifyFollowers;
+use Workbench\App\Livewire\BrokenWidget;
 use Workbench\App\Livewire\Counter;
 use Workbench\App\Models\User;
 use Workbench\App\Monocle\PaymentsLens;
@@ -49,8 +53,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'monocle.lenses.'.FilesystemLens::class => ['disks' => ['demo']],
             // An application lens with its own dashboard tab.
             'monocle.lenses.'.PaymentsLens::class => true,
-            // The queue worker demo only starts a worker; the jobs it runs are captures of their own.
-            'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico', 'demo/queue/work'],
+            // The queue worker and schedule demos only start a process; the jobs and commands it runs are captures of their own.
+            'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico', 'demo/queue/work', 'demo/alarms/failed-scheduled-task'],
             // The showcase sends an API key to an outgoing API; mask it for the http lens only.
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
             'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
@@ -60,7 +64,14 @@ final class WorkbenchServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->commands([GreetCommand::class]);
+        $this->commands([GreetCommand::class, FailingCommand::class]);
+
+        // A scheduled task that always fails, for schedule:run.
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->call(fn () => throw new RuntimeException('The nightly export could not reach the warehouse.'))
+                ->name('nightly-export')
+                ->everyMinute();
+        });
 
         Cache::extend('slow', fn (): \Illuminate\Contracts\Cache\Repository => Cache::repository(new SlowStore(), ['store' => 'slow']));
 
@@ -76,6 +87,7 @@ final class WorkbenchServiceProvider extends ServiceProvider
         Feature::define('beta-checkout', fn (?User $user): bool => $user !== null);
 
         Livewire::component('counter', Counter::class);
+        Livewire::component('broken-widget', BrokenWidget::class);
 
         Inertia::setRootView('inertia');
         Inertia::share('app', ['name' => 'Monocle workbench']);

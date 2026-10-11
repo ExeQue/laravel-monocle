@@ -19,6 +19,57 @@ The overview lists them under **Warnings / Errors**, errors first, with the coun
 
 A tab's count turns red when its section reported errors and yellow when it reported only warnings. A red count with a yellow dot means both. A tab without a count shows a dot in the same colours. Hover the count or dot to see how many warnings and errors.
 
+## What Monocle warns about
+
+Every warning and error a capture can carry, by lens. Options are set per lens under `lenses` in `config/monocle.php`, for example `DatabaseLens::class => ['slow_ms' => 100]`. Each one has a demo under `/demo/alarms` (or an older demo) in the demo application.
+
+Slow and duplicate queries, repeated cache reads and slow middleware are only flagged when application code caused them: a query or cache read that came from package code alone, with no application code on the way, and middleware shipped by a package are left out, since they are not yours to fix. Views from `vendor/` are left out of the repeated view warning the same way.
+
+| Alarm | Level | What it means | Tune with |
+| --- | --- | --- | --- |
+| Slow query | warning | A query took at least `slow_ms`. The three slowest are listed. | `DatabaseLens` `slow_ms` (70) |
+| Duplicate queries | warning | The same SQL with the same bindings ran more than once. | - |
+| Possible N+1 | warning | The same select shape ran at least `n_plus_one_threshold` times, usually a relation loaded in a loop. | `DatabaseLens` `n_plus_one_threshold` (3) |
+| Slow cache call | warning | One cache call took at least `slow_ms`, wherever it came from. | `CacheLens` `slow_ms` (20) |
+| Cache key read repeatedly | warning | One key was read at least `repeat_threshold` times, `repeat_ms` in all; remember it for the request with `Cache::memo()` or `once()`. | `CacheLens` `repeat_threshold` (5), `repeat_ms` (0) |
+| View rendered repeatedly | warning | One view was rendered at least `repeat_threshold` times and took at least `repeat_ms` in all. | `ViewsLens` `repeat_threshold` (10), `repeat_ms` (20) |
+| Slow middleware | warning | A middleware spent at least `slow_ms` of its own time, before and after `$next`. | `MiddlewareLens` `slow_ms` (50) |
+| Middleware short-circuited | warning | A middleware answered itself (a redirect, a 403, a cached response) and the request never reached the route. | - |
+| Authorization denied | warning | A gate or policy check said no. The first three are listed. | - |
+| Login locked out | warning | A `Lockout` event fired: too many failed logins. | - |
+| Impersonated by | tag | The request ran while one user impersonated another (lab404/laravel-impersonate, stechstudio/filament-impersonate, Nova, Mirror). Shown in yellow in the header and the list. | - |
+| dd() ended the process | warning | `dd()` stopped the request before a response was sent. Spans still open then are reported as never stopped too. | - |
+| Slow process | warning | A process took at least `slow_ms`. | `ProcessLens` `slow_ms` (1000) |
+| Process failed | error | A process exited with a non-zero code. | - |
+| Process timed out | error | A process was stopped by its timeout. | - |
+| HTTP call failed | error | An outgoing call got a 4xx or 5xx, or no response at all (DNS, connection, TLS). | - |
+| Exception | error | An exception was reported or thrown. The first three are listed. | - |
+| Logged error | error | A log entry at `error`, `critical`, `alert` or `emergency` level. | - |
+| Response status 5xx | error | The request ended with a server error status. | - |
+| Job failed | error | A queued job threw; shown on the job's own capture. | - |
+| Command failed | error | An Artisan command run from code exited with a non-zero code. | - |
+| Scheduled task failed | error | A task run by `schedule:run` failed; shown on that command's capture. | - |
+| Filesystem operation failed | error | A Storage call failed, such as reading a file that does not exist. | `FilesystemLens` `disks` (which disks are watched) |
+| Livewire component threw | error | A Livewire component threw while updating, calling a method or rendering, even when it handled the exception. | - |
+| Filament action failed | error | A Filament action called `failure()`. | - |
+| Filament action threw | error | A Filament action threw an exception. | - |
+| Filament table without pagination | warning | A Filament table without pagination loaded more than `large_table_records` records. | `FilamentLens` `large_table_records` (500) |
+| Large Inertia prop | warning | One prop was bigger than `large_prop_bytes` as JSON. | `InertiaLens` `large_prop_bytes` (50000) |
+| Large Inertia page | warning | The whole page was bigger than `large_page_bytes`. | `InertiaLens` `large_page_bytes` (200000) |
+| Shared prop on a partial reload | warning | A shared prop was sent on a partial reload that did not ask for it; make it lazy or `Inertia::always()` on purpose. | - |
+| Undefined feature | warning | A Pennant feature was checked that is not defined; it resolved to false. | - |
+| Served from the response cache | warning | spatie/laravel-responsecache answered and the controller did not run. | - |
+| Media conversion during the request | warning | spatie/laravel-medialibrary ran conversions while the request waited; queue them to keep the response fast. | - |
+| Agent failed | error | A laravel/ai agent call failed. | - |
+| Tool failed | error | A tool a laravel/ai agent called threw. | - |
+| Prism call failed | error | A Prism call failed. | - |
+| Prism tool failed | error | A tool Prism ran threw. | - |
+| MCP call returned an error | error | A call to one of your MCP servers answered with an error. | - |
+| Monocle failed to record | warning | A lens threw while recording, for example while reading an event payload; the rest of the capture is complete and the app carried on. | - |
+| Spans never stopped | warning | A span (yours via `Monocle::span()`, or one cut short by `dd()` or `exit`) was still running when the capture ended and was closed then. | - |
+
+Some rows are marked in their tab without raising a warning: rolled back writes (`rolled_back` in the models tab), failed validation, events nobody listens to, and failed 2FA challenges with Laravel Fortify.
+
 ## The overview
 
 The overview shows where the time went (each phase of the request), what it was spent on (queries, cache, HTTP calls and so on), the warnings and errors, and the totals. The duration, peak memory, response size, middleware time, middleware count and the time Monocle itself took (and its share of the duration) are at the top; the other totals are grouped by the section that reported them. Click a group's name to open its tab. **Totals** folds the grouped totals away; the ones at the top stay.

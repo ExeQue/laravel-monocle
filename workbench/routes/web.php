@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Facades\Monocle;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -23,6 +25,7 @@ use Inertia\Inertia;
 use Lab404\Impersonate\Services\ImpersonateManager;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Pennant\Feature;
+use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Testing\TextResponseFake;
 use Prism\Prism\Tool as PrismTool;
@@ -34,6 +37,8 @@ use Workbench\App\Ai\PackingAdvisor;
 use Workbench\App\Ai\TripPlanner;
 use Workbench\App\Events\PaymentCharged;
 use Workbench\App\Events\PostPublished;
+use Workbench\App\Events\ReportExported;
+use Workbench\App\Http\Middleware\ShortCircuitMiddleware;
 use Workbench\App\Http\Middleware\SlowMiddleware;
 use Workbench\App\Http\Requests\ContactRequest;
 use Workbench\App\Jobs\BrokenJob;
@@ -552,4 +557,187 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         return $result('Custom spans', ['posts' => $total]);
     })->name('spans');
+
+    // One route per warning or error Monocle can raise; the demo index lists them by lens.
+    Route::prefix('alarms')->name('alarms.')->group(function () use ($result): void {
+        Route::get('slow-cache', function () use ($result): View {
+            $rates = Cache::store('slow')->remember('demo:exchange-rates', 60, fn (): array => ['EUR' => 7.46, 'USD' => 6.89]);
+
+            return $result('Slow cache', $rates);
+        })->name('slow-cache');
+
+        Route::get('repeated-view', function () use ($result): View {
+            $html = '';
+
+            foreach (range(1, 12) as $row) {
+                $html .= view('partials.slow-row', ['row' => $row])->render();
+            }
+
+            return $result('Repeated view', strip_tags($html));
+        })->name('repeated-view');
+
+        Route::get('middleware-short-circuit', fn (): View => $result('Never reached'))->middleware(ShortCircuitMiddleware::class)->name('middleware-short-circuit');
+
+        Route::get('dd', fn () => dd(['order' => 1042, 'status' => 'stuck']))->name('dd');
+
+        Route::get('lockout', function (Request $request) use ($result): View {
+            $key = 'login:ada@example.com|'.$request->ip();
+            $attempts = 0;
+
+            // Wrong passwords until the limiter locks the login, as a login form throttles it.
+            while (! RateLimiter::tooManyAttempts($key, 3)) {
+                Auth::attempt(['email' => 'ada@example.com', 'password' => 'wrong-password']);
+                RateLimiter::hit($key);
+                $attempts++;
+            }
+
+            event(new Lockout($request));
+            RateLimiter::clear($key);
+
+            return $result('Login lockout', "Locked out after {$attempts} failed attempts.");
+        })->name('lockout');
+
+        Route::get('server-error', fn () => response('The upstream service is unavailable.', 503))->name('server-error');
+
+        Route::get('failed-job', function () use ($result): View {
+            BrokenJob::dispatch()->onConnection('database');
+
+            return $result('Failing queued job', 'BrokenJob is on the database queue. Work the queue (/demo/queue/work); the job capture has the failure.');
+        })->name('failed-job');
+
+        Route::get('failed-command', function () use ($result): View {
+            $exitCode = Artisan::call('demo:fail');
+
+            return $result('Failed command', "demo:fail exited with {$exitCode}.");
+        })->name('failed-command');
+
+        Route::get('slow-process', function () use ($result): View {
+            Process::run([PHP_BINARY, '-r', 'usleep(1_100_000);']);
+
+            return $result('Slow process', 'A process that took 1.1 seconds.');
+        })->name('slow-process');
+
+        Route::get('process-timeout', function () use ($result): View {
+            try {
+                Process::timeout(1)->run([PHP_BINARY, '-r', 'sleep(3);']);
+            } catch (RuntimeException $exception) {
+                return $result('Process timeout', $exception->getMessage());
+            }
+
+            return $result('Process timeout', 'The process finished in time.');
+        })->name('process-timeout');
+
+        Route::get('failed-scheduled-task', function () use ($result): View {
+            // Like the queue worker demo: schedule:run is a command capture of its own.
+            $run = Process::path(dirname(__DIR__, 2))->timeout(60)->run([PHP_BINARY, 'vendor/bin/testbench', 'schedule:run']);
+
+            return $result('Failed scheduled task', trim($run->output().$run->errorOutput()));
+        })->name('failed-scheduled-task');
+
+        Route::get('filesystem-failed', fn (): View => $result('Failed read', [
+            'contents' => Storage::disk('demo')->get('reports/missing.pdf'),
+        ]))->name('filesystem-failed');
+
+        Route::get('http-connection-failed', function () use ($result): View {
+            try {
+                Http::connectTimeout(2)->get('https://payments.monocle-demo.invalid/health');
+            } catch (ConnectionException $exception) {
+                return $result('Failed connection', $exception->getMessage());
+            }
+
+            return $result('Failed connection', 'The host answered.');
+        })->name('http-connection-failed');
+
+        Route::get('inertia-large-page', fn () => Inertia::render('Dashboard', array_combine(
+            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
+            array_fill(0, 6, array_fill(0, 900, ['id' => 1, 'title' => 'A row in a large report'])),
+        )))->name('inertia-large-page');
+
+        Route::get('inertia-shared-on-partial', fn (): View => view('fetch', [
+            'title' => 'Shared prop on a partial reload',
+            'description' => 'A partial reload of the Inertia demo that only leaves out "report". The shared "app" prop is sent although the reload did not ask for it.',
+            'method' => 'GET',
+            'url' => '/demo/inertia',
+            'headers' => ['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Dashboard', 'X-Inertia-Partial-Except' => 'report', 'Accept' => 'text/html, application/xhtml+xml'],
+        ]))->name('inertia-shared-on-partial');
+
+        Route::view('livewire-exception', 'alarms.livewire')->name('livewire-exception');
+
+        Route::get('ai-agent-failed', function () use ($result): View {
+            Greeter::fake(fn (): never => throw new RuntimeException('The model is overloaded.'));
+
+            try {
+                new Greeter()->prompt('Say hi to Ada');
+            } catch (RuntimeException $exception) {
+                return $result('Failed agent', $exception->getMessage());
+            }
+
+            return $result('Failed agent', 'The agent answered.');
+        })->name('ai-agent-failed');
+
+        Route::get('ai-tool-failed', function () use ($result): View {
+            TripPlanner::fake([
+                new ToolCall('call_nok', 'exchange_rate', ['currency' => 'NOK']),
+                'Pack an umbrella.',
+            ]);
+
+            try {
+                new TripPlanner()->prompt('How much is 100 DKK in NOK?');
+            } catch (RuntimeException $exception) {
+                return $result('Failed tool', $exception->getMessage());
+            }
+
+            return $result('Failed tool', 'The tool answered.');
+        })->name('ai-tool-failed');
+
+        Route::get('prism-failed', function () use ($result): View {
+            try {
+                Prism::text()->using('workbench', 'overloaded')->withPrompt('What should I pack?')->asText();
+            } catch (PrismException $exception) {
+                return $result('Failed Prism call', $exception->getMessage());
+            }
+
+            return $result('Failed Prism call', 'The model answered.');
+        })->name('prism-failed');
+
+        Route::get('prism-tool-failed', function () use ($result): View {
+            $weather = new PrismTool()->as('weather')->for('The weather in a city')
+                ->withStringParameter('city', 'The city')
+                ->using(fn (string $city): never => throw new RuntimeException("No weather station in {$city}."));
+
+            try {
+                Prism::text()->using('workbench', 'demo-model')->withPrompt('Will it rain?')->withTools([$weather])->asText();
+            } catch (RuntimeException $exception) {
+                return $result('Failed Prism tool', $exception->getMessage());
+            }
+
+            return $result('Failed Prism tool', 'The tool answered.');
+        })->name('prism-tool-failed');
+
+        Route::get('mcp-error', fn (): View => view('fetch', [
+            'title' => 'MCP error',
+            'description' => 'Calls a tool the demo MCP server does not have; the server answers with an error.',
+            'method' => 'POST',
+            'url' => '/api/mcp/demo',
+            'headers' => ['Accept' => 'application/json, text/event-stream', 'Content-Type' => 'application/json'],
+            'body' => [
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/call',
+                'params' => ['name' => 'weather', 'arguments' => ['city' => 'Aarhus']],
+            ],
+        ]))->name('mcp-error');
+
+        Route::get('monocle-failure', function () use ($result): View {
+            ReportExported::dispatch();
+
+            return $result('Monocle failure', 'ReportExported was dispatched; reading its payload threw inside the events lens.');
+        })->name('monocle-failure');
+
+        Route::get('open-span', function () use ($result): View {
+            Monocle::span('warm search index')->start();
+
+            return $result('Span never stopped', 'A span was started and never stopped.');
+        })->name('open-span');
+    });
 });

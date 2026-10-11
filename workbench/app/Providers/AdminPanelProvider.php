@@ -16,6 +16,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Workbench\App\Filament\Posts\PostResource;
+use Workbench\App\Filament\SensorReadings;
 
 /**
  * A Filament panel at /admin for the Filament tab. Log in as ada@example.com
@@ -31,6 +32,7 @@ final class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->resources([PostResource::class])
+            ->pages([SensorReadings::class])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
