@@ -65,6 +65,7 @@ export default defineConfig({
         items: [
           { text: 'Spans and metadata', link: '/docs/spans' },
           { text: 'Writing a lens', link: '/docs/writing-a-lens' },
+          { text: 'Third-party lenses', link: '/docs/third-party-lenses' },
         ],
       },
       {

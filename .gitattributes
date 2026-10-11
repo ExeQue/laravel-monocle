@@ -23,3 +23,6 @@
 /resources/js           export-ignore
 /resources/css          export-ignore
 /resources/static       export-ignore
+/CONTRIBUTING.md         export-ignore
+/SECURITY.md             export-ignore
+/CODE_OF_CONDUCT.md      export-ignore

@@ -354,3 +354,7 @@ $capture = app(Eyepiece::class)->finalize();
 
 expect($capture->rows('stripe'))->toHaveCount(1);
 ```
+
+## Sharing your lens
+
+Publish the lens as its own package and open an issue to have it listed under [Third-party lenses](third-party-lenses.md).

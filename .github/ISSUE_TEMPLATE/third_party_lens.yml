@@ -1,0 +1,59 @@
+name: Add a third-party lens
+description: Get your own lens package listed in the index of third-party lenses.
+labels: [third-party-lens]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Composer package
+      description: The name to install it with.
+      placeholder: acme/monocle-horizon-lens
+    validations:
+      required: true
+  - type: input
+    id: repository
+    attributes:
+      label: Repository
+      placeholder: https://github.com/acme/monocle-horizon-lens
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: What it records
+      description: The package or part of the application the lens hooks into, with the versions it supports.
+      placeholder: laravel/horizon ^5
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: One or two sentences for the index - what a developer sees in the capture once it is installed.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Supported versions
+      description: Monocle, Laravel and PHP versions the lens is tested against.
+      placeholder: Monocle ^1.0, Laravel ^13, PHP ^8.4
+    validations:
+      required: true
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Requirements
+      options:
+        - label: Published on Packagist under an open source license
+          required: true
+        - label: The README explains how to install and register the lens
+          required: true
+        - label: Tests run the lens against the real package in CI
+          required: true
+        - label: The lens implements `Advises`, so agents know what its section holds
+          required: true
+        - label: Secrets are masked with Monocle's masker before they are stored
+          required: true
+        - label: The lens does nothing when Monocle is disabled and never breaks the application when it fails
+          required: true

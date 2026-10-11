@@ -1,0 +1,46 @@
+name: Bug report
+description: Something Monocle records, shows or does is wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The smallest route, job or command that shows the problem, with the relevant part of your config/monocle.php.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Exceptions, log lines, MCP tool output or a screenshot of the dashboard. Remove secrets first.
+  - type: input
+    id: monocle
+    attributes:
+      label: Monocle version
+    validations:
+      required: true
+  - type: input
+    id: laravel
+    attributes:
+      label: Laravel version
+    validations:
+      required: true
+  - type: input
+    id: php
+    attributes:
+      label: PHP version
+    validations:
+      required: true
+  - type: textarea
+    id: packages
+    attributes:
+      label: Related packages
+      description: For problems with a package lens, the package and its version (Livewire, Inertia, laravel/ai ...).

@@ -1,0 +1,31 @@
+name: Report a broken third-party lens
+description: A lens in the third-party index no longer works or misbehaves.
+labels: [third-party-lens, broken]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Composer package
+      placeholder: acme/monocle-horizon-lens
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+      description: What fails or misbehaves, with the error or output. Remove secrets first.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Versions of the lens, Monocle, Laravel and PHP you used.
+      placeholder: lens 1.2.0, Monocle 1.4.0, Laravel 13.2, PHP 8.4
+    validations:
+      required: true
+  - type: input
+    id: upstream
+    attributes:
+      label: Issue in the lens repository
+      description: Link to the issue you opened with the lens maintainer, if any.

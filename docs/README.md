@@ -9,6 +9,7 @@
 - [What gets recorded](lenses.md) - Every lens and what it records
 - [Spans and metadata](spans.md) - Measure your own code
 - [Writing a lens](writing-a-lens.md) - Record something Monocle does not know about
+- [Third-party lenses](third-party-lenses.md) - Lenses for other packages, maintained by others
 - [Configuration](configuration.md) - Every option in `config/monocle.php`
 - [Storage](storage.md) - Where captures are kept
 
