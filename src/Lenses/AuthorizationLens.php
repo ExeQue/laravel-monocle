@@ -45,7 +45,7 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
 
     public function boot(Application $app): void
     {
-        $app->make(Gate::class)->after(function (?Authenticatable $user, string $ability, mixed $result, array $arguments): void {
+        $app->make(Gate::class)->after($this->eyepiece->wrap(function (?Authenticatable $user, string $ability, mixed $result, array $arguments): void {
             if (! $this->eyepiece->recording()) {
                 return;
             }
@@ -59,7 +59,7 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
                 'arguments' => Normalizer::normalize($arguments),
                 'message' => $result instanceof Response ? $result->message() : null,
             ]);
-        });
+        }));
     }
 
     public function summarize(Capture $capture): Summary

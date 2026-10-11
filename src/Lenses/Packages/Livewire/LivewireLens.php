@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 
+use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
@@ -165,13 +166,12 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
 
     private function hook(string $event, callable $callback): void
     {
-        app('livewire')->listen($event, function (mixed ...$arguments) use ($callback): mixed {
-            try {
-                return $callback(...$arguments);
-            } catch (Throwable $e) {
-                return null;
-            }
-        });
+        // Livewire calls a returned closure when the step finishes; it is Monocle's work too.
+        app('livewire')->listen($event, $this->eyepiece->wrap(function (mixed ...$arguments) use ($callback): mixed {
+            $finish = $callback(...$arguments);
+
+            return $finish instanceof Closure ? $this->eyepiece->wrap($finish) : $finish;
+        }));
     }
 
     private function open(Component $component, string $lifecycle): void

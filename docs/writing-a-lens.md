@@ -89,6 +89,7 @@ What the `Eyepiece` offers a lens:
 | `describe(?string $name = null, ?string $status = null, ?string $label = null)` | Sets the capture's name, status or label. |
 | `modify(string $section, Closure $modifier)` | Changes every row pushed into a section before it is kept, also rows other lenses push. Return the row. Data from `set()` is not passed through it. |
 | `active()` | The capture being recorded, or `null`. |
+| `wrap(fn (...) => ...)` | Returns your handler for a hook outside Laravel's events (a Livewire hook, `Gate::after()`, a validator's `after()`, ...), so its time counts as your lens's like a `listen()` handler. |
 | `outside(fn () => ...)` | Runs application code from your lens, such as a closure you resolve to time it, and returns its result. Monocle's own time per lens is shown on every capture; what runs here is not counted as yours. |
 | `discard()` | Drops the capture being recorded, so nothing is stored. |
 | `start(CaptureType $type)`, `finalize()` | Start and store a capture yourself; see [Testing](#testing). |

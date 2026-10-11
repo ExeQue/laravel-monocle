@@ -55,12 +55,17 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
             return;
         }
 
-        $handler->reportable(function (Throwable $exception): void {
+        $record = $this->eyepiece->wrap(function (Throwable $exception): void {
             if (! $this->eyepiece->recording()) {
                 return;
             }
 
             $this->eyepiece->push('exceptions', $this->describe($exception), origin: false);
+        });
+
+        // reportable() reads the type of the closure's parameter, so the timed handler is called from a typed one.
+        $handler->reportable(function (Throwable $exception) use ($record): void {
+            $record($exception);
         });
     }
 

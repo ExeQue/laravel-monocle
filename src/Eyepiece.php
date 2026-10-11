@@ -55,6 +55,11 @@ final class Eyepiece
     /** Whose work the outermost measure() is timing. */
     private ?string $owner = null;
 
+    /** When the outermost measure() (or its last flush) started, and the time left out by then. */
+    private int $measureStarted = 0;
+
+    private int $measureOutsideBase = 0;
+
     /** Time spent in application code called from Monocle's own work, left out of the overhead. */
     private int $outsideNs = 0;
 
@@ -282,10 +287,11 @@ final class Eyepiece
      */
     public function listen(string $event, Closure $handler): static
     {
-        $owner = $this->registering ?? $this->owner ?? 'monocle';
+        $handler = $this->wrap($handler);
 
-        $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler, $owner): void {
-            $this->measure(fn () => $handler(...$arguments), $owner);
+        // Never return what the handler returns: false would stop the event for the application's listeners.
+        $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler): void {
+            $handler(...$arguments);
         });
 
         return $this;
@@ -495,6 +501,8 @@ final class Eyepiece
                 }
             }
 
+            $this->creditMeasured();
+
             $capture->health = [
                 'memory_peak_bytes' => memory_get_peak_usage(true),
                 'overhead_ms' => round(array_sum($this->overhead) / 1_000_000, 3),
@@ -530,6 +538,9 @@ final class Eyepiece
         $this->spanCounter = 0;
         $this->overhead = [];
         $this->outsideNs = 0;
+        // A listener that ends or starts a capture keeps running: its time from here on is the next capture's.
+        $this->measureStarted = hrtime(true);
+        $this->measureOutsideBase = 0;
         $this->discarded = false;
         $this->failures = [];
 
@@ -606,7 +617,7 @@ final class Eyepiece
             return $work();
         }
 
-        [$depth, $owner] = [$this->measuring, $this->owner];
+        $state = [$this->measuring, $this->owner, $this->measureStarted, $this->measureOutsideBase];
         $this->measuring = 0;
         $started = hrtime(true);
         $outsideBefore = $this->outsideNs;
@@ -617,7 +628,7 @@ final class Eyepiece
             // Monocle work inside the application code is credited on its own, so the whole block (and nothing
             // nested in it twice) leaves the caller's time.
             $this->outsideNs = $outsideBefore + hrtime(true) - $started;
-            [$this->measuring, $this->owner] = [$depth, $owner];
+            [$this->measuring, $this->owner, $this->measureStarted, $this->measureOutsideBase] = $state;
         }
     }
 
@@ -626,31 +637,66 @@ final class Eyepiece
      * Nested calls count towards the outermost one; application code run
      * through outside() is left out.
      */
-    private function measure(Closure $work, string $owner): void
+    private function measure(Closure $work, string $owner): mixed
     {
         $outermost = $this->measuring === 0;
 
         if ($outermost) {
             $this->owner = $owner;
+            $this->measureStarted = hrtime(true);
+            $this->measureOutsideBase = $this->outsideNs;
         }
 
-        $started = hrtime(true);
-        $outsideBefore = $this->outsideNs;
         $this->measuring++;
 
         try {
-            $work();
+            return $work();
         } catch (Throwable $e) {
             $this->failed($e);
+
+            return null;
         } finally {
             $this->measuring--;
 
             if ($outermost) {
-                $owner = (string) $this->owner;
-                $this->overhead[$owner] = ($this->overhead[$owner] ?? 0) + hrtime(true) - $started - ($this->outsideNs - $outsideBefore);
+                $this->creditMeasured();
                 $this->owner = null;
             }
         }
+    }
+
+    /**
+     * Credit the running measure() up to now to its owner on the current
+     * capture and restart its clock, so work that finalizes one capture or
+     * starts the next is counted on the capture it belongs to.
+     */
+    private function creditMeasured(): void
+    {
+        if ($this->owner === null) {
+            return;
+        }
+
+        $now = hrtime(true);
+        $this->overhead[$this->owner] = ($this->overhead[$this->owner] ?? 0) + $now - $this->measureStarted - ($this->outsideNs - $this->measureOutsideBase);
+        $this->measureStarted = $now;
+        $this->measureOutsideBase = $this->outsideNs;
+    }
+
+    /**
+     * A hook for an API other than Laravel's events (Livewire, the gate, a
+     * validator, VarDumper, ...), timed as Monocle's work like listen()
+     * handlers, credited to the lens registering it or to $owner.
+     *
+     * @template T
+     *
+     * @param  Closure(mixed ...): T  $handler
+     * @return Closure(mixed ...): (T|null)
+     */
+    public function wrap(Closure $handler, ?string $owner = null): Closure
+    {
+        $owner ??= $this->registering ?? $this->owner ?? 'monocle';
+
+        return fn (mixed ...$arguments): mixed => $this->measure(fn (): mixed => $handler(...$arguments), $owner);
     }
 
     /**

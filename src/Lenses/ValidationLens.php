@@ -133,7 +133,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         $this->validators[$validator] = $this->eyepiece->now();
         $source = $this->source();
 
-        $validator->after(function (Validator $validator) use ($source): void {
+        $validator->after($this->eyepiece->wrap(function (Validator $validator) use ($source): void {
             if (! $this->validators->contains($validator) || ! $this->eyepiece->recording()) {
                 return;
             }
@@ -167,7 +167,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
                 'fields' => count($validator->getRules()),
                 'duration' => round($this->eyepiece->now() - $started, 3),
             ]);
-        });
+        }, $this->key()));
     }
 
     /**

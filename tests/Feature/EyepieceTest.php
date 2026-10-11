@@ -18,6 +18,7 @@ use ExeQue\Monocle\MonocleManager;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -244,6 +245,49 @@ describe(Eyepiece::class, function (): void {
             event('monocle.outer');
 
             expect($this->eyepiece->finalize()->health['overhead_by']['outer'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(10.0);
+        });
+
+        it('times hooks wrapped for other APIs and returns what they return', function (): void {
+            $hook = $this->eyepiece->wrap(function (int $n): int {
+                usleep(5_000);
+
+                return $n * 2;
+            }, 'gate');
+
+            expect($hook(21))->toBe(42)
+                ->and($this->eyepiece->finalize()->health['overhead_by']['gate'])->toBeGreaterThanOrEqual(5.0);
+        });
+
+        it('never lets a listener stop the event for the application', function (): void {
+            $this->eyepiece->listen('monocle.stop', fn () => false);
+            $reached = false;
+            Event::listen('monocle.stop', function () use (&$reached): void {
+                $reached = true;
+            });
+
+            event('monocle.stop');
+
+            expect($reached)->toBeTrue();
+        });
+
+        it('credits a listener that finalizes a capture to that capture, and what follows to the next', function (): void {
+            $this->eyepiece->registering('jobs', function (): void {
+                $this->eyepiece->listen('monocle.finish', function (): void {
+                    usleep(10_000);
+                    $this->eyepiece->finalize();
+                    $this->eyepiece->start(CaptureType::Job);
+                    usleep(3_000);
+                });
+            });
+
+            $first = $this->eyepiece->active();
+            event('monocle.finish');
+
+            $stored = app(\ExeQue\Monocle\Storage\StoreManager::class)->store()->find($first->id);
+            $next = $this->eyepiece->finalize();
+
+            expect($stored->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(10.0)
+                ->and($next->health['overhead_by']['jobs'])->toBeGreaterThanOrEqual(3.0)->toBeLessThan(10.0);
         });
 
         it('credits rows written outside a listener to their section', function (): void {

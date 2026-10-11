@@ -52,8 +52,10 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
 
     public function boot(): void
     {
-        $this->handler = function (mixed $value, ?string $label = null): void {
-            $this->record($value, $label);
+        $record = $this->eyepiece->wrap($this->record(...));
+
+        $this->handler = function (mixed $value, ?string $label = null) use ($record): void {
+            $record($value, $label);
             $this->forward($value, $label);
         };
 
