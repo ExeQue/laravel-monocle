@@ -23,6 +23,7 @@ use Laravel\Pennant\Feature;
 use Spatie\ResponseCache\Facades\ResponseCache;
 use Spatie\ResponseCache\Middlewares\CacheResponse;
 use Workbench\App\Ai\Greeter;
+use Workbench\App\Events\PaymentCharged;
 use Workbench\App\Events\PostPublished;
 use Workbench\App\Http\Middleware\SlowMiddleware;
 use Workbench\App\Http\Requests\ContactRequest;
@@ -115,6 +116,9 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         Storage::disk('demo')->put('posts/'.$post->id.'.txt', $summary);
 
         $enrich->stop(['views' => $stats['views']]);
+
+        PaymentCharged::dispatch(4900, 'DKK', $author->name, 'visa •••• 4242', 'paid');
+        PaymentCharged::dispatch(1900, 'DKK', 'Grace Hopper', 'mastercard •••• 4444', 'declined', 'insufficient funds');
 
         Monocle::mark('post ready', ['post' => $post->id]);
 

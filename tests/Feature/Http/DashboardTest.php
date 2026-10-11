@@ -16,9 +16,11 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
+use Tests\Fixtures\PaymentsLens;
 use Tests\TestCase;
 
-covers(DashboardController::class, CapturesController::class, AssetController::class, Authorize::class, TimelinePresenter::class, MonocleServiceProvider::class);
+covers(\ExeQue\Monocle\Dashboard\Presentation::class, \ExeQue\Monocle\Support\Origin::class, DashboardController::class, CapturesController::class, AssetController::class, Authorize::class, TimelinePresenter::class, MonocleServiceProvider::class);
 
 describe('dashboard', function (): void {
     beforeEach(function (): void {
@@ -73,6 +75,49 @@ describe('dashboard', function (): void {
             $this->getJson('/_monocle/api/captures')->assertOk();
 
             expect(latestCapture())->toBeNull();
+        });
+    });
+
+    describe('lenses that present their section', function (): void {
+        beforeEach(function (): void {
+            TestCase::$bootConfig = ['monocle.lenses.'.PaymentsLens::class => true];
+            $this->refreshApplication();
+            Gate::define('viewMonocle', fn (mixed $user = null): bool => true);
+            View::addLocation(dirname(__DIR__, 2).'/Fixtures/views');
+
+            Route::get('/checkout', function () {
+                event('payments.charged', [['amount' => 499, 'customer' => 'ada', 'status' => 'paid', 'card' => '4242', 'extra' => 'x']]);
+
+                return 'ok';
+            });
+
+            $this->get('/checkout')->assertOk();
+            $this->id = latestCapture()->id;
+        });
+
+        afterEach(function (): void {
+            TestCase::$bootConfig = [];
+        });
+
+        it('sends how the section is shown with the capture', function (): void {
+            expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('presentations.payments'))->toBe([
+                'label' => 'Payments',
+                'columns' => ['amount', 'customer', 'status'],
+                'labels' => ['amount' => 'Amount (DKK)'],
+                'details_only' => ['card'],
+                'groupings' => [['customer', 'by customer']],
+                'details_view' => true,
+            ]);
+        });
+
+        it('renders an expanded row with the lens view', function (): void {
+            $this->getJson("/_monocle/api/captures/{$this->id}/rows/payments/1/details")
+                ->assertOk()
+                ->assertJsonPath('html', "<p>Charged 499 to ada (GET /checkout)</p>\n");
+
+            $this->getJson("/_monocle/api/captures/{$this->id}/rows/payments/2/details")->assertNotFound();
+            expect(latestCapture()->rows('payments')[0]['origin']['file'])->toEndWith('DashboardTest.php');
+            $this->getJson("/_monocle/api/captures/{$this->id}/rows/request/1/details")->assertNotFound();
         });
     });
 

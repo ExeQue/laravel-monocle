@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Support;
 
 use Closure;
+use ExeQue\Monocle\Contracts\Lens;
 use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
@@ -56,6 +57,11 @@ final class Origin
             $call = self::callOf($trace[$index + 1] ?? null);
 
             if (str_starts_with((string) ($trace[$index + 1]['class'] ?? ''), 'ExeQue\\Monocle\\') || self::isOwn($file)) {
+                continue;
+            }
+
+            // An application's own lens records; the origin is the code that made it record.
+            if (is_a((string) ($trace[$index + 1]['class'] ?? ''), Lens::class, true)) {
                 continue;
             }
 

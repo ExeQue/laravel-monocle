@@ -97,6 +97,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   rowGroups: {},
   modelChanges: [],
   logLevels: [],
+  customDetails: {},
   openRows: [],
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
@@ -320,7 +321,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
     if (changes && !sections.some((s) => s.key === 'models')) sections.push({ ...changes, key: 'models', rows: 0 });
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
-      tabs.push({ key: s.key, label: humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key] ?? 0 });
+      tabs.push({ key: s.key, label: this.capture.presentations?.[s.key]?.label ?? humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key] ?? 0 });
     }
     if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
@@ -475,7 +476,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
   /** The groupings the open section offers, and the one picked. */
-  get groupings() { return GROUPINGS[this.tab] ?? []; },
+  get groupings() { return GROUPINGS[this.tab] ?? this.presentationOf(this.tab)?.groupings ?? []; },
   get rowGroup() { return this.rowGroups[this.tab] ?? 'order'; },
   setRowGroup(by) { this.rowGroups = { ...this.rowGroups, [this.tab]: by }; this.openGroups = []; },
 
@@ -539,6 +540,25 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   ...cells,
   ...details,
   ...totals,
+
+  /** How a lens wants its section shown, when it says (Presentable lenses). */
+  presentationOf(section) { return this.capture?.presentations?.[section] ?? null; },
+  columnsOf(rows, section = null) { return cells.columnsOf(rows, section, this.presentationOf(section)); },
+  columnLabel(col, section = null) { return cells.columnLabel(col, this.presentationOf(section)); },
+
+  /** An expanded row: rendered by the lens's own view when it has one, fetched once. */
+  details(row, section) {
+    if (!this.presentationOf(section)?.details_view) return details.details(row, section);
+    const n = row.n ?? (this.tabData?.rows ?? []).indexOf(row) + 1;
+    const key = `${this.selectedId}:${section}:${n}`;
+    if (!(key in this.customDetails)) {
+      this.customDetails[key] = '<p class="text-xs text-muted">Loading...</p>';
+      this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(section)}/${n}/details`)
+        .then((result) => { this.customDetails = { ...this.customDetails, [key]: result.html }; })
+        .catch((e) => { this.customDetails = { ...this.customDetails, [key]: `<p class="text-xs text-bad">${esc(e.message)}</p>` }; });
+    }
+    return this.customDetails[key];
+  },
 
   cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },

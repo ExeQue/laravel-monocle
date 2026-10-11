@@ -24,5 +24,5 @@ export const statusClass = (s) => {
   if (s === null || s === undefined) return '';
   // Below 100 it is a command's exit code: 0 went well, anything else failed.
   if (/^\d+$/.test(String(s))) return Number(s) < 100 ? (Number(s) === 0 ? 'text-ok' : 'text-bad') : httpStatusClass(s);
-  return ['failed', 'error'].includes(String(s)) ? 'text-bad' : 'text-ok';
+  return ['failed', 'error', 'declined', 'denied', 'rejected', 'cancelled', 'canceled', 'timeout', 'timed_out'].includes(String(s).toLowerCase()) ? 'text-bad' : 'text-ok';
 };

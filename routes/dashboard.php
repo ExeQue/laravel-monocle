@@ -14,6 +14,7 @@ Route::prefix('api')->name('api.')->group(function (): void {
     Route::delete('captures', [CapturesController::class, 'destroy'])->name('captures.clear');
     Route::get('captures/{id}', [CapturesController::class, 'show'])->name('captures.show');
     Route::get('captures/{id}/rows/{section}', [CapturesController::class, 'rows'])->name('captures.rows');
+    Route::get('captures/{id}/rows/{section}/{n}/details', [CapturesController::class, 'details'])->whereNumber('n')->name('captures.details');
     Route::get('captures/{id}/queries', [CapturesController::class, 'queries'])->name('captures.queries');
     Route::get('captures/{id}/trace', [CapturesController::class, 'trace'])->name('captures.trace');
 });

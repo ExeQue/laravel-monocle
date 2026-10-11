@@ -358,3 +358,42 @@ expect($capture->rows('stripe'))->toHaveCount(1);
 ## Sharing your lens
 
 Publish the lens as its own package and open an issue to have it listed under [Third-party lenses](third-party-lenses.md).
+
+## Your own tab
+
+Every section gets a tab in the dashboard, with a table worked out from its rows. To decide how yours looks, implement `Presentable` and describe it:
+
+```php
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Dashboard\Presentation;
+
+final class PaymentsLens implements Lens, Presentable
+{
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->label('Payments')
+            ->columns(['customer', 'amount' => 'Amount', 'currency', 'status'])
+            ->detailsOnly(['card', 'decline_reason'])
+            ->groupBy(['customer' => 'by customer', 'status' => 'by outcome'])
+            ->details('monocle.payment');
+    }
+}
+```
+
+| Method | What it does |
+|---|---|
+| `label()` | the tab's name |
+| `columns()` | the table's columns, in order; give a key a value to set its header |
+| `detailsOnly()` | fields only shown when a row is expanded |
+| `groupBy()` | fields the rows can be grouped by, with the label of their chip |
+| `details()` | a Blade view rendering an expanded row, instead of the list of its fields |
+
+The view receives `$row`, the row as your lens recorded it, and `$capture`. It is rendered inside the dashboard, so the dashboard's colours apply: `text-muted`, `text-ok`, `text-bad`, `text-warn` and `font-mono` read like the rest of it.
+
+```blade
+<div class="grid gap-2">
+    <p class="font-semibold">{{ number_format($row['amount'] / 100, 2) }} {{ $row['currency'] }}</p>
+    <p class="text-muted">Charged to {{ $row['customer'] }}</p>
+</div>
+```

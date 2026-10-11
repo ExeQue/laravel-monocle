@@ -8,8 +8,10 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use Illuminate\Contracts\Foundation\Application;
@@ -132,6 +134,24 @@ final class LensRegistry
      *
      * @return array<string, string>
      */
+    /**
+     * How Presentable lenses want their sections shown, keyed by section.
+     *
+     * @return array<string, Presentation>
+     */
+    public function presentations(): array
+    {
+        $presentations = [];
+
+        foreach ($this->booted as $lens) {
+            if ($lens instanceof Presentable) {
+                $presentations[$lens->key()] = $lens->presentation();
+            }
+        }
+
+        return $presentations;
+    }
+
     public function descriptions(): array
     {
         $descriptions = [];

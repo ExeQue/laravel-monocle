@@ -15,7 +15,7 @@
                             ><th
                                 scope="col"
                                 :class="[cls.th, numeric(col) && '!text-right', narrow(col) && 'w-0 whitespace-nowrap']"
-                                x-text="columnLabel(col)"
+                                x-text="columnLabel(col, t.key)"
                             ></th
                         ></template>
                     </tr>

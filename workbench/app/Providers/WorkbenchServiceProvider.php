@@ -19,6 +19,7 @@ use Workbench\App\Events\PostPublished;
 use Workbench\App\Listeners\NotifyFollowers;
 use Workbench\App\Livewire\Counter;
 use Workbench\App\Models\User;
+use Workbench\App\Monocle\PaymentsLens;
 
 final class WorkbenchServiceProvider extends ServiceProvider
 {
@@ -40,6 +41,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'media-library.disk_name' => 'media',
             'media-library.queue_conversions_by_default' => false,
             'monocle.lenses.'.FilesystemLens::class => ['disks' => ['demo']],
+            // An application lens with its own dashboard tab.
+            'monocle.lenses.'.PaymentsLens::class => true,
             'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico'],
             // The showcase sends an API key to an outgoing API; mask it for the http lens only.
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],

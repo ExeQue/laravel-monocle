@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Http\Controllers;
 
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
 use ExeQue\Monocle\Editor\EditorLinks;
+use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +21,8 @@ use Illuminate\Support\Arr;
 final readonly class CapturesController
 {
     public function __construct(
-        private Viewfinder $viewfinder
+        private Viewfinder $viewfinder,
+        private LensRegistry $registry,
     ) {
     }
 
@@ -43,6 +46,7 @@ final readonly class CapturesController
             'timeline' => $timeline->present($capture),
             'warning_links' => array_map($timeline->textLinks(...), $result['summary']['warnings'] ?? []),
             'editor' => $links->enabled(),
+            'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
             'context' => [
                 'route' => $route['name'] ?? null,
                 'action' => $route['action'] ?? null,
@@ -51,6 +55,26 @@ final readonly class CapturesController
                 'command_link' => $timeline->link($command['class'] ?? null),
             ],
         ]);
+    }
+
+    /**
+     * A row of a Presentable lens's section rendered by the lens's details view.
+     */
+    public function details(string $id, string $section, int $n, CaptureReader $captures): JsonResponse
+    {
+        $view = ($this->registry->presentations()[$section] ?? null)?->detailsView();
+
+        abort_if($view === null, 404);
+
+        $capture = $captures->find($id);
+
+        abort_if($capture === null, 404);
+
+        $row = $capture->rows($section)[$n - 1] ?? null;
+
+        abort_if($row === null, 404);
+
+        return response()->json(['html' => view($view, ['row' => $row, 'capture' => $capture])->render()]);
     }
 
     public function rows(Request $request, string $id, string $section, TimelinePresenter $presenter): JsonResponse

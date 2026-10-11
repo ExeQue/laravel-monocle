@@ -10,9 +10,11 @@ export function longValue(value) {
   return typeof value === 'string' ? value.length > 24 : value !== null && typeof value === 'object';
 }
 
-export function columnsOf(rows, section = null) {
+export function columnsOf(rows, section = null, presentation = null) {
   const keys = [];
-  const detailOnly = ['n', '_links', 'frames', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : []), ...(section === 'validation' ? ['input'] : [])];
+  const detailOnly = [...(presentation?.details_only ?? []), 'n', '_links', 'frames', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : []), ...(section === 'validation' ? ['input'] : [])];
+  // A lens that names its columns gets those, in its order.
+  if (presentation?.columns?.length) return presentation.columns.filter((c) => rows.some((row) => c in row)).concat(rows.some((row) => row.origin) ? ['origin'] : []);
   for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
   const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
   // An exception code is nearly always 0; the column only shows when one is not.
@@ -28,7 +30,8 @@ export function columnsOf(rows, section = null) {
 }
 
 /** A column header: `time` is an offset into the capture, not a duration. */
-export function columnLabel(col) {
+export function columnLabel(col, presentation = null) {
+  if (presentation?.labels?.[col]) return presentation.labels[col];
   if (col === 'time') return 'Started at';
   if (col.endsWith('_bytes') && !col.includes('size')) return humanize(col.replace(/_bytes$/, '')) + ' size';
   return humanize(col.replace(/_(bytes|ms)$/, ''));
