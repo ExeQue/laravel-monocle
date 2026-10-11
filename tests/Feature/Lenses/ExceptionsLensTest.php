@@ -139,10 +139,17 @@ describe(ExceptionsLens::class, function (): void {
 
         $cache = \Illuminate\Support\Facades\Cache::class;
 
-        expect($call(fn () => \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe('Cache::remember')
+        // With arguments in traces, whatever the environment's php.ini says (production ones leave them out).
+        $before = ini_set('zend.exception_ignore_args', '0');
+
+        try {
+            expect($call(fn () => \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe('Cache::remember')
             ->and($call(fn () => \Illuminate\Support\Facades\Cache::store('missing')))->toBe('Cache::store')
             ->and($call(fn () => $cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe(\Illuminate\Cache\CacheManager::class.'->remember')
             ->and($call(fn () => eval('\\Illuminate\\Support\\Facades\\Cache::remember("k", 1, fn () => throw new \\RuntimeException("x"));')))->toBe(\Illuminate\Cache\CacheManager::class.'->remember');
+        } finally {
+            ini_set('zend.exception_ignore_args', (string) $before);
+        }
 
         $ignored = ini_set('zend.exception_ignore_args', '1');
 
