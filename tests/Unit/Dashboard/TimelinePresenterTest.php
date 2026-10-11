@@ -117,4 +117,12 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->row(['class' => TimelinePresenter::class]))->not->toHaveKey('_links')
             ->and($presenter->origin(['file' => 'a.php', 'line' => 1, 'call' => TimelinePresenter::class.'->x'])['call_link'])->toBeNull();
     });
+    it('links class names and paths inside nested values by their dotted key', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(new EditorSettings('vscode'), '/app'));
+
+        $row = $presenter->row(['payload' => ['order' => TimelinePresenter::class.'#12', 'meta' => ['by' => TimelinePresenter::class], 'count' => 3]]);
+
+        expect($row['_links']['payload'])->toHaveKeys(['order', 'meta.by'])
+            ->and($row['_links']['payload'])->not->toHaveKey('count');
+    });
 });

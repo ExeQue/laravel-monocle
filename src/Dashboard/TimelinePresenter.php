@@ -8,6 +8,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Enums\SpanColor;
+use Illuminate\Support\Arr;
 
 /**
  * Builds the dashboard timeline: the span tree, with every timed row
@@ -271,10 +272,47 @@ final readonly class TimelinePresenter
 
             if (($link = $this->link($value)) !== null) {
                 $links[$key] = $link;
+
+                continue;
+            }
+
+            if (is_array($value) && ! in_array($key, ['frames', 'previous', 'origin'], true)) {
+                $nested = $this->nestedLinks($value);
+
+                if ($nested !== []) {
+                    $links[$key] = $nested;
+                }
             }
         }
 
         return $links === [] ? $meta : $meta + ['_links' => $links];
+    }
+
+    /**
+     * Editor links for class names and paths inside nested data, by dotted
+     * key (payload.order => App\Models\Order#12). Large structures are only
+     * looked through up to a point.
+     *
+     * @param  array<array-key, mixed>  $value
+     * @return array<string, string>
+     */
+    private function nestedLinks(array $value): array
+    {
+        $links = [];
+
+        foreach (array_slice(Arr::dot($value), 0, 200, true) as $path => $item) {
+            if (! is_string($item)) {
+                continue;
+            }
+
+            $link = $this->link($item);
+
+            if ($link !== null) {
+                $links[(string) $path] = $link;
+            }
+        }
+
+        return $links;
     }
 
     /**
