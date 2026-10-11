@@ -219,8 +219,8 @@ final readonly class TimelinePresenter
             return null;
         }
 
-        if (preg_match('/^\\\\?([A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+)(?:(?:->|::|@)\w+(?:\(\))?|#[\w-]+)?$/', $value, $match) === 1) {
-            return $this->links->class($match[1]);
+        if (preg_match('/^\\\\?([A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+)(?:(?:->|::|@)(\w+)(?:\(\))?|#[\w-]+)?$/', $value, $match) === 1) {
+            return $this->links->class($match[1], ($match[2] ?? '') !== '' ? $match[2] : null);
         }
 
         if (str_contains($value, '://') || preg_match('/\s/', $value) === 1) {

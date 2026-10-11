@@ -67,13 +67,18 @@ final readonly class EditorLinks
     /**
      * Link to the file a class is declared in, when it can be autoloaded.
      */
-    public function class(string $class): ?string
+    public function class(string $class, ?string $method = null): ?string
     {
         if (! $this->enabled() || ! class_exists($class) && ! interface_exists($class) && ! trait_exists($class) && ! enum_exists($class)) {
             return null;
         }
 
         $reflection = new ReflectionClass($class);
+
+        if ($method !== null && $reflection->hasMethod($method)) {
+            $reflection = $reflection->getMethod($method);
+        }
+
         $file = $reflection->getFileName();
 
         return $file === false ? null : $this->file($file, $reflection->getStartLine() ?: null);
