@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use Closure;
 use ExeQue\Monocle\Lenses\ExceptionsLens;
 use Illuminate\Support\Facades\Route;
 use LogicException;
@@ -120,25 +121,36 @@ describe(ExceptionsLens::class, function (): void {
         expect(latestCapture()->rows('exceptions')[0]['frames'])->toHaveCount(10);
     });
 
-    it('names the facade call a frame made, from the line that made it', function (): void {
-        $first = fn (string $code): string => (function () use ($code): string {
+    it('names the facade call a frame made from the frame it called into', function (): void {
+        $call = function (Closure $throw): string {
             try {
-                $code === 'facade' ? \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x')) : null;
-                $cache = \Illuminate\Support\Facades\Cache::class;
-                $code === 'variable' ? $cache::remember('k', 1, fn () => throw new RuntimeException('x')) : null;
-                $code === 'eval' ? eval('\\Illuminate\\Support\\Facades\\Cache::remember("k", 1, fn () => throw new \\RuntimeException("x"));') : null;
-            } catch (RuntimeException $exception) {
+                $throw();
+            } catch (Throwable $exception) {
                 $eyepiece = app(\ExeQue\Monocle\Eyepiece::class);
                 $eyepiece->start(\ExeQue\Monocle\Enums\CaptureType::Request);
                 report($exception);
 
-                return collect($eyepiece->finalize()->rows('exceptions')[0]['frames'])->first(fn (string $frame): bool => str_contains($frame, 'Cache::') || str_contains($frame, 'Facade::'));
-            }
-        })();
+                $frame = collect($eyepiece->finalize()->rows('exceptions')[0]['frames'])->first(fn (string $frame): bool => str_contains($frame, '::') || str_contains($frame, '->'));
 
-        expect($first('facade'))->toEndWith(' Cache::remember')
-            ->and($first('variable'))->toEndWith(' Facade::__callStatic')
-            ->and($first('eval'))->toEndWith(' Facade::__callStatic');
+                // The call follows file:line; an eval()'d file name has spaces of its own.
+                return preg_replace('/^.*:\\d+ /', '', $frame);
+            }
+        };
+
+        $cache = \Illuminate\Support\Facades\Cache::class;
+
+        expect($call(fn () => \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe('Cache::remember')
+            ->and($call(fn () => \Illuminate\Support\Facades\Cache::store('missing')))->toBe('Cache::store')
+            ->and($call(fn () => $cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe(\Illuminate\Cache\CacheManager::class.'->remember')
+            ->and($call(fn () => eval('\\Illuminate\\Support\\Facades\\Cache::remember("k", 1, fn () => throw new \\RuntimeException("x"));')))->toBe(\Illuminate\Cache\CacheManager::class.'->remember');
+
+        $ignored = ini_set('zend.exception_ignore_args', '1');
+
+        try {
+            expect($call(fn () => \Illuminate\Support\Facades\Cache::remember('k', 1, fn () => throw new RuntimeException('x'))))->toBe('Facade::__callStatic');
+        } finally {
+            ini_set('zend.exception_ignore_args', (string) $ignored);
+        }
     });
 
     it('does not record exceptions the handler ignores', function (): void {

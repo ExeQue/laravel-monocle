@@ -195,7 +195,9 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
     {
         $frames = [];
 
-        foreach ($exception->getTrace() as $frame) {
+        $trace = $exception->getTrace();
+
+        foreach ($trace as $index => $frame) {
             $file = $frame['file'] ?? null;
 
             if ($file === null) {
@@ -213,7 +215,7 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
             }
 
             $line = $frame['line'] ?? '?';
-            $frames[] = rtrim($this->relative($file).':'.$line.' '.$this->call($frame));
+            $frames[] = rtrim($this->relative($file).':'.$line.' '.$this->call($frame, $trace[$index - 1] ?? null));
 
             if (count($frames) >= 10) {
                 break;
@@ -227,8 +229,9 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
      * Class::method, Class->method or a plain function name.
      *
      * @param  array<string, mixed>  $frame
+     * @param  array<string, mixed>|null  $callee  the frame it called into
      */
-    private function call(array $frame): string
+    private function call(array $frame, ?array $callee): string
     {
         if (! isset($frame['class'])) {
             return $frame['function'] ?? '';
@@ -240,20 +243,44 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
         }
 
         if ($frame['class'] === Facade::class && $frame['function'] === '__callStatic') {
-            return $this->facadeCall($frame) ?? 'Facade::__callStatic';
+            return $this->facadeCall($frame, $callee) ?? 'Facade::__callStatic';
         }
 
         return $frame['class'].($frame['type'] ?? '::').$frame['function'];
     }
 
     /**
-     * The trace only says "Facade::__callStatic"; the line that made the call says which
-     * facade and method (Http::pool). ponytail: the first static call on the line, which is
-     * the one meant unless a line chains several facades.
+     * The trace says "Facade::__callStatic". The frame it called into names the
+     * instance behind the facade and the method (CacheManager->__call with the method as
+     * its first argument when proxied); the facade itself is not in the trace, so it is
+     * read from the line that made the call when that line calls the same method
+     * (Cache::remember). Otherwise the instance is shown (CacheManager->remember).
+     *
+     * @param  array<string, mixed>  $frame
+     * @param  array<string, mixed>|null  $callee
+     */
+    private function facadeCall(array $frame, ?array $callee): ?string
+    {
+        // Arguments are left out of traces when zend.exception_ignore_args is on (production default).
+        $method = in_array($callee['function'] ?? null, ['__call', '__callStatic'], true)
+            ? ($callee['args'][0] ?? null)
+            : ($callee['function'] ?? null);
+
+        if (! is_string($method)) {
+            return null;
+        }
+
+        $facade = $this->facadeOnLine($frame, $method);
+
+        return $facade !== null ? $facade.'::'.$method : ($callee['class'] ?? '').'->'.$method;
+    }
+
+    /**
+     * The facade the source line calls `$method` on (Http in Http::pool(...)).
      *
      * @param  array<string, mixed>  $frame
      */
-    private function facadeCall(array $frame): ?string
+    private function facadeOnLine(array $frame, string $method): ?string
     {
         // eval()'d code has no file to read.
         if (! is_readable($frame['file'])) {
@@ -263,11 +290,11 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
         $source = new SplFileObject($frame['file']);
         $source->seek($frame['line'] - 1);
 
-        if (preg_match('/\\b([A-Z]\\w*)::(\\w+)\\s*\\(/', (string) $source->current(), $match) !== 1) {
+        if (preg_match('/\\b([A-Z]\\w*)::'.preg_quote($method, '/').'\\s*\\(/', (string) $source->current(), $match) !== 1) {
             return null;
         }
 
-        return $match[1].'::'.$match[2];
+        return $match[1];
     }
 
     private function relative(string $file): string
