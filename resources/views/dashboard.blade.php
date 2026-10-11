@@ -1353,6 +1353,34 @@
                                 ></button>
                             </template>
                         </div>
+                        <div
+                            class="text-muted mb-2.5 flex flex-wrap items-center gap-1.5 text-xs"
+                            x-show="tab === 'log' && levelCounts.length > 1"
+                            role="group"
+                            aria-label="Log levels"
+                        >
+                            Show
+                            <button
+                                type="button"
+                                :class="cls.chip"
+                                @click="logLevels = []"
+                                :aria-pressed="! logLevels.length"
+                            >
+                                all
+                            </button>
+                            <template x-for="[level, count] in levelCounts" :key="level">
+                                <button
+                                    type="button"
+                                    :class="cls.chip"
+                                    class="gap-1.5"
+                                    @click="toggleLevel(level)"
+                                    :aria-pressed="logLevels.includes(level)"
+                                >
+                                    <span :class="levelClass(level)" x-text="level"></span>
+                                    <span class="tabular-nums opacity-70" x-text="count"></span>
+                                </button>
+                            </template>
+                        </div>
                         <div :class="cls.tableWrap" x-show="httpGroups.length">
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>

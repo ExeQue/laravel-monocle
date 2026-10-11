@@ -80,6 +80,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   groupBy: 'order',
   httpGroup: 'order',
   modelChanges: [],
+  logLevels: [],
   openRows: [],
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
@@ -198,6 +199,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       this.openGroups = [];
       this.openQueries = [];
       this.openRows = [];
+      this.logLevels = [];
       this.queryRows = tab === 'queries' && this.groupBy !== 'order'
         ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
         : {};
@@ -447,8 +449,26 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   get session() { return this.tab === 'session' ? (this.tabData?.data ?? null) : null; },
 
   /** The tables in a generic tab: the tab's own rows, and model changes under the model counts. */
+  /** The log levels in the open log, most severe first, with how many entries each has. */
+  get levelCounts() {
+    if (this.tab !== 'log') return [];
+    const order = ['emergency', 'alert', 'critical', 'error', 'warning', 'notice', 'info', 'debug'];
+    const counts = {};
+    (this.tabData?.rows ?? []).forEach((row) => { counts[row.level] = (counts[row.level] ?? 0) + 1; });
+    return Object.entries(counts).sort(([a], [b]) => order.indexOf(a) - order.indexOf(b));
+  },
+
+  toggleLevel(level) {
+    this.logLevels = this.logLevels.includes(level) ? this.logLevels.filter((l) => l !== level) : [...this.logLevels, level];
+  },
+
+  levelClass(level) {
+    return { debug: 'text-muted', warning: 'text-warn', error: 'text-bad', critical: 'text-bad', alert: 'text-bad', emergency: 'text-bad' }[level] ?? '';
+  },
+
   get tables() {
-    const own = { key: this.tab, title: null, rows: this.tabData?.rows ?? [] };
+    const rows = this.tabData?.rows ?? [];
+    const own = { key: this.tab, title: null, rows: this.tab === 'log' && this.logLevels.length ? rows.filter((row) => this.logLevels.includes(row.level)) : rows };
     return this.tab === 'models' ? [own, { key: 'model_changes', title: 'Changes', rows: this.modelChanges }] : [own];
   },
 
@@ -696,10 +716,10 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
     if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('');
     if (key === 'status' && typeof v === 'string') return `<span class="${statusClass(v)}">${esc(v)}</span>`;
-    if (key === 'level' && typeof v === 'string') return `<span class="font-medium ${({ debug: 'text-muted', info: '', notice: '', warning: 'text-warn', error: 'text-bad', critical: 'text-bad', alert: 'text-bad', emergency: 'text-bad' })[v] ?? ''}">${esc(v)}</span>`;
+    if (key === 'level' && typeof v === 'string') return `<span class="font-medium ${this.levelClass(v)}">${esc(v)}</span>`;
     if (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) return '';
     if (Array.isArray(v) && !v.length) return '';
-    if (key === 'context' && v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v)) return Object.entries(v).map(([k, x]) => `<div><span class="text-muted">${esc(k)}</span> <span class="font-mono">${esc(fmtValue(x).slice(0, 120))}</span></div>`).join('');
+    if (['context', 'payload', 'data', 'params', 'parameters'].includes(key) && v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v)) return Object.entries(v).map(([k, x]) => `<div><span class="text-muted">${esc(k)}</span> <span class="font-mono">${classes(fmtValue(x).slice(0, 120))}</span></div>`).join('');
     // Long or multi-line messages: the first line in the table, all of it in the details.
     if (key === 'message' && typeof v === 'string' && (v.includes('\n') || v.length > 160)) return `<span data-tip="${esc(v.slice(0, 600))}">${esc(v.split('\n')[0].slice(0, 160))}…</span>`;
     if (key === 'ok' && typeof v === 'boolean') return v ? '<span class="text-ok">ok</span>' : '<span class="font-medium text-bad">failed</span>';
