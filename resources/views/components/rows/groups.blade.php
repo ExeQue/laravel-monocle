@@ -32,12 +32,12 @@
                                 class="text-brass mt-0.5 shrink-0"
                             ></x-monocle::expand-button>
                             <div class="min-w-0">
-                                <span class="group/copy flex items-start gap-1.5">
+                                <span class="flex items-start gap-1.5">
                                     <code
                                         class="block font-mono text-xs [overflow-wrap:anywhere]"
                                         x-html="g.html"
                                     ></code>
-                                    <x-monocle::copy bind="g.key" what-bind="rowGroup" hover />
+                                    <x-monocle::copy bind="g.key" what-bind="rowGroup" />
                                 </span>
                                 <span x-html="originHtml(g.origin)"></span>
                             </div>
@@ -65,7 +65,7 @@
                             <template x-for="i in g.rows" :key="i">
                                 <div class="border-line border-b last:border-b-0">
                                     <div
-                                        class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
+                                        class="hover:bg-sunk grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
                                         @click="toggleRow(tab + ':' + i)"
                                     >
                                         <x-monocle::expand-button
@@ -73,7 +73,6 @@
                                             toggle="toggleRow(tab + ':' + i)"
                                             label="'the details of this row'"
                                             chevron="size-3"
-                                            class=""
                                         >
                                             <span
                                                 x-html="

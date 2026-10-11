@@ -39,12 +39,12 @@
                             <span class="text-muted">{{ array_key_exists(explode('.', $field)[0], $row['input'] ?? []) ? 'null' : '-' }}</span>
                         @else
                             @php($text = Format::value($value))
-                            <span class="group/copy">
+                            <span>
                                 <span
                                     class="font-mono"
                                     @if (mb_strlen($text) > 120) data-tip="{{ mb_substr($text, 0, 1000) }}" @endif
                                 >{{ mb_strimwidth($text, 0, 121, '…') }}</span>
-                                <x-monocle::copy :text="$text" :what="$field.' input'" hover />
+                                <x-monocle::copy :text="$text" :what="$field.' input'" />
                             </span>
                         @endif
                     </td>

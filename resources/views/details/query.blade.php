@@ -19,7 +19,7 @@
             <table class="w-fit border-collapse">
                 <tbody>
                     @foreach ($bindings as $index => $binding)
-                        <tr class="group/copy">
+                        <tr>
                             <td class="text-muted pr-3 font-mono tabular-nums">?{{ $index + 1 }}</td>
                             <td class="font-mono [overflow-wrap:anywhere]">
                                 @if ($binding === null)
@@ -30,11 +30,7 @@
                             </td>
                             <td class="pl-2">
                                 @if ($binding !== null)
-                                    <x-monocle::copy
-                                        :text="Format::value($binding)"
-                                        :what="'binding '.($index + 1)"
-                                        hover
-                                    />
+                                    <x-monocle::copy :text="Format::value($binding)" :what="'binding '.($index + 1)" />
                                 @endif
                             </td>
                         </tr>

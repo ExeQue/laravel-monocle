@@ -75,7 +75,7 @@ export const maybeLink = (text, link, extra = '') => (link
 
 /** Some HTML with a copy button that shows on hover; the button copies `text`, the full name or path. */
 export const copyable = (html, text, what = /(\.php|:\d+)$/.test(text) ? 'path' : 'name') => (text
-  ? `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0">${html}</span>${copyButton(projectPath(text), what, { hover: true })}</span>`
+  ? `<span class="inline-flex max-w-full items-start gap-1"><span class="min-w-0">${html}</span>${copyButton(projectPath(text), what)}</span>`
   : html);
 
 /** A class name or path, linked to the editor when there is a link, with a copy button. */
@@ -91,12 +91,8 @@ export const fmtValue = (v) => {
 const COPY_ICON = '<svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
 const CHECK_ICON = '<svg class="size-3.5 text-ok" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg>';
 
-/**
- * A button copying `text`, styled like the capture id's copy button in the header. With
- * hover: true it only shows while its `group/copy` parent is hovered (or the button has
- * keyboard focus); devices without hover always show it.
- */
-export const copyButton = (text, what = 'value', { hover = false } = {}) => `<button type="button" class="inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px] text-muted hover:text-brass${hover ? ' [@media(hover:hover)]:opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100' : ''}" data-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy ${esc(what)}">${COPY_ICON}</button>`;
+/** A button copying `text`, styled like the capture id's copy button in the header. */
+export const copyButton = (text, what = 'value') => `<button type="button" class="inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px] text-muted hover:text-brass" data-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy ${esc(what)}">${COPY_ICON}</button>`;
 
 /** Copy the text of a copy button and show a checkmark on it for a moment, like the header does. */
 export function copyFrom(button) {
@@ -149,7 +145,7 @@ export const exceptionHtml = (e, { limit = null, full = false } = {}) => {
   return full ? chainBlocks(chain) : previousHtml(chain, limit, 0);
 };
 
-const chainBlocks = (chain) => `<div class="grid gap-2">${chain.map((x, i) => `<div class="group/copy grid gap-0.5 ${i ? 'border-l-2 border-line pl-3' : ''}" style="margin-left:${Math.min(i, 4) * 12}px"><span class="flex items-start gap-1.5">${x.link ? `<a class="font-mono decoration-brass underline-offset-2 hover:text-brass hover:underline ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]" href="${esc(x.link)}">${esc(x.class)}</a>` : `<span class="font-mono ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]">${esc(x.class)}</span>`}${copyButton(`${x.class}: ${x.message ?? ''}`, i ? `wrapped exception ${i}` : 'exception', { hover: true })}</span><span class="[overflow-wrap:anywhere]">${esc(String(x.message ?? ''))}</span>${x.file ? `<span class="font-mono text-[11px] text-muted">${maybeLink(x.file, x.file_link)}</span>` : ''}</div>`).join('')}</div>`;
+const chainBlocks = (chain) => `<div class="grid gap-2">${chain.map((x, i) => `<div class="grid gap-0.5 ${i ? 'border-l-2 border-line pl-3' : ''}" style="margin-left:${Math.min(i, 4) * 12}px"><span class="flex items-start gap-1.5">${x.link ? `<a class="font-mono decoration-brass underline-offset-2 hover:text-brass hover:underline ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]" href="${esc(x.link)}">${esc(x.class)}</a>` : `<span class="font-mono ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]">${esc(x.class)}</span>`}${copyButton(`${x.class}: ${x.message ?? ''}`, i ? `wrapped exception ${i}` : 'exception')}</span><span class="[overflow-wrap:anywhere]">${esc(String(x.message ?? ''))}</span>${x.file ? `<span class="font-mono text-[11px] text-muted">${maybeLink(x.file, x.file_link)}</span>` : ''}</div>`).join('')}</div>`;
 
 /** Throwables as compact lines; from `nested` on they are indented under the first. */
 export const previousHtml = (chain, limit = null, nested = 1) => {

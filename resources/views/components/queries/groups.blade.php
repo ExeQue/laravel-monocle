@@ -23,7 +23,7 @@
         </thead>
         <template x-for="q in groupBy === 'order' ? [] : groups" :key="q.key">
             <tbody>
-                <tr class="hover:bg-sunk group/copy cursor-pointer" @click="toggleGroup(q.key)">
+                <tr class="hover:bg-sunk cursor-pointer" @click="toggleGroup(q.key)">
                     <td :class="cls.td">
                         <div class="flex items-start gap-1.5">
                             <x-monocle::expand-button
@@ -49,7 +49,6 @@
                                     <x-monocle::copy
                                         bind="groupBy === 'shape' ? q.key : (q.example ?? q.key)"
                                         what="query"
-                                        hover
                                     />
                                 </span>
                                 <span x-html="originHtml(q.origin)"></span>
@@ -67,7 +66,7 @@
                             <template x-for="n in q.rows ?? []" :key="n">
                                 <div class="border-line border-b last:border-b-0">
                                     <div
-                                        class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
+                                        class="hover:bg-sunk grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
                                         @click="toggle(n)"
                                     >
                                         <x-monocle::expand-button
@@ -88,7 +87,6 @@
                                                 <x-monocle::copy
                                                     bind="rows[n]?.sql_with_bindings ?? rows[n]?.sql ?? ''"
                                                     what="query"
-                                                    hover
                                                 />
                                             </span>
                                             <span x-html="cell(rows[n] ?? {}, 'origin')"></span>

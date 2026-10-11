@@ -1,15 +1,11 @@
 {{--
     A copy button, the same as the dashboard draws in its tables. Give the text as `text`, or as an
     Alpine expression in `bind`; name what is copied in `what` (or an Alpine expression in `what-bind`).
-    `hover` only shows it while its group/copy parent is hovered.
 --}}
-@props(['text' => null, 'bind' => null, 'what' => 'value', 'whatBind' => null, 'hover' => false])
+@props(['text' => null, 'bind' => null, 'what' => 'value', 'whatBind' => null])
 <button
     type="button"
-    @class([
-        'inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px] text-muted hover:text-brass',
-        '[@media(hover:hover)]:opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100' => $hover,
-    ])
+    class="text-muted hover:text-brass inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px]"
     @if ($bind) :data-copy="{{ $bind }}" @else data-copy="{{ $text }}" @endif
     @if ($whatBind) :aria-label="'Copy ' + ({{ $whatBind }})" @else aria-label="Copy {{ $what }}" @endif
     data-tip="Copy"

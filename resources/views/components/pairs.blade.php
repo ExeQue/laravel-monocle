@@ -7,7 +7,7 @@
         @foreach ($pairs as [$key, $value])
             @php($text = \ExeQue\Monocle\Dashboard\Format::value($value))
             @php($json = is_string($value) && preg_match('/^\s*[\[{]/', $value) === 1 ? json_decode($value, true) : null)
-            <tr class="group/copy">
+            <tr>
                 <td class="border-line text-muted w-0 border-t px-2 py-1 align-top font-mono text-xs whitespace-nowrap">
                     {{ $key }}
                 </td>
@@ -22,7 +22,7 @@
                 </td>
                 <td class="border-line w-0 border-t px-2 py-1 align-top">
                     @if ($value !== null)
-                        <x-monocle::copy :text="$text" :what="$what.' '.$key" hover />
+                        <x-monocle::copy :text="$text" :what="$what.' '.$key" />
                     @endif
                 </td>
             </tr>

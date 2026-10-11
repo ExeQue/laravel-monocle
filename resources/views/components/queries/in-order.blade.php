@@ -22,18 +22,17 @@
                             toggle="toggle(q.n)"
                             label="'the details of query ' + q.n"
                             chevron="size-3"
-                            class=""
                         >
                             <span x-text="q.n"></span>
                         </x-monocle::expand-button>
                     </td>
                     <td :class="cls.td">
-                        <span class="group/copy flex items-start gap-1.5">
+                        <span class="flex items-start gap-1.5">
                             <code
                                 class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
                                 x-text="q.sql_with_bindings ?? q.sql"
                             ></code>
-                            <x-monocle::copy bind="q.sql_with_bindings ?? q.sql" what="query" hover />
+                            <x-monocle::copy bind="q.sql_with_bindings ?? q.sql" what="query" />
                         </span>
                         <span class="mt-1 flex flex-wrap items-center gap-2">
                             <span x-html="originHtml(q.origin)"></span>

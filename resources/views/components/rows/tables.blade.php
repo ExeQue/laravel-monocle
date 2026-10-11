@@ -27,7 +27,7 @@
                 <template x-for="(row, i) in t.rows" :key="i">
                     <tbody>
                         <tr
-                            class="hover:bg-sunk group/copy cursor-pointer"
+                            class="hover:bg-sunk cursor-pointer"
                             :class="rowTone(row, presentationOf(t.key))"
                             @click="toggleRow(t.key + ':' + i)"
                         >

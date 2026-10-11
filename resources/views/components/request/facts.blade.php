@@ -18,9 +18,9 @@
         >
             <div class="contents">
                 <dt class="text-muted" x-text="k"></dt>
-                <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
+                <dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]">
                     <span x-html="linked(v, path)"></span>
-                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" hover />
+                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" />
                 </dd>
             </div>
         </template>
@@ -46,9 +46,9 @@
         >
             <div class="contents">
                 <dt class="text-muted" x-text="k"></dt>
-                <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
+                <dd class="m-0 font-mono text-xs [overflow-wrap:anywhere]">
                     <span x-html="linked(v, path)"></span>
-                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" hover />
+                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" />
                 </dd>
             </div>
         </template>
