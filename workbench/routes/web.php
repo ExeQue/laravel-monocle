@@ -76,11 +76,18 @@ Route::prefix('demo')->group(function () use ($result): void {
             'api.example.test/posts/*' => Http::response(['views' => 1204], 200),
             'social.example.test/*' => Http::sequence()->push(['shared' => true], 201)->push(['shared' => true], 201)->push(['error' => 'Rate limited'], 429),
         ]);
-        $stats = Http::get('https://api.example.test/posts/'.$post->id.'/stats')->json();
+        $stats = Http::withHeaders(['X-Api-Key' => 'live_8f2c41d09a7e4b3c'])
+            ->get('https://api.example.test/posts/'.$post->id.'/stats', ['access_token' => 'tok_5d1e9c0b7a2f'])
+            ->json();
         Http::pool(fn ($pool) => [
-            $pool->as('mastodon')->post('https://social.example.test/mastodon/share', ['post' => $post->id]),
-            $pool->as('bluesky')->post('https://social.example.test/bluesky/share', ['post' => $post->id]),
-            $pool->as('linkedin')->post('https://social.example.test/linkedin/share', ['post' => $post->id]),
+            $pool->as('mastodon')->withToken('mastodon_3a9f7c2e1b8d4f60')->post('https://social.example.test/mastodon/share', ['post' => $post->id]),
+            $pool->as('bluesky')->withToken('bsky_6e0d2b9a4c7f1e35')->post('https://social.example.test/bluesky/share', ['post' => $post->id]),
+            $pool->as('linkedin')->withToken('li_9c4b1f7e2a0d6b83')->post('https://social.example.test/linkedin/share', [
+                'post' => $post->id,
+                'client_id' => 'monocle-demo',
+                'client_secret' => 'cs_2f8e0a6d4b9c1e7f',
+                'signature' => 'sig_7b3e9d1a5c0f2e84',
+            ]),
         ]);
 
         Greeter::fake(['A short, friendly summary.']);

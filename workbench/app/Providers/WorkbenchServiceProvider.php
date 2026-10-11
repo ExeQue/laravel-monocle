@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Workbench\App\Providers;
 
 use ExeQue\Monocle\Lenses\FilesystemLens;
+use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Support\Masks\FullMask;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -39,6 +41,9 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'media-library.queue_conversions_by_default' => false,
             'monocle.lenses.'.FilesystemLens::class => ['disks' => ['demo']],
             'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico'],
+            // The showcase sends an API key to an outgoing API; mask it for the http lens only.
+            'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
+            'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
             'monocle.except.commands' => [...(array) config('monocle.except.commands', []), 'workbench:*', 'package:purge-skeleton', 'migrate*', 'db:seed'],
         ]);
     }
