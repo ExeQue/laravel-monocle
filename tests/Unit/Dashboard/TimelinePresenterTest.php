@@ -15,6 +15,7 @@ describe(TimelinePresenter::class, function (): void {
         expect($presenter->link(TimelinePresenter::class))->toStartWith('vscode://file/')->toContain('TimelinePresenter.php:')
             ->and($presenter->link('\\'.TimelinePresenter::class.'->present'))->toContain('TimelinePresenter.php:')
             ->and($presenter->link(TimelinePresenter::class.'@present'))->toContain('TimelinePresenter.php:')
+            ->and($presenter->link(TimelinePresenter::class.'#12'))->toContain('TimelinePresenter.php:')
             ->and($presenter->link('app/Models/User.php:12'))->toBe('vscode://file/app/app/Models/User.php:12')
             ->and($presenter->link('resources\\views\\page.blade.php'))->toBe('vscode://file/app/resources/views/page.blade.php:1')
             ->and($presenter->link('https://example.com/a.js'))->toBeNull()
