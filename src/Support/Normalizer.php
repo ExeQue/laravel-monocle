@@ -35,7 +35,8 @@ final class Normalizer
         $out = [];
 
         foreach ($values as $key => $value) {
-            $out[$key] = self::value($value, $depth, $path);
+            // Most values are plain; skip the call for them.
+            $out[$key] = $value === null || is_scalar($value) ? $value : self::value($value, $depth, $path);
         }
 
         return $out;

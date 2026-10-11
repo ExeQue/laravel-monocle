@@ -41,6 +41,9 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
         'locale.*',
     ];
 
+    /** @var array<string, bool> */
+    private array $ignoredEvents = [];
+
     public function __construct(
         private readonly Eyepiece $eyepiece
     ) {
@@ -64,6 +67,7 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
     public function configure(array $options): void
     {
         $this->ignore = array_values((array) ($options['ignore'] ?? $this->ignore));
+        $this->ignoredEvents = [];
     }
 
     public function boot(Application $app): void
@@ -105,6 +109,12 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
     }
 
     private function ignored(string $event): bool
+    {
+        // Every event of the application passes through here; decide once per event name.
+        return $this->ignoredEvents[$event] ??= $this->matchesIgnore($event);
+    }
+
+    private function matchesIgnore(string $event): bool
     {
         if (str_starts_with($event, 'ExeQue\\Monocle\\')) {
             return true;

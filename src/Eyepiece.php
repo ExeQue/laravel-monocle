@@ -52,6 +52,12 @@ final class Eyepiece
     /** The lens being registered, so the listeners it adds are credited to it. */
     private ?string $registering = null;
 
+    /** @var array<string, Masker> */
+    private array $maskers = [];
+
+    /** @var array{enabled: bool, basePath: string, frames: int, includeVendor: list<string>}|null */
+    private ?array $originSettings = null;
+
     /** Whose work the outermost measure() is timing. */
     private ?string $owner = null;
 
@@ -127,15 +133,23 @@ final class Eyepiece
      */
     public function masker(?string $lens = null): Masker
     {
+        // Built once per lens and capture: lenses ask for it on every row they mask.
+        return $this->maskers[$lens ?? ''] ??= $this->buildMasker($lens);
+    }
+
+    private function buildMasker(?string $lens): Masker
+    {
+        $headers = $this->forLens((array) $this->config('mask.headers', []), $lens);
+        $inputs = $this->forLens((array) $this->config('mask.inputs', []), $lens);
+        $cookies = $this->forLens((array) $this->config('mask.cookies', []), $lens);
+        $sessionCookie = (string) $this->app->make('config')->get('session.cookie');
+
         return new Masker(
-            headers: $this->masks($this->forLens((array) $this->config('mask.headers', []), $lens), 'mask.headers'),
-            pattern: array_values(array_filter($this->forLens((array) $this->config('mask.inputs', []), $lens), 'is_string')),
+            headers: $this->masks($headers, 'mask.headers'),
+            pattern: array_values(array_filter($inputs, 'is_string')),
             mask: $this->resolveMask($this->config('mask.using', PartialMask::class), 'mask.using'),
             // The session cookie is always masked; a mask configured for it wins because it is matched first.
-            cookies: [
-                ...$this->masks($this->forLens((array) $this->config('mask.cookies', []), $lens), 'mask.cookies'),
-                (string) $this->app->make('config')->get('session.cookie'),
-            ],
+            cookies: [...$this->masks($cookies, 'mask.cookies'), $sessionCookie],
         );
     }
 
@@ -538,6 +552,8 @@ final class Eyepiece
         $this->spanCounter = 0;
         $this->overhead = [];
         $this->outsideNs = 0;
+        $this->originSettings = null;
+        $this->maskers = [];
         // A listener that ends or starts a capture keeps running: its time from here on is the next capture's.
         $this->measureStarted = hrtime(true);
         $this->measureOutsideBase = 0;
@@ -556,14 +572,22 @@ final class Eyepiece
      */
     public function origin(): ?array
     {
-        if (! $this->config('origin.enabled', true)) {
+        // Read once per capture: an origin is taken for nearly every row.
+        $this->originSettings ??= [
+            'enabled' => (bool) $this->config('origin.enabled', true),
+            'basePath' => $this->app->basePath(),
+            'frames' => (int) $this->config('origin.frames', 5),
+            'includeVendor' => (array) $this->config('origin.include_vendor', []),
+        ];
+
+        if (! $this->originSettings['enabled']) {
             return null;
         }
 
         return Origin::capture(
-            basePath: $this->app->basePath(),
-            frames: (int) $this->config('origin.frames', 5),
-            includeVendor: (array) $this->config('origin.include_vendor', []),
+            basePath: $this->originSettings['basePath'],
+            frames: $this->originSettings['frames'],
+            includeVendor: $this->originSettings['includeVendor'],
         );
     }
 

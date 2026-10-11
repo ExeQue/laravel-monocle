@@ -18,6 +18,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
+use Illuminate\Database\Connection;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
@@ -44,6 +45,15 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     /** @var array<string, int> hash => first row number */
     private array $seen = [];
+
+    /** @var array<string, array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string}> */
+    private array $parsed = [];
+
+    /** @var array<int, array{0: Connection, 1: string, 2: array<mixed>}> Queries whose sql_with_bindings is filled in at finalize, by row number. */
+    private array $unrendered = [];
+
+    /** @var array<string, string> */
+    private array $drivers = [];
 
     /** @var array<string, list<Span>> connection => open transaction spans */
     private array $transactions = [];
@@ -74,6 +84,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $this->nPlusOneThreshold = (int) ($options['n_plus_one_threshold'] ?? $this->nPlusOneThreshold);
         $this->bindings = (bool) ($options['bindings'] ?? $this->bindings);
         $this->ignoreTables = array_values((array) ($options['ignore_tables'] ?? $this->ignoreTables));
+        $this->parsed = [];
     }
 
     public function boot(): void
@@ -92,6 +103,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             }
         }
 
+        $this->renderRawSql($capture);
         $this->markNPlusOne($capture);
         $this->markRepeats($capture);
     }
@@ -137,6 +149,8 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     {
         $this->counter = 0;
         $this->seen = [];
+        $this->parsed = [];
+        $this->unrendered = [];
         $this->transactions = [];
     }
 
@@ -208,9 +222,10 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         }
 
         $sql = $event->sql;
-        $tables = $this->tables($sql);
+        // An N+1 runs the same SQL over and over: parse each statement once.
+        $parsed = $this->parsed[$sql] ??= $this->parse($sql);
 
-        if ($tables !== [] && $this->ignoreTables !== [] && array_filter($tables, fn (string $table): bool => ! Str::is($this->ignoreTables, $table)) === []) {
+        if ($parsed['ignored']) {
             return;
         }
 
@@ -218,7 +233,6 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
         $bindings = $this->bindings ? $event->bindings : [];
         $hash = hash('xxh128', $sql.'|'.json_encode($event->bindings));
-        $shape = $this->shape($sql);
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
 
@@ -226,20 +240,45 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             'n' => $this->counter,
             'sql' => $sql,
             'bindings' => $bindings,
-            'sql_with_bindings' => $this->rawSql($event),
+            // Filled in at finalize, after the response is sent: substituting bindings is not free.
+            'sql_with_bindings' => null,
             'connection' => $event->connectionName,
             'driver' => $this->driver($event),
             'duration' => $duration,
-            'type' => $this->type($sql),
-            'tables' => $tables,
-            'shape' => $shape,
-            'shape_hash' => substr(hash('xxh128', $shape), 0, 8),
+            'type' => $parsed['type'],
+            'tables' => $parsed['tables'],
+            'shape' => $parsed['shape'],
+            'shape_hash' => $parsed['shape_hash'],
             'transaction_id' => $open === [] ? null : end($open)->id,
             'slow' => $duration >= $this->slowMs,
             'duplicate_of' => $this->seen[$hash] ?? null,
         ]);
 
         $this->seen[$hash] ??= $this->counter;
+        $this->unrendered[$this->counter] = [$event->connection, $sql, $event->bindings];
+    }
+
+    /**
+     * The SQL of each query with its bindings substituted, as Laravel's
+     * toRawSql() writes it.
+     */
+    private function renderRawSql(Capture $capture): void
+    {
+        foreach ($capture->sections['queries'] ?? [] as $index => $row) {
+            [$connection, $sql, $bindings] = $this->unrendered[$row['n'] ?? 0] ?? [null, null, null];
+
+            if ($connection === null) {
+                continue;
+            }
+
+            try {
+                $capture->sections['queries'][$index]['sql_with_bindings'] = $connection->getQueryGrammar()->substituteBindingsIntoRawSql($sql, $connection->prepareBindings($bindings));
+            } catch (Throwable) {
+                // A connection that can no longer quote leaves the plain SQL.
+            }
+        }
+
+        $this->unrendered = [];
     }
 
     private function onTransactionBeginning(TransactionBeginning $event): void
@@ -304,19 +343,11 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         ], origin: false);
     }
 
-    private function rawSql(QueryExecuted $event): ?string
-    {
-        try {
-            return $this->eyepiece->outside(fn (): string => $event->toRawSql());
-        } catch (Throwable) {
-            return null;
-        }
-    }
 
     private function driver(QueryExecuted $event): ?string
     {
         try {
-            return $event->connection->getDriverName();
+            return $this->drivers[$event->connectionName] ??= $event->connection->getDriverName();
         } catch (Throwable) {
             return null;
         }
@@ -336,6 +367,39 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     /**
      * @return list<string>
      */
+    /**
+     * @return array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string}
+     */
+    private function parse(string $sql): array
+    {
+        $tables = $this->tables($sql);
+        $shape = $this->shape($sql);
+
+        return [
+            'tables' => $tables,
+            'ignored' => $this->onlyIgnoredTables($tables),
+            'type' => $this->type($sql),
+            'shape' => $shape,
+            'shape_hash' => substr(hash('xxh128', $shape), 0, 8),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $tables
+     */
+    private function onlyIgnoredTables(array $tables): bool
+    {
+        if ($tables === []) {
+            return false;
+        }
+
+        if ($this->ignoreTables === []) {
+            return false;
+        }
+
+        return array_filter($tables, fn (string $table): bool => ! Str::is($this->ignoreTables, $table)) === [];
+    }
+
     private function tables(string $sql): array
     {
         preg_match_all('/\b(?:from|join|into|update)\s+[`"\[]?([\w.]+)[`"\]]?/i', $sql, $matches);

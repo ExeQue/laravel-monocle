@@ -23,6 +23,23 @@ use ReflectionProperty;
  */
 final class Origin
 {
+    /** @var array<string, bool> Classes already checked for being a lens. */
+    private static array $lenses = [];
+
+    /** @var array<string, bool> Files already classified, as vendor, plumbing or Monocle's own. */
+    private static array $vendorFiles = [];
+
+    /** @var list<string>|null The include_vendor setting $vendorFiles was built for. */
+    private static ?array $vendorRules = null;
+
+    /** @var array<string, bool> */
+    private static array $plumbingFiles = [];
+
+    /** @var array<string, bool> */
+    private static array $ownFiles = [];
+
+    private static ?string $ownDirectory = null;
+
     /** Library code that only passes the operation along. */
     private const array PLUMBING = [
         '/laravel/framework/src/Illuminate/Database/',
@@ -56,16 +73,18 @@ final class Origin
                 continue;
             }
 
-            $call = self::callOf($trace[$index + 1] ?? null);
+            $class = (string) ($trace[$index + 1]['class'] ?? '');
 
-            if (str_starts_with((string) ($trace[$index + 1]['class'] ?? ''), 'ExeQue\\Monocle\\') || self::isOwn($file)) {
+            if (str_starts_with($class, 'ExeQue\\Monocle\\') || self::isOwn($file)) {
                 continue;
             }
 
             // An application's own lens records; the origin is the code that made it record.
-            if (is_a((string) ($trace[$index + 1]['class'] ?? ''), Lens::class, true)) {
+            if ($class !== '' && (self::$lenses[$class] ??= is_a($class, Lens::class, true))) {
                 continue;
             }
+
+            $call = self::callOf($trace[$index + 1] ?? null);
 
             if (self::isVendor($file, $basePath, $includeVendor)) {
                 if ($kept === []) {
@@ -159,6 +178,20 @@ final class Origin
      * @param  list<string>  $includeVendor
      */
     private static function isVendor(string $file, string $basePath, array $includeVendor): bool
+    {
+        // The same files come up on every row; classify each once (per include_vendor setting).
+        if (self::$vendorRules !== $includeVendor) {
+            self::$vendorRules = $includeVendor;
+            self::$vendorFiles = [];
+        }
+
+        return self::$vendorFiles[$file] ??= self::classifyVendor($file, $includeVendor);
+    }
+
+    /**
+     * @param  list<string>  $includeVendor
+     */
+    private static function classifyVendor(string $file, array $includeVendor): bool
     {
         if (! str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
             return false;
@@ -257,6 +290,11 @@ final class Origin
 
     private static function isPlumbing(string $file): bool
     {
+        return self::$plumbingFiles[$file] ??= self::classifyPlumbing($file);
+    }
+
+    private static function classifyPlumbing(string $file): bool
+    {
         $file = str_replace('\\', '/', $file);
 
         if (str_contains($file, '/exeque/laravel-monocle/') || self::isOwn($file)) {
@@ -278,7 +316,9 @@ final class Origin
      */
     private static function isOwn(string $file): bool
     {
-        return str_starts_with(str_replace('\\', '/', $file), str_replace('\\', '/', dirname(__DIR__)).'/');
+        self::$ownDirectory ??= str_replace('\\', '/', dirname(__DIR__)).'/';
+
+        return self::$ownFiles[$file] ??= str_starts_with(str_replace('\\', '/', $file), self::$ownDirectory);
     }
 
     /**
