@@ -231,6 +231,8 @@ return [
     | with `using`, which is also the mask for list entries without a class.
     | A mask is an invokable receiving ($value, $key) and returning the
     | masked value; PartialMask keeps the first four characters visible.
+    | Give a mask constructor arguments with an array, class first:
+    | [PartialMask::class, 8] or [PartialMask::class, 'visible' => 8].
     |
     */
 
