@@ -11,6 +11,9 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
+use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
+use Spatie\MediaLibrary\Conversions\Events\ConversionWillStartEvent;
+use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
 
 /**
  * spatie/laravel-medialibrary: media added to models and the conversions
@@ -19,12 +22,6 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class MediaLibraryLens implements Advises, Lens, Summarizable
 {
-    private const string ADDED = 'Spatie\\MediaLibrary\\MediaCollections\\Events\\MediaHasBeenAddedEvent';
-
-    private const string CONVERSION_STARTING = 'Spatie\\MediaLibrary\\Conversions\\Events\\ConversionWillStartEvent';
-
-    private const string CONVERSION_COMPLETED = 'Spatie\\MediaLibrary\\Conversions\\Events\\ConversionHasBeenCompletedEvent';
-
     private Eyepiece $eyepiece;
 
     public function key(): string
@@ -46,16 +43,16 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
     {
         $this->eyepiece = $eyepiece;
 
-        if (class_exists(self::ADDED)) {
-            $eyepiece->listen(self::ADDED, function (object $event): void {
+        if (class_exists(MediaHasBeenAddedEvent::class)) {
+            $eyepiece->listen(MediaHasBeenAddedEvent::class, function (object $event): void {
                 if ($this->recording()) {
                     $this->eyepiece->push('media', ['event' => 'added', ...$this->media($event->media)]);
                 }
             });
         }
 
-        if (class_exists(self::CONVERSION_STARTING)) {
-            $eyepiece->listen(self::CONVERSION_STARTING, function (object $event): void {
+        if (class_exists(ConversionWillStartEvent::class)) {
+            $eyepiece->listen(ConversionWillStartEvent::class, function (object $event): void {
                 if ($this->recording()) {
                     $this->eyepiece->span('conversion '.$event->conversion->getName(), 'media.conversion', $this->spanKey($event))->start([
                         ...$this->media($event->media),
@@ -65,8 +62,8 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
             });
         }
 
-        if (class_exists(self::CONVERSION_COMPLETED)) {
-            $eyepiece->listen(self::CONVERSION_COMPLETED, function (object $event): void {
+        if (class_exists(ConversionHasBeenCompletedEvent::class)) {
+            $eyepiece->listen(ConversionHasBeenCompletedEvent::class, function (object $event): void {
                 if (! $this->recording()) {
                     return;
                 }

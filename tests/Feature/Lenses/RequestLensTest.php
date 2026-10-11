@@ -143,12 +143,21 @@ describe(RequestLens::class, function (): void {
     });
 
     describe('Inertia', function (): void {
-        $page = ['component' => 'Orders/Show', 'url' => '/orders/7', 'version' => 'abc', 'props' => ['order' => ['id' => 7], 'password' => 'secret-value'], 'deferredProps' => ['default' => ['stats']]];
+        beforeEach(function (): void {
+            \Illuminate\Support\Facades\View::addLocation(dirname(__DIR__, 2).'/Fixtures/views');
+            \Inertia\Inertia::setRootView('inertia-app');
+            \Inertia\Inertia::version('abc');
 
-        it('shows an Inertia visit as its component and props, with the partial reload asked for', function () use ($page): void {
-            Route::get('/orders/7', fn () => response()->json($page, 200, ['X-Inertia' => 'true', 'Vary' => 'X-Inertia']));
+            Route::get('/orders/7', fn () => \Inertia\Inertia::render('Orders/Show', [
+                'order' => ['id' => 7],
+                'customer' => fn () => ['name' => 'Ada'],
+                'password' => 'secret-value',
+                'stats' => \Inertia\Inertia::defer(fn () => ['revenue' => 10]),
+            ]));
+        });
 
-            $this->getJson('/orders/7', ['X-Inertia' => 'true', 'X-Inertia-Partial-Component' => 'Orders/Show', 'X-Inertia-Partial-Data' => 'order, stats'])->assertOk();
+        it('shows the page of an Inertia visit, with the partial reload asked for', function (): void {
+            $this->get('/orders/7', ['X-Inertia' => 'true', 'X-Inertia-Version' => 'abc', 'X-Inertia-Partial-Component' => 'Orders/Show', 'X-Inertia-Partial-Data' => 'order,customer'])->assertOk();
 
             $capture = latestCapture()->section('request')['response_capture'];
             $card = $capture['cards'][0];
@@ -157,61 +166,50 @@ describe(RequestLens::class, function (): void {
                 ->and($card['title'])->toBe('Orders/Show')
                 ->and($card['subtitle'])->toBe('/orders/7')
                 ->and($card['items']['visit'])->toBe('inertia')
-                ->and($card['items']['partial_reload'])->toBe(['component' => 'Orders/Show', 'only' => ['order', 'stats']])
-                ->and($card['items']['props']['order'])->toBe(['id' => 7])
-                ->and($card['items']['props']['password'])->not->toBe('secret-value')
-                ->and($card['items']['deferred_props'])->toBe(['default' => ['stats']]);
+                ->and($card['items']['version'])->toBe('abc')
+                ->and($card['items']['partial_reload'])->toBe(['component' => 'Orders/Show', 'only' => ['order', 'customer']])
+                ->and($card['items']['props'])->toHaveKeys(['order', 'customer'])
+                ->and($card['items']['props'])->not->toHaveKey('password');
         });
 
-        it('reads the page from the HTML of a first visit and leaves other HTML alone', function () use ($page): void {
-            Route::get('/attr', fn () => '<div id="app" data-page="'.htmlspecialchars(json_encode($page), ENT_QUOTES).'"></div>');
-            Route::get('/script', fn () => '<script data-page="app" type="application/json">'.json_encode($page).'</script><div id="app"></div>');
+        it('reads the page from the HTML of a first visit, masking secrets, and leaves other HTML alone', function (): void {
             Route::get('/plain', fn () => '<p>hello</p>');
 
-            $this->get('/attr')->assertOk();
-            $attr = latestCapture()->section('request')['response_capture']['cards'][0];
-
-            $this->get('/script')->assertOk();
-            $script = latestCapture()->section('request')['response_capture']['cards'][0];
+            $this->get('/orders/7')->assertOk();
+            $card = latestCapture()->section('request')['response_capture']['cards'][0];
 
             $this->get('/plain')->assertOk();
 
-            expect($attr['title'])->toBe('Orders/Show')
-                ->and($attr['items']['visit'])->toBe('first load')
-                ->and($script['title'])->toBe('Orders/Show')
+            expect($card['title'])->toBe('Orders/Show')
+                ->and($card['items']['visit'])->toBe('first load')
+                ->and($card['items']['props']['order'])->toBe(['id' => 7])
+                ->and($card['items']['props']['password'])->not->toBe('secret-value')
+                ->and($card['items']['deferred_props'])->toBe(['default' => ['stats']])
                 ->and(latestCapture()->section('request')['response_capture'])->toBeNull();
         });
     });
 
     it('uses the matched Folio page as the action', function (): void {
-        Route::get('/users/{id}', function () {
-            event(new \Laravel\Folio\Events\ViewMatched(
-                new class (base_path('resources/views/pages/users/[id].blade.php'), ['id' => '4']) {
-                    public function __construct(public string $path, public array $data)
-                    {
-                    }
+        $pages = base_path('resources/views/monocle-folio-'.bin2hex(random_bytes(3)));
+        mkdir($pages.'/users', 0775, true);
+        file_put_contents($pages.'/users/[id].blade.php', "<?php\nuse function Laravel\\Folio\\name;\nname('users.show');\n?>\nUser {{ \$id }}\n");
 
-                    public function name(): ?string
-                    {
-                        return 'users.show';
-                    }
-                },
-                (object) ['path' => base_path('resources/views/pages')],
-            ));
+        \Laravel\Folio\Folio::path($pages);
 
-            return 'page';
-        })->name('folio');
-
-        $this->get('/users/4')->assertOk();
+        try {
+            $this->get('/users/4')->assertOk()->assertSee('User 4');
+        } finally {
+            exec('rm -rf '.escapeshellarg($pages));
+        }
 
         $request = latestCapture()->section('request');
+        $page = substr($pages, strlen(base_path()) + 1).'/users/[id].blade.php';
 
-        expect($request['route']['action'])->toBe('resources/views/pages/users/[id].blade.php')
-            ->and($request['route']['name'])->toBe('folio')
-            ->and($request['folio'])->toBe([
-                'page' => 'resources/views/pages/users/[id].blade.php',
+        expect($request['route']['action'])->toBe($page)
+            ->and($request['folio'])->toMatchArray([
+                'page' => $page,
                 'name' => 'users.show',
-                'mount_path' => base_path('resources/views/pages'),
+                'mount_path' => $pages,
                 'parameters' => ['id' => '4'],
             ]);
     });

@@ -22,6 +22,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Foundation\Application;
+use Laravel\Sanctum\Events\TokenAuthenticated;
 
 /**
  * Who the request was authenticated as and how: the guard that resolved the
@@ -30,8 +31,6 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class AuthLens implements Advises, Lens, Summarizable
 {
-    private const string SANCTUM_TOKEN = 'Laravel\\Sanctum\\Events\\TokenAuthenticated';
-
     private Eyepiece $eyepiece;
 
     public function key(): string
@@ -65,8 +64,8 @@ final class AuthLens implements Advises, Lens, Summarizable
         $eyepiece->listen(Verified::class, fn (Verified $event) => $this->push('verified', null, $event->user));
         $eyepiece->listen(PasswordReset::class, fn (PasswordReset $event) => $this->push('password_reset', null, $event->user));
 
-        if (class_exists(self::SANCTUM_TOKEN)) {
-            $eyepiece->listen(self::SANCTUM_TOKEN, function (object $event): void {
+        if (class_exists(TokenAuthenticated::class)) {
+            $eyepiece->listen(TokenAuthenticated::class, function (object $event): void {
                 $token = $event->token ?? null;
 
                 $this->push('token', 'sanctum', null, [

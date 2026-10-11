@@ -10,6 +10,11 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
+use Spatie\ResponseCache\Events\CacheMissedEvent;
+use Spatie\ResponseCache\Events\ClearedResponseCacheEvent;
+use Spatie\ResponseCache\Events\ClearingResponseCacheEvent;
+use Spatie\ResponseCache\Events\ClearingResponseCacheFailedEvent;
+use Spatie\ResponseCache\Events\ResponseCacheHitEvent;
 
 /**
  * spatie/laravel-responsecache: whether the whole response came from the
@@ -18,8 +23,6 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class ResponseCacheLens implements Advises, Lens, Summarizable
 {
-    private const string NAMESPACE = 'Spatie\\ResponseCache\\Events\\';
-
     private Eyepiece $eyepiece;
 
     public function key(): string
@@ -42,19 +45,19 @@ final class ResponseCacheLens implements Advises, Lens, Summarizable
         $this->eyepiece = $eyepiece;
 
         $events = [
-            'ResponseCacheHitEvent' => fn (object $event): array => ['event' => 'hit', 'age_seconds' => $event->ageInSeconds ?? null, 'tags' => $event->tags ?? null],
-            'CacheMissedEvent' => fn (object $event): array => ['event' => 'miss'],
-            'ClearingResponseCacheEvent' => fn (object $event): array => ['event' => 'clearing'],
-            'ClearedResponseCacheEvent' => fn (object $event): array => ['event' => 'cleared'],
-            'ClearingResponseCacheFailedEvent' => fn (object $event): array => ['event' => 'clearing_failed'],
+            ResponseCacheHitEvent::class => fn (object $event): array => ['event' => 'hit', 'age_seconds' => $event->ageInSeconds ?? null, 'tags' => $event->tags ?? null],
+            CacheMissedEvent::class => fn (object $event): array => ['event' => 'miss'],
+            ClearingResponseCacheEvent::class => fn (object $event): array => ['event' => 'clearing'],
+            ClearedResponseCacheEvent::class => fn (object $event): array => ['event' => 'cleared'],
+            ClearingResponseCacheFailedEvent::class => fn (object $event): array => ['event' => 'clearing_failed'],
         ];
 
         foreach ($events as $class => $row) {
-            if (! class_exists(self::NAMESPACE.$class)) {
+            if (! class_exists($class)) {
                 continue;
             }
 
-            $eyepiece->listen(self::NAMESPACE.$class, function (object $event) use ($row): void {
+            $eyepiece->listen($class, function (object $event) use ($row): void {
                 if ($this->eyepiece->recording()) {
                     $this->eyepiece->push('response_cache', $row($event));
                 }

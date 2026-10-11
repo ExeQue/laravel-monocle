@@ -28,7 +28,18 @@ abstract class TestCase extends BaseTestCase
      */
     protected function getPackageProviders($app): array
     {
-        return [McpServiceProvider::class, AiServiceProvider::class, LivewireServiceProvider::class, MonocleServiceProvider::class];
+        return [
+            McpServiceProvider::class,
+            AiServiceProvider::class,
+            LivewireServiceProvider::class,
+            \Laravel\Pennant\PennantServiceProvider::class,
+            \Spatie\ResponseCache\ResponseCacheServiceProvider::class,
+            \Spatie\MediaLibrary\MediaLibraryServiceProvider::class,
+            \Laravel\Sanctum\SanctumServiceProvider::class,
+            \Laravel\Folio\FolioServiceProvider::class,
+            \Inertia\ServiceProvider::class,
+            MonocleServiceProvider::class,
+        ];
     }
 
     protected function defineEnvironment($app): void

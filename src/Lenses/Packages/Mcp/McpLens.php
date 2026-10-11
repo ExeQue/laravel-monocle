@@ -30,20 +30,6 @@ use Laravel\Mcp\Server\Methods\ReadResource;
  */
 final class McpLens implements Advises, Lens, Summarizable
 {
-    private const array METHODS = [
-        CallTool::class,
-        ReadResource::class,
-        GetPrompt::class,
-        ListTools::class,
-        ListResources::class,
-        ListResourceTemplates::class,
-        ListPrompts::class,
-        CompletionComplete::class,
-        Discover::class,
-        Initialize::class,
-        Ping::class,
-    ];
-
     public function key(): string
     {
         return 'mcp';
@@ -67,7 +53,21 @@ final class McpLens implements Advises, Lens, Summarizable
 
         $except = array_values((array) $eyepiece->config('mcp.except_servers', []));
 
-        foreach (self::METHODS as $method) {
+        $methods = [
+            CallTool::class,
+            ReadResource::class,
+            GetPrompt::class,
+            ListTools::class,
+            ListResources::class,
+            ListResourceTemplates::class,
+            ListPrompts::class,
+            CompletionComplete::class,
+            Discover::class,
+            Initialize::class,
+            Ping::class,
+        ];
+
+        foreach ($methods as $method) {
             if (! class_exists($method)) {
                 continue;
             }

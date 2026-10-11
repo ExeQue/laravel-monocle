@@ -4,41 +4,45 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses\Packages\Spatie;
 
-use ExeQue\Monocle\Enums\CaptureType;
-use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
-use Illuminate\Http\Request;
-use Spatie\ResponseCache\Events\CacheMissedEvent;
-use Spatie\ResponseCache\Events\ClearedResponseCacheEvent;
-use Spatie\ResponseCache\Events\ResponseCacheHitEvent;
+use Illuminate\Support\Facades\Route;
+use Spatie\ResponseCache\Facades\ResponseCache;
+use Spatie\ResponseCache\Middlewares\CacheResponse;
 
 covers(ResponseCacheLens::class);
 
 describe(ResponseCacheLens::class, function (): void {
     beforeEach(function (): void {
-        app(Eyepiece::class)->start(CaptureType::Request);
+        config(['responsecache.enabled' => true, 'responsecache.cache.store' => 'array']);
+        Route::middleware(CacheResponse::class)->get('/home', fn () => 'home page');
     });
 
-    it('warns when the response came from the cache and the controller did not run', function (): void {
-        event(new ResponseCacheHitEvent(Request::create('/'), 42, ['home']));
+    it('records the miss that fills the cache and warns about the hit that skips the controller', function (): void {
+        $this->get('/home')->assertOk();
+        $miss = latestCapture();
 
-        $capture = app(Eyepiece::class)->finalize();
-        $summary = (new ResponseCacheLens())->summarize($capture);
+        $this->get('/home')->assertOk()->assertSee('home page');
+        $hit = latestCapture();
 
-        expect($capture->rows('response_cache')[0])->toMatchArray(['event' => 'hit', 'age_seconds' => 42, 'tags' => ['home']])
+        $summary = (new ResponseCacheLens())->summarize($hit);
+
+        expect(array_column($miss->rows('response_cache'), 'event'))->toBe(['miss'])
+            ->and((new ResponseCacheLens())->summarize($miss)['warnings'])->toBe([])
+            ->and($hit->rows('response_cache')[0]['event'])->toBe('hit')
+            ->and($hit->rows('response_cache')[0]['age_seconds'])->toBeInt()
             ->and($summary['totals'])->toBe(['response_cache' => 'hit'])
-            ->and($summary['warnings'][0])->toStartWith('Served from the response cache (42 s old); the controller did not run.');
+            ->and($summary['warnings'][0])->toStartWith('Served from the response cache');
     });
 
-    it('records misses and clears without warning', function (): void {
-        event(new CacheMissedEvent(Request::create('/')));
-        event(new ClearedResponseCacheEvent());
+    it('records clearing the cache', function (): void {
+        Route::get('/clear', function () {
+            ResponseCache::clear();
 
-        $capture = app(Eyepiece::class)->finalize();
-        $summary = (new ResponseCacheLens())->summarize($capture);
+            return 'cleared';
+        });
 
-        expect(array_column($capture->rows('response_cache'), 'event'))->toBe(['miss', 'cleared'])
-            ->and($summary)->toBe(['totals' => ['response_cache' => 'miss'], 'warnings' => []])
-            ->and((new ResponseCacheLens())->summarize(app(Eyepiece::class)->start(CaptureType::Request)))->toBe([]);
+        $this->get('/clear')->assertOk();
+
+        expect(array_column(latestCapture()->rows('response_cache'), 'event'))->toContain('clearing', 'cleared');
     });
 });

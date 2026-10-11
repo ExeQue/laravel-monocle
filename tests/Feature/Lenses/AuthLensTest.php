@@ -13,8 +13,11 @@ use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\GenericUser;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
-use Laravel\Sanctum\Events\TokenAuthenticated;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
+use Tests\Fixtures\Models\User;
 
 covers(AuthLens::class);
 
@@ -45,30 +48,39 @@ describe(AuthLens::class, function (): void {
             ->and($summary['warnings'])->toBe([]);
     });
 
-    it('records Sanctum tokens and warns about lockouts', function (): void {
-        $token = new class () {
-            public string $name = 'cli';
+    it('records the Sanctum token a request authenticated with', function (): void {
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->timestamps();
+        });
+        (include dirname(__DIR__, 3).'/vendor/laravel/sanctum/database/migrations/2019_12_14_000001_create_personal_access_tokens_table.php')->up();
+        config(['auth.providers.users.model' => User::class]);
 
-            public array $abilities = ['orders:read'];
+        $user = User::query()->create(['name' => 'Ada']);
+        $token = $user->createToken('cli', ['orders:read']);
 
-            public string $tokenable_type = 'App\\Models\\User';
+        Route::middleware('auth:sanctum')->get('/api/orders', fn () => 'orders');
 
-            public int $tokenable_id = 5;
+        $this->withToken($token->plainTextToken)->get('/api/orders')->assertOk();
 
-            public function getKey(): int
-            {
-                return 12;
-            }
-        };
+        $row = collect(latestCapture()->rows('auth'))->firstWhere('event', 'token');
 
-        event(new TokenAuthenticated($token));
+        expect($row)->toMatchArray([
+            'guard' => 'sanctum',
+            'token_id' => $token->accessToken->getKey(),
+            'token_name' => 'cli',
+            'abilities' => ['orders:read'],
+            'owner' => User::class.'#'.$user->id,
+        ]);
+    });
+
+    it('warns about lockouts', function (): void {
         event(new Lockout(Request::create('/login', 'POST', server: ['REMOTE_ADDR' => '10.0.0.1'])));
 
         $capture = app(Eyepiece::class)->finalize();
-        $rows = $capture->rows('auth');
 
-        expect($rows[0])->toMatchArray(['event' => 'token', 'guard' => 'sanctum', 'token_id' => 12, 'token_name' => 'cli', 'abilities' => ['orders:read'], 'owner' => 'App\\Models\\User#5'])
-            ->and($rows[1])->toMatchArray(['event' => 'lockout', 'ip' => '10.0.0.1'])
+        expect($capture->rows('auth')[0])->toMatchArray(['event' => 'lockout', 'ip' => '10.0.0.1'])
             ->and((new AuthLens())->summarize($capture)['warnings'])->toBe(['A login was locked out after too many attempts.']);
     });
 

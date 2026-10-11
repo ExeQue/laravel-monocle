@@ -26,6 +26,8 @@ use Illuminate\Routing\Events\Routing;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Laravel\Folio\Events\ViewMatched;
+use Laravel\Octane\Events\RequestReceived;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -35,12 +37,6 @@ use Throwable;
  */
 final class RequestLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
 {
-    /** Fired by Laravel Octane before global middleware, once per request in a long-lived worker. */
-    /** Fired by Laravel Folio when a page file matched the request. */
-    private const string FOLIO_MATCHED = 'Laravel\\Folio\\Events\\ViewMatched';
-
-    private const string OCTANE_REQUEST = 'Laravel\\Octane\\Events\\RequestReceived';
-
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
     private Eyepiece $eyepiece;
@@ -102,8 +98,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
             }
         });
 
-        if (class_exists(self::OCTANE_REQUEST)) {
-            $eyepiece->listen(self::OCTANE_REQUEST, function (object $event): void {
+        if (class_exists(RequestReceived::class)) {
+            $eyepiece->listen(RequestReceived::class, function (object $event): void {
                 if ($this->eyepiece->active() === null) {
                     $this->startCapture((float) ($event->request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
                     $this->phase('middleware (request)');
@@ -111,8 +107,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
             });
         }
 
-        if (class_exists(self::FOLIO_MATCHED)) {
-            $eyepiece->listen(self::FOLIO_MATCHED, $this->onFolioPage(...));
+        if (class_exists(ViewMatched::class)) {
+            $eyepiece->listen(ViewMatched::class, $this->onFolioPage(...));
         }
 
         $eyepiece->listen(Routing::class, $this->onRouting(...));

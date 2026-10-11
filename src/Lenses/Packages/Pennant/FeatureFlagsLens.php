@@ -11,6 +11,11 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Foundation\Application;
+use Laravel\Pennant\Events\FeatureDeleted;
+use Laravel\Pennant\Events\FeatureResolved;
+use Laravel\Pennant\Events\FeatureRetrieved;
+use Laravel\Pennant\Events\FeatureUpdated;
+use Laravel\Pennant\Events\UnknownFeatureResolved;
 
 /**
  * Laravel Pennant feature checks: which flags a request looked at, for which
@@ -19,15 +24,6 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class FeatureFlagsLens implements Advises, Lens, Summarizable
 {
-    /** Event class => what happened. */
-    private const array EVENTS = [
-        'Laravel\\Pennant\\Events\\FeatureRetrieved' => 'stored',
-        'Laravel\\Pennant\\Events\\FeatureResolved' => 'resolved',
-        'Laravel\\Pennant\\Events\\UnknownFeatureResolved' => 'unknown',
-        'Laravel\\Pennant\\Events\\FeatureUpdated' => 'updated',
-        'Laravel\\Pennant\\Events\\FeatureDeleted' => 'deleted',
-    ];
-
     private Eyepiece $eyepiece;
 
     public function key(): string
@@ -49,7 +45,15 @@ final class FeatureFlagsLens implements Advises, Lens, Summarizable
     {
         $this->eyepiece = $eyepiece;
 
-        foreach (self::EVENTS as $event => $source) {
+        $events = [
+            FeatureRetrieved::class => 'stored',
+            FeatureResolved::class => 'resolved',
+            UnknownFeatureResolved::class => 'unknown',
+            FeatureUpdated::class => 'updated',
+            FeatureDeleted::class => 'deleted',
+        ];
+
+        foreach ($events as $event => $source) {
             if (! class_exists($event)) {
                 continue;
             }
