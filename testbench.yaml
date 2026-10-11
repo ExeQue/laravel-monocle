@@ -5,6 +5,19 @@ providers:
   - Laravel\Ai\AiServiceProvider
   - Prism\Prism\PrismServiceProvider
   - Livewire\LivewireServiceProvider
+  - RyanChandler\BladeCaptureDirective\BladeCaptureDirectiveServiceProvider
+  - BladeUI\Icons\BladeIconsServiceProvider
+  - BladeUI\Heroicons\BladeHeroiconsServiceProvider
+  - Kirschbaum\PowerJoins\PowerJoinsServiceProvider
+  - Filament\Support\SupportServiceProvider
+  - Filament\Actions\ActionsServiceProvider
+  - Filament\Schemas\SchemasServiceProvider
+  - Filament\Forms\FormsServiceProvider
+  - Filament\Infolists\InfolistsServiceProvider
+  - Filament\Notifications\NotificationsServiceProvider
+  - Filament\Tables\TablesServiceProvider
+  - Filament\Widgets\WidgetsServiceProvider
+  - Filament\FilamentServiceProvider
   - Laravel\Pennant\PennantServiceProvider
   - Spatie\ResponseCache\ResponseCacheServiceProvider
   - Spatie\MediaLibrary\MediaLibraryServiceProvider
@@ -13,6 +26,7 @@ providers:
   - Inertia\ServiceProvider
   - ExeQue\Monocle\MonocleServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
+  - Workbench\App\Providers\AdminPanelProvider
 
 migrations:
   - workbench/database/migrations
@@ -49,3 +63,4 @@ workbench:
     views: true
   build:
     - migrate-fresh
+    - filament:assets
