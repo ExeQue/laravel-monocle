@@ -572,10 +572,10 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
         return Presentation::table()
             ->tab('monocle::tabs.inertia')
             ->includes(['inertia_pages'])
-            ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at', 'duration'])
+            ->columns(['shared' => 'Scope', 'prop', 'type', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'duration', 'defined_at' => 'Defined at'])
             ->detailsOnly(['value'])
             ->format(['shared' => ['flag', 'shared', 'page', 'muted', 'muted'], 'sent' => ['flag', 'sent', 'not sent', 'muted']])
             ->highlight(['large' => 'warn', 'shared_on_partial' => 'warn'])
-            ->groupBy(['type' => 'by type', 'shared' => 'by page or shared']);
+            ->groupBy(['type' => 'by type', 'shared' => 'by scope']);
     }
 }
