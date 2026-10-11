@@ -190,17 +190,32 @@ describe(Eyepiece::class, function (): void {
     });
 
     describe('safety', function (): void {
-        it('swallows and logs listener failures once', function (): void {
+        it('keeps a listener failure out of the application, on the capture and in the log once', function (): void {
+            config(['monocle.throw_failures' => false]);
             Log::spy();
 
             $this->eyepiece->listen('monocle.test.boom', function (): void {
                 throw new RuntimeException('listener broke');
             });
 
+            $this->eyepiece->start(\ExeQue\Monocle\Enums\CaptureType::Request);
             event('monocle.test.boom');
             event('monocle.test.boom');
+            $capture = $this->eyepiece->finalize();
 
             Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message): bool => str_contains($message, 'listener broke'));
+
+            expect($capture->health['failures'])->toHaveCount(1)
+                ->and($capture->health['failures'][0])->toMatchArray(['exception' => RuntimeException::class, 'message' => 'listener broke'])
+                ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture)['warnings'])->toContain('Monocle failed to record part of this capture: listener broke ('.$capture->health['failures'][0]['file'].').');
+        });
+
+        it('throws a listener failure when asked to', function (): void {
+            $this->eyepiece->listen('monocle.test.boom', function (): void {
+                throw new RuntimeException('listener broke');
+            });
+
+            expect(fn () => event('monocle.test.boom'))->toThrow(RuntimeException::class, 'listener broke');
         });
 
         it('exposes the innermost open span and relative times', function (): void {

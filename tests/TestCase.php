@@ -47,6 +47,7 @@ abstract class TestCase extends BaseTestCase
         $this->monoclePath = $app->storagePath('monocle-tests-'.bin2hex(random_bytes(4)));
 
         $app['config']->set('monocle.enabled', true);
+        $app['config']->set('monocle.throw_failures', true);
         $app['config']->set('monocle.storage.file.path', $this->monoclePath);
         $app['config']->set('monocle.lenses.'.\ExeQue\Monocle\Lenses\FilesystemLens::class, ['disks' => ['spy', 'wild-*']]);
         $app['config']->set('monocle.storage.limit', 10);

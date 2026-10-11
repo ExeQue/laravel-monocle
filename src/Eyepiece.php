@@ -41,7 +41,11 @@ final class Eyepiece
 
     private bool $finalizing = false;
 
-    private bool $reportedFailure = false;
+    /** @var array<string, true> failures already logged in this process */
+    private array $loggedFailures = [];
+
+    /** @var list<array{exception: string, message: string, file: string}> failures while recording this capture */
+    private array $failures = [];
 
     /** @var bool|Closure(): bool|null */
     private bool|Closure|null $enabledOverride = null;
@@ -345,6 +349,7 @@ final class Eyepiece
                 'memory_peak_bytes' => memory_get_peak_usage(true),
                 'overhead_ms' => round($this->overheadNs / 1_000_000, 3),
                 'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
+                'failures' => $this->failures,
             ];
             $capture->health['warnings'] = count($this->app->make(SummaryBuilder::class)->build($capture, children: false)['warnings']);
 
@@ -369,6 +374,7 @@ final class Eyepiece
         $this->spanCounter = 0;
         $this->overheadNs = 0;
         $this->discarded = false;
+        $this->failures = [];
 
         if ($this->app->bound(LensRegistry::class)) {
             $this->app->make(LensRegistry::class)->reset();
@@ -409,19 +415,33 @@ final class Eyepiece
         }
     }
 
+    /**
+     * A lens failed. The application carries on; the failure is kept on the
+     * capture and logged once per distinct failure. With throw_failures on
+     * (Monocle's own tests) it is thrown instead.
+     */
     private function reportFailure(Throwable $e): void
     {
-        if ($this->reportedFailure) {
+        if ($this->config('throw_failures', false)) {
+            throw $e;
+        }
+
+        $failure = ['exception' => $e::class, 'message' => $e->getMessage(), 'file' => $e->getFile().':'.$e->getLine()];
+
+        if ($this->capture !== null && ! in_array($failure, $this->failures, true)) {
+            $this->failures[] = $failure;
+        }
+
+        $key = $failure['exception'].'@'.$failure['file'];
+
+        if (isset($this->loggedFailures[$key])) {
             return;
         }
 
-        $this->reportedFailure = true;
+        $this->loggedFailures[$key] = true;
 
         try {
-            $this->app->make('log')->warning('Monocle failed to record: '.$e->getMessage(), [
-                'exception' => $e::class,
-                'file' => $e->getFile().':'.$e->getLine(),
-            ]);
+            $this->app->make('log')->warning('Monocle failed to record: '.$e->getMessage(), $failure);
         } catch (Throwable) {
             // Logging itself is unavailable; stay silent rather than break the app.
         }

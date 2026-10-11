@@ -69,7 +69,7 @@ $eyepiece->span('stripe charge', 'stripe')->start();                          //
 $eyepiece->listen(SomeEvent::class, fn (SomeEvent $event) => ...);            // listen to an event
 ```
 
-`push()` adds the time the row started (rows with a `duration` are dated back by it) and the `origin` (the line in your code that caused it) for you. An exception thrown inside a lens is logged and never reaches your application.
+`push()` adds the time the row started (rows with a `duration` are dated back by it) and the `origin` (the line in your code that caused it) for you. An exception thrown inside a lens never reaches your application: it is logged and shown as a warning on the capture. While you work on a lens, set `MONOCLE_THROW_FAILURES=true` to have it thrown instead.
 
 ## Options
 

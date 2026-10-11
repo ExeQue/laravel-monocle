@@ -59,6 +59,10 @@ final class SummaryBuilder
             $warnings[] = "Response status {$capture->status}.";
         }
 
+        foreach ((array) ($capture->health['failures'] ?? []) as $failure) {
+            $warnings[] = "Monocle failed to record part of this capture: {$failure['message']} ({$failure['file']}).";
+        }
+
         $openSpans = (int) ($capture->health['open_spans_at_finalize'] ?? 0);
 
         if ($openSpans > 0) {

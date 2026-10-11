@@ -53,6 +53,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Throw failures
+    |--------------------------------------------------------------------------
+    |
+    | When a lens fails while recording, the application carries on and the
+    | failure is logged and shown on the capture. Turn this on to have the
+    | failure thrown instead, for instance while writing a lens and its tests.
+    |
+    */
+
+    'throw_failures' => env('MONOCLE_THROW_FAILURES', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Lenses
     |--------------------------------------------------------------------------
     |

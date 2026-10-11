@@ -35,6 +35,10 @@ Monocle::disable(CacheLens::class);
 Monocle::enable(CacheLens::class);
 ```
 
+## `throw_failures`
+
+When a lens fails while recording, the application carries on: the failure is logged and shown as a warning on the capture. Set `MONOCLE_THROW_FAILURES=true` to have it thrown instead, for instance while writing a lens and its tests.
+
 ## `except`
 
 Requests and commands that are never recorded:
