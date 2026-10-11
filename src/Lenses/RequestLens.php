@@ -456,7 +456,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         try {
             $capture = $this->app->make($class);
             $cards = $capture instanceof ResponseCapture ? $capture->capture($request, $response) : null;
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            $this->eyepiece->failed($e);
+
             return null;
         }
 

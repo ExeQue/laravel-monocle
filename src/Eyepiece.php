@@ -167,7 +167,7 @@ final class Eyepiece
             try {
                 $handler(...$arguments);
             } catch (Throwable $e) {
-                $this->reportFailure($e);
+                $this->failed($e);
             }
         });
     }
@@ -357,7 +357,7 @@ final class Eyepiece
 
             return $capture;
         } catch (Throwable $e) {
-            $this->reportFailure($e);
+            $this->failed($e);
 
             return null;
         } finally {
@@ -409,7 +409,7 @@ final class Eyepiece
         try {
             $work();
         } catch (Throwable $e) {
-            $this->reportFailure($e);
+            $this->failed($e);
         } finally {
             $this->overheadNs += hrtime(true) - $started;
         }
@@ -420,7 +420,7 @@ final class Eyepiece
      * capture and logged once per distinct failure. With throw_failures on
      * (Monocle's own tests) it is thrown instead.
      */
-    private function reportFailure(Throwable $e): void
+    public function failed(Throwable $e): void
     {
         if ($this->config('throw_failures', false)) {
             throw $e;

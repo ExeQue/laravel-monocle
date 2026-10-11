@@ -107,7 +107,7 @@ final class OrderResponseCapture implements ResponseCapture
 }
 ```
 
-Each card has a `title`, an optional `subtitle` and named `items`. A list of `field`/`from`/`to` entries shows as a table of changes. Return `null` when the response is not one the capture understands; nothing is kept then.
+See [Extending the request lens](writing-a-lens.md#extending-the-request-lens) for writing your own.
 
 The timeline splits the request into phases:
 

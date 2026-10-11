@@ -133,6 +133,65 @@ final class PaymentsLens implements Advises, Lens
 - `Finalizable::finalize(Capture $capture)` - runs just before a capture is saved.
 - `Resettable::reset()` - runs after each capture, to clear anything you kept between events.
 
+## Extending the request lens
+
+The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. Write your own capture for responses that read better another way - an API error format, a GraphQL result, an export.
+
+```php
+namespace App\Monocle;
+
+use ExeQue\Monocle\Contracts\ResponseCapture;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+final class ProblemCapture implements ResponseCapture
+{
+    public function capture(Request $request, Response $response): ?array
+    {
+        $problem = json_decode((string) $response->getContent(), true);
+
+        if (! is_array($problem) || ! isset($problem['title'])) {
+            return null;
+        }
+
+        return [[
+            'title' => $problem['title'],
+            'subtitle' => $problem['type'] ?? null,
+            'items' => [
+                'status' => $problem['status'] ?? $response->getStatusCode(),
+                'detail' => $problem['detail'] ?? null,
+                'errors' => $problem['errors'] ?? [],
+            ],
+        ]];
+    }
+}
+```
+
+Each card has a `title`, an optional `subtitle` and named `items`. Items can be text, numbers, lists and maps. A list of `field`/`from`/`to` entries shows as a table of changes, and a list of other objects as a table. Return `null` when the response is not one the capture understands; nothing is kept then.
+
+Captures are resolved from the container, so the constructor can take what it needs.
+
+Register the capture in `config/monocle.php` for a route name, a response header or a content type (wildcards allowed in route names and content types):
+
+```php
+RequestLens::class => [
+    'capture' => [
+        'routes' => [
+            'api.orders.*' => OrderCapture::class,
+        ],
+        'headers' => [
+            'X-Export' => ExportCapture::class,
+        ],
+        'response_types' => [
+            'application/problem+json' => ProblemCapture::class,
+            'application/json' => JsonCapture::class,
+        ],
+    ],
+],
+```
+
+A route capture wins over a header capture, which wins over a content type capture. Only responses with a capture are kept; other responses only have their size.
+
 ## Examples
 
 ### Timing a client you call
