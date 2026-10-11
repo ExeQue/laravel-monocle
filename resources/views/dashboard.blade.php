@@ -349,11 +349,11 @@
                     </div>
                     <div :class="cls.tableWrap" x-show="groupBy !== 'order' && tabData?.rows?.length">
                         <table class="w-full border-collapse text-[13px]">
-                            <thead><tr><th :class="cls.th">Query</th><th :class="cls.th" class="text-right">Count</th><th :class="cls.th" class="text-right">Total</th><th :class="cls.th" class="text-right">Avg</th><th :class="cls.th" class="text-right">Max</th></tr></thead>
+                            <thead><tr><th :class="cls.th" x-text="{ shape: 'Query', caller: 'Caller', table: 'Table', transaction: 'Transaction' }[groupBy] ?? 'Query'"></th><th :class="[cls.th, '!text-right']">Count</th><th :class="[cls.th, '!text-right']">Total</th><th :class="[cls.th, '!text-right']">Avg</th><th :class="[cls.th, '!text-right']">Max</th></tr></thead>
                             <tbody>
                                 <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
                                     <tr>
-                                        <td :class="cls.td"><code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" x-text="q.example ?? q.key"></code><span x-html="originHtml(q.origin)"></span></td>
+                                        <td :class="cls.td"><div class="font-mono text-xs font-medium [overflow-wrap:anywhere]" x-show="groupBy !== 'shape'" x-text="q.key"></div><code class="block max-w-[680px] whitespace-pre-wrap font-mono text-xs [overflow-wrap:anywhere]" :class="groupBy !== 'shape' && 'mt-0.5 text-muted'" x-text="q.example ?? q.key"></code><span x-show="groupBy !== 'caller'" x-html="originHtml(q.origin)"></span></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="q.count"></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.total_ms)"></td>
                                         <td :class="cls.td" class="text-right tabular-nums" x-text="ms(q.avg_ms)"></td>
