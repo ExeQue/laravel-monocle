@@ -149,7 +149,7 @@ return [
         ],
         'commands' => [
             'monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish',
-            'package:discover', 'horizon*', 'pulse:check', 'pulse:work', 'reverb:start', 'reverb:restart',
+            'package:discover', 'test', 'horizon*', 'pulse:check', 'pulse:work', 'reverb:start', 'reverb:restart',
             'octane:start', 'octane:status', 'nightwatch:agent', 'health:schedule-check-heartbeat', 'health:queue-check-heartbeat',
         ],
         'livewire' => ['pulse.*'],
