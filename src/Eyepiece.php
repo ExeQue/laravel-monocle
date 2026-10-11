@@ -91,7 +91,20 @@ final class Eyepiece
 
     public function masker(): Masker
     {
-        $resolve = fn (mixed $mask): mixed => is_string($mask) && class_exists($mask) ? $this->app->make($mask) : $mask;
+        $resolve = function (mixed $mask): mixed {
+            if (is_string($mask) && class_exists($mask)) {
+                return $this->app->make($mask);
+            }
+
+            // [Mask::class, ...arguments]: positional or named constructor arguments.
+            if (is_array($mask) && is_string($mask[0] ?? null) && class_exists($mask[0])) {
+                $class = array_shift($mask);
+
+                return new $class(...$mask);
+            }
+
+            return $mask;
+        };
         $resolveAll = fn (array $list): array => array_map($resolve, $list);
 
         return new Masker(

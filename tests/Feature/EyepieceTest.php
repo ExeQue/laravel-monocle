@@ -12,6 +12,7 @@ use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\MonocleManager;
+use ExeQue\Monocle\Support\Masks\PartialMask;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -242,6 +243,18 @@ describe(Eyepiece::class, function (): void {
             config(['monocle.mask.using' => fn (mixed $value, string $key): string => "masked:{$key}"]);
 
             expect($this->eyepiece->masker()->inputs(['password' => 'x'])['password'])->toBe('masked:password');
+        });
+
+        it('builds masks with constructor arguments', function (): void {
+            config([
+                'monocle.mask.using' => [PartialMask::class, 'visible' => 2],
+                'monocle.mask.headers' => ['authorization' => [PartialMask::class, 8]],
+            ]);
+
+            $masker = $this->eyepiece->masker();
+
+            expect($masker->headers(['Authorization' => str_repeat('a', 40)])['Authorization'])->toBe('aaaaaaaa****')
+                ->and($masker->inputs(['password' => str_repeat('b', 40)])['password'])->toBe('bb****');
         });
 
         it('reports nothing when no capture is active', function (): void {

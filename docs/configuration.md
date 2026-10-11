@@ -79,7 +79,7 @@ Headers and cookies are listed by name, each with the mask to use. Names support
 
 Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name.
 
-`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value. A mask can also be your own class with an `__invoke($value, $key)` method.
+`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value. A mask can also be your own class with an `__invoke($value, $key)` method. Pass constructor arguments by giving an array with the class first: `[PartialMask::class, 8]` or `[PartialMask::class, 'visible' => 8]`.
 
 ## `origin`
 
