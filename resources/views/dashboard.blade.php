@@ -688,8 +688,9 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted w-56 font-mono text-xs"
-                                                            x-text="k"
+                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
+                                                            :data-tip="k.length > 32 ? k : ''"
+                                                            x-text="shortName(k)"
                                                         ></td>
                                                         <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
                                                     </tr>
@@ -709,8 +710,8 @@
                                                         <td
                                                             :class="cls.td"
                                                             class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
-                                                            :data-tip="k.length > 40 ? k : ''"
-                                                            x-text="k.length > 40 ? k.slice(0, 40) + '…' : k"
+                                                            :data-tip="k.length > 32 ? k : ''"
+                                                            x-text="shortName(k)"
                                                         ></td>
                                                         <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
                                                     </tr>
@@ -745,8 +746,9 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted w-56 font-mono text-xs"
-                                                            x-text="k"
+                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
+                                                            :data-tip="k.length > 32 ? k : ''"
+                                                            x-text="shortName(k)"
                                                         ></td>
                                                         <td :class="cls.td" class="font-mono text-xs" x-text="v"></td>
                                                     </tr>

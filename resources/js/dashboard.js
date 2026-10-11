@@ -493,6 +493,11 @@ Alpine.data('monocle', (config) => ({
     this.openGroups = this.openGroups.includes(key) ? this.openGroups.filter((k) => k !== key) : [...this.openGroups, key];
   },
 
+  /** A name cut to 32 characters, for header and cookie names; the full name is in a tooltip. */
+  shortName(name) {
+    return name.length > 32 ? name.slice(0, 32) + '…' : name;
+  },
+
   numeric(key) {
     return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
   },
