@@ -19,14 +19,16 @@ const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json'
 
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
+const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"><span aria-hidden="true">${short}</span><span class="sr-only">${full}</span></span>`;
+
 /**
- * Escaped text with every namespaced class name shortened to its basename;
- * the full name shows in a tooltip.
+ * Escaped text with every namespaced class name shortened to its basename,
+ * and every path to a class file (app/Models/User.php:12) to the class and
+ * line (User:12); the full name shows in a tooltip.
  */
-export const classes = (text) => esc(text).replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)/g, (full, base) => {
-  const name = full.replace(/^\\/, '');
-  return `<span class="cursor-help" data-tip="${name}"><span aria-hidden="true">${base}</span><span class="sr-only">${name}</span></span>`;
-});
+export const classes = (text) => esc(text)
+  .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => shortened(full, base + line))
+  .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)/g, (full, base) => shortened(full.replace(/^\\/, ''), base));
 
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link
