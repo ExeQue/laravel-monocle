@@ -297,6 +297,7 @@ Alpine.data('monocle', (config) => ({
 
   /** A payload value; JSON strings (Livewire snapshots, API bodies) are shown formatted. */
   payloadValue(v) {
+    if (v === null || (Array.isArray(v) && !v.length)) return `<span class="text-muted">${v === null ? 'null' : '[]'}</span>`;
     if (typeof v === 'string' && /^\s*[[{]/.test(v)) {
       try { return `<pre class="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-all">${esc(JSON.stringify(JSON.parse(v), null, 2))}</pre>`; } catch { /* not JSON */ }
     }
@@ -315,6 +316,7 @@ Alpine.data('monocle', (config) => ({
 
   /** A value from the open assoc section, linked when the server found an editor link for its path. */
   linked(value, path) {
+    if (value === null || (Array.isArray(value) && !value.length)) return `<span class="text-muted">${value === null ? 'null' : '[]'}</span>`;
     const link = this.tabData?.links?.[path];
     return link ? maybeLink(fmtValue(value), link) : esc(fmtValue(value));
   },
