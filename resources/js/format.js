@@ -50,20 +50,33 @@ export const fmtValue = (v) => {
   return String(v);
 };
 
-const COPY_ICON = '<svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3.5V9A1.5 1.5 0 0 0 4 10.5h1.5"/></svg>';
+const COPY_ICON = '<svg class="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5h2"/></svg>';
+const CHECK_ICON = '<svg class="size-3.5 text-ok" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4.5"/></svg>';
 
 /**
- * A button copying `text`. With hover: true it only shows while its `group/copy` parent is
- * hovered (or the button has keyboard focus); devices without hover always show it.
+ * A button copying `text`, styled like the capture id's copy button in the header. With
+ * hover: true it only shows while its `group/copy` parent is hovered (or the button has
+ * keyboard focus); devices without hover always show it.
  */
-export const copyButton = (text, what = 'value', { hover = false } = {}) => `<button type="button" class="inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px] text-muted hover:text-brass focus-visible:text-brass${hover ? ' [@media(hover:hover)]:opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100' : ''}" data-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy">${COPY_ICON}</button>`;
+export const copyButton = (text, what = 'value', { hover = false } = {}) => `<button type="button" class="inline-flex shrink-0 cursor-pointer rounded p-0.5 align-[-3px] text-muted hover:text-brass${hover ? ' [@media(hover:hover)]:opacity-0 group-hover/copy:opacity-100 focus-visible:opacity-100' : ''}" data-copy="${esc(text)}" aria-label="Copy ${esc(what)}" data-tip="Copy ${esc(what)}">${COPY_ICON}</button>`;
 
-/** Copy the text of a copy button and confirm on the button for a moment. */
+/** Copy the text of a copy button and show a checkmark on it for a moment, like the header does. */
 export function copyFrom(button) {
   const done = () => {
+    const { tip, label } = button.dataset.copyRestore ? JSON.parse(button.dataset.copyRestore) : { tip: button.dataset.tip, label: button.getAttribute('aria-label') };
+    button.dataset.copyRestore = JSON.stringify({ tip, label });
+    button.innerHTML = CHECK_ICON;
     button.dataset.tip = 'Copied';
-    button.classList.add('!text-ok');
-    setTimeout(() => { button.dataset.tip = 'Copy'; button.classList.remove('!text-ok'); }, 1200);
+    button.setAttribute('aria-label', 'Copied');
+    button.classList.add('!opacity-100');
+    clearTimeout(button.copyTimer);
+    button.copyTimer = setTimeout(() => {
+      button.innerHTML = COPY_ICON;
+      button.dataset.tip = tip;
+      button.setAttribute('aria-label', label);
+      button.classList.remove('!opacity-100');
+      delete button.dataset.copyRestore;
+    }, 1500);
   };
   const fallback = () => {
     const area = Object.assign(document.createElement('textarea'), { value: button.dataset.copy });
