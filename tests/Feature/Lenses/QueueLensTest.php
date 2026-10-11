@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use Tests\Fixtures\Jobs\DispatchingJob;
 use Tests\Fixtures\Jobs\FailingJob;
 use Tests\Fixtures\Jobs\PlainCommand;
 use Tests\Fixtures\Jobs\RecordingJob;
@@ -102,6 +103,32 @@ describe(QueueLens::class, function (): void {
 
         expect(array_column($trace, 'depth'))->toBe([0, 1])
             ->and($trace[1]['offset_ms'])->toBeGreaterThan(0);
+    });
+
+    it('follows a trace through jobs that dispatch jobs, however deep', function (): void {
+        Route::get('/dispatch-nested', function () {
+            DispatchingJob::dispatch()->onConnection('database');
+
+            return 'dispatched';
+        });
+
+        $this->get('/dispatch-nested')->assertOk();
+        $request = latestCapture();
+
+        Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
+        $outer = latestCapture();
+
+        Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
+        $inner = latestCapture();
+
+        $trace = app(CaptureReader::class)->trace($request->id);
+
+        expect($outer->parentId)->toBe($request->id)
+            ->and($inner->parentId)->toBe($outer->id)
+            ->and([$outer->traceId, $inner->traceId])->toBe([$request->id, $request->id])
+            ->and(array_column($trace, 'id'))->toBe([$request->id, $outer->id, $inner->id])
+            ->and(array_column($trace, 'depth'))->toBe([0, 1, 2])
+            ->and(array_column(app(CaptureReader::class)->trace($request->id), 'id'))->toBe(array_column(app(CaptureReader::class)->trace($inner->traceId), 'id'));
     });
 
     it('marks failed jobs with the exception', function (): void {
