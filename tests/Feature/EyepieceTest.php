@@ -197,10 +197,11 @@ describe(Eyepiece::class, function (): void {
             usleep(20_000);
             $before = $this->eyepiece->now();
             $this->eyepiece->push('custom', ['duration' => 15.0]);
+            $after = $this->eyepiece->now();
 
-            // Undated, the row would sit at $before or later; under load the push itself may take a few ms.
-            expect($this->eyepiece->active()->rows('custom')[0]['time'])->toBeLessThan($before - 5.0)
-                ->toBeGreaterThanOrEqual($before - 15.0);
+            // Pushed somewhere between $before and $after, so it started 15 ms before a moment in that window, however busy the machine.
+            expect($this->eyepiece->active()->rows('custom')[0]['time'])->toBeGreaterThanOrEqual(round($before - 15.0, 3))
+                ->toBeLessThanOrEqual(round($after - 15.0, 3));
         });
 
         it('skips origin when asked', function (): void {
