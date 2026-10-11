@@ -140,7 +140,11 @@
                                 x-text="c.label"
                             ></span>
                             <template x-for="tag in c.tags ?? []" :key="tag.label">
-                                <span class="rounded-full border px-2" :class="tagClass(tag.tone)" x-text="tag.label"></span>
+                                <span
+                                    class="rounded-full border px-2"
+                                    :class="tagClass(tag.tone)"
+                                    x-text="tag.label"
+                                ></span>
                             </template>
                             <span x-text="ago(c.started_at)"></span>
                         </span>
