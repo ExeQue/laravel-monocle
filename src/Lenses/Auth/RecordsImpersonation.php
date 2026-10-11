@@ -14,9 +14,9 @@ use Throwable;
 /**
  * What every impersonation package adds to the auth section: a row when an
  * impersonation starts and ends, and the impersonator on the authenticated
- * row while one lasts, read from the session so no user is loaded.
- *
- * @internal
+ * row while one lasts, read from the session so no user is loaded. Use it
+ * in a lens that extends AuthLens and has an `$eyepiece` property, and call
+ * recordImpersonation() from boot().
  *
  * @property-read Eyepiece $eyepiece
  */

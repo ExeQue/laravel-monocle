@@ -245,6 +245,47 @@ final class TeamsLens implements ExtendsLens, Lens, RequiresPackages
 }
 ```
 
+### Impersonation
+
+For a package that lets one user act as another, use the `RecordsImpersonation` trait in a lens that extends `AuthLens`. Name the events fired when an impersonation starts and ends (each with `$impersonator` and `$impersonated`) and how to tell, from the session, who is impersonating now:
+
+```php
+use ExeQue\Monocle\Lenses\Auth\RecordsImpersonation;
+
+final class SwitchUserLens implements ExtendsLens, Lens, RequiresPackages, Summarizable
+{
+    use RecordsImpersonation;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece,
+    ) {
+    }
+
+    public static function extends(): string
+    {
+        return AuthLens::class;
+    }
+
+    public static function packages(): array
+    {
+        return ['acme/switch-user'];
+    }
+
+    public function boot(): void
+    {
+        $this->recordImpersonation(
+            SwitchedToUser::class,
+            SwitchedBack::class,
+            fn (): ?array => session()->has('switched_from')
+                ? ['id' => session('switched_from'), 'guard' => 'web']
+                : null,
+        );
+    }
+}
+```
+
+The auth section then gets a row when an impersonation starts and ends, the authenticated user is marked with who is impersonating them, and the summary shows it, as with the built-in impersonation packages.
+
 ## Extending the request lens
 
 The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. Write your own capture for responses that read better another way - an API error format, a GraphQL result, an export.
