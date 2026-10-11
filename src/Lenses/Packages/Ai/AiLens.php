@@ -142,7 +142,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
                 'ai_by_model' => $byModel,
             ])
             ->total('ai_calls', count($rows), 'calls')
-            ->warnings(array_slice($warnings, 0, 5));
+            ->errors(array_slice($warnings, 0, 5));
     }
 
     private function onPrompting(PromptingAgent $event): void

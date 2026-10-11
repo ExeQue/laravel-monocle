@@ -45,6 +45,7 @@ final readonly class CapturesController
         return response()->json($result + [
             'timeline' => $timeline->present($capture),
             'warning_links' => array_map($timeline->textLinks(...), $result['summary']['warnings'] ?? []),
+            'error_links' => array_map($timeline->textLinks(...), $result['summary']['errors'] ?? []),
             'editor' => $links->enabled(),
             'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
             'tab_order' => $this->tabOrder(),

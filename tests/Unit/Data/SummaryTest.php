@@ -65,6 +65,13 @@ describe(Summary::class, function (): void {
         expect(Summary::make()->warnings(['a', 'b'])->warning('c')->warnings)->toBe(['a', 'b', 'c']);
     });
 
+    it('keeps errors apart from warnings', function (): void {
+        $summary = Summary::make()->warning('slow')->error('failed')->errors(['also failed']);
+
+        expect($summary->warnings)->toBe(['slow'])
+            ->and($summary->errors)->toBe(['failed', 'also failed']);
+    });
+
     it('adds a total or a warning only when a condition holds', function (): void {
         $summary = Summary::make()
             ->when(false)->total('skipped', 1)

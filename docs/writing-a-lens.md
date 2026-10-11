@@ -111,7 +111,7 @@ public function summarize(Capture $capture): Summary
         ->total('stripe_calls', count($rows), 'calls')
         ->total('stripe_ms', array_sum(array_column($rows, 'duration')), 'spent', Unit::Milliseconds)
         ->when($failed !== [])
-        ->warning(count($failed).' Stripe call(s) failed.');
+        ->error(count($failed).' Stripe call(s) failed.');
 }
 ```
 
@@ -125,7 +125,7 @@ Every method returns a new summary, so chain the calls or assign the result. `to
 | `Unit::Percent` | `66.7 %` |
 | any string, e.g. `'DKK'` | `49.00 DKK` |
 
-Without a label the name is shown. `totals()` takes several as name => value in one unit, `warnings()` several warnings. Totals whose name starts with the lens key are grouped under its tab on the overview.
+Without a label the name is shown. `totals()` takes several as name => value in one unit, `warnings()` several warnings. Use `error()` and `errors()` for things that failed, such as a call or a job; errors are listed first and mark the lens's tab in red. Totals whose name starts with the lens key are grouped under its tab on the overview.
 
 ## Advice for agents
 

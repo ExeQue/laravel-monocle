@@ -16,7 +16,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 
 #[IsReadOnly]
 #[Name('monocle-show')]
-#[Description('Show one capture. The default "summary" section gives the time breakdown per phase/category, totals, warnings (slow queries, N+1, duplicates, slow middleware) and trace links. Add "timeline" for the span tree or any section name (queries, cache, middleware, ...) for its first rows; use monocle-rows for more.')]
+#[Description('Show one capture. The default "summary" section gives the time breakdown per phase/category, totals, warnings (slow queries, N+1, duplicates, slow middleware), errors (exceptions, failed calls and jobs) and trace links. Add "timeline" for the span tree or any section name (queries, cache, middleware, ...) for its first rows; use monocle-rows for more.')]
 final class ShowCapture extends Tool
 {
     use RespondsWithJson;

@@ -124,16 +124,23 @@
                 x-text="t.label"
             ></span
             ><span
-                class="bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass min-w-5 rounded-full px-1.5 py-px text-center font-mono text-[10.5px] leading-4 tabular-nums"
+                class="min-w-5 rounded-full px-1.5 py-px text-center font-mono text-[10.5px] leading-4 tabular-nums"
+                :class="t.errors
+                    ? 'bg-bad-soft text-bad font-bold'
+                    : t.problems
+                      ? 'bg-warn-soft text-warn font-bold'
+                      : 'bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass'"
                 x-show="t.count"
                 x-text="t.count"
+                :data-tip="problemTip(t)"
             ></span>
             <span
-                class="text-warn font-mono text-xs font-bold"
-                x-show="t.problems"
-                :data-tip="t.problems + (t.problems === 1 ? ' problem found' : ' problems found')"
-                :aria-label="t.problems + (t.problems === 1 ? ' problem found' : ' problems found')"
-            >!</span>
+                class="size-1.5 rounded-full"
+                :class="t.errors ? 'bg-bad' : 'bg-warn'"
+                x-show="! t.count && (t.errors || t.problems)"
+                :data-tip="problemTip(t)"
+                :aria-label="problemTip(t)"
+            ></span>
         </button>
     </template>
 </nav>

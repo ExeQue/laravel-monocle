@@ -85,10 +85,10 @@ describe(Viewfinder::class, function (): void {
             ->and($aggregator->group($capture, 'table')[0]['key'])->toBe('(none)');
     });
 
-    it('summarizes 5xx responses and open spans as warnings', function (): void {
+    it('summarizes 5xx responses as errors and open spans as warnings', function (): void {
         $summary = app(SummaryBuilder::class)->build(latestCapture());
 
-        expect($summary['warnings'])->toContain('Response status 500.')
+        expect($summary['errors'])->toContain('Response status 500.')
             ->and($summary['status'])->toBe('500');
 
         app(Eyepiece::class)->start(CaptureType::Request);

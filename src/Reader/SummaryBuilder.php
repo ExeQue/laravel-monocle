@@ -51,6 +51,7 @@ final class SummaryBuilder
         $labels = ['duration_ms' => 'duration', 'memory_peak_mb' => 'peak memory'];
         $units = ['duration_ms' => Unit::Milliseconds->value, 'memory_peak_mb' => Unit::Megabytes->value];
         $warnings = [];
+        $errors = [];
         $problems = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
@@ -58,17 +59,15 @@ final class SummaryBuilder
             $totals = [...$totals, ...$contribution->totals];
             $labels = [...$labels, ...$contribution->labels];
             $units = [...$units, ...$contribution->units];
-            $flagged = $contribution->warnings;
-            $warnings = [...$warnings, ...$flagged];
-
-            if ($flagged !== []) {
-                $problems[$summarizer->key()] = ($problems[$summarizer->key()] ?? 0) + count($flagged);
-            }
+            $warnings = [...$warnings, ...$contribution->warnings];
+            $errors = [...$errors, ...$contribution->errors];
+            $problems = $this->flag($problems, $summarizer->key(), 'warnings', count($contribution->warnings));
+            $problems = $this->flag($problems, $summarizer->key(), 'errors', count($contribution->errors));
         }
 
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {
-            $warnings[] = "Response status {$capture->status}.";
-            $problems['request'] = ($problems['request'] ?? 0) + 1;
+            $errors[] = "Response status {$capture->status}.";
+            $problems = $this->flag($problems, 'request', 'errors', 1);
         }
 
         foreach ((array) ($capture->health['failures'] ?? []) as $failure) {
@@ -106,6 +105,7 @@ final class SummaryBuilder
             'units' => $units,
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
+            'errors' => array_values(array_unique($errors)),
             'problems' => $problems,
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],
@@ -208,6 +208,24 @@ final class SummaryBuilder
             'percent' => round($ms / $total * 100, 1),
             'count' => $count,
         ];
+    }
+
+    /**
+     * Counts warnings or errors per tab.
+     *
+     * @param  array<string, array{warnings: int, errors: int}>  $problems
+     * @return array<string, array{warnings: int, errors: int}>
+     */
+    private function flag(array $problems, string $section, string $kind, int $count): array
+    {
+        if ($count === 0) {
+            return $problems;
+        }
+
+        $problems[$section] ??= ['warnings' => 0, 'errors' => 0];
+        $problems[$section][$kind] += $count;
+
+        return $problems;
     }
 
     /**

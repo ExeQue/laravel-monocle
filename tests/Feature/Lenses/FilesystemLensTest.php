@@ -90,7 +90,7 @@ describe(FilesystemLens::class, function (): void {
 
         expect($summary->totals)->toMatchArray(['filesystem_bytes_read' => 11, 'filesystem_bytes_written' => 11, 'filesystem_by_disk' => ['spy' => count($rows)]])
             ->and($summary->totals['filesystem_ops'])->toBe(count($rows))
-            ->and($summary->warnings[0])->toContain('Filesystem read failed on spy:missing.txt');
+            ->and($summary->errors[0])->toContain('Filesystem read failed on spy:missing.txt');
     });
 
     it('records streams and checksums and forwards unknown calls', function (): void {

@@ -154,7 +154,7 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
         return Summary::make()
             ->total('livewire_components', count($rows), 'components')
             ->total('livewire_calls', $calls, 'calls')
-            ->warnings($warnings);
+            ->errors($warnings);
     }
 
     private function hook(string $event, callable $callback): void

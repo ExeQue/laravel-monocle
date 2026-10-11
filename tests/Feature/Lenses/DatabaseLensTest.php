@@ -115,7 +115,7 @@ describe(DatabaseLens::class, function (): void {
             ->and($summary->totals['queries_by_type'])->toBe(['select' => 3])
             ->and($summary->totals['query_ms'])->toBeGreaterThan(0)
             ->and(implode(' ', $summary->warnings))->toContain('Possible N+1: 3 x')
-            ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries'] ?? 0)->toBeGreaterThan(0)
+            ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries']['warnings'] ?? 0)->toBeGreaterThan(0)
             ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
     });
 });

@@ -119,7 +119,7 @@ describe(QueueLens::class, function (): void {
 
         $summary = app(QueueLens::class)->summarize($job);
 
-        expect(implode(' ', $summary->warnings))->toContain('job exploded');
+        expect(implode(' ', $summary->errors))->toContain('job exploded');
     });
 
     it('records jobs on the sync queue as spans inside the dispatching capture', function () use ($captures): void {

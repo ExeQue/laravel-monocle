@@ -47,7 +47,7 @@ describe(McpLens::class, function (): void {
         $summary = app(McpLens::class)->summarize(latestCapture());
 
         expect($summary->totals)->toMatchArray(['mcp_calls' => 1, 'mcp_errors' => 1])
-            ->and($summary->warnings)->toBe(['MCP tools/call echo returned an error.']);
+            ->and($summary->errors)->toBe(['MCP tools/call echo returned an error.']);
     });
 
     it('skips excluded servers', function () use ($call): void {

@@ -173,7 +173,7 @@ final class Viewfinder
         $descriptions = $this->registry->descriptions();
 
         $sections = [
-            ['key' => 'summary', 'description' => 'Time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), trace links and Monocle health.', 'rows' => null],
+            ['key' => 'summary', 'description' => 'Time breakdown per phase and category, totals, warnings (slow/duplicate/N+1 queries, slow middleware), errors (exceptions, failed calls and jobs), trace links and Monocle health.', 'rows' => null],
             ['key' => 'timeline', 'description' => 'The span tree: request phases, each middleware (request and response side), the derived controller span, transactions and spans added via Monocle::span(). Filter with kinds.', 'rows' => count($capture->spans)],
         ];
 

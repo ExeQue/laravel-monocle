@@ -111,7 +111,7 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             ->total('filesystem_ops', count($rows), 'operations')
             ->total('filesystem_bytes_read', $read, 'read', Unit::Bytes)
             ->total('filesystem_bytes_written', $written, 'written', Unit::Bytes)
-            ->warnings(array_slice($failed, 0, 3));
+            ->errors(array_slice($failed, 0, 3));
     }
 
     public function presentation(): Presentation

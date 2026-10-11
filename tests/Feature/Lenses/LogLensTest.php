@@ -34,7 +34,7 @@ describe(LogLens::class, function (): void {
 
         expect($summary->totals['log_captures'])->toBe(3)
             ->and($summary->totals['log_by_level'])->toBe(['info' => 1, 'error' => 1, 'debug' => 1])
-            ->and($summary->warnings)->toBe(['Logged error: Import failed']);
+            ->and($summary->errors)->toBe(['Logged error: Import failed']);
     });
 
     it('summarizes nothing without log rows', function (): void {

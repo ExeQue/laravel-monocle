@@ -54,37 +54,35 @@
         </div>
     </div>
     <div class="grid min-w-0 content-start gap-6">
-        <div x-data="{ open: true }">
-            <h3 :class="cls.sectionTitle">
-                <button
-                    type="button"
-                    class="inline-flex cursor-pointer items-center gap-1.5 uppercase disabled:cursor-default"
-                    :disabled="! summary.warnings?.length"
-                    :aria-expanded="open"
-                    @click="open = ! open"
-                >
-                    <x-monocle::chevron open="open" x-show="summary.warnings?.length" />
-                    Warnings
-                    <span
-                        class="bg-warn-soft text-warn min-w-5 rounded-full px-1.5 py-px text-center font-mono text-[10.5px] leading-4 normal-case tabular-nums"
-                        x-show="summary.warnings?.length"
-                        x-text="summary.warnings?.length"
-                    ></span>
-                </button>
-            </h3>
-            <div class="grid gap-2" x-show="open && summary.warnings?.length" x-collapse>
-                <template x-for="(w, wi) in summary.warnings" :key="w">
-                    <div class="bg-warn-soft grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md px-3 py-2.5">
-                        <span class="text-warn pt-0.5 font-mono text-[11px]">!</span>
-                        <span class="[overflow-wrap:anywhere]" x-html="linkText(w, capture.warning_links?.[wi])"></span>
+        <div x-data="{ open: true, all: false }">
+            <x-monocle::fold-heading
+                open="open"
+                count="problemList.length"
+                badge="summary.errors?.length ? 'bg-bad-soft text-bad' : 'bg-warn-soft text-warn'"
+            >Warnings</x-monocle::fold-heading>
+            <div class="grid gap-2" x-show="open && problemList.length" x-collapse>
+                <template x-for="p in problemList.slice(0, all ? undefined : 3)" :key="p.text">
+                    <div
+                        class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md px-3 py-2.5"
+                        :class="p.error ? 'bg-bad-soft' : 'bg-warn-soft'"
+                    >
+                        <span class="pt-0.5 font-mono text-[11px]" :class="p.error ? 'text-bad' : 'text-warn'">!</span>
+                        <span class="[overflow-wrap:anywhere]" x-html="linkText(p.text, p.links)"></span>
                     </div>
                 </template>
+                <button
+                    type="button"
+                    class="text-brass cursor-pointer justify-self-start text-xs hover:underline"
+                    x-show="problemList.length > 3"
+                    @click="all = ! all"
+                    x-text="all ? 'Show less' : 'Show ' + (problemList.length - 3) + ' more'"
+                ></button>
             </div>
-            <p :class="cls.empty" x-show="! summary.warnings?.length">No warnings.</p>
+            <p :class="cls.empty" x-show="! problemList.length">No warnings.</p>
         </div>
-        <div>
-            <h3 :class="cls.sectionTitle">Totals</h3>
-            <div class="grid gap-4">
+        <div x-data="{ open: true }">
+            <x-monocle::fold-heading open="open">Totals</x-monocle::fold-heading>
+            <div class="grid gap-4" x-show="open" x-collapse>
                 <template x-for="g in totalGroups.filter((g) => g.label === 'Overall')" :key="g.label">
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
                         <template x-for="t in g.items" :key="t[0]">

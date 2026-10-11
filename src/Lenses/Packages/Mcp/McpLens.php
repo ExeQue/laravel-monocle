@@ -100,7 +100,7 @@ final class McpLens implements Advises, Lens, Presentable, Summarizable
             ->total('mcp_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3), 'spent', Unit::Milliseconds)
             ->total('mcp_calls', count($calls), 'calls')
             ->total('mcp_errors', count($errors), 'errors')
-            ->warnings(array_map(
+            ->errors(array_map(
                 fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
                 array_slice(array_values($errors), 0, 3),
             ));

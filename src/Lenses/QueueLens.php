@@ -107,7 +107,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             ->when(isset($job['attempts']))
             ->total('job_attempt', $job['attempts'] ?? 0, 'attempt')
             ->when(isset($job['exception']))
-            ->warning(sprintf('Job failed: %s - %s', $job['exception']['class'] ?? 'Throwable', $job['exception']['message'] ?? ''));
+            ->error(sprintf('Job failed: %s - %s', $job['exception']['class'] ?? 'Throwable', $job['exception']['message'] ?? ''));
     }
 
     private function registerPayloadHook(): void

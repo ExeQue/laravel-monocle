@@ -295,10 +295,10 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
     const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key && s.rows !== 0);
     const isRequest = this.summary.type === 'request';
-    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request', problems: problems.request ?? 0 });
+    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request', problems: problems.request?.warnings ?? 0, errors: problems.request?.errors ?? 0 });
     if (isRequest && has('session')) tabs.push({ key: 'session', label: 'Session' });
     const skip = isRequest ? [...SKIP_SECTIONS, 'auth'] : SKIP_SECTIONS;
-    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries, problems: problems.queries ?? 0 });
+    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries, problems: problems.queries?.warnings ?? 0, errors: problems.queries?.errors ?? 0 });
     const sections = (this.capture.available_sections ?? []).filter((s) => !skip.includes(s.key) && s.rows);
     // Model changes are shown in the Models tab, under the counts.
     const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
@@ -307,7 +307,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const order = this.capture.tab_order ?? [];
     const rank = (key) => { const i = order.indexOf(key); return i === -1 ? order.length : i; };
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
-      tabs.push({ key: s.key, label: this.capture.presentations?.[s.key]?.label ?? humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key] ?? 0 });
+      tabs.push({ key: s.key, label: this.capture.presentations?.[s.key]?.label ?? humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key]?.warnings ?? 0, errors: problems[s.key]?.errors ?? 0 });
     }
     if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
@@ -315,6 +315,20 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   get summary() { return this.capture?.summary ?? {}; },
   get phases() { return (this.summary.breakdown?.phases ?? []).filter((p) => p.name !== 'other' || p.ms >= 0.05); },
+  /** "2 errors, 1 warning" for a tab, or empty. */
+  problemTip(t) {
+    const part = (n, word) => (n ? `${n} ${word}${n === 1 ? '' : 's'}` : null);
+    return [part(t.errors, 'error'), part(t.problems, 'warning')].filter(Boolean).join(', ');
+  },
+
+  /** Errors first, then warnings, each with the links found in its text. */
+  get problemList() {
+    const { errors = [], warnings = [] } = this.summary;
+    return [
+      ...errors.map((text, i) => ({ text, links: this.capture.error_links?.[i], error: true })),
+      ...warnings.map((text, i) => ({ text, links: this.capture.warning_links?.[i], error: false })),
+    ];
+  },
   get categories() { return this.summary.breakdown?.categories ?? []; },
   get maxCategory() { return Math.max(1, ...this.categories.map((c) => c.ms)); },
 
@@ -392,6 +406,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (handledBy) lines.splice(1, 0, `Handled by ${handledBy}.`);
     const totals = this.totalGroups.map((g) => `- ${g.label}: ${g.items.map((t) => `${this.totalLabel(t)} ${this.totalValue(t)}`).join(', ')}`);
     if (totals.length) lines.push('', 'Totals:', ...totals);
+    if (s.errors?.length) lines.push('', 'Errors:', ...s.errors.map((e) => `- ${e}`));
     if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));
     lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
     return lines.join('\n');

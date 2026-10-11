@@ -11,7 +11,8 @@ use Illuminate\Support\Traits\Conditionable;
 
 /**
  * What a lens adds to a capture's summary: named totals for the overview
- * (and monocle-show), and warnings that flag the capture and its tab.
+ * (and monocle-show), and warnings and errors that flag the capture and
+ * its tab.
  * Every fluent method returns a new summary.
  */
 final readonly class Summary
@@ -23,13 +24,15 @@ final readonly class Summary
      * @param  array<string, mixed>  $totals  name => value; names starting with the lens key group under its tab
      * @param  array<string, string>  $labels  name => what the value counts, e.g. "failed"
      * @param  array<string, string>  $units  name => unit: a Unit value, or a suffix such as a currency
-     * @param  list<string>  $warnings
+     * @param  list<string>  $warnings  things worth a look
+     * @param  list<string>  $errors  things that failed
      */
     public function __construct(
         public array $totals = [],
         public array $labels = [],
         public array $units = [],
         public array $warnings = [],
+        public array $errors = [],
     ) {
     }
 
@@ -95,5 +98,18 @@ final readonly class Summary
     public function warnings(array $warnings): self
     {
         return $this->with(['warnings' => [...$this->warnings, ...array_values($warnings)]]);
+    }
+
+    public function error(string $error): self
+    {
+        return $this->errors([$error]);
+    }
+
+    /**
+     * @param  list<string>  $errors
+     */
+    public function errors(array $errors): self
+    {
+        return $this->with(['errors' => [...$this->errors, ...array_values($errors)]]);
     }
 }

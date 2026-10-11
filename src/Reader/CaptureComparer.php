@@ -37,6 +37,10 @@ final class CaptureComparer
                 'only_in_a' => array_values(array_diff($summaryA['warnings'], $summaryB['warnings'])),
                 'only_in_b' => array_values(array_diff($summaryB['warnings'], $summaryA['warnings'])),
             ],
+            'errors' => [
+                'only_in_a' => array_values(array_diff($summaryA['errors'], $summaryB['errors'])),
+                'only_in_b' => array_values(array_diff($summaryB['errors'], $summaryA['errors'])),
+            ],
         ];
     }
 
