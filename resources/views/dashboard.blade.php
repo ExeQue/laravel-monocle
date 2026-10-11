@@ -342,12 +342,8 @@
                         </template>
                     </nav>
 
-                    <section
-                        id="monocle-panel-overview"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'overview'"
+                    <x-monocle::panel
+                        name="overview"
                         class="grid grid-cols-1 gap-6 min-[1101px]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
                     >
                         <div class="grid min-w-0 content-start gap-6">
@@ -453,26 +449,11 @@
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    </x-monocle::panel>
 
-                    <section
-                        id="monocle-panel-timeline"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'timeline'"
-                        @click="timelineClick($event)"
-                        x-html="timelineHtml"
-                    ></section>
+                    <x-monocle::panel name="timeline" @click="timelineClick($event)" x-html="timelineHtml" />
 
-                    <section
-                        id="monocle-panel-request"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'request'"
-                        class="grid gap-6"
-                    >
+                    <x-monocle::panel name="request" class="grid gap-6">
                         <template x-if="request">
                             <div class="grid gap-6">
                                 <div class="grid gap-2">
@@ -743,15 +724,9 @@
                                 </div>
                             </div>
                         </template>
-                    </section>
+                    </x-monocle::panel>
 
-                    <section
-                        id="monocle-panel-session"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'session'"
-                    >
+                    <x-monocle::panel name="session">
                         <template x-if="session">
                             <div class="grid gap-4">
                                 <p class="text-muted m-0 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
@@ -788,42 +763,15 @@
                                 <p :class="cls.empty" x-show="! dot(session.data).length">The session was empty.</p>
                             </div>
                         </template>
-                    </section>
+                    </x-monocle::panel>
 
-                    <section
-                        id="monocle-panel-queries"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'queries'"
-                    >
-                        <div class="text-muted mb-2.5 flex flex-wrap items-center gap-1.5 text-xs">
-                            Show
-                            <template
-                                x-for="
-                                    g in
-                                    [
-                                        ['order', 'in order'],
-                                        ['shape', 'by query'],
-                                        ['caller', 'by caller'],
-                                        ['table', 'by table'],
-                                        ['transaction', 'by transaction'],
-                                    ]
-                                "
-                                :key="g[0]"
-                            >
-                                <button
-                                    type="button"
-                                    :class="cls.chip"
-                                    @click="
-                                        groupBy = g[0];
-                                        openTab('queries');
-                                    "
-                                    :aria-pressed="groupBy === g[0]"
-                                    x-text="g[1]"
-                                ></button>
-                            </template>
-                        </div>
+                    <x-monocle::panel name="queries">
+                        <x-monocle::chips
+                            label="Group queries"
+                            options="[['order', 'in order'], ['shape', 'by query'], ['caller', 'by caller'], ['table', 'by table'], ['transaction', 'by transaction']]"
+                            active="groupBy === option[0]"
+                            pick="groupBy = option[0]; openTab('queries')"
+                        />
                         <div :class="cls.tableWrap" x-show="groupBy === 'order' && tabData?.rows?.length">
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>
@@ -847,30 +795,15 @@
                                                 :class="cls.td"
                                                 class="text-muted w-0 font-mono text-xs whitespace-nowrap tabular-nums"
                                             >
-                                                <button
-                                                    type="button"
-                                                    class="inline-flex cursor-pointer items-center gap-1"
-                                                    :aria-expanded="openQueries.includes(q.n)"
-                                                    :aria-label="(openQueries.includes(q.n) ? 'Hide' : 'Show') +
-                                                    ' the details of query ' +
-                                                    q.n"
-                                                    @click.stop="toggleQuery(q.n)"
+                                                <x-monocle::expand-button
+                                                    open="openQueries.includes(q.n)"
+                                                    toggle="toggleQuery(q.n)"
+                                                    label="'the details of query ' + q.n"
+                                                    chevron="size-3"
+                                                    class=""
                                                 >
-                                                    <svg
-                                                        class="text-brass size-3 transition-transform duration-200"
-                                                        :class="openQueries.includes(q.n) && 'rotate-90'"
-                                                        viewBox="0 0 16 16"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        stroke-width="2"
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <path d="M6 3.5 10.5 8 6 12.5" />
-                                                    </svg>
                                                     <span x-text="q.n"></span>
-                                                </button>
+                                                </x-monocle::expand-button>
                                             </td>
                                             <td :class="cls.td">
                                                 <span class="group/copy flex items-start gap-1.5">
@@ -921,9 +854,11 @@
                                         </tr>
                                         <tr x-show="openQueries.includes(q.n)" x-cloak>
                                             <td colspan="4" class="border-line bg-sunk/50 border-b px-3 py-0">
-                                                <div x-show="openQueries.includes(q.n)" x-collapse>
-                                                    <div class="py-3" x-html="queryDetails(q)"></div>
-                                                </div>
+                                                <x-monocle::collapse
+                                                    open="openQueries.includes(q.n)"
+                                                    html="queryDetails(q)"
+                                                    class="py-3"
+                                                />
                                             </td>
                                         </tr>
                                     </tbody>
@@ -957,30 +892,13 @@
                                         <tr class="hover:bg-sunk group/copy cursor-pointer" @click="toggleGroup(q.key)">
                                             <td :class="cls.td">
                                                 <div class="flex items-start gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        class="text-brass mt-0.5 shrink-0 cursor-pointer"
-                                                        :aria-expanded="openGroups.includes(q.key)"
-                                                        :aria-label="(openGroups.includes(q.key) ? 'Hide' : 'Show') +
-                                                        ' the ' +
-                                                        q.count +
-                                                        ' queries in this group'"
-                                                        @click.stop="toggleGroup(q.key)"
-                                                    >
-                                                        <svg
-                                                            class="size-3.5 transition-transform duration-200"
-                                                            :class="openGroups.includes(q.key) && 'rotate-90'"
-                                                            viewBox="0 0 16 16"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            aria-hidden="true"
-                                                        >
-                                                            <path d="M6 3.5 10.5 8 6 12.5" />
-                                                        </svg>
-                                                    </button>
+                                                    <x-monocle::expand-button
+                                                        open="openGroups.includes(q.key)"
+                                                        toggle="toggleGroup(q.key)"
+                                                        label="'the ' + q.count + ' queries in this group'"
+                                                        chevron="size-3.5"
+                                                        class="text-brass mt-0.5 shrink-0"
+                                                    ></x-monocle::expand-button>
                                                     <div class="min-w-0">
                                                         <div
                                                             class="font-mono text-xs font-medium [overflow-wrap:anywhere]"
@@ -1043,32 +961,15 @@
                                                                 class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
                                                                 @click="toggleQuery(n)"
                                                             >
-                                                                <button
-                                                                    type="button"
-                                                                    class="text-muted inline-flex cursor-pointer items-start gap-1 font-mono tabular-nums"
-                                                                    :aria-expanded="openQueries.includes(n)"
-                                                                    :aria-label="(openQueries.includes(n)
-                                                                        ? 'Hide'
-                                                                        : 'Show') +
-                                                                    ' the details of query ' +
-                                                                    n"
-                                                                    @click.stop="toggleQuery(n)"
+                                                                <x-monocle::expand-button
+                                                                    open="openQueries.includes(n)"
+                                                                    toggle="toggleQuery(n)"
+                                                                    label="'the details of query ' + n"
+                                                                    chevron="size-3"
+                                                                    class="text-muted"
                                                                 >
-                                                                    <svg
-                                                                        class="text-brass mt-0.5 size-3 transition-transform duration-200"
-                                                                        :class="openQueries.includes(n) && 'rotate-90'"
-                                                                        viewBox="0 0 16 16"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        stroke-width="2"
-                                                                        stroke-linecap="round"
-                                                                        stroke-linejoin="round"
-                                                                        aria-hidden="true"
-                                                                    >
-                                                                        <path d="M6 3.5 10.5 8 6 12.5" />
-                                                                    </svg>
                                                                     <span x-text="'#' + n"></span>
-                                                                </button>
+                                                                </x-monocle::expand-button>
                                                                 <div class="min-w-0">
                                                                     <span class="flex items-start gap-1.5">
                                                                         <code
@@ -1106,14 +1007,11 @@
                                                                     "
                                                                 ></span>
                                                             </div>
-                                                            <div x-show="openQueries.includes(n)" x-collapse x-cloak>
-                                                                <div
-                                                                    class="pr-3 pb-3 pl-[5rem]"
-                                                                    x-html="
-                                                                        queryRows[n] ? queryDetails(queryRows[n]) : ''
-                                                                    "
-                                                                ></div>
-                                                            </div>
+                                                            <x-monocle::collapse
+                                                                open="openQueries.includes(n)"
+                                                                html="queryDetails(queryRows[n])"
+                                                                class="pr-3 pb-3 pl-[5rem]"
+                                                            />
                                                         </div>
                                                     </template>
                                                 </div>
@@ -1131,15 +1029,9 @@
                             @click="loadMore()"
                             x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"
                         ></button>
-                    </section>
+                    </x-monocle::panel>
 
-                    <section
-                        id="monocle-panel-trace"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="tab === 'trace'"
-                    >
+                    <x-monocle::panel name="trace">
                         <div class="grid gap-1.5">
                             <template x-for="x in tabData?.captures ?? []" :key="x.id">
                                 <div
@@ -1179,58 +1071,29 @@
                                 </div>
                             </template>
                         </div>
-                    </section>
+                    </x-monocle::panel>
 
-                    <section
-                        id="monocle-panel-rows"
-                        role="tabpanel"
-                        :aria-labelledby="'monocle-tab-' + tab"
-                        tabindex="0"
-                        x-show="! ['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)"
+                    <x-monocle::panel
+                        name="rows"
+                        show="! ['overview', 'timeline', 'queries', 'trace', 'request', 'session'].includes(tab)"
                     >
-                        <div
-                            class="text-muted mb-2.5 flex flex-wrap items-center gap-1.5 text-xs"
+                        <x-monocle::chips
+                            label="Group rows"
+                            options="[['order', 'in order'], ...groupings]"
+                            active="rowGroup === option[0]"
+                            pick="setRowGroup(option[0])"
                             x-show="groupings.length"
-                        >
-                            Show
-                            <template x-for="g in [['order', 'in order'], ...groupings]" :key="g[0]">
-                                <button
-                                    type="button"
-                                    :class="cls.chip"
-                                    @click="setRowGroup(g[0])"
-                                    :aria-pressed="rowGroup === g[0]"
-                                    x-text="g[1]"
-                                ></button>
-                            </template>
-                        </div>
-                        <div
-                            class="text-muted mb-2.5 flex flex-wrap items-center gap-1.5 text-xs"
+                        />
+                        <x-monocle::chips
+                            label="Log levels"
+                            options="[['', 'all'], ...levelCounts.map(([level, count]) => [level, level, count])]"
+                            active="option[0] === '' ? ! logLevels.length : logLevels.includes(option[0])"
+                            pick="option[0] === '' ? (logLevels = []) : toggleLevel(option[0])"
                             x-show="tab === 'log' && levelCounts.length > 1"
-                            role="group"
-                            aria-label="Log levels"
                         >
-                            Show
-                            <button
-                                type="button"
-                                :class="cls.chip"
-                                @click="logLevels = []"
-                                :aria-pressed="! logLevels.length"
-                            >
-                                all
-                            </button>
-                            <template x-for="[level, count] in levelCounts" :key="level">
-                                <button
-                                    type="button"
-                                    :class="cls.chip"
-                                    class="gap-1.5"
-                                    @click="toggleLevel(level)"
-                                    :aria-pressed="logLevels.includes(level)"
-                                >
-                                    <span :class="levelClass(level)" x-text="level"></span>
-                                    <span class="tabular-nums opacity-70" x-text="count"></span>
-                                </button>
-                            </template>
-                        </div>
+                            <span :class="levelClass(option[0])" x-text="option[1]"></span>
+                            <span class="tabular-nums opacity-70" x-show="option[2]" x-text="option[2]"></span>
+                        </x-monocle::chips>
                         <div :class="cls.tableWrap" x-show="groups.length">
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>
@@ -1262,30 +1125,13 @@
                                         <tr class="hover:bg-sunk cursor-pointer" @click="toggleGroup(g.key)">
                                             <td :class="cls.td">
                                                 <div class="flex items-start gap-1.5">
-                                                    <button
-                                                        type="button"
-                                                        class="text-brass mt-0.5 shrink-0 cursor-pointer"
-                                                        :aria-expanded="openGroups.includes(g.key)"
-                                                        :aria-label="(openGroups.includes(g.key) ? 'Hide' : 'Show') +
-                                                        ' the ' +
-                                                        g.count +
-                                                        ' calls in this group'"
-                                                        @click.stop="toggleGroup(g.key)"
-                                                    >
-                                                        <svg
-                                                            class="size-3.5 transition-transform duration-200"
-                                                            :class="openGroups.includes(g.key) && 'rotate-90'"
-                                                            viewBox="0 0 16 16"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            aria-hidden="true"
-                                                        >
-                                                            <path d="M6 3.5 10.5 8 6 12.5" />
-                                                        </svg>
-                                                    </button>
+                                                    <x-monocle::expand-button
+                                                        open="openGroups.includes(g.key)"
+                                                        toggle="toggleGroup(g.key)"
+                                                        label="'the ' + g.count + ' rows in this group'"
+                                                        chevron="size-3.5"
+                                                        class="text-brass mt-0.5 shrink-0"
+                                                    ></x-monocle::expand-button>
                                                     <div class="min-w-0">
                                                         <span class="group/copy flex items-start gap-1.5">
                                                             <code
@@ -1330,29 +1176,13 @@
                                                                 class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
                                                                 @click="toggleRow(tab + ':' + i)"
                                                             >
-                                                                <button
-                                                                    type="button"
-                                                                    class="inline-flex cursor-pointer items-start gap-1 font-mono tabular-nums"
-                                                                    :aria-expanded="openRows.includes(tab + ':' + i)"
-                                                                    :aria-label="(openRows.includes(tab + ':' + i)
-                                                                        ? 'Hide'
-                                                                        : 'Show') + ' the details of this row'"
-                                                                    @click.stop="toggleRow(tab + ':' + i)"
+                                                                <x-monocle::expand-button
+                                                                    open="openRows.includes(tab + ':' + i)"
+                                                                    toggle="toggleRow(tab + ':' + i)"
+                                                                    label="'the details of this row'"
+                                                                    chevron="size-3"
+                                                                    class=""
                                                                 >
-                                                                    <svg
-                                                                        class="text-brass size-3 transition-transform duration-200"
-                                                                        :class="openRows.includes(tab + ':' + i) &&
-                                                                        'rotate-90'"
-                                                                        viewBox="0 0 16 16"
-                                                                        fill="none"
-                                                                        stroke="currentColor"
-                                                                        stroke-width="2"
-                                                                        stroke-linecap="round"
-                                                                        stroke-linejoin="round"
-                                                                        aria-hidden="true"
-                                                                    >
-                                                                        <path d="M6 3.5 10.5 8 6 12.5" />
-                                                                    </svg>
                                                                     <span
                                                                         x-html="
                                                                             tab === 'http'
@@ -1360,7 +1190,7 @@
                                                                                 : '#' + (tabData.rows[i].n ?? i + 1)
                                                                         "
                                                                     ></span>
-                                                                </button>
+                                                                </x-monocle::expand-button>
                                                                 <div class="min-w-0">
                                                                     <code
                                                                         class="block font-mono [overflow-wrap:anywhere]"
@@ -1373,20 +1203,11 @@
                                                                     x-html="cell(tabData.rows[i], 'duration')"
                                                                 ></span>
                                                             </div>
-                                                            <div
-                                                                x-show="openRows.includes(tab + ':' + i)"
-                                                                x-collapse
-                                                                x-cloak
-                                                            >
-                                                                <div
-                                                                    class="grid max-w-[1200px] gap-2.5 pr-3 pb-3 pl-[5rem] text-[13px]"
-                                                                    x-html="
-                                                                        openRows.includes(tab + ':' + i)
-                                                                            ? details(tabData.rows[i], tab)
-                                                                            : ''
-                                                                    "
-                                                                ></div>
-                                                            </div>
+                                                            <x-monocle::collapse
+                                                                open="openRows.includes(tab + ':' + i)"
+                                                                html="details(tabData.rows[i], tab)"
+                                                                class="pr-3 pb-3 pl-[5rem]"
+                                                            />
                                                         </div>
                                                     </template>
                                                 </div>
@@ -1435,33 +1256,15 @@
                                                     @click="toggleRow(t.key + ':' + i)"
                                                 >
                                                     <td :class="cls.td" class="w-0 whitespace-nowrap">
-                                                        <button
-                                                            type="button"
-                                                            class="text-muted inline-flex cursor-pointer items-center gap-1 font-mono text-xs tabular-nums"
-                                                            :aria-expanded="openRows.includes(t.key + ':' + i)"
-                                                            :aria-label="(openRows.includes(t.key + ':' + i)
-                                                                ? 'Hide'
-                                                                : 'Show') +
-                                                            ' the details of row ' +
-                                                            (i + 1)"
-                                                            @click.stop="toggleRow(t.key + ':' + i)"
+                                                        <x-monocle::expand-button
+                                                            open="openRows.includes(t.key + ':' + i)"
+                                                            toggle="toggleRow(t.key + ':' + i)"
+                                                            label="'the details of row ' + (i + 1)"
+                                                            chevron="size-3"
+                                                            class="text-muted text-xs"
                                                         >
-                                                            <svg
-                                                                class="text-brass size-3 transition-transform duration-200"
-                                                                :class="openRows.includes(t.key + ':' + i) &&
-                                                                'rotate-90'"
-                                                                viewBox="0 0 16 16"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                stroke-width="2"
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                aria-hidden="true"
-                                                            >
-                                                                <path d="M6 3.5 10.5 8 6 12.5" />
-                                                            </svg>
                                                             <span x-text="row.n ?? i + 1"></span>
-                                                        </button>
+                                                        </x-monocle::expand-button>
                                                     </td>
                                                     <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                         ><td
@@ -1483,16 +1286,11 @@
                                                         :colspan="columnsOf(t.rows, t.key).length + 1"
                                                         class="border-line bg-sunk/50 border-b px-3 py-0"
                                                     >
-                                                        <div x-show="openRows.includes(t.key + ':' + i)" x-collapse>
-                                                            <div
-                                                                class="grid max-w-[1200px] gap-2.5 py-3 pl-5 text-[13px]"
-                                                                x-html="
-                                                                    openRows.includes(t.key + ':' + i)
-                                                                        ? details(row, t.key)
-                                                                        : ''
-                                                                "
-                                                            ></div>
-                                                        </div>
+                                                        <x-monocle::collapse
+                                                            open="openRows.includes(t.key + ':' + i)"
+                                                            html="details(row, t.key)"
+                                                            class="py-3 pl-5"
+                                                        />
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -1510,7 +1308,7 @@
                             @click="loadMore()"
                             x-text="'Show more (' + (tabData?.total - tabData?.rows?.length) + ' left)'"
                         ></button>
-                    </section>
+                    </x-monocle::panel>
                     <p class="text-muted text-xs" x-show="tabLoading">Loading...</p>
                 </div>
             </template>
