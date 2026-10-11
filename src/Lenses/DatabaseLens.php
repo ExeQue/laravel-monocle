@@ -174,7 +174,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
         $this->counter++;
 
         $bindings = $this->bindings ? $event->bindings : [];
-        $hash = md5($sql.'|'.json_encode($event->bindings));
+        $hash = hash('xxh128', $sql.'|'.json_encode($event->bindings));
         $shape = $this->shape($sql);
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
@@ -190,7 +190,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
             'type' => $this->type($sql),
             'tables' => $tables,
             'shape' => $shape,
-            'shape_hash' => substr(md5($shape), 0, 8),
+            'shape_hash' => substr(hash('xxh128', $shape), 0, 8),
             'transaction_id' => $open === [] ? null : end($open)->id,
             'slow' => $duration >= $this->slowMs,
             'duplicate_of' => $this->seen[$hash] ?? null,
@@ -254,7 +254,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
             'type' => 'transaction',
             'tables' => [],
             'shape' => $sql,
-            'shape_hash' => substr(md5($sql), 0, 8),
+            'shape_hash' => substr(hash('xxh128', $sql), 0, 8),
             'transaction_id' => $span->id,
             'slow' => false,
             'duplicate_of' => null,
