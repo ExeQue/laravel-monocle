@@ -7,10 +7,10 @@ namespace ExeQue\Monocle\Support;
 /**
  * Finds the user-land call site that triggered a recorded operation and a
  * short call chain above it. Vendor and Monocle frames are skipped; compiled
- * Blade files are mapped back to their .blade.php source. The library call
- * that did the work on the way there (outside the database, cache and event
- * plumbing) is added as "via"; when no user-land code is involved at all, that
- * library call is reported instead, marked as vendor.
+ * Blade files are mapped back to their .blade.php source. The library method
+ * the user-land code called is added as "via"; when no user-land code is
+ * involved at all, the library call that did the work (outside the database,
+ * cache and event plumbing) is reported instead, marked as vendor.
  */
 final class Origin
 {
@@ -37,6 +37,7 @@ final class Origin
         $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 60);
         $kept = [];
         $library = null;
+        $called = null;
 
         foreach ($trace as $index => $frame) {
             $file = $frame['file'] ?? null;
@@ -52,8 +53,15 @@ final class Origin
             }
 
             if (self::isVendor($file, $basePath, $includeVendor)) {
-                if ($kept === [] && $library === null && ! self::isPlumbing($file)) {
-                    $library = ['file' => self::relative($file, $basePath), 'line' => $frame['line'] ?? null, 'call' => $call, 'frames' => [], 'vendor' => true];
+                if ($kept === []) {
+                    // A macro or magic method says nothing; keep the real method behind it.
+                    if ($called === null || ! self::isMagic($call)) {
+                        $called = ['file' => self::relative($file, $basePath), 'line' => $frame['line'] ?? null, 'call' => $call];
+                    }
+
+                    if ($library === null && ! self::isPlumbing($file)) {
+                        $library = [...$called, 'frames' => [], 'vendor' => true];
+                    }
                 }
 
                 continue;
@@ -95,8 +103,8 @@ final class Origin
             'frames' => $kept,
         ];
 
-        if ($library !== null) {
-            $origin['via'] = ['file' => $library['file'], 'line' => $library['line'], 'call' => $library['call']];
+        if ($called !== null) {
+            $origin['via'] = $called;
         }
 
         return $origin;
@@ -140,6 +148,11 @@ final class Origin
         }
 
         return true;
+    }
+
+    private static function isMagic(?string $call): bool
+    {
+        return $call === null || preg_match('/(?:->|::)(?:__call|__callStatic|__invoke)$|\{closure/', $call) === 1;
     }
 
     private static function isPlumbing(string $file): bool

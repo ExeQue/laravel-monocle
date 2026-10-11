@@ -59,6 +59,30 @@ describe(Origin::class, function (): void {
             ->and($origin)->not->toHaveKey('vendor');
     });
 
+    it('names the library method the user-land code called as via, not the one deeper in the library', function (): void {
+        $origin = Origin::capture('/app', 3, [], [
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/View/View.php', 'line' => 200, 'class' => 'Illuminate\\Cache\\Repository', 'type' => '->', 'function' => 'get'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/View/View.php', 'line' => 150, 'class' => 'Illuminate\\View\\View', 'type' => '->', 'function' => 'getContents'],
+            ['file' => '/app/app/Http/Controllers/PageController.php', 'line' => 12, 'class' => 'Illuminate\\View\\View', 'type' => '->', 'function' => 'render'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/Routing/Controller.php', 'line' => 9, 'class' => 'App\\Http\\Controllers\\PageController', 'type' => '->', 'function' => 'show'],
+        ]);
+
+        expect($origin['file'])->toBe('app/Http/Controllers/PageController.php')
+            ->and($origin['via']['call'])->toBe('Illuminate\\View\\View->render');
+    });
+
+    it('looks past macros and magic methods to the method that does the work', function (): void {
+        $origin = Origin::capture('/app', 3, [], [
+            ['file' => '/app/vendor/gehrisandro/tailwind-merge-php/src/TailwindMerge.php', 'line' => 81, 'class' => 'Illuminate\\Cache\\Repository', 'type' => '->', 'function' => 'remember'],
+            ['file' => '/app/vendor/gehrisandro/tailwind-merge-laravel/src/Provider.php', 'line' => 30, 'class' => 'TailwindMerge\\TailwindMerge', 'type' => '->', 'function' => 'merge'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/Macroable/Traits/Macroable.php', 'line' => 120, 'class' => 'Illuminate\\View\\ComponentAttributeBag', 'type' => '->', 'function' => 'TailwindMerge\\{closure}'],
+            ['file' => '/app/resources/views/button.blade.php', 'line' => 3, 'class' => 'Illuminate\\View\\ComponentAttributeBag', 'type' => '->', 'function' => '__call'],
+            ['file' => '/app/vendor/laravel/framework/src/Illuminate/View/Engines/PhpEngine.php', 'line' => 9, 'class' => 'X', 'type' => '->', 'function' => 'y'],
+        ]);
+
+        expect($origin['via']['call'])->toBe('TailwindMerge\\TailwindMerge->merge');
+    });
+
     it('skips Monocle\'s own source wherever the package is installed', function (): void {
         $own = dirname(__DIR__, 3).'/src/Lenses/Middleware/TimedMiddleware.php';
 
