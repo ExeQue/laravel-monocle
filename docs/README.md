@@ -25,9 +25,9 @@
 | Stopping a span somewhere else | [Spans and metadata](spans.md#stopping-a-span-somewhere-else) |
 | Turning lenses on, off or adding your own | [Configuration](configuration.md#lenses) |
 | Masking secrets | [Configuration](configuration.md#masking) |
-| Recording `Storage` disks | [What gets recorded](lenses.md#filesystem) |
-| Request phases | [What gets recorded](lenses.md#request) |
-| N+1 and slow query warnings | [What gets recorded](lenses.md#database) |
+| Recording `Storage` disks | [Filesystem](lenses/filesystem.md) |
+| Request phases | [Request](lenses/request.md) |
+| N+1 and slow query warnings | [Database](lenses/database.md) |
 
 ## Contributing
 
