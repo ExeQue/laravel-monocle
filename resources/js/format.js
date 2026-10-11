@@ -2,6 +2,7 @@ export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&a
 
 export const ms = (n) => {
   const v = Number(n ?? 0);
+  if (v > 0 && v < 0.05) return '<0.1 ms';
   return v >= 1000 ? (v / 1000).toFixed(2) + ' s' : v.toFixed(1) + ' ms';
 };
 
