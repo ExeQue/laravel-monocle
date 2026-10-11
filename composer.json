@@ -28,6 +28,7 @@
     "require-dev": {
         "brianium/paratest": "7.26.0",
         "inertiajs/inertia-laravel": "^3.5",
+        "lab404/laravel-impersonate": "^1.7",
         "laravel/ai": "^1.0",
         "laravel/folio": "^1.2",
         "laravel/fortify": "^1.41",

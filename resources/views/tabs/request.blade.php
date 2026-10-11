@@ -17,7 +17,9 @@
             return {
                 user: row.user ?? row.owner,
                 link: row._links?.user ?? row._links?.owner,
-                via: row.event === 'token' ? `Sanctum token ${row.token_name ?? row.token_id}` : `${row.guard} guard`,
+                via:
+                    (row.event === 'token' ? `Sanctum token ${row.token_name ?? row.token_id}` : `${row.guard} guard`) +
+                    (row.impersonated_by ? `, impersonated by ${row.impersonated_by}` : ''),
             }
         },
         {{-- Auth events worth listing next to the request: attempts, failures, logins, lockouts. --}}

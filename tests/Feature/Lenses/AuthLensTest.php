@@ -17,6 +17,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Lab404\Impersonate\Events\LeaveImpersonation;
+use Lab404\Impersonate\Events\TakeImpersonation;
 use Tests\Fixtures\Models\User;
 
 covers(AuthLens::class);
@@ -112,6 +114,37 @@ describe(AuthLens::class, function (): void {
             ->and(collect($failed->rows('auth'))->pluck('event'))->toContain('2fa_failed')
             ->and(app(AuthLens::class)->summarize($failed)->totals['auth_2fa_failed'])->toBe(1)
             ->and($passed)->toContain('2fa_passed', 'login');
+    });
+
+    it('records impersonation with lab404/laravel-impersonate', function (): void {
+        $admin = new GenericUser(['id' => 1, 'password' => 'x']);
+
+        event(new TakeImpersonation($admin, $this->user));
+        event(new LeaveImpersonation($admin, $this->user));
+
+        $rows = app(Eyepiece::class)->finalize()->rows('auth');
+
+        expect($rows[0])->toMatchArray(['event' => 'impersonation_started', 'user' => GenericUser::class.'#5', 'impersonated_by' => GenericUser::class.'#1'])
+            ->and($rows[1])->toMatchArray(['event' => 'impersonation_ended', 'user' => GenericUser::class.'#5', 'impersonated_by' => GenericUser::class.'#1']);
+    });
+
+    it('marks the authenticated user as impersonated while an impersonation lasts', function (): void {
+        config(['laravel-impersonate.session_key' => 'impersonated_by', 'laravel-impersonate.session_guard' => 'impersonator_guard']);
+        session()->put('impersonated_by', 1);
+        session()->put('impersonator_guard', 'web');
+
+        event(new Authenticated('web', $this->user));
+
+        $capture = app(Eyepiece::class)->finalize();
+
+        expect($capture->rows('auth')[0]['impersonated_by'])->toBe('#1 (web guard)')
+            ->and(app(AuthLens::class)->summarize($capture)->totals)->toMatchArray(['auth_user' => GenericUser::class.'#5', 'auth_impersonated_by' => '#1 (web guard)']);
+    });
+
+    it('leaves the impersonator out when nobody is impersonating', function (): void {
+        event(new Authenticated('web', $this->user));
+
+        expect(app(Eyepiece::class)->finalize()->rows('auth')[0])->not->toHaveKey('impersonated_by');
     });
 
     it('warns about lockouts', function (): void {
