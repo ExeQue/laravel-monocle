@@ -61,8 +61,11 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
             // A query slow enough to be flagged.
             DB::selectOne('WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 1000000) SELECT count(*) AS total FROM n');
 
+            // A cache store that answers slowly.
+            Cache::store('slow')->remember('demo:exchange-rates', 60, fn (): array => ['EUR' => 7.46, 'USD' => 6.89]);
+
             // The same cache key read over and over.
-            foreach (range(1, 60) as $ignored) {
+            foreach (range(1, 8) as $ignored) {
                 Cache::get('demo:author');
             }
         });

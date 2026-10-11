@@ -84,4 +84,19 @@ describe(CacheLens::class, function (): void {
 
         expect($lens->summarize($capture)->warnings)->toBe([]);
     });
+
+    it('warns about cache calls slower than slow_ms', function (): void {
+        $capture = app(Eyepiece::class)->finalize();
+        $capture->sections['cache'] = [
+            ['n' => 1, 'type' => 'hit', 'key' => 'rates', 'store' => 'redis', 'duration' => 34.2],
+            ['n' => 2, 'type' => 'write', 'key' => 'quick', 'store' => 'redis', 'duration' => 0.4],
+        ];
+        $lens = app(CacheLens::class);
+
+        expect($lens->summarize($capture)->warnings)->toBe(['Slow cache hit (34.2 ms): rates on redis']);
+
+        $lens->configure(['slow_ms' => 50]);
+
+        expect($lens->summarize($capture)->warnings)->toBe([]);
+    });
 });

@@ -7,6 +7,7 @@ namespace Workbench\App\Providers;
 use ExeQue\Monocle\Lenses\FilesystemLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Support\Masks\FullMask;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -14,6 +15,7 @@ use Inertia\Inertia;
 use Laravel\Folio\Folio;
 use Laravel\Pennant\Feature;
 use Livewire\Livewire;
+use Workbench\App\Cache\SlowStore;
 use Workbench\App\Console\Commands\GreetCommand;
 use Workbench\App\Events\PostPublished;
 use Workbench\App\Listeners\NotifyFollowers;
@@ -36,6 +38,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
         config([
             'database.default' => 'sqlite',
             'database.connections.sqlite.database' => $database,
+            // A cache store that takes 30 ms per call, for slow cache warnings.
+            'cache.stores.slow' => ['driver' => 'slow'],
             'filesystems.disks.demo' => ['driver' => 'local', 'root' => $storage.'/demo'],
             'filesystems.disks.media' => ['driver' => 'local', 'root' => $storage.'/media'],
             'media-library.disk_name' => 'media',
@@ -54,6 +58,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->commands([GreetCommand::class]);
+
+        Cache::extend('slow', fn (): \Illuminate\Contracts\Cache\Repository => Cache::repository(new SlowStore(), ['store' => 'slow']));
 
         Event::listen(PostPublished::class, NotifyFollowers::class);
 

@@ -39,7 +39,9 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
     private int $repeatThreshold = 5;
 
-    private float $repeatMs = 5.0;
+    private float $repeatMs = 0.0;
+
+    private float $slowMs = 20.0;
 
     private int $counter = 0;
 
@@ -61,12 +63,12 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
     public function description(): string
     {
-        return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, *_failed), key, store, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true.';
+        return 'Cache operations in order: n (row number), type (hit, miss, write, forget, flush, *_failed), store, key, tags, ttl, value_size_bytes, duration when the store emits start events, and repeat_of (row number of the first read of the same key) on repeated reads. Values themselves only when the lens option values=true.';
     }
 
     public function advice(): string
     {
-        return 'Look here when data is stale or a page is slower than expected: misses, repeated reads of the same key and what was written.';
+        return 'Look here when data is stale or a page is slower than expected: misses, slow calls, repeated reads of the same key and what was written.';
     }
 
     public function configure(array $options): void
@@ -74,6 +76,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $this->values = (bool) ($options['values'] ?? $this->values);
         $this->repeatThreshold = (int) ($options['repeat_threshold'] ?? $this->repeatThreshold);
         $this->repeatMs = (float) ($options['repeat_ms'] ?? $this->repeatMs);
+        $this->slowMs = (float) ($options['slow_ms'] ?? $this->slowMs);
     }
 
     public function boot(): void
@@ -92,7 +95,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $this->eyepiece->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
         $this->eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
             if ($this->eyepiece->recording()) {
-                $this->eyepiece->push('cache', ['type' => 'flush', 'key' => null, 'store' => $event->storeName, 'duration' => null]);
+                $this->eyepiece->push('cache', ['type' => 'flush', 'store' => $event->storeName, 'key' => null, 'duration' => null]);
             }
         });
     }
@@ -126,6 +129,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
         return Summary::make()
             ->total('cache_ms', round($ms, 3), 'spent', Unit::Milliseconds)
+            ->warnings($this->slowWarnings($rows))
             ->warnings($this->repeatWarnings($rows))
             ->totals([
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
@@ -136,6 +140,32 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             ->total('cache_forgets', $counts['forget'], 'forgets')
             ->when($reads > 0)
             ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent);
+    }
+
+    /**
+     * Cache calls slow enough to point at the store: a distant or busy server,
+     * a large value or a lock that waited.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<string>
+     */
+    private function slowWarnings(array $rows): array
+    {
+        $warnings = [];
+
+        foreach ($rows as $row) {
+            $duration = (float) ($row['duration'] ?? 0);
+
+            if ($duration < $this->slowMs) {
+                continue;
+            }
+
+            $origin = Origin::describe(is_array($row['origin'] ?? null) ? $row['origin'] : null);
+            $where = $origin === null ? '' : ' from '.$origin;
+            $warnings[] = sprintf('Slow cache %s (%.1f ms): %s on %s%s', $row['type'] ?? 'call', $duration, $row['key'] ?? '?', $row['store'] ?? 'the default store', $where);
+        }
+
+        return $warnings;
     }
 
     /**
@@ -190,8 +220,8 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $row = [
             'n' => ++$this->counter,
             'type' => $type,
-            'key' => $event->key,
             'store' => $event->storeName,
+            'key' => $event->key,
             'tags' => $event->tags,
             'duration' => $startedAt === null ? null : round($this->eyepiece->now() - $startedAt, 3),
             'ttl' => $extra['ttl'] ?? null,

@@ -108,8 +108,9 @@ return [
         EloquentLens::class => true,
         CacheLens::class => [
             'values' => false,
+            'slow_ms' => 20,
             'repeat_threshold' => 5,
-            'repeat_ms' => 5,
+            'repeat_ms' => 0,
         ],
         RedisLens::class => true,
         ViewsLens::class => [

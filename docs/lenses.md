@@ -157,7 +157,7 @@ Sections `models` and `model_changes`: how many models of each class were retrie
 
 Section `cache`: hits, misses, writes and forgets with key, store, tags, TTL, size and duration. A key read again in the same capture points at its first read (`repeat_of`). The summary shows the hit rate and the most used keys, and warns when one key is read often - remember such a value for the request with `Cache::memo()` or `once()`.
 
-Options: `repeat_threshold` (default 5) and `repeat_ms` (default 5) - a key read at least this often, taking at least this long in all, gives a warning.
+Options: `slow_ms` (default 20) - a cache call taking at least this long gives a warning; `repeat_threshold` (default 5) and `repeat_ms` (default 0) - a key read at least this often, taking at least this long in all, gives a warning suggesting `Cache::memo()` or `once()`.
 
 Option: `values` (false) - also record the cached values.
 
