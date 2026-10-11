@@ -445,7 +445,9 @@ final class Eyepiece
                 'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
                 'failures' => $this->failures,
             ];
-            $capture->health['warnings'] = count($this->app->make(SummaryBuilder::class)->build($capture, children: false)['warnings']);
+            $summary = $this->app->make(SummaryBuilder::class)->build($capture, children: false);
+            $capture->health['warnings'] = count($summary['warnings']);
+            $capture->health['errors'] = count($summary['errors']);
 
             $this->stores->store()->put($capture);
 

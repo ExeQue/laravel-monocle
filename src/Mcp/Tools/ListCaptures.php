@@ -37,7 +37,7 @@ final class ListCaptures extends Tool
             'min_duration_ms' => $schema->number()->description('Only captures at least this slow.'),
             'since' => $schema->string()->description('Only captures started after this: unix timestamp, ISO date or relative like "15m", "2h".'),
             'label' => $schema->string()->description('Only captures carrying this label (set via the X-Monocle-Label request header or Monocle::label()).'),
-            'has_errors' => $schema->boolean()->description('Only captures with 5xx status, failures or recorded exceptions.'),
+            'has_errors' => $schema->boolean()->description('Only captures with errors: a 5xx status, a failed job or command, exceptions, or errors a lens reported (failed HTTP calls, error logs, ...).'),
             'has' => $schema->array()->items($schema->string())->description('Only captures where these sections (lenses) recorded at least one row, e.g. ["queries"] or ["exceptions"].'),
             'exclude' => $schema->array()->items($schema->string())->description('Leave out captures whose name contains any of these or whose route name is one of them, e.g. ["/broadcasting/auth"] or ["livewire.update"].'),
             ...$this->paginationSchema($schema, 20),

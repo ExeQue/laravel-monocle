@@ -116,6 +116,11 @@ describe(Viewfinder::class, function (): void {
         expect(Index::summarize($withException)['has_errors'])->toBeTrue()
             ->and(Index::summarize(new Capture('f3', CaptureType::Request, microtime(true)))['has_errors'])->toBeFalse();
 
+        $lensError = new Capture('f4', CaptureType::Request, microtime(true));
+        $lensError->health['errors'] = 2;
+
+        expect(Index::summarize($lensError))->toMatchArray(['has_errors' => true, 'errors' => 2]);
+
         app(StoreManager::class)->store()->put($failed);
 
         expect(app(CaptureReader::class)->children(latestCapture()->parentId ?? $failed->parentId))->toHaveCount(1)

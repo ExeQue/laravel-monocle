@@ -131,7 +131,9 @@
                                 x-text="c.warnings + (c.warnings === 1 ? ' warning' : ' warnings')"
                             ></span>
                             <span x-show="c.has_errors" class="text-bad"
-                                ><i class="bg-bad inline-block size-[7px] rounded-full"></i> error</span>
+                                ><i class="bg-bad inline-block size-[7px] rounded-full"></i>
+                                <span x-text="c.errors > 1 ? c.errors + ' errors' : 'error'"></span
+                            ></span>
                             <span
                                 x-show="c.label"
                                 class="border-brass text-brass rounded-full border border-dashed px-2"

@@ -40,6 +40,7 @@ final class Index
             'counts' => $counts,
             'has_errors' => self::hasErrors($capture),
             'warnings' => (int) ($capture->health['warnings'] ?? 0),
+            'errors' => (int) ($capture->health['errors'] ?? 0),
         ];
     }
 
@@ -50,6 +51,10 @@ final class Index
         }
 
         if (in_array($capture->status, ['failed', 'error'], true)) {
+            return true;
+        }
+
+        if ((int) ($capture->health['errors'] ?? 0) > 0) {
             return true;
         }
 
