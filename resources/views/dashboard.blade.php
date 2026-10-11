@@ -918,21 +918,46 @@
                                     <tr>
                                         <th scope="col" :class="cls.th" class="text-right">#</th>
                                         <th scope="col" :class="cls.th">Query</th>
+                                        <th scope="col" :class="cls.th">Connection</th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Duration</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <template x-for="q in tabData?.rows ?? []" :key="q.n">
+                                <template x-for="q in tabData?.rows ?? []" :key="q.n">
+                                    <tbody>
                                         <tr
                                             class="hover:bg-sunk cursor-pointer"
                                             :class="q.duplicate_of ? 'bg-warn-soft/60' : ''"
-                                            @click="rowPopover($event, q, 'queries')"
+                                            @click="toggleQuery(q.n)"
                                         >
                                             <td
                                                 :class="cls.td"
                                                 class="text-muted text-right font-mono text-xs tabular-nums"
-                                                x-text="q.n"
-                                            ></td>
+                                            >
+                                                <button
+                                                    type="button"
+                                                    class="inline-flex cursor-pointer items-center gap-1"
+                                                    :aria-expanded="openQueries.includes(q.n)"
+                                                    :aria-label="(openQueries.includes(q.n) ? 'Hide' : 'Show') +
+                                                    ' the details of query ' +
+                                                    q.n"
+                                                    @click.stop="toggleQuery(q.n)"
+                                                >
+                                                    <svg
+                                                        class="text-brass size-3 transition-transform duration-200"
+                                                        :class="openQueries.includes(q.n) && 'rotate-90'"
+                                                        viewBox="0 0 16 16"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        stroke-width="2"
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path d="M6 3.5 10.5 8 6 12.5" />
+                                                    </svg>
+                                                    <span x-text="q.n"></span>
+                                                </button>
+                                            </td>
                                             <td :class="cls.td">
                                                 <code
                                                     class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
@@ -958,6 +983,11 @@
                                             </td>
                                             <td
                                                 :class="cls.td"
+                                                class="text-muted font-mono text-xs whitespace-nowrap"
+                                                x-text="q.connection ?? ''"
+                                            ></td>
+                                            <td
+                                                :class="cls.td"
                                                 class="text-right tabular-nums"
                                                 x-html="
                                                     q.duration == null
@@ -966,8 +996,15 @@
                                                 "
                                             ></td>
                                         </tr>
-                                    </template>
-                                </tbody>
+                                        <tr x-show="openQueries.includes(q.n)" x-cloak>
+                                            <td colspan="4" class="border-line bg-sunk/50 border-b px-3 py-0">
+                                                <div x-show="openQueries.includes(q.n)" x-collapse>
+                                                    <div class="py-3" x-html="queryDetails(q)"></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </template>
                             </table>
                         </div>
                         <div :class="cls.tableWrap" x-show="groupBy !== 'order' && tabData?.rows?.length">
@@ -1034,7 +1071,7 @@
                                                             :class="(groupBy === 'table' ||
                                                                 groupBy === 'transaction') &&
                                                             'mt-0.5 text-muted'"
-                                                            x-text="q.example ?? q.key"
+                                                            x-text="groupBy === 'shape' ? q.key : (q.example ?? q.key)"
                                                         ></code>
                                                         <span x-html="originHtml(q.origin)"></span>
                                                     </div>
@@ -1079,6 +1116,10 @@
                                                                     "
                                                                 ></code>
                                                                 <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
+                                                                <span
+                                                                    class="text-muted font-mono text-[11px]"
+                                                                    x-text="queryRows[n]?.connection ?? ''"
+                                                                ></span>
                                                             </div>
                                                             <span
                                                                 class="text-right whitespace-nowrap tabular-nums"

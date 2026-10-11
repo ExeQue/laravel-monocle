@@ -70,6 +70,7 @@ Alpine.data('monocle', (config) => ({
   tab: 'overview',
   authRows: [],
   openGroups: [],
+  openQueries: [],
   queryRows: {},
   tabData: null,
   tabLoading: false,
@@ -173,6 +174,7 @@ Alpine.data('monocle', (config) => ({
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
       this.openGroups = [];
+      this.openQueries = [];
       this.queryRows = tab === 'queries' && this.groupBy !== 'order'
         ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
         : {};
@@ -456,6 +458,35 @@ Alpine.data('monocle', (config) => ({
   /** Values long enough to need breaking anywhere, like keys, SQL and paths. */
   longValue(value) {
     return typeof value === 'string' ? value.length > 24 : value !== null && typeof value === 'object';
+  },
+
+  toggleQuery(n) {
+    this.openQueries = this.openQueries.includes(n) ? this.openQueries.filter((k) => k !== n) : [...this.openQueries, n];
+  },
+
+  /** Everything recorded about one query: its bindings, where it ran and how it was called. */
+  queryDetails(q) {
+    const label = 'text-[11px] uppercase tracking-wider text-muted';
+    const facts = [
+      ['Connection', q.connection],
+      ['Driver', q.driver],
+      ['Type', q.type],
+      ['Tables', (q.tables ?? []).join(', ')],
+      ['Transaction', q.transaction_id],
+      ['Started at', q.time != null ? ms(q.time) : null],
+      ['Duration', q.duration != null ? ms(q.duration) : null],
+    ].filter(([, v]) => v !== null && v !== undefined && v !== '');
+    const bindings = q.bindings ?? [];
+    const frames = q.origin?.frames ?? [];
+
+    return `<div class="grid gap-3 text-xs">
+      <div class="grid gap-1"><div class="${label}">Bindings</div>${bindings.length
+        ? `<table class="w-auto border-collapse"><tbody>${bindings.map((b, i) => `<tr><td class="pr-3 font-mono text-muted tabular-nums">?${i + 1}</td><td class="font-mono [overflow-wrap:anywhere]">${b === null ? '<span class="text-muted">null</span>' : esc(fmtValue(b))}</td></tr>`).join('')}</tbody></table>`
+        : '<span class="text-muted">none</span>'}</div>
+      <dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1">${facts.map(([k, v]) => `<dt class="text-muted">${k}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${esc(String(v))}</dd>`).join('')}</dl>
+      <div class="grid gap-1"><div class="${label}">Query with placeholders</div><code class="block font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">${esc(q.sql ?? '')}</code></div>
+      ${frames.length ? `<div class="grid gap-1"><div class="${label}">Call chain</div><ol class="m-0 grid list-decimal gap-0.5 pl-5">${frames.map((f) => `<li class="font-mono">${maybeLink((f.file ?? '') + (f.line ? ':' + f.line : ''), f.link)} ${maybeLink(f.call ?? '', f.call_link)}</li>`).join('')}</ol></div>` : ''}
+    </div>`;
   },
 
   toggleGroup(key) {
