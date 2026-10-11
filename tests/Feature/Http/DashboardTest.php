@@ -58,6 +58,10 @@ describe('dashboard', function (): void {
             $this->get('/_monocle/assets/secret.php')->assertNotFound();
         });
 
+        it('shows paths relative to the project root, not to the deeper Testbench base path', function (): void {
+            $this->get('/_monocle')->assertViewHas('paths', ['base' => dirname(__DIR__, 3)]);
+        });
+
         it('lives under the configured path', function (): void {
             TestCase::$bootConfig = ['monocle.dashboard.path' => 'tools/profiler'];
             $this->refreshApplication();

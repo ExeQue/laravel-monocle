@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Http\Controllers;
 
+use Composer\InstalledVersions;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\View\View;
@@ -23,7 +24,8 @@ final class DashboardController
         return view('monocle::dashboard', [
             'tabs' => $tabs,
             'api' => route('monocle.api.captures'),
-            'paths' => ['base' => base_path()],
+            // The project's root, which holds the application even when base_path() lives deeper (Testbench).
+            'paths' => ['base' => realpath(InstalledVersions::getRootPackage()['install_path']) ?: base_path()],
             'assets' => [
                 'css' => $this->assetUrl('monocle.css'),
                 'js' => $this->assetUrl('monocle.js'),
