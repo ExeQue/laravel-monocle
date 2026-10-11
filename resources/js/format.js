@@ -19,18 +19,23 @@ const ACRONYMS = new Set(['id', 'ttl', 'url', 'uri', 'ip', 'sql', 'html', 'json'
 
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
-const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"><span aria-hidden="true">${short}</span><span class="sr-only">${full}</span></span>`;
+const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"><span aria-hidden="true">${short}</span><span class="sr-only select-none">${full}</span></span>`;
 
 /**
  * Escaped text with every namespaced class name shortened to its basename,
  * every path to a class file (app/Models/User.php:12) to the class and line
- * (User:12) and view paths to the part after resources/views; the full name
- * shows in a tooltip.
+ * (User:12), view paths to the part after resources/views and compiled views
+ * to a short hash; the full name shows in a tooltip.
  */
 export const classes = (text) => esc(text)
+  .replace(/(?<![\w/])storage\/framework\/views\/([0-9a-f]{8})[0-9a-f]*\.(?:blade\.)?php/g, (full, hash) => shortened(full, `compiled/${hash}`))
   .replace(/(?<![\w/])resources\/views\/([\w./-]+)/g, (full, rest) => shortened(full, rest))
   .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => shortened(full, base + line))
-  .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)/g, (full, base) => shortened(full.replace(/^\\/, ''), base));
+  .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)(?:(-&gt;|::)(?!class\b)(\w+)(?![\w(]))?/g, (full, base, arrow, method) => {
+    const name = shortened(full.replace(/^\\/, '').replace(/(-&gt;|::)\w+$/, ''), base);
+
+    return arrow ? `${name}${arrow}${method}()` : name;
+  });
 
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link
