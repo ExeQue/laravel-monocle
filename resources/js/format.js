@@ -68,7 +68,7 @@ const classFile = (tail) => {
 
 /** A link when the editor gave us one, otherwise plain text. */
 export const maybeLink = (text, link, extra = '') => (link
-  ? `<a class="underline decoration-brass underline-offset-2 hover:text-brass ${extra}" href="${esc(link)}">${classes(text)}</a>`
+  ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(link)}">${classes(text)}</a>`
   : `<span class="${extra}">${classes(text)}</span>`);
 
 export const fmtValue = (v) => {
@@ -139,7 +139,7 @@ export const exceptionHtml = (e, { limit = null, full = false } = {}) => {
   return full ? chainBlocks(chain) : previousHtml(chain, limit, 0);
 };
 
-const chainBlocks = (chain) => `<div class="grid gap-2">${chain.map((x, i) => `<div class="group/copy grid gap-0.5 ${i ? 'border-l-2 border-line pl-3' : ''}" style="margin-left:${Math.min(i, 4) * 12}px"><span class="flex items-start gap-1.5">${x.link ? `<a class="font-mono underline decoration-brass underline-offset-2 hover:text-brass ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]" href="${esc(x.link)}">${esc(x.class)}</a>` : `<span class="font-mono ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]">${esc(x.class)}</span>`}${copyButton(`${x.class}: ${x.message ?? ''}`, i ? `wrapped exception ${i}` : 'exception', { hover: true })}</span><span class="[overflow-wrap:anywhere]">${esc(String(x.message ?? ''))}</span>${x.file ? `<span class="font-mono text-[11px] text-muted">${maybeLink(x.file, x.file_link)}</span>` : ''}</div>`).join('')}</div>`;
+const chainBlocks = (chain) => `<div class="grid gap-2">${chain.map((x, i) => `<div class="group/copy grid gap-0.5 ${i ? 'border-l-2 border-line pl-3' : ''}" style="margin-left:${Math.min(i, 4) * 12}px"><span class="flex items-start gap-1.5">${x.link ? `<a class="font-mono decoration-brass underline-offset-2 hover:text-brass hover:underline ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]" href="${esc(x.link)}">${esc(x.class)}</a>` : `<span class="font-mono ${i ? 'text-muted' : 'text-bad'} [overflow-wrap:anywhere]">${esc(x.class)}</span>`}${copyButton(`${x.class}: ${x.message ?? ''}`, i ? `wrapped exception ${i}` : 'exception', { hover: true })}</span><span class="[overflow-wrap:anywhere]">${esc(String(x.message ?? ''))}</span>${x.file ? `<span class="font-mono text-[11px] text-muted">${maybeLink(x.file, x.file_link)}</span>` : ''}</div>`).join('')}</div>`;
 
 /** Throwables as compact lines; from `nested` on they are indented under the first. */
 export const previousHtml = (chain, limit = null, nested = 1) => {
