@@ -92,6 +92,7 @@ export function cell(row, key, presentation = null) {
   if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'rule' in c)) {
     return v.map((c) => `<div><span class="font-mono">${esc(c.field)}</span> <span class="text-warn">${esc(c.rule)}${c.parameters?.length ? esc('(' + c.parameters.join(', ') + ')') : ''}</span>${c.message ? ` <span class="text-muted">${esc(c.message)}</span>` : ''}</div>`).join('');
   }
+  if (typeof v === 'boolean') return v ? 'yes' : '<span class="text-muted">no</span>';
   const text = fmtValue(v);
   const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
   const html = row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);
