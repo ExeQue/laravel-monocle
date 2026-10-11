@@ -17,7 +17,7 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 /** @internal */
 #[IsReadOnly]
 #[Name('monocle-trace')]
-#[Description('Show every capture in the same trace as the given one: the request/command that started it and all jobs it dispatched, with parent links, depth and start offsets.')]
+#[Description('Show every capture in the same trace as the given one: the request/command that started it and all jobs it dispatched, with parent links, depth and start offsets. pending lists queued jobs no worker has run yet ({parent_id, job, job_id}).')]
 final class ShowTrace extends Tool
 {
     use RespondsWithJson;

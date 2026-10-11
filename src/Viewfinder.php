@@ -125,11 +125,48 @@ final class Viewfinder
             return $this->notFound($args);
         }
 
+        $captures = $this->captures->trace($capture->traceId ?? $capture->id);
+
         return [
             'id' => $capture->id,
             'trace_id' => $capture->traceId,
-            'captures' => $this->captures->trace($capture->traceId ?? $capture->id),
+            'captures' => $captures,
+            'pending' => $this->pendingJobs($captures),
         ];
+    }
+
+    /**
+     * Queued jobs a capture in the trace dispatched that no worker has run yet.
+     *
+     * @param  list<array<string, mixed>>  $captures
+     * @return list<array{parent_id: string, job: string, job_id: string}>
+     */
+    private function pendingJobs(array $captures): array
+    {
+        $ran = array_filter(array_column($captures, 'job_id'));
+        $pending = [];
+
+        foreach ($captures as $capture) {
+            if ((int) ($capture['counts']['jobs'] ?? 0) === 0) {
+                continue;
+            }
+
+            foreach ($this->rows(['id' => $capture['id'], 'section' => 'jobs', 'limit' => RowQuery::MAX_LIMIT])['rows'] ?? [] as $row) {
+                $run = $row['run'] ?? null;
+
+                if ($run === null) {
+                    continue;
+                }
+
+                if (in_array($run, $ran, true)) {
+                    continue;
+                }
+
+                $pending[] = ['parent_id' => (string) $capture['id'], 'job' => (string) ($row['job'] ?? '?'), 'job_id' => (string) $run];
+            }
+        }
+
+        return $pending;
     }
 
     /**

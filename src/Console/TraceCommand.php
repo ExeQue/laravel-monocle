@@ -6,7 +6,6 @@ namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
 use ExeQue\Monocle\Console\Concerns\RendersForHumans;
-use ExeQue\Monocle\Reader\RowQuery;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 
@@ -29,7 +28,7 @@ final class TraceCommand extends Command
     {
         return $this->respond(
             $viewfinder->trace(['id' => $this->argument('id')]),
-            fn (array $data) => $this->render($data, $viewfinder),
+            $this->render(...),
         );
     }
 
@@ -51,7 +50,7 @@ final class TraceCommand extends Command
      *
      * @param  array{id: string, trace_id: string|null, captures: list<array<string, mixed>>}  $data
      */
-    private function render(array $data, Viewfinder $viewfinder): void
+    private function render(array $data): void
     {
         $captures = $data['captures'];
         $ids = array_column($captures, 'id');
@@ -78,9 +77,9 @@ final class TraceCommand extends Command
 
         $pending = 0;
 
-        foreach ($this->pendingJobs($captures, $viewfinder) as $parent => $jobs) {
-            $children[$parent] = [...($children[$parent] ?? []), ...$jobs];
-            $pending += count($jobs);
+        foreach ($data['pending'] ?? [] as $job) {
+            $children[$job['parent_id']][] = ['pending' => true, 'type' => 'job', 'name' => $job['job'], 'id' => $job['job_id']];
+            $pending++;
         }
 
         foreach ($roots as $index => $root) {
@@ -91,42 +90,6 @@ final class TraceCommand extends Command
         $this->summary($captures, $pending);
     }
 
-    /**
-     * Queued jobs the trace dispatched that have no capture of their own yet,
-     * keyed by the id of the capture that dispatched them.
-     *
-     * @param  list<array<string, mixed>>  $captures
-     * @return array<string, list<array{pending: true, type: string, name: string, id: string}>>
-     */
-    private function pendingJobs(array $captures, Viewfinder $viewfinder): array
-    {
-        $ran = array_filter(array_column($captures, 'job_id'));
-        $pending = [];
-
-        foreach ($captures as $capture) {
-            if ((int) ($capture['counts']['jobs'] ?? 0) === 0) {
-                continue;
-            }
-
-            $rows = $viewfinder->rows(['id' => $capture['id'], 'section' => 'jobs', 'limit' => RowQuery::MAX_LIMIT])['rows'] ?? [];
-
-            foreach ($rows as $row) {
-                $run = $row['run'] ?? null;
-
-                if ($run === null) {
-                    continue;
-                }
-
-                if (in_array($run, $ran, true)) {
-                    continue;
-                }
-
-                $pending[$capture['id']][] = ['pending' => true, 'type' => 'job', 'name' => (string) ($row['job'] ?? '?'), 'id' => (string) $run];
-            }
-        }
-
-        return $pending;
-    }
 
     /**
      * @param  array<string, mixed>  $node

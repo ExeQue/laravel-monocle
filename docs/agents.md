@@ -90,7 +90,7 @@ Database queries grouped by `shape` (the same query with different values), `cal
 
 ### `monocle-trace`
 
-A request or command together with every job it dispatched, and the jobs those dispatched.
+A request or command together with every job it dispatched, and the jobs those dispatched. `pending` lists queued jobs no worker has run yet, each with the capture that dispatched it (`parent_id`), the job class and its job id.
 
 ### `monocle-compare`
 

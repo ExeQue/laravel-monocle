@@ -63,7 +63,9 @@ describe(TraceCommand::class, function (): void {
         $data = json_decode(Artisan::output(), true);
 
         expect($data['id'])->toBe($this->root)
-            ->and(array_column($data['captures'], 'id'))->toBe([$this->root, $this->countdown, $this->failing]);
+            ->and(array_column($data['captures'], 'id'))->toBe([$this->root, $this->countdown, $this->failing])
+            ->and($data['pending'])->toHaveCount(1)
+            ->and($data['pending'][0]['parent_id'])->toBe($this->countdown);
     });
 
     it('fails for unknown captures', function (): void {
