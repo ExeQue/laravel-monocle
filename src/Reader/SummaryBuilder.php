@@ -55,6 +55,7 @@ final class SummaryBuilder
         $warnings = [];
         $errors = [];
         $problems = [];
+        $flags = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
@@ -67,21 +68,25 @@ final class SummaryBuilder
             $errors = [...$errors, ...$contribution->errors];
             $problems = $this->flag($problems, $summarizer->key(), 'warnings', count($contribution->warnings));
             $problems = $this->flag($problems, $summarizer->key(), 'errors', count($contribution->errors));
+            $flags = [...$flags, ...$this->flags('error', $summarizer->key(), $contribution->errors), ...$this->flags('warning', $summarizer->key(), $contribution->warnings)];
         }
 
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {
             $errors[] = "Response status {$capture->status}.";
             $problems = $this->flag($problems, 'request', 'errors', 1);
+            $flags[] = ['level' => 'error', 'section' => 'request', 'message' => "Response status {$capture->status}."];
         }
 
         foreach ((array) ($capture->health['failures'] ?? []) as $failure) {
             $warnings[] = "Monocle failed to record part of this capture: {$failure['message']} ({$failure['file']}).";
+            $flags[] = ['level' => 'warning', 'section' => 'monocle', 'message' => end($warnings)];
         }
 
         $openSpans = (int) ($capture->health['open_spans_at_finalize'] ?? 0);
 
         if ($openSpans > 0) {
             $warnings[] = "{$openSpans} span(s) were never stopped and were closed at finalize.";
+            $flags[] = ['level' => 'warning', 'section' => 'timeline', 'message' => end($warnings)];
         }
 
         $counts = [];
@@ -112,6 +117,7 @@ final class SummaryBuilder
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
             'errors' => array_values(array_unique($errors)),
+            'flags' => $this->sortFlags($flags),
             'problems' => $problems,
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],
@@ -213,6 +219,36 @@ final class SummaryBuilder
             'ms' => $ms,
             'percent' => round($ms / $total * 100, 1),
             'count' => $count,
+        ];
+    }
+
+    /**
+     * @param  'error'|'warning'  $level
+     * @param  list<string>  $messages
+     * @return list<array{level: string, section: string, message: string}>
+     */
+    private function flags(string $level, string $section, array $messages): array
+    {
+        return array_map(fn (string $message): array => ['level' => $level, 'section' => $section, 'message' => $message], $messages);
+    }
+
+    /**
+     * Errors first, each flag once.
+     *
+     * @param  list<array{level: string, section: string, message: string}>  $flags
+     * @return list<array{level: string, section: string, message: string}>
+     */
+    private function sortFlags(array $flags): array
+    {
+        $unique = [];
+
+        foreach ($flags as $flag) {
+            $unique[$flag['level'].'|'.$flag['message']] ??= $flag;
+        }
+
+        return [
+            ...array_values(array_filter($unique, fn (array $flag): bool => $flag['level'] === 'error')),
+            ...array_values(array_filter($unique, fn (array $flag): bool => $flag['level'] === 'warning')),
         ];
     }
 

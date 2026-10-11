@@ -92,7 +92,12 @@ describe(Viewfinder::class, function (): void {
             ->and($summary['status'])->toBe('500')
             ->and($summary['headlines'])->toContain('duration_ms', 'memory_peak_mb', 'response_bytes')
             ->and($summary['groups'])->toMatchArray(['queries' => 'queries'])
-            ->and($summary['groups'])->not->toHaveKey('response_bytes');
+            ->and($summary['groups'])->not->toHaveKey('response_bytes')
+            ->and($summary['flags'])->toContain(['level' => 'error', 'section' => 'request', 'message' => 'Response status 500.'])
+            ->and(array_column($summary['flags'], 'level'))->toBe([
+                ...array_fill(0, count($summary['errors']), 'error'),
+                ...array_fill(0, count($summary['warnings']), 'warning'),
+            ]);
 
         app(Eyepiece::class)->start(CaptureType::Request);
         app(Eyepiece::class)->span('forgotten')->start();

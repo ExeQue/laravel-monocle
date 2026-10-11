@@ -380,11 +380,10 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const ctx = this.capture.context ?? {};
     const handledBy = [ctx.route && `route ${ctx.route}`, ctx.action ?? ctx.command_class].filter(Boolean).join(', ');
     if (handledBy) lines.splice(1, 0, `Handled by ${handledBy}.`);
-    const line = (label, items) => `- ${label}: ${items.map((t) => `${this.totalLabel(t)} ${this.totalValue(t)}`).join(', ')}`;
-    const totals = [line('Overall', this.headlineTotals), ...this.totalGroups.map((g) => line(g.label, g.items))];
-    if (totals.length) lines.push('', 'Totals:', ...totals);
-    if (s.errors?.length) lines.push('', 'Errors:', ...s.errors.map((e) => `- ${e}`));
-    if (s.warnings?.length) lines.push('', 'Warnings:', ...s.warnings.map((w) => `- ${w}`));
+    const line = (section, items) => `- ${section}: ${items.map((t) => `${this.totalLabel(t)} ${this.totalValue(t)}`).join(', ')}`;
+    const totals = [line('overall', this.headlineTotals), ...this.totalGroups.map((g) => line(g.key, g.items))];
+    if (totals.length) lines.push('', 'Totals per section:', ...totals);
+    if (s.flags?.length) lines.push('', 'Monocle flagged:', ...s.flags.map((f) => `- ${f.level} in ${f.section}: ${f.message}`));
     lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
     return lines.join('\n');
   },
