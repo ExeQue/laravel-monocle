@@ -41,7 +41,7 @@ final class SummaryBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(Capture $capture): array
+    public function build(Capture $capture, bool $children = true): array
     {
         $totals = [
             'duration_ms' => $capture->duration(),
@@ -83,7 +83,7 @@ final class SummaryBuilder
             'ended_by' => $capture->endedBy,
             'parent_id' => $capture->parentId,
             'trace_id' => $capture->traceId,
-            'children' => array_column($this->captures->children($capture->id), 'id'),
+            'children' => $children ? array_column($this->captures->children($capture->id), 'id') : [],
             'breakdown' => $this->breakdown($capture),
             'totals' => $totals,
             'counts' => $counts,

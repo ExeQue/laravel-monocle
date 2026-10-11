@@ -39,6 +39,7 @@ final class Index
             'ended_by' => $capture->endedBy,
             'counts' => $counts,
             'has_errors' => self::hasErrors($capture),
+            'warnings' => (int) ($capture->health['warnings'] ?? 0),
         ];
     }
 

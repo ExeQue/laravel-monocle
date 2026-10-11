@@ -4,7 +4,7 @@
 
 Open `/_monocle` in your browser to see recent captures: what took the time, the timeline of every span, queries, cache calls and the other sections, and the jobs a request dispatched.
 
-Filter the list by type, path or name, or show only errors. **hide route** on a capture keeps that route (or command) out of the list until you show it again; this is remembered in your browser.
+Captures Monocle flagged show how many warnings they have. Filter the list by type, path or name, or show only errors. **hide route** on a capture keeps that route (or command) out of the list until you show it again; this is remembered in your browser.
 
 **Copy agent prompt** in the header copies a prompt for your coding agent: the capture, its totals, what Monocle flagged and how to dig in through the MCP server. Paste it into the agent to have it look into that request.
 

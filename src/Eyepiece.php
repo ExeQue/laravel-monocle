@@ -8,6 +8,7 @@ use Closure;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Storage\StoreManager;
 use ExeQue\Monocle\Support\Masker;
 use ExeQue\Monocle\Support\Masks\PartialMask;
@@ -345,6 +346,7 @@ final class Eyepiece
                 'overhead_ms' => round($this->overheadNs / 1_000_000, 3),
                 'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
             ];
+            $capture->health['warnings'] = count($this->app->make(SummaryBuilder::class)->build($capture, children: false)['warnings']);
 
             $this->stores->store()->put($capture);
 
