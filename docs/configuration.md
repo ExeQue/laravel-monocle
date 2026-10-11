@@ -59,6 +59,7 @@ Paths and command names support `*`. By default the dashboards and assets of Tel
 use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 'mask' => [
     'headers' => [
@@ -78,6 +79,9 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
         'remember_*' => PartialMask::class,
     ],
     'inputs' => '/pass|token|secret|authorization/i',
+    'objects' => [
+        Authenticatable::class => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
+    ],
     'using' => PartialMask::class,
 ],
 ```
@@ -85,6 +89,8 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
 Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
 
 Request input, session data, command options, HTTP client payloads, validated input, Inertia prop values and response capture cards whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
+
+Objects in dumps have the properties listed under `objects` masked, by class or interface, so `Authenticatable::class` covers every user model. On Eloquent models the names are attributes. A name without a class uses `using`; give one a mask of its own with `'number' => FullMask::class`. An empty value (`null`) is left as it is.
 
 Everything above applies to every lens. To mask something for one lens only, key it by the lens class. A mask set for one lens wins over the shared one:
 
@@ -98,6 +104,17 @@ use ExeQue\Monocle\Lenses\RequestLens;
     RequestLens::class => ['x-tenant' => PartialMask::class],
 ],
 'inputs' => ['/pass|token|secret/i', HttpClientLens::class => '/client_id/i'],
+```
+
+For `objects`, a lens's list adds to the shared one for the same class, and its mask wins for the same name:
+
+```php
+use ExeQue\Monocle\Lenses\DumpLens;
+
+'objects' => [
+    Authenticatable::class => ['password', 'remember_token'],
+    DumpLens::class => [Authenticatable::class => ['email']],
+],
 ```
 
 ### Masks
