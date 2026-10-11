@@ -105,7 +105,10 @@ final class Span
             return $this;
         }
 
-        if (SpanColor::tryFrom($color) === null && preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) !== 1) {
+        $isNamed = SpanColor::tryFrom($color) !== null;
+        $isHex = preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) === 1;
+
+        if (! $isNamed && ! $isHex) {
             throw InvalidSpanColorException::forValue($color);
         }
 
@@ -142,7 +145,11 @@ final class Span
 
     public function duration(): ?float
     {
-        if ($this->start === null || $this->end === null) {
+        if ($this->start === null) {
+            return null;
+        }
+
+        if ($this->end === null) {
             return null;
         }
 
@@ -192,7 +199,7 @@ final class Span
         $span->start = $data['start'] ?? null;
         $span->end = $data['end'] ?? null;
         $span->endedBy = $data['ended_by'] ?? null;
-        $span->color = isset($data['color']) && is_string($data['color']) ? $data['color'] : null;
+        $span->color = is_string($data['color'] ?? null) ? $data['color'] : null;
         $span->meta = $data['meta'] ?? [];
         $span->origin = $data['origin'] ?? null;
 

@@ -48,13 +48,29 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
 
     public function boot(): void
     {
-        $this->eyepiece->listen(ScheduledTaskStarting::class, fn (ScheduledTaskStarting $event) => $this->record($event->task, 'starting'));
-        $this->eyepiece->listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $event) => $this->record($event->task, 'finished', ['runtime_ms' => round($event->runtime * 1000, 3)]));
-        $this->eyepiece->listen(ScheduledBackgroundTaskFinished::class, fn (ScheduledBackgroundTaskFinished $event) => $this->record($event->task, 'finished_in_background'));
-        $this->eyepiece->listen(ScheduledTaskSkipped::class, fn (ScheduledTaskSkipped $event) => $this->record($event->task, 'skipped'));
-        $this->eyepiece->listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => $this->record($event->task, 'failed', [
-            'exception' => ThrowableChain::describe($event->exception),
-        ]));
+        $this->eyepiece->listen(ScheduledTaskStarting::class, function (ScheduledTaskStarting $event): void {
+            $this->record($event->task, 'starting');
+        });
+
+        $this->eyepiece->listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
+            $runtimeMs = round($event->runtime * 1000, 3);
+
+            $this->record($event->task, 'finished', ['runtime_ms' => $runtimeMs]);
+        });
+
+        $this->eyepiece->listen(ScheduledBackgroundTaskFinished::class, function (ScheduledBackgroundTaskFinished $event): void {
+            $this->record($event->task, 'finished_in_background');
+        });
+
+        $this->eyepiece->listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
+            $this->record($event->task, 'skipped');
+        });
+
+        $this->eyepiece->listen(ScheduledTaskFailed::class, function (ScheduledTaskFailed $event): void {
+            $exception = ThrowableChain::describe($event->exception);
+
+            $this->record($event->task, 'failed', ['exception' => $exception]);
+        });
     }
 
     public function summarize(Capture $capture): Summary
@@ -65,13 +81,32 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
             return Summary::make();
         }
 
-        $failed = array_filter($rows, fn (array $row): bool => $row['outcome'] === 'failed');
+        $run = 0;
+        $skipped = 0;
+        $errors = [];
+
+        foreach ($rows as $row) {
+            $outcome = $row['outcome'];
+
+            // Both 'finished' and 'finished_in_background' count as run.
+            if (str_starts_with($outcome, 'finished')) {
+                $run++;
+            }
+
+            if ($outcome === 'skipped') {
+                $skipped++;
+            }
+
+            if ($outcome === 'failed') {
+                $errors[] = "Scheduled task failed: {$row['command']}";
+            }
+        }
 
         return Summary::make()
-            ->total('scheduled_tasks_run', count(array_filter($rows, fn (array $row): bool => str_starts_with($row['outcome'], 'finished'))), 'run')
-            ->total('scheduled_tasks_skipped', count(array_filter($rows, fn (array $row): bool => $row['outcome'] === 'skipped')), 'skipped')
-            ->total('scheduled_tasks_failed', count($failed), 'failed')
-            ->errors(array_map(fn (array $row): string => "Scheduled task failed: {$row['command']}", array_values($failed)));
+            ->total('scheduled_tasks_run', $run, 'run')
+            ->total('scheduled_tasks_skipped', $skipped, 'skipped')
+            ->total('scheduled_tasks_failed', count($errors), 'failed')
+            ->errors($errors);
     }
 
     /**
@@ -84,13 +119,25 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
         }
 
         $this->eyepiece->push('scheduled_tasks', [
-            'command' => is_string($task->command) && $task->command !== '' ? $task->command : $task->getSummaryForDisplay(),
+            'command' => $this->commandName($task),
             'expression' => $task->getExpression(),
             'description' => $task->description,
             'outcome' => $outcome,
             'runtime_ms' => $extra['runtime_ms'] ?? null,
             'exception' => $extra['exception'] ?? null,
         ], origin: false);
+    }
+
+    /**
+     * The command line, or for a closure or job task its display summary.
+     */
+    private function commandName(Event $task): string
+    {
+        if (is_string($task->command) && $task->command !== '') {
+            return $task->command;
+        }
+
+        return $task->getSummaryForDisplay();
     }
 
     public function presentation(): Presentation

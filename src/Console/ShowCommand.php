@@ -26,7 +26,7 @@ final class ShowCommand extends Command
     use RendersForHumans;
 
     /**
-     * Row columns that repeat another column or only matter to machines.
+     * More columns than this per section and the rest are left out of the table.
      */
     private const int MAX_COLUMNS = 7;
 
@@ -120,45 +120,80 @@ final class ShowCommand extends Command
     private function summary(array $summary): void
     {
         $this->flags($summary['warnings'] ?? [], $summary['errors'] ?? []);
+        $this->headlineTotals($summary);
+        $this->breakdown('Phase', $summary['breakdown']['phases'] ?? []);
+        $this->breakdown('Category', $summary['breakdown']['categories'] ?? []);
+        $this->groupedTotals($summary);
+    }
 
+    /**
+     * The totals the summary picks as headlines, in their own table on top.
+     *
+     * @param  array{totals?: array<string, mixed>, labels?: array<string, string>, units?: array<string, string>, headlines?: list<string>}  $summary
+     */
+    private function headlineTotals(array $summary): void
+    {
         $totals = $summary['totals'] ?? [];
         $labels = $summary['labels'] ?? [];
         $units = $summary['units'] ?? [];
-        $headlines = $summary['headlines'] ?? [];
+        $rows = [];
 
-        $headlineRows = [];
+        foreach ($summary['headlines'] ?? [] as $key) {
+            $value = $totals[$key] ?? null;
 
-        foreach ($headlines as $key) {
-            if ($this->isEmptyTotal($totals[$key] ?? null)) {
+            if ($this->isEmptyTotal($value)) {
                 continue;
             }
 
-            $headlineRows[] = [Str::ucfirst($labels[$key] ?? $key), $this->total($totals[$key], $units[$key] ?? null)];
+            $label = Str::ucfirst($labels[$key] ?? $key);
+            $rows[] = [$label, $this->total($value, $units[$key] ?? null)];
         }
 
-        if ($headlineRows !== []) {
-            table(['Total', 'Value'], $headlineRows);
+        if ($rows === []) {
+            return;
         }
 
-        foreach (['phases' => 'Phase', 'categories' => 'Category'] as $key => $header) {
-            $parts = $summary['breakdown'][$key] ?? [];
+        table(['Total', 'Value'], $rows);
+    }
 
-            if ($parts === []) {
-                continue;
-            }
+    /**
+     * @param  list<array{name: string, ms: float, percent: float, count: int}>  $parts
+     */
+    private function breakdown(string $header, array $parts): void
+    {
+        if ($parts === []) {
+            return;
+        }
 
-            table([$header, 'Time', '%', 'Count', ''], array_map(fn (array $part): array => [
+        $rows = [];
+
+        foreach ($parts as $part) {
+            $rows[] = [
                 $part['name'],
                 $this->ms($part['ms']),
                 $part['percent'].'%',
                 (string) $part['count'],
                 $this->bar((float) $part['percent']),
-            ], $parts));
+            ];
         }
 
+        table([$header, 'Time', '%', 'Count', ''], $rows);
+    }
+
+    /**
+     * Every other total, grouped by the section that recorded it. Array
+     * totals are flattened to one row per dot.notated key.
+     *
+     * @param  array{totals?: array<string, mixed>, labels?: array<string, string>, units?: array<string, string>, groups?: array<string, string>, headlines?: list<string>}  $summary
+     */
+    private function groupedTotals(array $summary): void
+    {
+        $headlines = $summary['headlines'] ?? [];
+        $labels = $summary['labels'] ?? [];
+        $units = $summary['units'] ?? [];
         $grouped = [];
 
-        foreach ($totals as $key => $value) {
+        foreach ($summary['totals'] ?? [] as $key => $value) {
             if (in_array($key, $headlines, true)) {
                 continue;
             }
@@ -218,17 +253,29 @@ final class ShowCommand extends Command
         $total = count($spans);
         $spans = array_slice($spans, 0, $limit);
 
-        table(['Start', 'Duration', 'Kind', 'Name'], array_map(fn (array $span): array => [
-            $this->ms($span['start'] ?? 0),
-            $this->ms($span['duration'] ?? 0),
-            (string) ($span['kind'] ?? ''),
-            str_repeat('  ', (int) ($span['depth'] ?? 0)).$this->cell($span['name'] ?? '', 80),
-        ], $spans));
+        $rows = [];
 
-        $this->paging(
-            ['offset' => 0, 'returned' => count($spans), 'total' => $total, 'next_offset' => $total > $limit ? $limit : null],
-            'php artisan monocle:rows timeline '.$id,
-        );
+        foreach ($spans as $span) {
+            $indent = str_repeat('  ', (int) ($span['depth'] ?? 0));
+
+            $rows[] = [
+                $this->ms($span['start'] ?? 0),
+                $this->ms($span['duration'] ?? 0),
+                (string) ($span['kind'] ?? ''),
+                $indent.$this->cell($span['name'] ?? '', 80),
+            ];
+        }
+
+        table(['Start', 'Duration', 'Kind', 'Name'], $rows);
+
+        $page = [
+            'offset' => 0,
+            'returned' => count($spans),
+            'total' => $total,
+            'next_offset' => $total > $limit ? $limit : null,
+        ];
+
+        $this->paging($page, 'php artisan monocle:rows timeline '.$id);
     }
 
     /**
@@ -245,12 +292,13 @@ final class ShowCommand extends Command
         }
 
         $rows = $section['rows'] ?? [];
-        $this->rowsTable(array_map($this->readable(...), $rows), $this->columns($rows, self::MAX_COLUMNS)[0]);
+        [$shown] = $this->columns($rows, self::MAX_COLUMNS);
+
+        $this->rowsTable(array_map($this->readable(...), $rows), $shown);
 
         // monocle:show has no --offset; the next page comes from monocle:rows.
         $this->paging($section, 'php artisan monocle:rows '.($section['section'] ?? '').' '.$id);
     }
-
 
     /**
      * @param  list<array{key: string, rows: int|null}>  $sections
@@ -267,9 +315,11 @@ final class ShowCommand extends Command
             $parts[] = $section['rows'] === null ? $section['key'] : $section['key'].' ('.$section['rows'].')';
         }
 
-        if ($parts !== []) {
-            note('Sections (--section=...): '.implode(', ', $parts));
+        if ($parts === []) {
+            return;
         }
+
+        note('Sections (--section=...): '.implode(', ', $parts));
     }
 
     private function total(mixed $value, ?string $unit): string
@@ -291,7 +341,9 @@ final class ShowCommand extends Command
 
     private function bar(float $percent, int $width = 20): string
     {
-        return str_repeat('█', (int) round(max(0, min(100, $percent)) / 100 * $width));
+        $clamped = max(0, min(100, $percent));
+
+        return str_repeat('█', (int) round($clamped / 100 * $width));
     }
 
     protected function getArguments(): array

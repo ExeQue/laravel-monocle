@@ -53,7 +53,11 @@ final readonly class Environment
         }
 
         foreach ($this->kernelFiles as $file) {
-            if (is_readable($file) && stripos((string) file_get_contents($file), 'microsoft') !== false) {
+            if (! is_readable($file)) {
+                continue;
+            }
+
+            if (stripos((string) file_get_contents($file), 'microsoft') !== false) {
                 return true;
             }
         }

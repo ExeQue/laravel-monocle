@@ -59,7 +59,11 @@ final readonly class Presentation
         $normalized = [];
 
         foreach ($columns as $field => $label) {
-            is_int($field) ? $normalized[$label] = null : $normalized[$field] = $label;
+            if (is_int($field)) {
+                $normalized[$label] = null;
+            } else {
+                $normalized[$field] = $label;
+            }
         }
 
         return $this->with(['columns' => $normalized]);
@@ -151,7 +155,9 @@ final readonly class Presentation
      */
     public function format(array $formats): self
     {
-        return $this->with(['formats' => [...$this->formats, ...array_map(fn (string|array $format): array => (array) $format, $formats)]]);
+        $normalized = array_map(fn (string|array $format): array => (array) $format, $formats);
+
+        return $this->with(['formats' => [...$this->formats, ...$normalized]]);
     }
 
     /**

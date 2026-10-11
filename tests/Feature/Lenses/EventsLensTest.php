@@ -57,4 +57,30 @@ describe(EventsLens::class, function (): void {
 
         expect(array_count_values($names)['custom.string'] ?? 0)->toBe(1);
     });
+
+    it('names array and invokable listeners and leaves Monocle and recording-off events out', function (): void {
+        Event::listen('custom.array', [OrderPlacedListener::class, 'handle']);
+        $invokable = new class () {
+            public function __invoke(mixed ...$arguments): void
+            {
+            }
+        };
+        Event::listen('custom.invokable', $invokable);
+
+        event('custom.array', [new OrderPlaced(1, 'ada')]);
+        event('custom.invokable', [new OrderPlaced(2, 'ada')]);
+        event('ExeQue\\Monocle\\Internal', []);
+
+        $rows = app(Eyepiece::class)->finalize()->rows('events');
+
+        expect(array_column($rows, 'listeners', 'event'))->toBe([
+            'custom.array' => [OrderPlacedListener::class.'@handle'],
+            'custom.invokable' => [$invokable::class],
+        ]);
+
+        event('custom.array', [new OrderPlaced(3, 'ada')]);
+
+        expect(app(EventsLens::class)->summarize(app(Eyepiece::class)->start(CaptureType::Request))->totals)->toBe([])
+            ->and(app(EventsLens::class)->presentation()->tabView)->toBe('monocle::tabs.events');
+    });
 });

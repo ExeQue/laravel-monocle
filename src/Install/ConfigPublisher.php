@@ -29,8 +29,9 @@ final class ConfigPublisher
     {
         $rendered = $this->render($choices);
         $exists = is_file($target);
+        $unchanged = $exists && file_get_contents($target) === $rendered;
 
-        if ($exists && file_get_contents($target) === $rendered) {
+        if ($unchanged) {
             return 'unchanged';
         }
 
@@ -61,11 +62,13 @@ final class ConfigPublisher
         }
 
         if (array_key_exists('driver', $choices)) {
-            $source = $this->replaceOnce($source, "/env\('MONOCLE_STORAGE', '[a-z]+'\)/", "env('MONOCLE_STORAGE', '".$choices['driver']."')");
+            $driver = "env('MONOCLE_STORAGE', '".$choices['driver']."')";
+            $source = $this->replaceOnce($source, "/env\('MONOCLE_STORAGE', '[a-z]+'\)/", $driver);
         }
 
         if (array_key_exists('limit', $choices)) {
-            $source = $this->replaceOnce($source, "/'limit' => \d+,/", "'limit' => ".(int) $choices['limit'].',');
+            $limit = "'limit' => ".(int) $choices['limit'].',';
+            $source = $this->replaceOnce($source, "/'limit' => \d+,/", $limit);
         }
 
         return $source;
@@ -75,5 +78,4 @@ final class ConfigPublisher
     {
         return preg_replace($pattern, $replacement, $source, 1) ?? $source;
     }
-
 }

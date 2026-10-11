@@ -38,8 +38,9 @@ final class TimedMethod implements Errable, Method
     public function handle(JsonRpcRequest $request, ServerContext $context): iterable|JsonRpcResponse
     {
         $server = $context->implementation->name;
+        $skipped = array_map('strtolower', $this->exceptServers);
 
-        if (in_array(strtolower($server), array_map('strtolower', $this->exceptServers), true)) {
+        if (in_array(strtolower($server), $skipped, true)) {
             return $this->inner->handle($request, $context);
         }
 
@@ -51,6 +52,7 @@ final class TimedMethod implements Errable, Method
             'protocol_version' => $request->params['protocolVersion'] ?? null,
         ];
 
+        // Over stdio there is no request capture to land on, so the call gets its own.
         $ownCapture = $this->eyepiece->active() === null;
 
         if ($ownCapture) {
@@ -59,8 +61,8 @@ final class TimedMethod implements Errable, Method
             $this->eyepiece->set('mcp', $facts);
         }
 
-        $span = $this->eyepiece->span(trim($request->method.' '.($facts['primitive'] ?? '')), 'mcp')->start($facts);
-        $chunks = 0;
+        $spanName = trim($request->method.' '.($facts['primitive'] ?? ''));
+        $span = $this->eyepiece->span($spanName, 'mcp')->start($facts);
 
         try {
             $response = $this->inner->handle($request, $context);
@@ -96,7 +98,11 @@ final class TimedMethod implements Errable, Method
         try {
             foreach ($responses as $response) {
                 $chunks++;
-                $isError = $isError || ($response instanceof JsonRpcResponse && $this->isError($response));
+
+                // One failed chunk marks the whole call as an error.
+                if (! $isError) {
+                    $isError = $response instanceof JsonRpcResponse && $this->isError($response);
+                }
 
                 yield $response;
             }
@@ -121,8 +127,10 @@ final class TimedMethod implements Errable, Method
         ];
 
         if ($ownCapture) {
+            $failed = $isError || $exception !== null;
+
             $this->eyepiece->set('mcp', $row);
-            $this->eyepiece->describe(status: $isError || $exception !== null ? 'error' : 'ok');
+            $this->eyepiece->describe(status: $failed ? 'error' : 'ok');
             $this->eyepiece->finalize();
 
             return;
@@ -142,6 +150,11 @@ final class TimedMethod implements Errable, Method
     {
         $content = $response->toArray();
 
-        return array_key_exists('error', $content) || (bool) ($content['result']['isError'] ?? false);
+        // A JSON-RPC error, or a tool result that reports one.
+        if (array_key_exists('error', $content)) {
+            return true;
+        }
+
+        return (bool) ($content['result']['isError'] ?? false);
     }
 }

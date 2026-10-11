@@ -74,12 +74,24 @@ final class QueryAggregator
     private function keysFor(array $row, string $by): array
     {
         return match ($by) {
-            'caller' => [is_array($row['origin'] ?? null)
-                ? ($row['origin']['file'] ?? '?').':'.($row['origin']['line'] ?? '?')
-                : 'unknown'],
+            'caller' => [$this->caller($row)],
             'table' => ($row['tables'] ?? []) === [] ? ['(none)'] : array_values($row['tables']),
             'transaction' => [(string) ($row['transaction_id'] ?? '(none)')],
             default => [(string) ($row['shape'] ?? $row['sql'] ?? '?')],
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function caller(array $row): string
+    {
+        $origin = $row['origin'] ?? null;
+
+        if (! is_array($origin)) {
+            return 'unknown';
+        }
+
+        return ($origin['file'] ?? '?').':'.($origin['line'] ?? '?');
     }
 }

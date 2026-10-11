@@ -104,36 +104,51 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         $arguments = $this->arguments($event->input);
         $options = $this->eyepiece->masker(self::class)->inputs($this->options($event->input));
 
+        // Inside another capture (Artisan::call() from a request, job or command) the command is a span of it.
         if ($this->eyepiece->active() !== null) {
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
-
-            $this->spans[] = $this->eyepiece->span($event->command, 'command')->start([
-                'class' => $this->commandClass($event->command),
-                'arguments' => $arguments,
-                'options' => $options,
-            ]);
+            $this->startNested($event->command, $arguments, $options);
 
             return;
         }
 
-        $startedAt = null;
+        $this->startCapture($event->command, $arguments, $options);
+    }
 
-        if (! $this->usedLaravelStart && defined('LARAVEL_START')) {
-            $startedAt = LARAVEL_START;
-            $this->usedLaravelStart = true;
+    /**
+     * @param  array<string, mixed>  $arguments
+     * @param  array<array-key, mixed>  $options
+     */
+    private function startNested(string $command, array $arguments, array $options): void
+    {
+        if (! $this->eyepiece->recording()) {
+            return;
         }
 
+        $this->spans[] = $this->eyepiece->span($command, 'command')->start([
+            'class' => $this->commandClass($command),
+            'arguments' => $arguments,
+            'options' => $options,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     * @param  array<array-key, mixed>  $options
+     */
+    private function startCapture(string $command, array $arguments, array $options): void
+    {
+        $startedAt = $this->laravelStart();
+
         $this->eyepiece->start(CaptureType::Command, $startedAt);
-        $this->eyepiece->describe(name: 'artisan '.$event->command);
+        $this->eyepiece->describe(name: 'artisan '.$command);
         $this->eyepiece->set('command', [
-            'name' => $event->command,
-            'class' => $this->commandClass($event->command),
+            'name' => $command,
+            'class' => $this->commandClass($command),
             'arguments' => $arguments,
             'options' => $options,
         ]);
 
+        // Booting the framework happened before the command started: show it as a phase from the very start.
         if ($startedAt !== null) {
             $bootstrap = $this->eyepiece->span('bootstrap', 'phase');
             $this->eyepiece->startSpan($bootstrap, origin: false);
@@ -144,6 +159,25 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         $this->phase = $this->eyepiece->span('command', 'phase');
         $this->eyepiece->startSpan($this->phase, origin: false);
         $this->phase->parentId = null;
+    }
+
+    /**
+     * LARAVEL_START marks when the process began, so it only fits the first
+     * command the process runs.
+     */
+    private function laravelStart(): ?float
+    {
+        if ($this->usedLaravelStart) {
+            return null;
+        }
+
+        if (! defined('LARAVEL_START')) {
+            return null;
+        }
+
+        $this->usedLaravelStart = true;
+
+        return LARAVEL_START;
     }
 
     private function onFinished(CommandFinished $event): void
@@ -160,7 +194,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
         $capture = $this->eyepiece->active();
 
-        if ($capture === null || $capture->type !== CaptureType::Command) {
+        if ($capture === null) {
+            return;
+        }
+
+        if ($capture->type !== CaptureType::Command) {
             return;
         }
 
@@ -194,15 +232,18 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         }
 
         $failed = [];
+        $ms = 0.0;
 
         foreach ($rows as $row) {
+            $ms += (float) ($row['duration'] ?? 0);
+
             if ($row['failed'] ?? false) {
                 $failed[] = sprintf('Command %s failed (exit code %s).', $row['name'], $row['exit_code']);
             }
         }
 
         return Summary::make()
-            ->total('commands_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $rows)), 3), 'spent', Unit::Milliseconds)
+            ->total('commands_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->total('commands', count($rows), 'commands')
             ->total('commands_failed', count($failed), 'failed')
             ->errors(array_slice($failed, 0, 3));
@@ -214,20 +255,32 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     private function commandClass(string $name): ?string
     {
         try {
-            $command = $this->eyepiece->outside(fn (): array => $this->app->make(ConsoleKernel::class)->all())[$name] ?? null;
+            $commands = $this->eyepiece->outside(fn (): array => $this->app->make(ConsoleKernel::class)->all());
         } catch (Throwable) {
             return null;
         }
 
-        return $command === null || $command instanceof ClosureCommand ? null : $command::class;
+        $command = $commands[$name] ?? null;
+
+        if ($command === null) {
+            return null;
+        }
+
+        if ($command instanceof ClosureCommand) {
+            return null;
+        }
+
+        return $command::class;
     }
 
     private function isExcepted(string $command, InputInterface $input): bool
     {
-        $withArguments = trim($command.' '.implode(' ', array_map('strval', array_filter(
+        // Patterns may name arguments too, e.g. 'queue:work redis'; only scalars can be written that way.
+        $scalarArguments = array_filter(
             array_values($this->arguments($input)),
             fn (mixed $value): bool => is_scalar($value),
-        ))));
+        );
+        $withArguments = trim($command.' '.implode(' ', array_map('strval', $scalarArguments)));
 
         foreach ((array) $this->eyepiece->config('except.commands', []) as $pattern) {
             if (Str::is($pattern, $command) || Str::is($pattern, $withArguments)) {

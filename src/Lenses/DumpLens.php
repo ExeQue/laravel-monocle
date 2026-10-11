@@ -88,8 +88,11 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
         $dumper = new CliDumper();
         $dumper->setColors(false);
 
+        $cloned = (new VarCloner())->cloneVar($value);
+        $text = (string) $dumper->dump($cloned, true);
+
         $this->eyepiece->push('dumps', [
-            'value' => (string) $dumper->dump((new VarCloner())->cloneVar($value), true),
+            'value' => $text,
             'type' => get_debug_type($value),
             'label' => $label,
             'is_dd' => $this->calledFromDd(),
@@ -114,7 +117,12 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
     private function calledFromDd(): bool
     {
         foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 12) as $frame) {
-            if (($frame['function'] ?? null) === 'dd' && ! isset($frame['class'])) {
+            // The global dd() helper, not a dd() method such as Collection::dd().
+            if (isset($frame['class'])) {
+                continue;
+            }
+
+            if (($frame['function'] ?? null) === 'dd') {
                 return true;
             }
         }

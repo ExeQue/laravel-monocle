@@ -175,4 +175,17 @@ describe(ProcessLens::class, function (): void {
     it('summarizes nothing without processes', function (): void {
         expect(app(ProcessLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });
+
+    it('keeps recording when Process::fake() swaps the factory, and wraps it once', function (): void {
+        Process::fake(['*' => Process::result('faked')]);
+
+        $factory = app(Factory::class);
+        app()->instance(Factory::class, $factory);
+
+        expect(trim(Process::run('anything')->output()))->toBe('faked')
+            ->and(app(Factory::class))->toBeInstanceOf(MonocleProcessFactory::class)
+            ->and(app(Factory::class))->toBe($factory)
+            ->and(app(Eyepiece::class)->finalize()->rows('processes'))->toHaveCount(1)
+            ->and(app(ProcessLens::class)->presentation()->tabView)->toBe('monocle::tabs.processes');
+    });
 });

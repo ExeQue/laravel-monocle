@@ -56,10 +56,22 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
     public function boot(): void
     {
         $this->eyepiece->listen(Authenticated::class, fn (Authenticated $event) => $this->push('authenticated', $event->guard, $event->user));
-        $this->eyepiece->listen(Attempting::class, fn (Attempting $event) => $this->push('attempting', $event->guard, null, ['remember' => $event->remember, 'credentials' => array_keys($event->credentials)]));
-        $this->eyepiece->listen(Login::class, fn (Login $event) => $this->push('login', $event->guard, $event->user, ['remember' => $event->remember]));
-        $this->eyepiece->listen(Failed::class, fn (Failed $event) => $this->push('failed', $event->guard, $event->user, ['credentials' => array_keys($event->credentials)]));
-        $this->eyepiece->listen(Lockout::class, fn (Lockout $event) => $this->push('lockout', null, null, ['ip' => $event->request->ip()]));
+        $this->eyepiece->listen(Attempting::class, function (Attempting $event): void {
+            // Only the keys of the credentials: their values are secrets.
+            $this->push('attempting', $event->guard, null, [
+                'remember' => $event->remember,
+                'credentials' => array_keys($event->credentials),
+            ]);
+        });
+        $this->eyepiece->listen(Login::class, function (Login $event): void {
+            $this->push('login', $event->guard, $event->user, ['remember' => $event->remember]);
+        });
+        $this->eyepiece->listen(Failed::class, function (Failed $event): void {
+            $this->push('failed', $event->guard, $event->user, ['credentials' => array_keys($event->credentials)]);
+        });
+        $this->eyepiece->listen(Lockout::class, function (Lockout $event): void {
+            $this->push('lockout', null, null, ['ip' => $event->request->ip()]);
+        });
         $this->eyepiece->listen(Logout::class, fn (Logout $event) => $this->push('logout', $event->guard, $event->user));
         $this->eyepiece->listen(CurrentDeviceLogout::class, fn (CurrentDeviceLogout $event) => $this->push('logout_current_device', $event->guard, $event->user));
         $this->eyepiece->listen(OtherDeviceLogout::class, fn (OtherDeviceLogout $event) => $this->push('logout_other_devices', $event->guard, $event->user));
@@ -79,8 +91,13 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
         $counts = array_count_values(array_column($rows, 'event'));
         $user = null;
 
+        // The last user the request was authenticated or logged in as.
         foreach ($rows as $row) {
-            if (in_array($row['event'], ['authenticated', 'login'], true) && $row['user'] !== null) {
+            if (! in_array($row['event'], ['authenticated', 'login'], true)) {
+                continue;
+            }
+
+            if ($row['user'] !== null) {
                 $user = $row['user'];
             }
         }
@@ -96,20 +113,21 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
             ->warning('A login was locked out after too many attempts.');
     }
 
-    /**
-     * @param  array<string, mixed>  $extra
-     */
     private function describe(?Authenticatable $user): ?string
     {
         return $user === null ? null : $user::class.'#'.$user->getAuthIdentifier();
     }
 
+    /**
+     * @param  array<string, mixed>  $extra
+     */
     private function push(string $event, ?string $guard, ?Authenticatable $user, array $extra = []): void
     {
         if (! $this->eyepiece->recording()) {
             return;
         }
 
+        // Authenticated fires wherever the guard first resolves the user, so its origin says little.
         $this->eyepiece->push('auth', [
             'event' => $event,
             'guard' => $guard,

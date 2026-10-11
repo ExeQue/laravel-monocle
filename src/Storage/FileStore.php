@@ -49,30 +49,42 @@ final class FileStore implements Store
      */
     public static function isInside(string $path, string $root): bool
     {
-        $normalize = static function (string $value): string {
-            $parts = [];
+        $path = self::normalize($path);
+        $root = self::normalize($root);
 
-            foreach (explode('/', str_replace('\\', '/', $value)) as $segment) {
-                if ($segment === '' || $segment === '.') {
-                    continue;
-                }
+        if ($path === $root) {
+            return true;
+        }
 
-                if ($segment === '..') {
-                    array_pop($parts);
+        return str_starts_with($path, rtrim($root, '/').'/');
+    }
 
-                    continue;
-                }
+    /**
+     * Resolves "." and ".." without touching the filesystem.
+     */
+    private static function normalize(string $path): string
+    {
+        $parts = [];
 
-                $parts[] = $segment;
+        foreach (explode('/', str_replace('\\', '/', $path)) as $segment) {
+            if ($segment === '') {
+                continue;
             }
 
-            return '/'.implode('/', $parts);
-        };
+            if ($segment === '.') {
+                continue;
+            }
 
-        $path = $normalize($path);
-        $root = $normalize($root);
+            if ($segment === '..') {
+                array_pop($parts);
 
-        return $path === $root || str_starts_with($path, rtrim($root, '/').'/');
+                continue;
+            }
+
+            $parts[] = $segment;
+        }
+
+        return '/'.implode('/', $parts);
     }
 
     public function put(Capture $capture): void

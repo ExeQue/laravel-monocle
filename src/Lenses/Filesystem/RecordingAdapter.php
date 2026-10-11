@@ -58,12 +58,22 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 
     public function read(string $path): string
     {
-        return $this->record('read', $path, fn (): string => $this->inner->read($path), [], fn (string $contents): array => ['bytes' => strlen($contents)]);
+        return $this->record(
+            'read',
+            $path,
+            fn (): string => $this->inner->read($path),
+            afterwards: fn (string $contents): array => ['bytes' => strlen($contents)],
+        );
     }
 
     public function readStream(string $path)
     {
-        return $this->record('readStream', $path, fn () => $this->inner->readStream($path), [], fn ($stream): array => ['bytes' => $this->streamSize($stream)]);
+        return $this->record(
+            'readStream',
+            $path,
+            fn () => $this->inner->readStream($path),
+            afterwards: fn ($stream): array => ['bytes' => $this->streamSize($stream)],
+        );
     }
 
     public function delete(string $path): void
@@ -111,12 +121,24 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 
     public function fileSize(string $path): FileAttributes
     {
-        return $this->record('fileSize', $path, fn (): FileAttributes => $this->inner->fileSize($path), [], fn (FileAttributes $attributes): array => ['bytes' => $attributes->fileSize()]);
+        return $this->record(
+            'fileSize',
+            $path,
+            fn (): FileAttributes => $this->inner->fileSize($path),
+            afterwards: fn (FileAttributes $attributes): array => ['bytes' => $attributes->fileSize()],
+        );
     }
 
     public function listContents(string $path, bool $deep): iterable
     {
-        return $this->record('listContents', $path, fn (): array => iterator_to_array($this->inner->listContents($path, $deep), false), ['deep' => $deep], fn (array $items): array => ['items' => count($items)]);
+        // The listing is a lazy generator: drain it inside the timing so the work is measured.
+        return $this->record(
+            'listContents',
+            $path,
+            fn (): array => iterator_to_array($this->inner->listContents($path, $deep), false),
+            ['deep' => $deep],
+            fn (array $items): array => ['items' => count($items)],
+        );
     }
 
     public function move(string $source, string $destination, Config $config): void
@@ -135,9 +157,14 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 
     public function checksum(string $path, Config $config): string
     {
-        return $this->record('checksum', $path, fn (): string => $this->inner instanceof ChecksumProvider
-            ? $this->inner->checksum($path, $config)
-            : $this->calculateChecksumFromStream($path, $config));
+        return $this->record('checksum', $path, function () use ($path, $config): string {
+            // Adapters without their own checksum get Flysystem's stream-based fallback.
+            if (! $this->inner instanceof ChecksumProvider) {
+                return $this->calculateChecksumFromStream($path, $config);
+            }
+
+            return $this->inner->checksum($path, $config);
+        });
     }
 
     public function inner(): FilesystemAdapter
@@ -156,22 +183,32 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
     /**
      * @template T
      *
-     * @param  Closure(): T  $operation
+     * @param  Closure(): T  $perform
      * @param  array<string, mixed>  $meta
-     * @param  Closure(T): array<string, mixed>|null  $afterwards
+     * @param  Closure(T): array<string, mixed>|null  $afterwards  extra row fields read from the result
      * @return T
      */
-    private function record(string $operation, string $path, Closure $operation_, array $meta = [], ?Closure $afterwards = null): mixed
+    private function record(string $operation, string $path, Closure $perform, array $meta = [], ?Closure $afterwards = null): mixed
     {
         if (! $this->eyepiece->recording()) {
-            return $operation_();
+            return $perform();
         }
 
         $started = $this->eyepiece->now();
-        $row = ['disk' => $this->disk, 'driver' => $this->driver, 'op' => $operation, 'path' => $path, 'destination' => $meta['destination'] ?? null, 'bytes' => $meta['bytes'] ?? null, ...$meta];
+
+        // destination and bytes are always present so every row has the same columns.
+        $row = [
+            'disk' => $this->disk,
+            'driver' => $this->driver,
+            'op' => $operation,
+            'path' => $path,
+            'destination' => $meta['destination'] ?? null,
+            'bytes' => $meta['bytes'] ?? null,
+            ...$meta,
+        ];
 
         try {
-            $result = $operation_();
+            $result = $perform();
 
             if ($afterwards !== null) {
                 $row = [...$row, ...$afterwards($result)];
@@ -200,6 +237,14 @@ final class RecordingAdapter implements ChecksumProvider, FilesystemAdapter
 
         $stats = fstat($stream);
 
-        return is_array($stats) && isset($stats['size']) ? (int) $stats['size'] : null;
+        if (! is_array($stats)) {
+            return null;
+        }
+
+        if (! isset($stats['size'])) {
+            return null;
+        }
+
+        return (int) $stats['size'];
     }
 }

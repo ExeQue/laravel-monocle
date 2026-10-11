@@ -109,6 +109,8 @@ final class TracedProvider extends Provider
         $span = $this->eyepiece->span($this->spanName($facts), 'prism.call')->start($facts);
         $step = null;
         $text = '';
+
+        // Stays abandoned unless the stream is read through to its end event.
         $result = [
             'status' => 'abandoned',
             'streamed' => true,
@@ -128,7 +130,9 @@ final class TracedProvider extends Provider
                 if ($event instanceof StepStartEvent) {
                     $step?->stop();
                     $result['steps']++;
-                    $step = $this->eyepiece->span('step '.$result['steps'], 'prism.step')->parent($span)->start(['step' => $result['steps']]);
+
+                    $number = $result['steps'];
+                    $step = $this->eyepiece->span('step '.$number, 'prism.step')->parent($span)->start(['step' => $number]);
                 }
 
                 if ($event instanceof StepFinishEvent) {
@@ -166,8 +170,11 @@ final class TracedProvider extends Provider
 
             throw $exception;
         } finally {
+            // Also runs when the caller stops reading early, so an abandoned stream is still recorded.
             $step?->stop();
-            $this->finish($span, $facts, [...$result, 'response' => $this->truncate($text === '' ? null : $text)]);
+            $response = $text === '' ? null : $text;
+
+            $this->finish($span, $facts, [...$result, 'response' => $this->truncate($response)]);
         }
     }
 
@@ -227,8 +234,24 @@ final class TracedProvider extends Provider
             'provider' => method_exists($request, 'provider') ? $request->provider() : null,
             'model' => method_exists($request, 'model') ? $request->model() : null,
             'prompt' => $this->truncate($this->prompt($request)),
-            'tools' => method_exists($request, 'tools') ? array_map(fn (Tool $tool): string => $tool->name(), array_values(array_filter($request->tools(), fn (mixed $tool): bool => $tool instanceof Tool))) : [],
+            'tools' => $this->toolNames($request),
         ];
+    }
+
+    /**
+     * The names of the tools offered with the request.
+     *
+     * @return list<string>
+     */
+    private function toolNames(object $request): array
+    {
+        if (! method_exists($request, 'tools')) {
+            return [];
+        }
+
+        $tools = array_filter($request->tools(), fn (mixed $tool): bool => $tool instanceof Tool);
+
+        return array_map(fn (Tool $tool): string => $tool->name(), array_values($tools));
     }
 
     private function prompt(object $request): ?string

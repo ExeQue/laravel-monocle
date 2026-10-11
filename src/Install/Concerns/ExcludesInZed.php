@@ -52,8 +52,10 @@ trait ExcludesInZed
 
         $pattern = '**/'.$relativePath;
         $exclusions = (array) ($settings['file_scan_exclusions'] ?? $this->zedDefaultExclusions);
+        // The defaults alone never count as excluded: the key still has to be written.
+        $excluded = isset($settings['file_scan_exclusions']) && in_array($pattern, $exclusions, true);
 
-        if (in_array($pattern, $exclusions, true) && isset($settings['file_scan_exclusions'])) {
+        if ($excluded) {
             return [$label => 'unchanged'];
         }
 

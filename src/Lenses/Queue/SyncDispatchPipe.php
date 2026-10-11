@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses\Queue;
 
 use Closure;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -27,19 +28,15 @@ final class SyncDispatchPipe
     {
         $capture = $this->eyepiece->active();
 
-        if ($capture === null || ! $this->eyepiece->recording()) {
+        if ($capture === null) {
             return $next($command);
         }
 
-        // Inside a worker the job capture already represents this command, and on
-        // the sync queue the JobProcessing span does.
-        if ($capture->type === CaptureType::Job && $capture->name === $command::class) {
+        if (! $this->eyepiece->recording()) {
             return $next($command);
         }
 
-        $current = $this->eyepiece->currentSpan();
-
-        if ($current !== null && $current->kind === 'job' && $current->name === $command::class) {
+        if ($this->alreadyTimed($capture, $command::class)) {
             return $next($command);
         }
 
@@ -61,5 +58,24 @@ final class SyncDispatchPipe
 
             $span->stop();
         }
+    }
+
+    /**
+     * Inside a worker the job capture already represents this command, and on
+     * the sync queue the JobProcessing span does.
+     */
+    private function alreadyTimed(Capture $capture, string $class): bool
+    {
+        if ($capture->type === CaptureType::Job && $capture->name === $class) {
+            return true;
+        }
+
+        $current = $this->eyepiece->currentSpan();
+
+        if ($current === null) {
+            return false;
+        }
+
+        return $current->kind === 'job' && $current->name === $class;
     }
 }

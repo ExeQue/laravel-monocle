@@ -79,14 +79,32 @@ final class SkillInstaller
     public function install(string $basePath, array $agents, bool $dryRun = false): array
     {
         $content = $this->render();
+        $base = rtrim($basePath, '/').'/';
         $results = [];
 
-        foreach (array_unique(array_map(fn (string $agent): string => self::AGENTS[$agent][1] ?? throw new RuntimeException("Unknown agent [{$agent}]."), $agents)) as $folder) {
+        foreach ($this->folders($agents) as $folder) {
             $file = $folder.'/'.self::NAME.'/SKILL.md';
-            $results[$file] = $this->write(rtrim($basePath, '/').'/'.$file, $content, $dryRun);
+            $results[$file] = $this->write($base.$file, $content, $dryRun);
         }
 
         return $results;
+    }
+
+    /**
+     * The skills folders of the given agents, each once: several agents share one.
+     *
+     * @param  list<string>  $agents
+     * @return list<string>
+     */
+    private function folders(array $agents): array
+    {
+        $folders = [];
+
+        foreach ($agents as $agent) {
+            $folders[] = self::AGENTS[$agent][1] ?? throw new RuntimeException("Unknown agent [{$agent}].");
+        }
+
+        return array_values(array_unique($folders));
     }
 
     /**
@@ -95,8 +113,9 @@ final class SkillInstaller
     private function write(string $target, string $content, bool $dryRun): string
     {
         $exists = is_file($target);
+        $unchanged = $exists && file_get_contents($target) === $content;
 
-        if ($exists && file_get_contents($target) === $content) {
+        if ($unchanged) {
             return 'unchanged';
         }
 

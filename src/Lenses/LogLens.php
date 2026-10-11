@@ -24,6 +24,7 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
 {
     private const array ERROR_LEVELS = ['emergency', 'alert', 'critical', 'error'];
 
+    private const int MAX_ERRORS = 3;
 
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -48,7 +49,12 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
     public function boot(): void
     {
         $this->eyepiece->listen(MessageLogged::class, function (MessageLogged $event): void {
-            if (! $this->eyepiece->recording() || str_starts_with((string) $event->message, 'Monocle failed to record')) {
+            if (! $this->eyepiece->recording()) {
+                return;
+            }
+
+            // Monocle's own failure reports would otherwise record themselves.
+            if (str_starts_with((string) $event->message, 'Monocle failed to record')) {
                 return;
             }
 
@@ -72,10 +78,15 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
         $warnings = [];
 
         foreach ($rows as $row) {
-            $byLevel[$row['level']] = ($byLevel[$row['level']] ?? 0) + 1;
+            $level = $row['level'];
+            $byLevel[$level] = ($byLevel[$level] ?? 0) + 1;
 
-            if (in_array($row['level'], self::ERROR_LEVELS, true) && count($warnings) < 3) {
-                $warnings[] = sprintf('Logged %s: %s', $row['level'], $row['message']);
+            if (! in_array($level, self::ERROR_LEVELS, true)) {
+                continue;
+            }
+
+            if (count($warnings) < self::MAX_ERRORS) {
+                $warnings[] = sprintf('Logged %s: %s', $level, $row['message']);
             }
         }
 

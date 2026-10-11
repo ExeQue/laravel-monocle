@@ -29,6 +29,7 @@ use Laravel\Ai\Events\StepCompleted;
 use Laravel\Ai\Events\StepFailed;
 use Laravel\Ai\Events\ToolFailed;
 use Laravel\Ai\Events\ToolInvoked;
+use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\TextUsage;
 use Stringable;
@@ -41,6 +42,9 @@ use Throwable;
  */
 final class AiLens implements Advises, Configurable, Lens, Presentable, RequiresPackages, Resettable, Summarizable
 {
+    /** @var array{input: int, output: int, cache_read: int, cache_write: int, reasoning: int} */
+    private const array NO_TOKENS = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
+
     private ?int $maxText = null;
 
     /** @var array<string, Span> */
@@ -118,7 +122,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
             return Summary::make();
         }
 
-        $tokens = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
+        $tokens = self::NO_TOKENS;
         $ms = 0.0;
         $byModel = [];
         $warnings = [];
@@ -158,7 +162,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         }
 
         $prompt = $event->prompt;
-        $parent = $this->tools[$prompt->parentToolInvocationId ?? ''] ?? $this->agents[$prompt->parentInvocationId ?? ''] ?? null;
+        $parent = $this->parentSpan($prompt);
 
         $span = $this->eyepiece->span($this->agentName($prompt->agent), 'ai.agent');
 
@@ -180,7 +184,22 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         ]);
 
         $this->agents[$event->invocationId] = $span;
-        $this->usage[$event->invocationId] = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
+        $this->usage[$event->invocationId] = self::NO_TOKENS;
+    }
+
+    /**
+     * A nested agent hangs under the tool call that invoked it, or else
+     * under the agent it was prompted from.
+     */
+    private function parentSpan(AgentPrompt $prompt): ?Span
+    {
+        $tool = $this->tools[$prompt->parentToolInvocationId ?? ''] ?? null;
+
+        if ($tool !== null) {
+            return $tool;
+        }
+
+        return $this->agents[$prompt->parentInvocationId ?? ''] ?? null;
     }
 
     private function onPrompted(AgentPrompted $event): void
@@ -192,16 +211,21 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         }
 
         $response = $event->response;
-        $text = $response instanceof AgentResponse ? $response->text : null;
 
-        if ($response instanceof AgentResponse) {
+        // Anything other than an AgentResponse is a stream, which carries no text or usage of its own here.
+        $isComplete = $response instanceof AgentResponse;
+        $text = $isComplete ? $response->text : null;
+        $hasStructured = $isComplete && property_exists($response, 'structured');
+        $structured = $hasStructured ? Normalizer::value($response->structured ?? null) : null;
+
+        if ($isComplete) {
             $this->addUsage($event->invocationId, $response->usage);
         }
 
         $this->finishAgent($event->invocationId, 'ok', [
             'response' => $this->text($text),
-            'structured' => $response instanceof AgentResponse && property_exists($response, 'structured') ? Normalizer::value($response->structured ?? null) : null,
-            'streamed' => ! $response instanceof AgentResponse,
+            'structured' => $structured,
+            'streamed' => ! $isComplete,
             'provider' => $response->meta->provider ?? $span->meta['provider'] ?? null,
             'model' => $response->meta->model ?? $span->meta['model'] ?? null,
         ]);
@@ -283,7 +307,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
     private function onToolInvoked(ToolInvoked $event): void
     {
         $this->tools[$event->toolInvocationId]?->stop([
-            'result' => $this->text($this->eyepiece->outside(fn () => is_scalar($event->result) || $event->result instanceof Stringable ? (string) $event->result : json_encode(Normalizer::value($event->result)))),
+            'result' => $this->text($this->resultText($event->result)),
             'status' => 'ok',
             'tool_ms' => round($event->time, 3),
         ]);
@@ -298,7 +322,29 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
         ]);
 
         $agent = $this->agents[$event->invocationId] ?? null;
-        $agent?->meta(['failed_tools' => [...($agent->meta['failed_tools'] ?? []), $this->toolName($event->tool)]]);
+
+        if ($agent === null) {
+            return;
+        }
+
+        $failedTools = [...($agent->meta['failed_tools'] ?? []), $this->toolName($event->tool)];
+
+        $agent->meta(['failed_tools' => $failedTools]);
+    }
+
+    /**
+     * Turning the result into text can run the application's own
+     * __toString or JsonSerializable code, so it is not Monocle's time.
+     */
+    private function resultText(mixed $result): ?string
+    {
+        return $this->eyepiece->outside(function () use ($result) {
+            if (is_scalar($result) || $result instanceof Stringable) {
+                return (string) $result;
+            }
+
+            return json_encode(Normalizer::value($result));
+        });
     }
 
     /**
@@ -345,8 +391,13 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     private function currentStep(string $invocationId): ?Span
     {
+        // Newest first: the last open step of this invocation is the one running.
         foreach (array_reverse($this->steps, true) as $key => $span) {
-            if (str_starts_with($key, $invocationId.':') && $span->isOpen()) {
+            if (! str_starts_with($key, $invocationId.':')) {
+                continue;
+            }
+
+            if ($span->isOpen()) {
                 return $span;
             }
         }
@@ -370,7 +421,15 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
 
     private function text(?string $text): ?string
     {
-        if ($text === null || $this->maxText === null || mb_strlen($text) <= $this->maxText) {
+        if ($text === null) {
+            return null;
+        }
+
+        if ($this->maxText === null) {
+            return $text;
+        }
+
+        if (mb_strlen($text) <= $this->maxText) {
             return $text;
         }
 

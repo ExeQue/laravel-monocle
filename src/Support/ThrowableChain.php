@@ -27,8 +27,11 @@ final class ThrowableChain
         $file ??= self::relative(...);
         $previous = [];
 
-        for ($inner = $throwable->getPrevious(); $inner !== null && count($previous) < self::DEPTH; $inner = $inner->getPrevious()) {
+        $inner = $throwable->getPrevious();
+
+        while ($inner !== null && count($previous) < self::DEPTH) {
             $previous[] = self::one($inner, $file);
+            $inner = $inner->getPrevious();
         }
 
         return [...self::one($throwable, $file), 'previous' => $previous];
@@ -40,7 +43,11 @@ final class ThrowableChain
      */
     private static function one(Throwable $throwable, callable $file): array
     {
-        return ['class' => $throwable::class, 'message' => $throwable->getMessage(), 'file' => $file($throwable->getFile()).':'.$throwable->getLine()];
+        return [
+            'class' => $throwable::class,
+            'message' => $throwable->getMessage(),
+            'file' => $file($throwable->getFile()).':'.$throwable->getLine(),
+        ];
     }
 
     private static function relative(string $file): string

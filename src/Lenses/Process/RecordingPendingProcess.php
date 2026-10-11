@@ -24,7 +24,8 @@ final class RecordingPendingProcess extends PendingProcess
 
     public function run(array|string|null $command = null, ?callable $output = null)
     {
-        $ticket = $this->recorder->begin($this->commandLine($command), $this->workingDirectory(), async: false);
+        $commandLine = $this->commandLine($command);
+        $ticket = $this->recorder->begin($commandLine, $this->workingDirectory(), async: false);
 
         try {
             $result = parent::run($command, $output);
@@ -41,7 +42,8 @@ final class RecordingPendingProcess extends PendingProcess
 
     public function start(array|string|null $command = null, ?callable $output = null)
     {
-        $ticket = $this->recorder->begin($this->commandLine($command), $this->workingDirectory(), async: true);
+        $commandLine = $this->commandLine($command);
+        $ticket = $this->recorder->begin($commandLine, $this->workingDirectory(), async: true);
 
         try {
             $process = parent::start($command, $output);
@@ -51,6 +53,7 @@ final class RecordingPendingProcess extends PendingProcess
             throw $exception;
         }
 
+        // Nothing is being recorded, so the process needs no watching.
         if ($ticket === null) {
             return $process;
         }

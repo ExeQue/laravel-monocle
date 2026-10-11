@@ -55,22 +55,43 @@ final class Viewfinder
             return $this->notFound($args);
         }
 
-        $requested = array_values(array_filter(array_map('strval', (array) ($args['sections'] ?? ['summary']))));
-        $query = RowQuery::fromArray(['limit' => $args['limit'] ?? 25, 'verbose' => $args['verbose'] ?? false, 'search' => $args['search'] ?? null]);
-        $result = ['id' => $capture->id, 'available_sections' => $this->availableSections($capture)];
+        $requested = array_map('strval', (array) ($args['sections'] ?? ['summary']));
+        $requested = array_values(array_filter($requested));
+
+        $query = RowQuery::fromArray([
+            'limit' => $args['limit'] ?? 25,
+            'verbose' => $args['verbose'] ?? false,
+            'search' => $args['search'] ?? null,
+        ]);
+
+        $result = [
+            'id' => $capture->id,
+            'available_sections' => $this->availableSections($capture),
+        ];
 
         foreach ($requested as $section) {
             $result[$section] = match ($section) {
                 'summary' => $this->summary->build($capture),
-                'timeline' => array_values(array_filter(
-                    $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose),
-                    fn (array $span): bool => Search::matches($span, $query->search),
-                )),
+                'timeline' => $this->searchedTimeline($capture, $args, $query),
                 default => $this->sections->read($capture, $section, $query),
             };
         }
 
         return $result;
+    }
+
+    /**
+     * The whole span tree, narrowed by the search but not paginated.
+     *
+     * @param  array<string, mixed>  $args
+     * @return list<array<string, mixed>>
+     */
+    private function searchedTimeline(Capture $capture, array $args, RowQuery $query): array
+    {
+        $spans = $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose);
+        $matching = array_filter($spans, fn (array $span): bool => Search::matches($span, $query->search));
+
+        return array_values($matching);
     }
 
     /**
@@ -88,7 +109,9 @@ final class Viewfinder
         $section = (string) ($args['section'] ?? '');
 
         if ($section === 'timeline') {
-            $rows = $this->timeline->build($capture, (array) ($args['kinds'] ?? []), filter_var($args['verbose'] ?? false, FILTER_VALIDATE_BOOL));
+            $kinds = (array) ($args['kinds'] ?? []);
+            $verbose = filter_var($args['verbose'] ?? false, FILTER_VALIDATE_BOOL);
+            $rows = $this->timeline->build($capture, $kinds, $verbose);
 
             return ['id' => $capture->id, 'section' => 'timeline'] + RowQuery::fromArray($args)->apply($rows);
         }
@@ -114,7 +137,12 @@ final class Viewfinder
             (string) ($args['sort'] ?? 'total_ms'),
         );
 
-        return ['id' => $capture->id, 'group_by' => $args['group_by'] ?? 'shape'] + RowQuery::fromArray(['offset' => $args['offset'] ?? 0, 'limit' => $args['limit'] ?? 25])->apply($groups);
+        $page = RowQuery::fromArray([
+            'offset' => $args['offset'] ?? 0,
+            'limit' => $args['limit'] ?? 25,
+        ]);
+
+        return ['id' => $capture->id, 'group_by' => $args['group_by'] ?? 'shape'] + $page->apply($groups);
     }
 
     /**
@@ -147,17 +175,26 @@ final class Viewfinder
      */
     private function pendingJobs(array $captures): array
     {
+        // Job ids of the job captures in the trace: those jobs have run.
         $ran = array_filter(array_column($captures, 'job_id'));
         $pending = [];
 
         foreach ($captures as $capture) {
+            // Skip reading the jobs section of captures that dispatched nothing.
             if ((int) ($capture['counts']['jobs'] ?? 0) === 0) {
                 continue;
             }
 
-            foreach ($this->rows(['id' => $capture['id'], 'section' => 'jobs', 'limit' => RowQuery::MAX_LIMIT])['rows'] ?? [] as $row) {
+            $dispatched = $this->rows([
+                'id' => $capture['id'],
+                'section' => 'jobs',
+                'limit' => RowQuery::MAX_LIMIT,
+            ]);
+
+            foreach ($dispatched['rows'] ?? [] as $row) {
                 $run = $row['run'] ?? null;
 
+                // Sync jobs ran in place and carry no run id.
                 if ($run === null) {
                     continue;
                 }
@@ -166,7 +203,11 @@ final class Viewfinder
                     continue;
                 }
 
-                $pending[] = ['parent_id' => (string) $capture['id'], 'job' => (string) ($row['job'] ?? '?'), 'job_id' => (string) $run];
+                $pending[] = [
+                    'parent_id' => (string) $capture['id'],
+                    'job' => (string) ($row['job'] ?? '?'),
+                    'job_id' => (string) $run,
+                ];
             }
         }
 
@@ -249,9 +290,15 @@ final class Viewfinder
             return $capture;
         }
 
-        $labelled = $this->captures->list(Filter::fromArray(['label' => $reference, 'limit' => 1]))['rows'][0] ?? null;
+        // Not an id: the most recent capture with that label.
+        $labelled = $this->captures->list(Filter::fromArray(['label' => $reference, 'limit' => 1]));
+        $newest = $labelled['rows'][0] ?? null;
 
-        return $labelled === null ? null : $this->captures->find($labelled['id']);
+        if ($newest === null) {
+            return null;
+        }
+
+        return $this->captures->find($newest['id']);
     }
 
     /**

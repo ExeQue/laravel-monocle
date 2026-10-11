@@ -45,21 +45,41 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
 
     public function boot(Application $app): void
     {
-        $app->make(Gate::class)->after($this->eyepiece->wrap(function (?Authenticatable $user, string $ability, mixed $result, array $arguments): void {
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
+        $app->make(Gate::class)->after($this->eyepiece->wrap($this->onChecked(...)));
+    }
 
-            $allowed = $result instanceof Response ? $result->allowed() : ($result === null ? null : (bool) $result);
+    /**
+     * @param  array<array-key, mixed>  $arguments
+     */
+    private function onChecked(?Authenticatable $user, string $ability, mixed $result, array $arguments): void
+    {
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
 
-            $this->eyepiece->push('authorization', [
-                'ability' => $ability,
-                'allowed' => $allowed,
-                'user' => $user === null ? null : $user::class.'#'.$user->getAuthIdentifier(),
-                'arguments' => Normalizer::normalize($arguments),
-                'message' => $result instanceof Response ? $result->message() : null,
-            ]);
-        }));
+        $this->eyepiece->push('authorization', [
+            'ability' => $ability,
+            'allowed' => $this->allowed($result),
+            'user' => $user === null ? null : $user::class.'#'.$user->getAuthIdentifier(),
+            'arguments' => Normalizer::normalize($arguments),
+            'message' => $result instanceof Response ? $result->message() : null,
+        ]);
+    }
+
+    /**
+     * A null result means no gate or policy answered the check.
+     */
+    private function allowed(mixed $result): ?bool
+    {
+        if ($result instanceof Response) {
+            return $result->allowed();
+        }
+
+        if ($result === null) {
+            return null;
+        }
+
+        return (bool) $result;
     }
 
     public function summarize(Capture $capture): Summary
@@ -71,14 +91,16 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
         }
 
         $denied = array_values(array_filter($rows, fn (array $row): bool => $row['allowed'] === false));
+        $warnings = [];
+
+        foreach (array_slice($denied, 0, 3) as $row) {
+            $warnings[] = sprintf('Authorization denied: %s for %s', $row['ability'], $row['user'] ?? 'guest');
+        }
 
         return Summary::make()
             ->total('authorization_checks', count($rows), 'checks')
             ->total('authorization_denied', count($denied), 'denied')
-            ->warnings(array_map(
-                fn (array $row): string => sprintf('Authorization denied: %s for %s', $row['ability'], $row['user'] ?? 'guest'),
-                array_slice($denied, 0, 3),
-            ));
+            ->warnings($warnings);
     }
 
     public function presentation(): Presentation

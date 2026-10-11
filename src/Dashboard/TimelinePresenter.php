@@ -40,11 +40,28 @@ final readonly class TimelinePresenter
 
         foreach ($capture->spans as $span) {
             $nodes[$span->id] = $this->spanNode($span, $capture);
-        }
-
-        foreach ($capture->spans as $span) {
             $depth[$span->id] = $this->depth($span, $capture);
         }
+
+        foreach ($this->timedRowNodes($capture, $depth) as $id => $node) {
+            $nodes[$id] = $node;
+        }
+
+        $nodes = $this->pools($nodes, $capture);
+
+        return $this->tree($nodes);
+    }
+
+    /**
+     * A node per timed row, hung under the deepest span it ran inside. Rows
+     * without a start time cannot be placed and are left out.
+     *
+     * @param  array<string, int>  $depth
+     * @return array<string, array<string, mixed>>
+     */
+    private function timedRowNodes(Capture $capture, array $depth): array
+    {
+        $nodes = [];
 
         foreach (self::TIMED_SECTIONS as $section => $kind) {
             foreach ($capture->rows($section) as $index => $row) {
@@ -58,7 +75,7 @@ final readonly class TimelinePresenter
             }
         }
 
-        return $this->tree($this->pools($nodes, $capture));
+        return $nodes;
     }
 
     /**
@@ -66,9 +83,16 @@ final readonly class TimelinePresenter
      */
     private function spanNode(Span $span, Capture $capture): array
     {
+        // A span whose parent was not recorded becomes a root.
+        $parent = $span->parentId;
+
+        if ($parent !== null && ! isset($capture->spans[$parent])) {
+            $parent = null;
+        }
+
         return [
             'id' => $span->id,
-            'parent' => $span->parentId !== null && isset($capture->spans[$span->parentId]) ? $span->parentId : null,
+            'parent' => $parent,
             'kind' => $span->kind,
             'name' => $span->name,
             'color' => $this->color($span->color),
@@ -88,6 +112,15 @@ final readonly class TimelinePresenter
     private function rowNode(string $id, string $kind, string $section, array $row): array
     {
         $start = (float) $row['time'];
+        $end = $start + (float) ($row['duration'] ?? 0);
+        $sql = $row['sql_with_bindings'] ?? null;
+
+        // The SQL with placeholders only adds something when bindings were filled in.
+        $placeholders = null;
+
+        if ($sql !== null && isset($row['sql']) && $row['sql'] !== $sql) {
+            $placeholders = $row['sql'];
+        }
 
         return [
             'id' => $id,
@@ -95,10 +128,10 @@ final readonly class TimelinePresenter
             'kind' => $kind,
             'name' => $this->label($section, $row),
             's' => round($start, 3),
-            'e' => round($start + (float) ($row['duration'] ?? 0), 3),
+            'e' => round($end, 3),
             'd' => [
-                'sql' => $row['sql_with_bindings'] ?? null,
-                'placeholders' => isset($row['sql_with_bindings'], $row['sql']) && $row['sql'] !== $row['sql_with_bindings'] ? $row['sql'] : null,
+                'sql' => $sql,
+                'placeholders' => $placeholders,
                 'meta' => $this->meta(array_diff_key($row, array_flip(self::HIDDEN_KEYS))),
                 'origin' => $this->origin($row['origin'] ?? null),
             ],
@@ -113,13 +146,29 @@ final readonly class TimelinePresenter
         $text = match ($section) {
             'queries' => (string) ($row['sql'] ?? ''),
             'cache' => strtoupper((string) ($row['type'] ?? '')).' '.($row['key'] ?? ''),
-            'redis' => strtoupper((string) ($row['command'] ?? '')).' '.implode(' ', array_map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '...', (array) ($row['parameters'] ?? []))),
+            'redis' => strtoupper((string) ($row['command'] ?? '')).' '.$this->redisParameters($row),
             'http' => ($row['method'] ?? '').' '.($row['url'] ?? ''),
             'filesystem' => ($row['op'] ?? '').' '.($row['disk'] ?? '').':'.($row['path'] ?? ''),
             default => $section,
         };
 
         return mb_strimwidth(trim($text), 0, 300, '...');
+    }
+
+    /**
+     * Redis parameters as text; anything that is not a scalar shows as "...".
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function redisParameters(array $row): string
+    {
+        $parameters = [];
+
+        foreach ((array) ($row['parameters'] ?? []) as $value) {
+            $parameters[] = is_scalar($value) ? (string) $value : '...';
+        }
+
+        return implode(' ', $parameters);
     }
 
     /**
@@ -131,7 +180,15 @@ final readonly class TimelinePresenter
             return null;
         }
 
-        return SpanColor::tryFrom($color) !== null || preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) === 1 ? $color : null;
+        if (SpanColor::tryFrom($color) !== null) {
+            return $color;
+        }
+
+        if (preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $color) === 1) {
+            return $color;
+        }
+
+        return null;
     }
 
     /**
@@ -144,10 +201,11 @@ final readonly class TimelinePresenter
         $best = null;
 
         foreach ($capture->spans as $span) {
-            if ($span->start === null || $span->start > $start + 0.001 || ($span->end ?? INF) < $end - 0.05) {
+            if (! $this->contains($span, $start, $end)) {
                 continue;
             }
 
+            // Later spans win ties: they are nested inside or follow the earlier one.
             if ($best === null || $depth[$span->id] >= $depth[$best]) {
                 $best = $span->id;
             }
@@ -156,12 +214,34 @@ final readonly class TimelinePresenter
         return $best;
     }
 
+    /**
+     * Small tolerances absorb clock jitter between span and row timestamps.
+     */
+    private function contains(Span $span, float $start, float $end): bool
+    {
+        if ($span->start === null) {
+            return false;
+        }
+
+        if ($span->start > $start + 0.001) {
+            return false;
+        }
+
+        // An open span runs until the end of the capture.
+        return ($span->end ?? INF) >= $end - 0.05;
+    }
+
+    /**
+     * Number of recorded ancestors; capped so a broken parent chain cannot loop forever.
+     */
     private function depth(Span $span, Capture $capture): int
     {
         $depth = 0;
+        $parent = $span->parentId;
 
-        for ($parent = $span->parentId; $parent !== null && isset($capture->spans[$parent]) && $depth < 100; $parent = $capture->spans[$parent]->parentId) {
+        while ($parent !== null && isset($capture->spans[$parent]) && $depth < 100) {
             $depth++;
+            $parent = $capture->spans[$parent]->parentId;
         }
 
         return $depth;
@@ -177,32 +257,44 @@ final readonly class TimelinePresenter
     private function pools(array $nodes, Capture $capture): array
     {
         $members = [];
+        $failed = [];
 
         foreach ($capture->rows('http') as $index => $row) {
-            if (is_int($row['pool'] ?? null) && isset($nodes["http:{$index}"])) {
-                $members[$row['pool']][] = "http:{$index}";
+            $pool = $row['pool'] ?? null;
+            $id = "http:{$index}";
+
+            if (! is_int($pool)) {
+                continue;
             }
+
+            if (! isset($nodes[$id])) {
+                continue;
+            }
+
+            $members[$pool][] = $id;
+            $failed[$pool] = ($failed[$pool] ?? 0) + (($row['failed'] ?? false) ? 1 : 0);
         }
 
         foreach ($members as $pool => $ids) {
+            $poolId = "http.pool:{$pool}";
             $rows = array_map(fn (string $id): array => $nodes[$id], $ids);
-            $failed = count(array_filter($ids, fn (string $id): bool => (bool) ($capture->rows('http')[(int) substr($id, 5)]['failed'] ?? false)));
+            $count = count($ids);
 
-            $nodes["http.pool:{$pool}"] = [
-                'id' => "http.pool:{$pool}",
+            $nodes[$poolId] = [
+                'id' => $poolId,
                 'parent' => $rows[0]['parent'],
                 'kind' => 'http.pool',
-                'name' => sprintf('pool #%d, %d %s', $pool, count($ids), count($ids) === 1 ? 'request' : 'requests'),
+                'name' => sprintf('pool #%d, %d %s', $pool, $count, $count === 1 ? 'request' : 'requests'),
                 's' => min(array_column($rows, 's')),
                 'e' => max(array_column($rows, 'e')),
                 'd' => [
-                    'meta' => ['requests' => count($ids), 'failed' => $failed],
+                    'meta' => ['requests' => $count, 'failed' => $failed[$pool]],
                     'origin' => $rows[0]['d']['origin'],
                 ],
             ];
 
             foreach ($ids as $id) {
-                $nodes[$id]['parent'] = "http.pool:{$pool}";
+                $nodes[$id]['parent'] = $poolId;
             }
         }
 
@@ -248,44 +340,79 @@ final readonly class TimelinePresenter
         $links = [];
 
         foreach ($meta as $key => $value) {
-            if ($this->isThrowable($value)) {
-                $meta[$key] = $value = $this->throwable($value);
-            }
+            $value = $this->expand($key, $value);
+            $meta[$key] = $value;
+            $valueLinks = $this->linksFor($key, $value);
 
-            if ($key === 'rules' && is_array($value) && ! array_is_list($value)) {
-                $ruleLinks = $this->ruleLinks($value);
-
-                if ($ruleLinks !== []) {
-                    $links['rules'] = $ruleLinks;
-                }
-
-                continue;
-            }
-
-            if ($key === 'frames' && is_array($value) && array_is_list($value)) {
-                $meta[$key] = $value = array_map(fn (mixed $frame): mixed => is_string($frame) ? $this->frame($frame) : $frame, $value);
-            }
-
-            if ($key === 'previous' && is_array($value) && array_is_list($value)) {
-                $meta[$key] = $value = array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $value);
-            }
-
-            if (($link = $this->link($value)) !== null) {
-                $links[$key] = $link;
-
-                continue;
-            }
-
-            if (is_array($value) && ! in_array($key, ['frames', 'previous', 'origin'], true)) {
-                $nested = $this->nestedLinks($value);
-
-                if ($nested !== []) {
-                    $links[$key] = $nested;
-                }
+            if ($valueLinks !== []) {
+                $links[$key] = $valueLinks;
             }
         }
 
-        return $links === [] ? $meta : $meta + ['_links' => $links];
+        if ($links === []) {
+            return $meta;
+        }
+
+        return $meta + ['_links' => $links];
+    }
+
+    /**
+     * Throwables, stack frames and wrapped exceptions carry their own links
+     * inline, so the dashboard can render them as they are.
+     */
+    private function expand(int|string $key, mixed $value): mixed
+    {
+        if ($this->isThrowable($value)) {
+            return $this->throwable($value);
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (! array_is_list($value)) {
+            return $value;
+        }
+
+        if ($key === 'frames') {
+            return array_map(fn (mixed $frame): mixed => is_string($frame) ? $this->frame($frame) : $frame, $value);
+        }
+
+        if ($key === 'previous') {
+            return $this->throwables($value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * The editor link of one meta value: a single link, links by rule or
+     * dotted key, or [] when there is nothing to link.
+     *
+     * @return string|array<string, string>
+     */
+    private function linksFor(int|string $key, mixed $value): string|array
+    {
+        if ($key === 'rules' && is_array($value) && ! array_is_list($value)) {
+            return $this->ruleLinks($value);
+        }
+
+        $link = $this->link($value);
+
+        if ($link !== null) {
+            return $link;
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        // Frames and wrapped exceptions carry their links inline; origins get theirs from origin().
+        if (in_array($key, ['frames', 'previous', 'origin'], true)) {
+            return [];
+        }
+
+        return $this->nestedLinks($value);
     }
 
     /**
@@ -321,7 +448,20 @@ final readonly class TimelinePresenter
      */
     public function link(mixed $value): ?string
     {
-        if (! is_string($value) || $value === '' || strlen($value) > 500 || ! $this->links->enabled()) {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        if ($value === '') {
+            return null;
+        }
+
+        // Long values are text, not names; skip the regexes on them.
+        if (strlen($value) > 500) {
+            return null;
+        }
+
+        if (! $this->links->enabled()) {
             return null;
         }
 
@@ -330,20 +470,32 @@ final readonly class TimelinePresenter
             return $this->link($closure[1]);
         }
 
+        // A class, optionally followed by ->method, ::method, @method or #key (a model).
         if (preg_match('/^\\\\?([A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+)(?:(?:->|::|@)(\w+)(?:\(\))?|#[\w-]+)?$/', $value, $match) === 1) {
-            return $this->links->class($match[1], ($match[2] ?? '') !== '' ? $match[2] : null);
+            $method = $match[2] ?? '';
+
+            return $this->links->class($match[1], $method === '' ? null : $method);
         }
 
-        if (str_contains($value, '://') || preg_match('/\s/', $value) === 1) {
+        if (str_contains($value, '://')) {
             return null;
         }
 
-        if (str_contains(str_replace('\\', '/', $value), 'storage/framework/views/')) {
+        if (preg_match('/\s/', $value) === 1) {
             return null;
         }
 
-        if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,5})(?::(\d+))?$#', str_replace('\\', '/', $value), $match) === 1) {
-            return $this->links->file($match[1], isset($match[2]) ? (int) $match[2] : null);
+        $path = str_replace('\\', '/', $value);
+
+        // Compiled Blade views are not worth opening.
+        if (str_contains($path, 'storage/framework/views/')) {
+            return null;
+        }
+
+        if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,5})(?::(\d+))?$#', $path, $match) === 1) {
+            $line = isset($match[2]) ? (int) $match[2] : null;
+
+            return $this->links->file($match[1], $line);
         }
 
         return null;
@@ -408,10 +560,19 @@ final readonly class TimelinePresenter
         $throwable['file_link'] = isset($throwable['file']) ? $this->link($throwable['file']) : null;
 
         if (is_array($throwable['previous'] ?? null)) {
-            $throwable['previous'] = array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $throwable['previous']);
+            $throwable['previous'] = $this->throwables($throwable['previous']);
         }
 
         return $throwable;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $values
+     * @return array<array-key, mixed>
+     */
+    private function throwables(array $values): array
+    {
+        return array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $values);
     }
 
     /**
@@ -426,9 +587,12 @@ final readonly class TimelinePresenter
         $links = [];
 
         foreach ($rules as $field) {
-            foreach (is_string($field) ? explode('|', $field) : [] as $rule) {
-                $target = preg_match('/^Closure \((.+)\)$/', $rule, $match) === 1 ? $match[1] : explode(' ', $rule, 2)[0];
-                $link = str_contains($target, '\\') || str_contains($target, '.php') ? $this->link($target) : null;
+            if (! is_string($field)) {
+                continue;
+            }
+
+            foreach (explode('|', $field) as $rule) {
+                $link = $this->ruleLink($rule);
 
                 if ($link !== null) {
                     $links[$rule] = $link;
@@ -440,6 +604,28 @@ final readonly class TimelinePresenter
     }
 
     /**
+     * Only rules naming a class or a file can link; "required" or "max:5" cannot.
+     */
+    private function ruleLink(string $rule): ?string
+    {
+        if (preg_match('/^Closure \((.+)\)$/', $rule, $match) === 1) {
+            $target = $match[1];
+        } else {
+            $target = explode(' ', $rule, 2)[0];
+        }
+
+        if (str_contains($target, '\\')) {
+            return $this->link($target);
+        }
+
+        if (str_contains($target, '.php')) {
+            return $this->link($target);
+        }
+
+        return null;
+    }
+
+    /**
      * A stack frame recorded as "file:line call", split up and linked.
      *
      * @return array{file: string, call: string|null, link: string|null, call_link: string|null}
@@ -448,7 +634,12 @@ final readonly class TimelinePresenter
     {
         [$where, $call] = array_pad(explode(' ', $frame, 2), 2, null);
 
-        return ['file' => $where, 'call' => $call, 'link' => $this->link($where), 'call_link' => $call === null ? null : $this->link($call)];
+        return [
+            'file' => $where,
+            'call' => $call,
+            'link' => $this->link($where),
+            'call_link' => $call === null ? null : $this->link($call),
+        ];
     }
 
     /**
@@ -487,17 +678,8 @@ final readonly class TimelinePresenter
         }
 
         $line = isset($origin['line']) ? (int) $origin['line'] : null;
-        $frames = [];
-
-        foreach ((array) ($origin['frames'] ?? []) as $frame) {
-            $frames[] = [
-                'file' => $frame['file'] ?? null,
-                'line' => $frame['line'] ?? null,
-                'call' => $frame['call'] ?? null,
-                'link' => isset($frame['file']) ? $this->links->file((string) $frame['file'], isset($frame['line']) ? (int) $frame['line'] : null) : null,
-                'call_link' => $this->link($frame['call'] ?? null),
-            ];
-        }
+        $via = is_array($origin['via'] ?? null) ? $this->originFrame($origin['via']) : null;
+        $frames = array_map($this->originFrame(...), array_values((array) ($origin['frames'] ?? [])));
 
         return [
             'file' => $origin['file'],
@@ -505,15 +687,33 @@ final readonly class TimelinePresenter
             'call' => $origin['call'] ?? null,
             'call_link' => $this->link($origin['call'] ?? null),
             'vendor' => $origin['vendor'] ?? false,
-            'via' => is_array($origin['via'] ?? null) ? [
-                'file' => $origin['via']['file'] ?? null,
-                'line' => $origin['via']['line'] ?? null,
-                'call' => $origin['via']['call'] ?? null,
-                'link' => isset($origin['via']['file']) ? $this->links->file((string) $origin['via']['file'], isset($origin['via']['line']) ? (int) $origin['via']['line'] : null) : null,
-                'call_link' => $this->link($origin['via']['call'] ?? null),
-            ] : null,
+            'via' => $via,
             'link' => $this->links->file((string) $origin['file'], $line),
             'frames' => $frames,
+        ];
+    }
+
+    /**
+     * One frame of an origin's call chain (or its "via" frame), linked.
+     *
+     * @param  array<string, mixed>  $frame
+     * @return array{file: mixed, line: mixed, call: mixed, link: string|null, call_link: string|null}
+     */
+    private function originFrame(array $frame): array
+    {
+        $link = null;
+
+        if (isset($frame['file'])) {
+            $line = isset($frame['line']) ? (int) $frame['line'] : null;
+            $link = $this->links->file((string) $frame['file'], $line);
+        }
+
+        return [
+            'file' => $frame['file'] ?? null,
+            'line' => $frame['line'] ?? null,
+            'call' => $frame['call'] ?? null,
+            'link' => $link,
+            'call_link' => $this->link($frame['call'] ?? null),
         ];
     }
 }

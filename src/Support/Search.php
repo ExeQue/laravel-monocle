@@ -25,10 +25,8 @@ final class Search
             return true;
         }
 
-        $haystack = mb_strtolower(implode("\n", array_map(
-            fn (mixed $value): string => is_bool($value) ? ($value ? 'true' : 'false') : (string) (is_scalar($value) ? $value : ''),
-            Arr::dot($row),
-        )));
+        $values = array_map(self::searchable(...), Arr::dot($row));
+        $haystack = mb_strtolower(implode("\n", $values));
 
         foreach ($words as $word) {
             if (! str_contains($haystack, $word)) {
@@ -37,5 +35,22 @@ final class Search
         }
 
         return true;
+    }
+
+    /**
+     * Booleans read as "true"/"false" so they can be searched for; other
+     * non-scalars (empty arrays left by Arr::dot) read as nothing.
+     */
+    private static function searchable(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if (! is_scalar($value)) {
+            return '';
+        }
+
+        return (string) $value;
     }
 }

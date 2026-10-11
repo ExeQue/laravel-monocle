@@ -50,15 +50,22 @@ final class SessionLens implements Advises, Lens, Presentable, Resettable
 
     public function boot(Application $app): void
     {
+        $remember = function (array $data): void {
+            $this->before = $data;
+        };
+
         $app->extend(StartSession::class, fn (object $inner): SnapshotsSession => new SnapshotsSession(
+            // Unwrap first, so the session is never snapshotted twice.
             $inner instanceof SnapshotsSession ? $inner->inner() : $inner,
-            function (array $data): void {
-                $this->before = $data;
-            },
+            $remember,
         ));
 
         $this->eyepiece->listen(RequestHandled::class, function (RequestHandled $event) use ($app): void {
-            if (! $this->eyepiece->recording() || ! $event->request->hasSession()) {
+            if (! $this->eyepiece->recording()) {
+                return;
+            }
+
+            if (! $event->request->hasSession()) {
                 return;
             }
 
@@ -71,15 +78,28 @@ final class SessionLens implements Advises, Lens, Presentable, Resettable
 
             $flash = (array) ($data['_flash'] ?? []);
             unset($data['_flash']);
+
             $masker = $this->eyepiece->masker(self::class);
             $after = $masker->inputs($data);
 
+            $changes = null;
+
+            if ($this->before !== null) {
+                $before = $masker->inputs(Arr::except($this->before, ['_flash']));
+                $changes = $this->changes($before, $after);
+            }
+
+            $flashed = [...(array) ($flash['old'] ?? []), ...(array) ($flash['new'] ?? [])];
+
+            // Only a hash of the id: the id itself would let anyone reading the capture take over the session.
+            $idHash = substr(hash('sha256', (string) $session->getId()), 0, 12);
+
             $this->eyepiece->set('session', [
                 'driver' => $app->make('config')->get('session.driver'),
-                'id' => substr(hash('sha256', (string) $session->getId()), 0, 12),
+                'id' => $idHash,
                 'data' => $after,
-                'changes' => $this->before === null ? null : $this->changes($masker->inputs(Arr::except($this->before, ['_flash'])), $after),
-                'flash' => array_values(array_unique([...(array) ($flash['old'] ?? []), ...(array) ($flash['new'] ?? [])])),
+                'changes' => $changes,
+                'flash' => array_values(array_unique($flashed)),
             ]);
         });
     }
@@ -104,7 +124,10 @@ final class SessionLens implements Advises, Lens, Presentable, Resettable
             $old = $from[$field] ?? null;
             $new = $to[$field] ?? null;
 
-            if ($old !== $new || array_key_exists($field, $from) !== array_key_exists($field, $to)) {
+            // A key added or removed with a null value is a change too, though both sides read null.
+            $existenceChanged = array_key_exists($field, $from) !== array_key_exists($field, $to);
+
+            if ($old !== $new || $existenceChanged) {
                 $changes[] = ['field' => (string) $field, 'from' => $old, 'to' => $new];
             }
         }

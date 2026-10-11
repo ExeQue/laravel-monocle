@@ -112,12 +112,8 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
         $this->hook('exception', $this->exception(...));
 
         // Filament fires these by class name with the action, or the record, data and page, as the payload.
-        $this->eyepiece->listen(ActionCalling::class, fn (mixed $action) => $this->ran($action instanceof ActionCalling ? $action->getAction() : $action, null));
-        $this->eyepiece->listen(ActionCalled::class, function (mixed $action): void {
-            $action = $action instanceof ActionCalled ? $action->getAction() : $action;
-
-            $this->ran($action, $action instanceof Action && $action->getStatus() === ActionStatus::Failure ? 'failed' : 'success');
-        });
+        $this->eyepiece->listen(ActionCalling::class, $this->calling(...));
+        $this->eyepiece->listen(ActionCalled::class, $this->called(...));
         $this->eyepiece->listen(RecordCreated::class, fn (mixed $record, mixed $data = null, mixed $page = null) => $this->saved('created', $record, $page));
         $this->eyepiece->listen(RecordUpdated::class, fn (mixed $record, mixed $data = null, mixed $page = null) => $this->saved('updated', $record, $page));
         $this->eyepiece->listen(NotificationSent::class, $this->sent(...));
@@ -144,16 +140,14 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             return null;
         }
 
-        $top = (array) (Arr::last((array) $component->mountedActions) ?? []);
-        $mounted = $method === 'mountAction'
-            ? ['name' => $params[0] ?? null, 'arguments' => $params[1] ?? [], 'context' => $params[2] ?? []]
-            : [...$top, 'arguments' => [...(array) ($top['arguments'] ?? []), ...(array) ($params[0] ?? [])]];
+        $mounted = $this->mounted($component, $method, $params);
 
         if (! is_string($mounted['name'] ?? null)) {
             return null;
         }
 
         $context = (array) ($mounted['context'] ?? []);
+        $arguments = Normalizer::normalize((array) ($mounted['arguments'] ?? []));
         $index = count($this->actions);
 
         $this->actions[] = [
@@ -165,7 +159,7 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             'record' => $context['recordKey'] ?? null,
             'table' => ($context['table'] ?? false) ? true : null,
             'bulk' => ($context['bulk'] ?? false) ? true : null,
-            'arguments' => Normalizer::normalize((array) ($mounted['arguments'] ?? [])) ?: null,
+            'arguments' => $arguments ?: null,
             'errors' => null,
             'exception' => null,
             'notifications' => null,
@@ -181,10 +175,54 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
                 return;
             }
 
-            $opened = $method === 'mountAction' && (Arr::last((array) $component->mountedActions)['name'] ?? null) === $this->actions[$index]['name'];
+            // A mount that ends without running leaves the action on top of the stack while its modal shows.
+            $topName = Arr::last((array) $component->mountedActions)['name'] ?? null;
+            $opened = $method === 'mountAction' && $topName === $this->actions[$index]['name'];
 
             $this->actions[$index]['status'] = $opened ? 'modal opened' : 'stopped';
         };
+    }
+
+    /**
+     * The action a call is about: mountAction names it in its parameters,
+     * callMountedAction runs the one on top of the mounted stack with the
+     * arguments it is given added.
+     *
+     * @param  array<int, mixed>  $params
+     * @return array<string, mixed>
+     */
+    private function mounted(Component&HasActions $component, string $method, array $params): array
+    {
+        if ($method === 'mountAction') {
+            return [
+                'name' => $params[0] ?? null,
+                'arguments' => $params[1] ?? [],
+                'context' => $params[2] ?? [],
+            ];
+        }
+
+        $top = (array) (Arr::last((array) $component->mountedActions) ?? []);
+        $arguments = [...(array) ($top['arguments'] ?? []), ...(array) ($params[0] ?? [])];
+
+        return [...$top, 'arguments' => $arguments];
+    }
+
+    /**
+     * Filament fires ActionCalling with either the event or the action itself.
+     */
+    private function calling(mixed $event): void
+    {
+        $action = $event instanceof ActionCalling ? $event->getAction() : $event;
+
+        $this->ran($action, null);
+    }
+
+    private function called(mixed $event): void
+    {
+        $action = $event instanceof ActionCalled ? $event->getAction() : $event;
+        $failed = $action instanceof Action && $action->getStatus() === ActionStatus::Failure;
+
+        $this->ran($action, $failed ? 'failed' : 'success');
     }
 
     /**
@@ -280,26 +318,35 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
     private function table(Component&HasTable $component): array
     {
         $table = $component->getTable();
-        $records = (fn (): mixed => $this->cachedTableRecords)->call($component);
+        $model = $table->getModel();
         $paginated = $table->isPaginated();
+
+        // The records the table rendered, read from the component's protected cache so they are not queried again.
+        $records = (fn (): mixed => $this->cachedTableRecords)->call($component);
         $count = is_countable($records) ? count($records) : null;
+
+        $sortColumn = $component->getTableSortColumn();
+        $sort = $sortColumn === null ? null : $sortColumn.' '.$component->getTableSortDirection();
+
+        $deferred = $records === null && $table->isLoadingDeferred();
+        $large = ! $paginated && $count !== null && $count > $this->largeTableRecords;
 
         return [
             'kind' => 'table',
-            'name' => $table->getModel() === null ? null : class_basename($table->getModel()),
+            'name' => $model === null ? null : class_basename($model),
             'component' => $component::class,
             'filters' => $this->filters((array) ($component->tableFilters ?? [])) ?: null,
             'search' => $component->getTableSearch(),
             'column_searches' => array_filter($component->getTableColumnSearches(), filled(...)) ?: null,
-            'sort' => $component->getTableSortColumn() === null ? null : $component->getTableSortColumn().' '.$component->getTableSortDirection(),
+            'sort' => $sort,
             'grouping' => $component->tableGrouping,
             'tab' => property_exists($component, 'activeTab') ? $component->activeTab : null,
             'page' => $paginated ? $component->getTablePage() : null,
             'per_page' => $paginated ? $component->getTableRecordsPerPage() : null,
             'records' => $count,
             'total' => $records instanceof LengthAwarePaginator ? $records->total() : null,
-            'deferred' => $records === null && $table->isLoadingDeferred() ? true : null,
-            'large' => ! $paginated && $count !== null && $count > $this->largeTableRecords ? true : null,
+            'deferred' => $deferred ? true : null,
+            'large' => $large ? true : null,
         ];
     }
 
@@ -353,7 +400,10 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
      */
     private function sent(NotificationSent $event): void
     {
-        if (! $event->notification instanceof DatabaseNotification && ! $event->notification instanceof BroadcastNotification) {
+        $notification = $event->notification;
+        $isFilament = $notification instanceof DatabaseNotification || $notification instanceof BroadcastNotification;
+
+        if (! $isFilament) {
             return;
         }
 
@@ -362,10 +412,13 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
         }
 
         $notifiable = $event->notifiable;
+        $notifiableName = $notifiable instanceof Model
+            ? $notifiable::class.'#'.$notifiable->getKey()
+            : get_debug_type($notifiable);
 
         $this->eyepiece->push('filament', [
-            ...$this->notification($event->notification->data, $event->channel),
-            'notifiable' => $notifiable instanceof Model ? $notifiable::class.'#'.$notifiable->getKey() : get_debug_type($notifiable),
+            ...$this->notification($notification->data, $event->channel),
+            'notifiable' => $notifiableName,
         ], origin: false);
     }
 
@@ -391,7 +444,10 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             $this->notified[$id] = true;
             $titles[] = (string) ($notification['title'] ?? '');
 
-            $this->eyepiece->push('filament', [...$this->notification($notification, 'flash'), 'action' => $action], origin: false);
+            $this->eyepiece->push('filament', [
+                ...$this->notification($notification, 'flash'),
+                'action' => $action,
+            ], origin: false);
         }
 
         return $titles;
@@ -455,6 +511,7 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
         $this->touched = true;
         $this->notified ??= array_fill_keys(array_keys($this->flashed()), true);
 
+        // The first Filament page to show up is the one the request was for.
         if ($this->page === null && $component instanceof BasePage) {
             $this->page = ['page' => $component::class, ...FilamentComponent::describe($component)];
         }
@@ -463,6 +520,7 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
     public function finalize(Capture $capture): void
     {
         if ($this->touched || Filament::isServing()) {
+            // Without a component to mark the earlier ones, every notification in the session is this request's.
             $this->notified ??= [];
             $this->notifications();
         }
@@ -488,7 +546,7 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
         $panel = Filament::getCurrentPanel();
         $tenant = Filament::getTenant();
 
-        $this->eyepiece->push('filament_context', array_filter([
+        $context = [
             'panel' => $panel?->getId(),
             'path' => $panel?->getPath(),
             'guard' => $panel?->getAuthGuard(),
@@ -496,7 +554,9 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             'page' => $this->page['page'] ?? null,
             'resource' => $this->page['resource'] ?? null,
             'record' => $this->page['record'] ?? null,
-        ], fn (mixed $value): bool => $value !== null), origin: false);
+        ];
+
+        $this->eyepiece->push('filament_context', array_filter($context, fn (mixed $value): bool => $value !== null), origin: false);
     }
 
     public function reset(): void
@@ -522,12 +582,15 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
 
         foreach ($rows as $row) {
             $where = class_basename((string) ($row['component'] ?? ''));
+            $exception = $row['exception'] ?? null;
 
-            if (($row['exception'] ?? null) !== null) {
-                $errors[] = sprintf('Filament action "%s" on %s threw %s: %s', $row['name'], $where, $row['exception']['class'], $row['exception']['message']);
+            if ($exception !== null) {
+                $errors[] = sprintf('Filament action "%s" on %s threw %s: %s', $row['name'], $where, $exception['class'], $exception['message']);
             }
 
-            if (($row['kind'] ?? null) === 'action' && ($row['status'] ?? null) === 'failed') {
+            $isAction = ($row['kind'] ?? null) === 'action';
+
+            if ($isAction && ($row['status'] ?? null) === 'failed') {
                 $errors[] = sprintf('Filament action "%s" on %s failed.', $row['name'], $where);
             }
 

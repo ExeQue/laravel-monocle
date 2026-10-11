@@ -69,6 +69,7 @@ final class BoostAgents
                 continue;
             }
 
+            // Not every Boost agent exposes its config path; those report "registered" instead.
             $path = method_exists($agent, 'mcpConfigPath') ? (string) $agent->mcpConfigPath() : '';
 
             if ($dryRun) {
@@ -79,10 +80,16 @@ final class BoostAgents
 
             $results[$name] = $this->inBasePath(function () use ($agent, $server, $command, $path): string {
                 try {
-                    return $agent->installMcp($server, $command['command'], $command['args']) ? ($path ?: 'registered') : 'failed';
+                    $installed = $agent->installMcp($server, $command['command'], $command['args']);
                 } catch (Throwable $exception) {
                     return 'failed: '.$exception->getMessage();
                 }
+
+                if (! $installed) {
+                    return 'failed';
+                }
+
+                return $path ?: 'registered';
             });
         }
 

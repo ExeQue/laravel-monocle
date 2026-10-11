@@ -43,6 +43,9 @@ final class Origin
     /** @var array<string, array{file: string, line: int|null, call: string}> Relation methods already looked up. */
     private static array $relations = [];
 
+    /** @var array<string, string|null> Compiled view => its .blade.php source, null when it names none. */
+    private static array $compiledViewSources = [];
+
     /** Library code that only passes the operation along. */
     private const array PLUMBING = [
         '/laravel/framework/src/Illuminate/Database/',
@@ -52,9 +55,6 @@ final class Origin
         '/laravel/framework/src/Illuminate/Support/Facades/',
         '/laravel/framework/src/Illuminate/Container/',
     ];
-
-    /** @var array<string, string|null> */
-    private static array $compiledViewSources = [];
 
     /**
      * @param  list<string>  $includeVendor
@@ -78,7 +78,11 @@ final class Origin
 
             $class = (string) ($trace[$index + 1]['class'] ?? '');
 
-            if (str_starts_with($class, 'ExeQue\\Monocle\\') || self::isOwn($file)) {
+            if (str_starts_with($class, 'ExeQue\\Monocle\\')) {
+                continue;
+            }
+
+            if (self::isOwn($file)) {
                 continue;
             }
 
@@ -144,8 +148,10 @@ final class Origin
             'frames' => $kept,
         ];
 
+        // A model property read that loaded a relation: name the relation method instead of __get.
         if ($called !== null && str_ends_with((string) $called['call'], '->__get')) {
-            $called = self::relation($live ? self::traceWithArguments($trace) : $trace, $basePath) ?? $called;
+            $withArguments = $live ? self::traceWithArguments($trace) : $trace;
+            $called = self::relation($withArguments, $basePath) ?? $called;
         }
 
         if ($called !== null) {
@@ -222,7 +228,15 @@ final class Origin
         $class = $caller['class'] ?? null;
         $inside = $trace[$index - 1] ?? null;
 
-        if (! in_array($caller['function'] ?? null, ['__call', '__callStatic'], true) || ! is_string($class) || $inside === null || ! isset($inside['file'], $inside['line'])) {
+        if (! in_array($caller['function'] ?? null, ['__call', '__callStatic'], true)) {
+            return null;
+        }
+
+        if (! is_string($class)) {
+            return null;
+        }
+
+        if (! isset($inside['file'], $inside['line'])) {
             return null;
         }
 
@@ -240,25 +254,28 @@ final class Origin
 
             $function = new ReflectionFunction($macro);
 
-            if ($function->getFileName() === $inside['file'] && $inside['line'] >= $function->getStartLine() && $inside['line'] <= $function->getEndLine()) {
-                return [
-                    'file' => self::relative((string) $function->getFileName(), $basePath),
-                    'line' => $function->getStartLine() ?: null,
-                    'call' => $class.($caller['type'] ?? '->').$name,
-                ];
+            if ($function->getFileName() !== $inside['file']) {
+                continue;
             }
+
+            if ($inside['line'] < $function->getStartLine()) {
+                continue;
+            }
+
+            if ($inside['line'] > $function->getEndLine()) {
+                continue;
+            }
+
+            return [
+                'file' => self::relative((string) $function->getFileName(), $basePath),
+                'line' => $function->getStartLine() ?: null,
+                'call' => $class.($caller['type'] ?? '->').$name,
+            ];
         }
 
         return null;
     }
 
-    /**
-     * A relation loaded by reading a model property: the relation method,
-     * found in the arguments of Eloquent's getRelationshipFromMethod() call.
-     *
-     * @param  list<array<string, mixed>>  $trace  a backtrace with arguments
-     * @return array{file: string, line: int|null, call: string}|null
-     */
     /**
      * The relation's name is an argument, so the trace is taken again with
      * arguments, but only as deep as the frame that holds it.
@@ -292,18 +309,33 @@ final class Origin
         ];
     }
 
+    /**
+     * A relation loaded by reading a model property: the relation method,
+     * found in the arguments of Eloquent's getRelationshipFromMethod() call.
+     *
+     * @param  list<array<string, mixed>>  $trace  a backtrace with arguments
+     * @return array{file: string, line: int|null, call: string}|null
+     */
     private static function relation(array $trace, string $basePath): ?array
     {
         foreach ($trace as $frame) {
+            if (($frame['function'] ?? null) !== 'getRelationshipFromMethod') {
+                continue;
+            }
+
             $method = $frame['args'][0] ?? null;
 
-            if (($frame['function'] ?? null) !== 'getRelationshipFromMethod' || ! is_string($method)) {
+            if (! is_string($method)) {
                 continue;
             }
 
             $class = isset($frame['object']) ? $frame['object']::class : ($frame['class'] ?? null);
 
-            if (! is_string($class) || ! method_exists($class, $method)) {
+            if (! is_string($class)) {
+                return null;
+            }
+
+            if (! method_exists($class, $method)) {
                 return null;
             }
 
@@ -327,7 +359,11 @@ final class Origin
     {
         $file = str_replace('\\', '/', $file);
 
-        if (str_contains($file, '/exeque/laravel-monocle/') || self::isOwn($file)) {
+        if (str_contains($file, '/exeque/laravel-monocle/')) {
+            return true;
+        }
+
+        if (self::isOwn($file)) {
             return true;
         }
 
@@ -369,14 +405,24 @@ final class Origin
      */
     public static function describe(?array $origin): ?string
     {
-        if ($origin === null || ! isset($origin['file'])) {
+        if (! isset($origin['file'])) {
             return null;
         }
 
-        $where = $origin['file'].(isset($origin['line']) ? ':'.$origin['line'] : '');
-        $via = is_array($origin['via'] ?? null) ? ($origin['via']['call'] ?? $origin['via']['file'] ?? null) : null;
+        $where = $origin['file'];
 
-        return $via === null ? $where : $where.' via '.$via;
+        if (isset($origin['line'])) {
+            $where .= ':'.$origin['line'];
+        }
+
+        $via = $origin['via'] ?? null;
+        $viaName = is_array($via) ? ($via['call'] ?? $via['file'] ?? null) : null;
+
+        if ($viaName === null) {
+            return $where;
+        }
+
+        return $where.' via '.$viaName;
     }
 
     private static function relative(string $file, string $basePath): string
@@ -397,7 +443,10 @@ final class Origin
         }
 
         $source = null;
-        $contents = @file_get_contents($compiled, false, null, max(0, (int) @filesize($compiled) - 2048));
+
+        // Blade appends the source path as a /**PATH ... ENDPATH**/ comment, so only the tail is read.
+        $tailOffset = max(0, (int) @filesize($compiled) - 2048);
+        $contents = @file_get_contents($compiled, false, null, $tailOffset);
 
         if (is_string($contents) && preg_match('#/\*\*PATH (.+?) ENDPATH\*\*/#', $contents, $matches) === 1) {
             $source = $matches[1];

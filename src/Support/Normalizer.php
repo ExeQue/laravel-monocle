@@ -25,10 +25,8 @@ final class Normalizer
 {
     /**
      * @param  array<array-key, mixed>  $values
-     * @return array<array-key, mixed>
-     */
-    /**
      * @param  array<int, true>  $path  ids of the objects being normalized on the way down
+     * @return array<array-key, mixed>
      */
     public static function normalize(array $values, int $depth = 0, array $path = []): array
     {
@@ -91,13 +89,19 @@ final class Normalizer
         }
 
         if ($value instanceof Arrayable) {
-            return self::normalize(self::outside(fn () => $value->toArray()), $depth + 1, $path + [spl_object_id($value) => true]);
+            $array = self::outside(fn () => $value->toArray());
+
+            return self::normalize($array, $depth + 1, $path + [spl_object_id($value) => true]);
         }
 
         if ($value instanceof JsonSerializable) {
             $serialized = self::outside(fn () => $value->jsonSerialize());
 
-            return is_array($serialized) ? self::normalize($serialized, $depth + 1, $path + [spl_object_id($value) => true]) : $serialized;
+            if (! is_array($serialized)) {
+                return $serialized;
+            }
+
+            return self::normalize($serialized, $depth + 1, $path + [spl_object_id($value) => true]);
         }
 
         if ($value instanceof Stringable) {
@@ -122,6 +126,13 @@ final class Normalizer
      */
     private static function outside(Closure $work): mixed
     {
-        return Container::getInstance()->bound(Eyepiece::class) ? Container::getInstance()->make(Eyepiece::class)->outside($work) : $work();
+        $container = Container::getInstance();
+
+        // Outside an application (unit tests of the normalizer) there is no overhead to keep apart.
+        if (! $container->bound(Eyepiece::class)) {
+            return $work();
+        }
+
+        return $container->make(Eyepiece::class)->outside($work);
     }
 }

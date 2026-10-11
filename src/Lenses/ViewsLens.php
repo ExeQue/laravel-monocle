@@ -96,31 +96,37 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
             return Summary::make();
         }
 
+        // Only views not rendered inside another view count, or nested time would be counted twice.
         $topLevel = 0.0;
 
         foreach ($capture->spansOfKind('view') as $span) {
-            $parent = $span->parentId !== null ? ($capture->spans[$span->parentId] ?? null) : null;
-
-            if (! $parent instanceof Span || $parent->kind !== 'view') {
-                $topLevel += $span->duration() ?? 0.0;
+            if ($this->isNested($capture, $span)) {
+                continue;
             }
+
+            $topLevel += $span->duration() ?? 0.0;
         }
 
         $repeats = array_count_values(array_column($rows, 'view'));
         arsort($repeats);
-        $spent = [];
 
+        $spent = [];
         $library = [];
 
         foreach ($rows as $row) {
-            $spent[$row['view']] = ($spent[$row['view']] ?? 0.0) + (float) ($row['duration'] ?? 0);
-            $library[$row['view']] = str_starts_with((string) ($row['path'] ?? ''), 'vendor/');
+            $view = $row['view'];
+            $spent[$view] = ($spent[$view] ?? 0.0) + (float) ($row['duration'] ?? 0);
+            $library[$view] = str_starts_with((string) ($row['path'] ?? ''), 'vendor/');
         }
 
         $warnings = [];
 
         foreach ($repeats as $view => $count) {
-            if ($count >= $this->repeatThreshold && $spent[$view] >= $this->repeatMs && ! $library[$view]) {
+            $repeated = $count >= $this->repeatThreshold;
+            $costly = $spent[$view] >= $this->repeatMs;
+
+            // A package's views are not the application's to fix.
+            if ($repeated && $costly && ! $library[$view]) {
                 $warnings[] = sprintf('View %s rendered %d times, %.1f ms in all.', $view, $count, $spent[$view]);
             }
         }
@@ -132,6 +138,17 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
             ])
             ->total('views_rendered', count($rows), 'rendered')
             ->warnings($warnings);
+    }
+
+    private function isNested(Capture $capture, Span $span): bool
+    {
+        if ($span->parentId === null) {
+            return false;
+        }
+
+        $parent = $capture->spans[$span->parentId] ?? null;
+
+        return $parent instanceof Span && $parent->kind === 'view';
     }
 
     public function presentation(): Presentation

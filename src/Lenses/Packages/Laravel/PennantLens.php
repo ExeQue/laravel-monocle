@@ -72,8 +72,10 @@ final class PennantLens implements Advises, Lens, Presentable, RequiresPackages,
                     return;
                 }
 
+                $feature = $event->feature ?? null;
+
                 $this->eyepiece->push('features', [
-                    'feature' => is_string($event->feature ?? null) ? $event->feature : Normalizer::value($event->feature ?? null),
+                    'feature' => is_string($feature) ? $feature : Normalizer::value($feature),
                     'scope' => Normalizer::value($event->scope ?? null),
                     'value' => property_exists($event, 'value') ? Normalizer::value($event->value) : null,
                     'source' => $source,
@@ -90,11 +92,14 @@ final class PennantLens implements Advises, Lens, Presentable, RequiresPackages,
             return Summary::make();
         }
 
-        $unknown = array_values(array_unique(array_column(array_filter($rows, fn (array $row): bool => $row['source'] === 'unknown'), 'feature')));
+        $checked = array_unique(array_column($rows, 'feature'));
+        $resolved = array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved');
+        $unknownRows = array_filter($rows, fn (array $row): bool => $row['source'] === 'unknown');
+        $unknown = array_values(array_unique(array_column($unknownRows, 'feature')));
 
         return Summary::make()
-            ->total('features_checked', count(array_unique(array_column($rows, 'feature'))), 'checked')
-            ->total('features_resolved', count(array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved')), 'resolved')
+            ->total('features_checked', count($checked), 'checked')
+            ->total('features_resolved', count($resolved), 'resolved')
             ->warnings(array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown));
     }
 

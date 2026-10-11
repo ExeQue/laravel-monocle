@@ -89,7 +89,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
 
         $current = (new ReflectionProperty(Factory::class, 'resolver'))->getValue($factory);
 
-        if ($current !== null && $current === $this->resolver) {
+        if ($this->isOurResolver($current)) {
             return;
         }
 
@@ -106,6 +106,15 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         $factory->resolver($this->resolver);
     }
 
+    private function isOurResolver(mixed $resolver): bool
+    {
+        if ($resolver === null) {
+            return false;
+        }
+
+        return $resolver === $this->resolver;
+    }
+
     public function reset(): void
     {
         $this->validators = new SplObjectStorage();
@@ -119,9 +128,11 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
             return Summary::make();
         }
 
+        $failed = array_filter($rows, fn (array $row): bool => ! $row['passed']);
+
         return Summary::make()
             ->total('validations', count($rows), 'validations')
-            ->total('validation_failed', count(array_filter($rows, fn (array $row): bool => ! $row['passed'])), 'failed');
+            ->total('validation_failed', count($failed), 'failed');
     }
 
     private function watch(Validator $validator): void
@@ -131,43 +142,74 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         }
 
         $this->validators[$validator] = $this->eyepiece->now();
+
+        // The source is found now, while the FormRequest or component is still on the stack.
         $source = $this->source();
 
         $validator->after($this->eyepiece->wrap(function (Validator $validator) use ($source): void {
-            if (! $this->validators->contains($validator) || ! $this->eyepiece->recording()) {
+            // Validators made before this capture, or already recorded, are skipped.
+            if (! $this->validators->contains($validator)) {
+                return;
+            }
+
+            if (! $this->eyepiece->recording()) {
                 return;
             }
 
             $started = $this->validators[$validator];
             $this->validators->detach($validator);
-            $failed = [];
-
-            foreach ($validator->failed() as $field => $rules) {
-                $messages = $validator->errors()->get($field);
-
-                $index = 0;
-
-                foreach ($rules as $rule => $parameters) {
-                    $failed[] = [
-                        'field' => $field,
-                        'rule' => $this->ruleName($rule),
-                        'parameters' => Normalizer::normalize((array) $parameters),
-                        'message' => $messages[$index] ?? $messages[0] ?? null,
-                    ];
-                    $index++;
-                }
-            }
+            $failed = $this->failures($validator);
+            $rules = $validator->getRules();
 
             $this->eyepiece->push('validation', [
                 'source' => $source,
                 'passed' => $failed === [],
-                'rules' => array_map(fn (array $rules): string => implode('|', array_map($this->ruleName(...), $rules)), $validator->getRules()),
+                'rules' => array_map($this->rulesText(...), $rules),
                 'failed' => $failed,
                 'input' => $this->input($validator),
-                'fields' => count($validator->getRules()),
+                'fields' => count($rules),
                 'duration' => round($this->eyepiece->now() - $started, 3),
             ]);
         }, $this->key()));
+    }
+
+    /**
+     * One entry per failed rule, paired with its message by position.
+     *
+     * @return list<array{field: array-key, rule: string, parameters: mixed, message: string|null}>
+     */
+    private function failures(Validator $validator): array
+    {
+        $failed = [];
+
+        foreach ($validator->failed() as $field => $rules) {
+            $messages = $validator->errors()->get($field);
+            $index = 0;
+
+            foreach ($rules as $rule => $parameters) {
+                $failed[] = [
+                    'field' => $field,
+                    'rule' => $this->ruleName($rule),
+                    'parameters' => Normalizer::normalize((array) $parameters),
+                    'message' => $messages[$index] ?? $messages[0] ?? null,
+                ];
+                $index++;
+            }
+        }
+
+        return $failed;
+    }
+
+    /**
+     * A field's rules as one pipe-separated string, as they are usually written.
+     *
+     * @param  array<array-key, mixed>  $rules
+     */
+    private function rulesText(array $rules): string
+    {
+        $names = array_map($this->ruleName(...), $rules);
+
+        return implode('|', $names);
     }
 
     /**
@@ -179,13 +221,19 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
      */
     private function input(Validator $validator): array
     {
-        $fields = array_unique(array_map(fn (string $field): string => Str::before($field, '.'), array_keys($validator->getRules())));
+        // "items.*.name" validates the "items" input.
+        $topLevel = array_map(fn (string $field): string => Str::before($field, '.'), array_keys($validator->getRules()));
+        $validated = Arr::only($validator->getData(), array_unique($topLevel));
 
-        $input = $this->eyepiece->masker(self::class)->inputs(Arr::only($validator->getData(), $fields));
+        $input = $this->eyepiece->masker(self::class)->inputs($validated);
 
         array_walk_recursive($input, function (mixed &$value): void {
             if ($value instanceof UploadedFile) {
-                $value = ['file' => $value->getClientOriginalName(), 'size' => $value->getSize(), 'mime' => $value->getClientMimeType()];
+                $value = [
+                    'file' => $value->getClientOriginalName(),
+                    'size' => $value->getSize(),
+                    'mime' => $value->getClientMimeType(),
+                ];
             } elseif (is_string($value)) {
                 $value = Str::limit($value, 1000);
             }
@@ -199,15 +247,27 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
      */
     private function source(): ?string
     {
-        foreach (debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT | DEBUG_BACKTRACE_IGNORE_ARGS, 40) as $frame) {
+        $frames = debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT | DEBUG_BACKTRACE_IGNORE_ARGS, 40);
+
+        foreach ($frames as $frame) {
             $object = $frame['object'] ?? null;
 
-            if ($object instanceof FormRequest || (class_exists('Livewire\\Component') && $object instanceof \Livewire\Component)) {
+            if ($this->isSource($object)) {
                 return $object::class;
             }
         }
 
         return null;
+    }
+
+    private function isSource(mixed $object): bool
+    {
+        if ($object instanceof FormRequest) {
+            return true;
+        }
+
+        // Livewire is optional; the class_exists() guard keeps it from being autoloaded when it is missing.
+        return class_exists('Livewire\\Component') && $object instanceof \Livewire\Component;
     }
 
     /**
@@ -235,8 +295,9 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
 
         if ($rule instanceof Closure) {
             $function = new ReflectionFunction($rule);
+            $file = Str::after((string) $function->getFileName(), $this->app->basePath().DIRECTORY_SEPARATOR);
 
-            return 'Closure ('.Str::after((string) $function->getFileName(), $this->app->basePath().DIRECTORY_SEPARATOR).':'.$function->getStartLine().')';
+            return 'Closure ('.$file.':'.$function->getStartLine().')';
         }
 
         if ($rule instanceof Stringable) {
@@ -246,7 +307,11 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         if (is_object($rule)) {
             $properties = Normalizer::normalize(get_object_vars($rule));
 
-            return $rule::class.($properties === [] ? '' : ' '.json_encode($properties, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            if ($properties === []) {
+                return $rule::class;
+            }
+
+            return $rule::class.' '.json_encode($properties, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
 
         return (string) json_encode($rule);

@@ -77,12 +77,15 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
             return Summary::make();
         }
 
+        $errors = [];
+
+        foreach (array_slice($rows, 0, 3) as $row) {
+            $errors[] = sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']);
+        }
+
         return Summary::make()
             ->total('exceptions', count($rows), 'exceptions')
-            ->errors(array_map(
-                fn (array $row): string => sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']),
-                array_slice($rows, 0, 3),
-            ));
+            ->errors($errors);
     }
 
     /**
@@ -112,12 +115,17 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
         foreach ($exception->getTrace() as $frame) {
             $file = $frame['file'] ?? null;
 
-            if ($file === null || str_contains($file, '/vendor/')) {
+            if ($file === null) {
                 continue;
             }
 
-            $call = isset($frame['class']) ? $frame['class'].($frame['type'] ?? '::').$frame['function'] : ($frame['function'] ?? '');
-            $frames[] = $this->relative($file).':'.($frame['line'] ?? '?').' '.$call;
+            // Only the application's own frames: vendor frames rarely say where it went wrong.
+            if (str_contains($file, '/vendor/')) {
+                continue;
+            }
+
+            $line = $frame['line'] ?? '?';
+            $frames[] = $this->relative($file).':'.$line.' '.$this->call($frame);
 
             if (count($frames) >= 10) {
                 break;
@@ -125,6 +133,20 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
         }
 
         return $frames;
+    }
+
+    /**
+     * Class::method, Class->method or a plain function name.
+     *
+     * @param  array<string, mixed>  $frame
+     */
+    private function call(array $frame): string
+    {
+        if (! isset($frame['class'])) {
+            return $frame['function'] ?? '';
+        }
+
+        return $frame['class'].($frame['type'] ?? '::').$frame['function'];
     }
 
     private function relative(string $file): string

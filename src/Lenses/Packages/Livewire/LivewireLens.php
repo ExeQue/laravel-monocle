@@ -82,6 +82,7 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
 
             $started = $this->eyepiece->now();
 
+            // Livewire calls this back once the method has returned.
             return function () use ($component, $method, $params, $started): void {
                 $this->components[$component->getId()]['calls'][] = [
                     'method' => $method,
@@ -195,7 +196,10 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
             'exception' => null,
         ];
 
-        $this->spans[$id] ??= $this->eyepiece->span($component->getName(), 'livewire')->start(['class' => $component::class, 'lifecycle' => $lifecycle]);
+        $this->spans[$id] ??= $this->eyepiece->span($component->getName(), 'livewire')->start([
+            'class' => $component::class,
+            'lifecycle' => $lifecycle,
+        ]);
     }
 
     private function close(Component $component): void

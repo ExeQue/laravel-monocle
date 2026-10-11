@@ -60,11 +60,20 @@ final class CompareCommand extends Command
         $this->queries($data['queries'] ?? []);
 
         foreach (['only_in_a' => 'Only in A', 'only_in_b' => 'Only in B'] as $side => $where) {
-            $this->flags(
-                array_map(fn (string $message): string => "{$where}: {$message}", $data['warnings'][$side] ?? []),
-                array_map(fn (string $message): string => "{$where}: {$message}", $data['errors'][$side] ?? []),
-            );
+            $warnings = $this->prefixed($where, $data['warnings'][$side] ?? []);
+            $errors = $this->prefixed($where, $data['errors'][$side] ?? []);
+
+            $this->flags($warnings, $errors);
         }
+    }
+
+    /**
+     * @param  list<string>  $messages
+     * @return list<string>
+     */
+    private function prefixed(string $prefix, array $messages): array
+    {
+        return array_map(fn (string $message): string => "{$prefix}: {$message}", $messages);
     }
 
     /**
@@ -119,16 +128,22 @@ final class CompareCommand extends Command
             return;
         }
 
+        $rows = [];
+
+        foreach ($lines as $name => $line) {
+            $rows[] = [
+                $name,
+                $line['a_ms'] === null ? '' : $this->ms($line['a_ms']),
+                $line['b_ms'] === null ? '' : $this->ms($line['b_ms']),
+                $this->change('ms', $line['delta_ms'], null),
+                (string) ($line['a_count'] ?? ''),
+                (string) ($line['b_count'] ?? ''),
+            ];
+        }
+
         note($title);
 
-        table(['Name', 'A', 'B', 'Change', 'Count A', 'Count B'], array_map(fn (string $name, array $line): array => [
-            $name,
-            $line['a_ms'] === null ? '' : $this->ms($line['a_ms']),
-            $line['b_ms'] === null ? '' : $this->ms($line['b_ms']),
-            $this->change('ms', $line['delta_ms'], null),
-            (string) ($line['a_count'] ?? ''),
-            (string) ($line['b_count'] ?? ''),
-        ], array_keys($lines), $lines));
+        table(['Name', 'A', 'B', 'Change', 'Count A', 'Count B'], $rows);
     }
 
     /**
@@ -141,26 +156,40 @@ final class CompareCommand extends Command
                 continue;
             }
 
+            $rows = [];
+
+            foreach ($queries[$key] as $query) {
+                $rows[] = [
+                    $this->cell($query['shape'], 90),
+                    (string) $query['count'],
+                    $this->ms($query['total_ms']),
+                ];
+            }
+
             note($title);
-            table(['Query', 'Count', 'Time'], array_map(fn (array $query): array => [
-                $this->cell($query['shape'], 90),
-                (string) $query['count'],
-                $this->ms($query['total_ms']),
-            ], $queries[$key]));
+            table(['Query', 'Count', 'Time'], $rows);
         }
 
-        if (($queries['changed'] ?? []) === []) {
+        $changed = $queries['changed'] ?? [];
+
+        if ($changed === []) {
             return;
         }
 
+        $rows = [];
+
+        foreach ($changed as $query) {
+            $rows[] = [
+                $this->cell($query['shape'], 90),
+                (string) $query['a_count'],
+                (string) $query['b_count'],
+                $this->ms($query['a_ms']),
+                $this->ms($query['b_ms']),
+            ];
+        }
+
         note('Queries run a different number of times');
-        table(['Query', 'Count A', 'Count B', 'Time A', 'Time B'], array_map(fn (array $query): array => [
-            $this->cell($query['shape'], 90),
-            (string) $query['a_count'],
-            (string) $query['b_count'],
-            $this->ms($query['a_ms']),
-            $this->ms($query['b_ms']),
-        ], $queries['changed']));
+        table(['Query', 'Count A', 'Count B', 'Time A', 'Time B'], $rows);
     }
 
     /**
@@ -173,14 +202,11 @@ final class CompareCommand extends Command
             return '';
         }
 
-        $text = match (true) {
-            $delta > 0 => '+',
-            $delta < 0 => '-',
-            default => '',
-        }.$this->amount($name, abs($delta));
+        $text = $this->sign($delta).$this->amount($name, abs($delta));
 
         if ($percent !== null) {
-            $text .= ' ('.($percent > 0 ? '+' : '').$percent.'%)';
+            $plus = $percent > 0 ? '+' : '';
+            $text .= ' ('.$plus.$percent.'%)';
         }
 
         if ((float) $delta === 0.0) {
@@ -193,6 +219,23 @@ final class CompareCommand extends Command
             $worse = ! $worse;
         }
 
-        return $worse ? "<fg=red>{$text}</>" : "<fg=green>{$text}</>";
+        if ($worse) {
+            return "<fg=red>{$text}</>";
+        }
+
+        return "<fg=green>{$text}</>";
+    }
+
+    private function sign(float|int $delta): string
+    {
+        if ($delta > 0) {
+            return '+';
+        }
+
+        if ($delta < 0) {
+            return '-';
+        }
+
+        return '';
     }
 }

@@ -17,7 +17,11 @@ final class TextCapture implements ResponseCapture
     {
         $content = $response->getContent();
 
-        if (! is_string($content) || $content === '') {
+        if (! is_string($content)) {
+            return null;
+        }
+
+        if ($content === '') {
             return null;
         }
 

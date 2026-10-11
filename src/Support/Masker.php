@@ -38,7 +38,9 @@ final class Masker
         callable $mask,
         array $cookies = [],
     ) {
-        $this->patterns = array_values(array_filter((array) $pattern, fn (mixed $value): bool => is_string($value) && $value !== ''));
+        $patterns = array_filter((array) $pattern, fn (mixed $value): bool => is_string($value) && $value !== '');
+
+        $this->patterns = array_values($patterns);
         $this->mask = $mask(...);
         $this->headers = $this->masks($headers, lowercase: true);
         $this->cookies = $this->masks($cookies, lowercase: false);
@@ -58,7 +60,12 @@ final class Masker
         $out = [];
 
         foreach ($headers as $name => $value) {
-            $value = is_array($value) && count($value) === 1 ? $value[0] : $value;
+            // Laravel gives every header as a list of values; a single one is unwrapped.
+            if (is_array($value) && count($value) === 1) {
+                $value = $value[0];
+            }
+
+            // Header names are case-insensitive, so they are matched lowercased.
             $mask = $this->find($this->headers, strtolower((string) $name));
             $out[$name] = $mask === null ? $value : $mask($value, (string) $name);
         }
@@ -141,8 +148,10 @@ final class Masker
 
         if ($contentType !== null && str_contains(strtolower($contentType), 'application/x-www-form-urlencoded')) {
             parse_str($body, $fields);
+            $encoded = http_build_query($this->inputs($fields));
 
-            return str_replace('%2A', '*', http_build_query($this->inputs($fields)));
+            // Keep the mask's asterisks readable instead of percent-encoded.
+            return str_replace('%2A', '*', $encoded);
         }
 
         return $body;
@@ -168,11 +177,17 @@ final class Masker
         $masks = [];
 
         foreach ($list as $name => $mask) {
+            // A plain list entry is a name that uses the default mask.
             if (is_int($name)) {
-                [$name, $mask] = [(string) $mask, $this->mask];
+                $name = (string) $mask;
+                $mask = $this->mask;
             }
 
-            $masks[$lowercase ? strtolower($name) : $name] = is_callable($mask) ? $mask(...) : $this->mask;
+            if ($lowercase) {
+                $name = strtolower($name);
+            }
+
+            $masks[$name] = is_callable($mask) ? $mask(...) : $this->mask;
         }
 
         return $masks;

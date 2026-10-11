@@ -44,12 +44,11 @@ use Throwable;
  */
 final class RequestLens implements Advises, Configurable, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
+    public const string LABEL_HEADER = 'X-Monocle-Label';
+
     private string $exceptPattern = '';
 
     private ?string $exceptPatternFor = null;
-
-    public const string LABEL_HEADER = 'X-Monocle-Label';
-
 
     private Application $app;
 
@@ -62,7 +61,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private int $requestsInProcess = 0;
 
     /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
-    private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class, 'text/html' => InertiaCapture::class];
+    private array $responseTypes = [
+        'application/json' => JsonCapture::class,
+        'application/*+json' => JsonCapture::class,
+        'text/html' => InertiaCapture::class,
+    ];
 
     /** @var array<string, class-string<ResponseCapture>> Route name pattern => capture. */
     private array $routeCaptures = [];
@@ -112,11 +115,14 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         });
 
         if (class_exists(RequestReceived::class)) {
+            // Octane workers boot once, so each request they handle starts its capture here.
             $this->eyepiece->listen(RequestReceived::class, function (object $event): void {
-                if ($this->eyepiece->active() === null) {
-                    $this->startCapture((float) ($event->request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
-                    $this->phase('middleware (request)');
+                if ($this->eyepiece->active() !== null) {
+                    return;
                 }
+
+                $this->startCapture($this->requestStartedAt($event->request));
+                $this->phase('middleware (request)');
             });
         }
 
@@ -164,8 +170,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $request = $event->request;
 
+        // Every request after the first in this process starts a fresh capture.
         if ($this->eyepiece->active() === null || $this->requestsInProcess > 0) {
-            $this->startCapture((float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
+            $this->startCapture($this->requestStartedAt($request));
             $this->phase('middleware (request)');
         }
 
@@ -199,24 +206,35 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $capture = $this->eyepiece->active();
 
-        if ($capture === null || ! $this->eyepiece->recording()) {
+        if ($capture === null) {
+            return;
+        }
+
+        if (! $this->eyepiece->recording()) {
             return;
         }
 
         $view = $event->matchedView;
-        $file = Str::after(str_replace('\\', '/', (string) $view->path), str_replace('\\', '/', base_path()).'/');
+        $file = $this->relativeToBase((string) $view->path);
+        $route = $capture->section('request')['route'] ?? [];
+
+        $folio = [
+            'page' => $file,
+            'name' => method_exists($view, 'name') ? $view->name() : null,
+            'mount_path' => $event->mountPath->path ?? $view->mountPath ?? null,
+            'parameters' => $view->data ?? [],
+        ];
 
         $this->eyepiece->set('request', [
-            'route' => [...($capture->section('request')['route'] ?? []), 'action' => $file],
-            'folio' => array_filter([
-                'page' => $file,
-                'name' => method_exists($view, 'name') ? $view->name() : null,
-                'mount_path' => $event->mountPath->path ?? $view->mountPath ?? null,
-                'parameters' => $view->data ?? [],
-            ], fn (mixed $value): bool => $value !== null && $value !== []),
+            'route' => [...$route, 'action' => $file],
+            'folio' => array_filter($folio, fn (mixed $value): bool => $value !== null && $value !== []),
         ]);
     }
 
+    /**
+     * The first response prepared after the route matched is where the
+     * controller ended; later ones come from middleware.
+     */
     private function onPreparingResponse(PreparingResponse $event): void
     {
         if ($this->routeMatchedAt !== null && $this->responsePreparedAt === null) {
@@ -228,17 +246,24 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $capture = $this->eyepiece->active();
 
-        if ($capture === null || ! $this->eyepiece->recording()) {
+        if ($capture === null) {
             return;
         }
 
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $request = $event->request;
         $response = $event->response;
 
         $this->eyepiece->describe(status: (string) $response->getStatusCode());
-        $described = [...$this->describeResponse($response), 'cookies' => $this->cookies($event->request)];
-        $described['response_capture'] = $this->captureResponse($event->request, $response);
 
-        $this->eyepiece->set('request', $described);
+        $this->eyepiece->set('request', [
+            ...$this->describeResponse($response),
+            'cookies' => $this->cookies($request),
+            'response_capture' => $this->captureResponse($request, $response),
+        ]);
         $this->phase('terminate');
 
         try {
@@ -253,6 +278,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $this->reset();
         $this->eyepiece->start(CaptureType::Request, $startedAt);
+    }
+
+    private function requestStartedAt(Request $request): float
+    {
+        return (float) ($request->server('REQUEST_TIME_FLOAT') ?: microtime(true));
     }
 
     /**
@@ -277,13 +307,27 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->eyepiece->startSpan($span, origin: false);
         $span->parentId = null;
 
-        if ($name === 'bootstrap' || $name === 'middleware (request)' && $this->firstPhase()) {
+        if ($this->startsTheCapture($name)) {
             $span->start = 0.0;
         }
 
         $span->meta(['memory_bytes' => memory_get_usage(true)]);
 
         $this->phase = $span;
+    }
+
+    /**
+     * The first phase begins at the capture's start, not when Monocle got to
+     * open it: bootstrap always, the request middleware when the capture was
+     * started without a bootstrap phase (Octane, follow-up requests).
+     */
+    private function startsTheCapture(string $name): bool
+    {
+        if ($name === 'bootstrap') {
+            return true;
+        }
+
+        return $name === 'middleware (request)' && $this->firstPhase();
     }
 
     private function firstPhase(): bool
@@ -316,11 +360,19 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $key = implode("\n", $patterns);
 
-        if ($this->exceptPatternFor !== $key) {
-            $alternatives = array_map(fn (string $pattern): string => str_replace('\\*', '.*', preg_quote($pattern, '#')), $patterns);
-            $this->exceptPattern = '#^(?:'.implode('|', $alternatives).')\z#u';
-            $this->exceptPatternFor = $key;
+        if ($this->exceptPatternFor === $key) {
+            return $this->exceptPattern;
         }
+
+        $alternatives = [];
+
+        foreach ($patterns as $pattern) {
+            // preg_quote() turns `*` into `\*`; turn that back into "anything".
+            $alternatives[] = str_replace('\\*', '.*', preg_quote($pattern, '#'));
+        }
+
+        $this->exceptPattern = '#^(?:'.implode('|', $alternatives).')\z#u';
+        $this->exceptPatternFor = $key;
 
         return $this->exceptPattern;
     }
@@ -332,9 +384,19 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private function onlyExceptedLivewire(Request $request): bool
     {
         $patterns = (array) $this->eyepiece->config('except.livewire', []);
-        $components = $request->isJson() || $request->has('components') ? $request->input('components') : null;
 
-        if ($patterns === [] || ! is_array($components) || $components === []) {
+        if ($patterns === []) {
+            return false;
+        }
+
+        $isUpdate = $request->isJson() || $request->has('components');
+        $components = $isUpdate ? $request->input('components') : null;
+
+        if (! is_array($components)) {
+            return false;
+        }
+
+        if ($components === []) {
             return false;
         }
 
@@ -354,31 +416,24 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $masker = $this->eyepiece->masker(self::class);
 
+        $path = '/'.ltrim($request->path(), '/');
+
         $this->eyepiece->describe(
-            name: $request->getMethod().' /'.ltrim($request->path(), '/'),
+            name: $request->getMethod().' '.$path,
             label: $request->headers->get(self::LABEL_HEADER),
         );
 
-        $files = [];
-
-        foreach ($request->allFiles() as $key => $file) {
-            foreach (is_array($file) ? $file : [$file] as $uploaded) {
-                $files[] = [
-                    'key' => $key,
-                    'name' => $uploaded->getClientOriginalName(),
-                    'size' => $uploaded->getSize(),
-                    'mime' => $uploaded->getClientMimeType(),
-                ];
-            }
-        }
+        $query = $request->query();
+        // input() merges the query string in; it is recorded on its own under 'query'.
+        $body = Arr::except($request->input(), array_keys($query));
 
         $this->eyepiece->set('request', [
             'method' => $request->getMethod(),
             'url' => $request->fullUrl(),
-            'path' => '/'.ltrim($request->path(), '/'),
-            'query' => $masker->inputs($request->query()),
-            'input' => $masker->inputs(Arr::except($request->input(), array_keys($request->query()))),
-            'files' => $files,
+            'path' => $path,
+            'query' => $masker->inputs($query),
+            'input' => $masker->inputs($body),
+            'files' => $this->uploadedFiles($request),
             'headers' => $masker->headers($request->headers->all()),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
@@ -391,6 +446,30 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
+     * @return list<array{key: string, name: string, size: int|false, mime: string}>
+     */
+    private function uploadedFiles(Request $request): array
+    {
+        $files = [];
+
+        foreach ($request->allFiles() as $key => $file) {
+            // A field like "photos[]" holds a list of uploads.
+            $uploads = is_array($file) ? $file : [$file];
+
+            foreach ($uploads as $uploaded) {
+                $files[] = [
+                    'key' => $key,
+                    'name' => $uploaded->getClientOriginalName(),
+                    'size' => $uploaded->getSize(),
+                    'mime' => $uploaded->getClientMimeType(),
+                ];
+            }
+        }
+
+        return $files;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function describeRoute(Route $route): array
@@ -398,7 +477,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $parameters = [];
 
         foreach ($route->parameters() as $name => $value) {
-            $parameters[$name] = is_object($value) ? $value::class.(method_exists($value, 'getKey') ? '#'.$value->getKey() : '') : $value;
+            $parameters[$name] = $this->describeParameter($value);
         }
 
         return [
@@ -412,6 +491,22 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
                 'domain' => $route->getDomain(),
             ],
         ];
+    }
+
+    /**
+     * A bound model as Class#key, any other object as its class.
+     */
+    private function describeParameter(mixed $value): mixed
+    {
+        if (! is_object($value)) {
+            return $value;
+        }
+
+        if (! method_exists($value, 'getKey')) {
+            return $value::class;
+        }
+
+        return $value::class.'#'.$value->getKey();
     }
 
     /**
@@ -493,11 +588,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     private function captureResponse(Request $request, Response $response): ?array
     {
         $route = $request->route()?->getName();
+        // "application/json; charset=utf-8" is matched as "application/json".
         $type = strtolower(trim(Str::before((string) $response->headers->get('Content-Type'), ';')));
-
-        $class = ($route === null ? null : $this->match($this->routeCaptures, $route))
-            ?? $this->headerCapture($response)
-            ?? ($type === '' ? null : $this->match($this->responseTypes, $type));
+        $class = $this->captureClass($route, $response, $type);
 
         if ($class === null) {
             return null;
@@ -527,7 +620,37 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
         $masker = $this->eyepiece->masker(self::class);
 
-        return ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => is_string($raw) ? $masker->body($raw, $type) : null];
+        return [
+            'capture' => $class,
+            'cards' => $masker->cards($cards),
+            'raw' => is_string($raw) ? $masker->body($raw, $type) : null,
+        ];
+    }
+
+    /**
+     * @return class-string<ResponseCapture>|null
+     */
+    private function captureClass(?string $route, Response $response, string $type): ?string
+    {
+        if ($route !== null) {
+            $class = $this->match($this->routeCaptures, $route);
+
+            if ($class !== null) {
+                return $class;
+            }
+        }
+
+        $class = $this->headerCapture($response);
+
+        if ($class !== null) {
+            return $class;
+        }
+
+        if ($type === '') {
+            return null;
+        }
+
+        return $this->match($this->responseTypes, $type);
     }
 
     private function headerCapture(Response $response): ?string
@@ -595,7 +718,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             }
         }
 
-        $db = array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $capture->rows('queries')));
+        $db = 0.0;
+
+        foreach ($capture->rows('queries') as $row) {
+            $db += (float) ($row['duration'] ?? 0);
+        }
 
         if ($db > 0) {
             $parts[] = 'db;dur='.round($db, 1);
@@ -615,34 +742,20 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             return;
         }
 
-        $innermost = null;
-
-        foreach ($capture->spansOfKind('middleware.request') as $span) {
-            if (($span->meta['passed'] ?? false) !== true || $span->end === null) {
-                if (($span->meta['group'] ?? null) === 'route') {
-                    return;
-                }
-
-                continue;
-            }
-
-            if ($innermost === null || $span->end > $innermost->end) {
-                $innermost = $span;
-            }
+        // A route middleware that did not hand the request on means the controller never ran.
+        if ($this->routeMiddlewareShortCircuited($capture)) {
+            return;
         }
 
-        $firstResponse = null;
-
-        foreach ($capture->spansOfKind('middleware.response') as $span) {
-            if ($firstResponse === null || $span->start < $firstResponse) {
-                $firstResponse = $span->start;
-            }
-        }
-
+        $innermost = $this->innermostPassedMiddleware($capture);
         $start = $innermost !== null ? $innermost->end : $this->routeMatchedAt;
-        $end = $this->responsePreparedAt ?? $firstResponse;
+        $end = $this->responsePreparedAt ?? $this->firstResponseMiddlewareStart($capture);
 
-        if ($end === null || $end < $start) {
+        if ($end === null) {
+            return;
+        }
+
+        if ($end < $start) {
             return;
         }
 
@@ -662,7 +775,76 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
         $capture->spans[$controller->id] = $controller;
 
-        // Spans opened inside the controller were started before it existed; move them under it.
+        $this->adoptControllerSpans($capture, $controller);
+    }
+
+    private function routeMiddlewareShortCircuited(Capture $capture): bool
+    {
+        foreach ($capture->spansOfKind('middleware.request') as $span) {
+            if ($this->handedOn($span)) {
+                continue;
+            }
+
+            if (($span->meta['group'] ?? null) === 'route') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The middleware that handed the request on last: the controller starts
+     * where its "before" span ended.
+     */
+    private function innermostPassedMiddleware(Capture $capture): ?Span
+    {
+        $innermost = null;
+
+        foreach ($capture->spansOfKind('middleware.request') as $span) {
+            if (! $this->handedOn($span)) {
+                continue;
+            }
+
+            if ($innermost === null || $span->end > $innermost->end) {
+                $innermost = $span;
+            }
+        }
+
+        return $innermost;
+    }
+
+    private function handedOn(Span $span): bool
+    {
+        if (($span->meta['passed'] ?? false) !== true) {
+            return false;
+        }
+
+        return $span->end !== null;
+    }
+
+    private function firstResponseMiddlewareStart(Capture $capture): ?float
+    {
+        $first = null;
+
+        foreach ($capture->spansOfKind('middleware.response') as $span) {
+            if ($first === null || $span->start < $first) {
+                $first = $span->start;
+            }
+        }
+
+        return $first;
+    }
+
+    /**
+     * Spans opened inside the controller were started before it existed; move
+     * them under it. Middleware spans stay where they are.
+     */
+    private function adoptControllerSpans(Capture $capture, Span $controller): void
+    {
+        $start = $controller->start;
+        $end = $controller->end;
+
         foreach ($capture->spans as $span) {
             if ($span === $controller) {
                 continue;
@@ -680,6 +862,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
                 continue;
             }
 
+            // A small tolerance for spans that end in the same instant as the controller.
             if (($span->end ?? $end) <= $end + 0.001) {
                 $span->parentId = $controller->id;
             }
@@ -698,8 +881,19 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         }
 
         $function = new ReflectionFunction($action);
+        $file = $this->relativeToBase((string) $function->getFileName());
 
-        return 'Closure ('.Str::after(str_replace('\\', '/', (string) $function->getFileName()), str_replace('\\', '/', $this->app->basePath()).'/').':'.$function->getStartLine().')';
+        return 'Closure ('.$file.':'.$function->getStartLine().')';
+    }
+
+    /**
+     * A path relative to the application root, with forward slashes on every OS.
+     */
+    private function relativeToBase(string $path): string
+    {
+        $base = str_replace('\\', '/', $this->app->basePath()).'/';
+
+        return Str::after(str_replace('\\', '/', $path), $base);
     }
 
     private function handlePhaseId(Capture $capture): ?string

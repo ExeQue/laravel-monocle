@@ -41,16 +41,25 @@ final readonly class EditorSettings
             }
         }
 
-        $editor = $data['editor'] ?? null;
-        $distro = $data['wsl']['distro'] ?? null;
-        $project = $data['project'] ?? null;
-
         return new self(
-            editor: is_string($editor) && $editor !== '' ? $editor : null,
+            editor: self::nonEmptyString($data['editor'] ?? null),
             paths: $paths,
-            wslDistro: is_string($distro) && $distro !== '' ? $distro : null,
-            project: is_string($project) && $project !== '' ? $project : null,
+            wslDistro: self::nonEmptyString($data['wsl']['distro'] ?? null),
+            project: self::nonEmptyString($data['project'] ?? null),
         );
+    }
+
+    private static function nonEmptyString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        if ($value === '') {
+            return null;
+        }
+
+        return $value;
     }
 
     /**

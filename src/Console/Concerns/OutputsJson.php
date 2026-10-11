@@ -42,7 +42,15 @@ trait OutputsJson
 
     protected function wantsJson(): bool
     {
-        if ($this->option('json') || $this->option('agent') || $this->option('compact')) {
+        if ($this->option('json')) {
+            return true;
+        }
+
+        if ($this->option('agent')) {
+            return true;
+        }
+
+        if ($this->option('compact')) {
             return true;
         }
 

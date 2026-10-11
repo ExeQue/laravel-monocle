@@ -31,19 +31,118 @@ final readonly class TabList
     {
         $presentations = $this->registry->presentations();
         $descriptions = $this->registry->descriptions();
-        $rows = fn (string $key): int => is_array($capture->sections[$key] ?? null) && array_is_list($capture->sections[$key]) ? count($capture->sections[$key]) : 0;
-        $included = fn (string $key): array => ($presentations[$key] ?? null)?->includes ?? [];
-        $shown = function (string $key) use ($capture, $presentations, $rows): bool {
-            if ($rows($key) > 0) {
-                return true;
+        $hosts = $this->hostsBySection($presentations);
+
+        $keys = $this->shownKeys($capture, $presentations);
+        $keys = $this->withoutHosted($keys, $presentations);
+        $keys = $this->ordered($keys, $order);
+
+        $tabs = [];
+
+        foreach ($keys as $key) {
+            // A tab counts the problems of the sections it shows and of the tabs that would host it.
+            $sections = [$key, ...$this->includes($presentations, $key), ...($hosts[$key] ?? [])];
+            $count = $this->rowCount($capture, $key);
+
+            $tabs[] = [
+                'key' => $key,
+                'label' => ($presentations[$key] ?? null)?->label,
+                'count' => $count ?: null,
+                'description' => $descriptions[$key] ?? null,
+                'problems' => $this->problemCount($problems, $sections, 'warnings'),
+                'errors' => $this->problemCount($problems, $sections, 'errors'),
+            ];
+        }
+
+        return $tabs;
+    }
+
+    /**
+     * Every section with rows, or with data and a tab view of its own.
+     *
+     * @param  array<string, Presentation>  $presentations
+     * @return list<string>
+     */
+    private function shownKeys(Capture $capture, array $presentations): array
+    {
+        $sectionKeys = array_map('strval', array_keys($capture->sections));
+        $keys = array_unique([...$sectionKeys, ...array_keys($presentations)]);
+        $shown = [];
+
+        foreach ($keys as $key) {
+            if ($this->isShown($capture, $presentations, $key)) {
+                $shown[] = $key;
             }
+        }
 
-            return ($presentations[$key] ?? null)?->tabView !== null && ($capture->sections[$key] ?? []) !== [];
-        };
+        return $shown;
+    }
 
-        $keys = array_values(array_unique([...array_map('strval', array_keys($capture->sections)), ...array_keys($presentations)]));
-        $keys = array_values(array_filter($keys, $shown));
+    /**
+     * @param  array<string, Presentation>  $presentations
+     */
+    private function isShown(Capture $capture, array $presentations, string $key): bool
+    {
+        if ($this->rowCount($capture, $key) > 0) {
+            return true;
+        }
 
+        if (($presentations[$key] ?? null)?->tabView === null) {
+            return false;
+        }
+
+        return ($capture->sections[$key] ?? []) !== [];
+    }
+
+    /**
+     * Drops the sections a shown tab includes.
+     *
+     * @param  list<string>  $keys
+     * @param  array<string, Presentation>  $presentations
+     * @return list<string>
+     */
+    private function withoutHosted(array $keys, array $presentations): array
+    {
+        $hosted = [];
+
+        foreach ($keys as $key) {
+            foreach ($this->includes($presentations, $key) as $section) {
+                $hosted[$section] = true;
+            }
+        }
+
+        return array_values(array_filter($keys, fn (string $key): bool => ! isset($hosted[$key])));
+    }
+
+    /**
+     * Keys listed in $order first, in that order; the rest keep their place after them.
+     *
+     * @param  list<string>  $keys
+     * @param  list<string>  $order
+     * @return list<string>
+     */
+    private function ordered(array $keys, array $order): array
+    {
+        $rank = [];
+        $last = count($order);
+
+        foreach ($order as $position => $key) {
+            $rank[$key] ??= $position;
+        }
+
+        usort($keys, fn (string $a, string $b): int => ($rank[$a] ?? $last) <=> ($rank[$b] ?? $last));
+
+        return $keys;
+    }
+
+    /**
+     * Section => the tabs that include it, whether those tabs are shown or not.
+     *
+     * @param  array<string, Presentation>  $presentations
+     * @return array<string, list<string>>
+     */
+    private function hostsBySection(array $presentations): array
+    {
         $hosts = [];
 
         foreach ($presentations as $host => $presentation) {
@@ -52,30 +151,42 @@ final readonly class TabList
             }
         }
 
-        $hosted = [];
+        return $hosts;
+    }
 
-        foreach ($keys as $key) {
-            foreach ($included($key) as $section) {
-                $hosted[$section] = true;
-            }
+    /**
+     * @param  array<string, Presentation>  $presentations
+     * @return list<string>
+     */
+    private function includes(array $presentations, string $key): array
+    {
+        return ($presentations[$key] ?? null)?->includes ?? [];
+    }
+
+    private function rowCount(Capture $capture, string $key): int
+    {
+        $section = $capture->sections[$key] ?? null;
+
+        if (! is_array($section)) {
+            return 0;
         }
 
-        $keys = array_values(array_filter($keys, fn (string $key): bool => ! isset($hosted[$key])));
-        $rank = fn (string $key): int => in_array($key, $order, true) ? (int) array_search($key, $order, true) : count($order);
-        usort($keys, fn (string $a, string $b): int => $rank($a) <=> $rank($b));
+        return array_is_list($section) ? count($section) : 0;
+    }
 
-        return array_map(function (string $key) use ($presentations, $descriptions, $rows, $included, $hosts, $problems): array {
-            $sections = [$key, ...$included($key), ...($hosts[$key] ?? [])];
-            $count = $rows($key);
+    /**
+     * @param  array<string, array{warnings: int, errors: int}>  $problems
+     * @param  list<string>  $sections
+     * @param  'warnings'|'errors'  $kind
+     */
+    private function problemCount(array $problems, array $sections, string $kind): int
+    {
+        $total = 0;
 
-            return [
-                'key' => $key,
-                'label' => ($presentations[$key] ?? null)?->label,
-                'count' => $count ?: null,
-                'description' => $descriptions[$key] ?? null,
-                'problems' => array_sum(array_map(fn (string $section): int => $problems[$section]['warnings'] ?? 0, $sections)),
-                'errors' => array_sum(array_map(fn (string $section): int => $problems[$section]['errors'] ?? 0, $sections)),
-            ];
-        }, $keys);
+        foreach ($sections as $section) {
+            $total += $problems[$section][$kind] ?? 0;
+        }
+
+        return $total;
     }
 }

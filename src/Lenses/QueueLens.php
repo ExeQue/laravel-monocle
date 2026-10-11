@@ -42,7 +42,6 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
 {
     public const string PAYLOAD_KEY = 'monocle';
 
-
     private Application $app;
 
     /** @var array<string, Span> open inline job spans by job id */
@@ -79,9 +78,18 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
 
         $this->eyepiece->listen(JobQueued::class, $this->onQueued(...));
         $this->eyepiece->listen(JobProcessing::class, $this->onProcessing(...));
-        $this->eyepiece->listen(JobProcessed::class, fn (JobProcessed $event) => $this->finish($event->job, 'processed'));
-        $this->eyepiece->listen(JobFailed::class, fn (JobFailed $event) => $this->fail($event->job, $event->exception, 'failed'));
-        $this->eyepiece->listen(JobExceptionOccurred::class, fn (JobExceptionOccurred $event) => $this->fail($event->job, $event->exception, 'exception', finish: true));
+
+        $this->eyepiece->listen(JobProcessed::class, function (JobProcessed $event): void {
+            $this->finish($event->job, 'processed');
+        });
+
+        $this->eyepiece->listen(JobFailed::class, function (JobFailed $event): void {
+            $this->fail($event->job, $event->exception, 'failed');
+        });
+
+        $this->eyepiece->listen(JobExceptionOccurred::class, function (JobExceptionOccurred $event): void {
+            $this->fail($event->job, $event->exception, 'exception', finish: true);
+        });
     }
 
     public function reset(): void
@@ -93,21 +101,28 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
     public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('jobs');
+        $inline = array_filter($rows, fn (array $row): bool => (bool) ($row['sync'] ?? false));
+
         $summary = Summary::make()
             ->total('jobs_dispatched', count($rows), 'dispatched')
-            ->total('jobs_inline', count(array_filter($rows, fn (array $row): bool => (bool) ($row['sync'] ?? false))), 'inline');
+            ->total('jobs_inline', count($inline), 'inline');
 
         if ($capture->type !== CaptureType::Job) {
             return $summary;
         }
 
         $job = $capture->section('job');
+        $failure = sprintf(
+            'Job failed: %s - %s',
+            $job['exception']['class'] ?? 'Throwable',
+            $job['exception']['message'] ?? '',
+        );
 
         return $summary
             ->when(isset($job['attempts']))
             ->total('job_attempt', $job['attempts'] ?? 0, 'attempt')
             ->when(isset($job['exception']))
-            ->error(sprintf('Job failed: %s - %s', $job['exception']['class'] ?? 'Throwable', $job['exception']['message'] ?? ''));
+            ->error($failure);
     }
 
     private function registerPayloadHook(): void
@@ -117,7 +132,11 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             $eyepiece = Container::getInstance()->make(Eyepiece::class);
             $capture = $eyepiece->active();
 
-            if ($capture === null || ! $eyepiece->recording()) {
+            if ($capture === null) {
+                return [];
+            }
+
+            if (! $eyepiece->recording()) {
                 return [];
             }
 
@@ -154,55 +173,84 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
         }
 
         $payload = is_string($event->payload) ? (array) json_decode($event->payload, true) : (array) $event->payload;
+        $job = $event->job;
+        $jobId = $payload['uuid'] ?? $event->id;
+        $sync = $this->isSync($event->connectionName);
+
+        // Only a queued command (not a raw payload or a job class name) can be batched or chained.
+        $isCommand = (bool) ($payload['data']['command'] ?? false);
+        $batchId = $isCommand ? $this->batchId($job) : null;
+        $chain = $isCommand ? $this->chain($job) : [];
 
         $this->eyepiece->push('jobs', [
-            'job' => $payload['displayName'] ?? (is_object($event->job) ? $event->job::class : (string) $event->job),
+            'job' => $payload['displayName'] ?? $this->jobName($job),
             'connection' => $event->connectionName,
             'queue' => $event->queue,
-            'delay' => $event->delay instanceof DateTimeInterface ? $event->delay->format(DATE_ATOM) : $event->delay,
-            'job_id' => $payload['uuid'] ?? $event->id,
-            'batch_id' => $payload['data']['command'] ?? null ? $this->batchId($event->job) : null,
-            'chained' => count($payload['data']['command'] ?? null ? $this->chain($event->job) : []),
-            'sync' => $this->isSync($event->connectionName),
-            'run' => $this->isSync($event->connectionName) ? null : ($payload['uuid'] ?? $event->id),
+            'delay' => $this->delay($event->delay),
+            'job_id' => $jobId,
+            'batch_id' => $batchId,
+            'chained' => count($chain),
+            'sync' => $sync,
+            // A queued job gets its own capture under its job id; an inline one runs inside this capture.
+            'run' => $sync ? null : $jobId,
         ]);
     }
 
     private function onProcessing(JobProcessing $event): void
     {
-        $job = $event->job;
-        $payload = $job->payload();
-
-        if ($this->eyepiece->active() !== null) {
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
-
-            // The sync queue fires no JobQueued event, so the dispatch row is written here.
-            $this->eyepiece->push('jobs', [
-                'job' => $job->resolveName(),
-                'connection' => $event->connectionName,
-                'queue' => $job->getQueue(),
-                'delay' => null,
-                'job_id' => $job->uuid(),
-                'batch_id' => $payload['data']['batchId'] ?? null,
-                'chained' => count($payload['data']['chained'] ?? []),
-                'sync' => true,
-            ]);
-
-            $span = $this->eyepiece->span($job->resolveName(), 'job');
-            $span->start([
-                'connection' => $event->connectionName,
-                'queue' => $job->getQueue(),
-                'job_id' => $job->uuid(),
-                'sync' => true,
-            ]);
-
-            $this->spans[$this->jobKey($job)] = $span;
+        if ($this->eyepiece->active() === null) {
+            $this->startJobCapture($event);
 
             return;
         }
 
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        $this->recordInlineJob($event);
+    }
+
+    /**
+     * A job running inside another capture (the sync queue): a dispatch row
+     * and a job span in that capture.
+     */
+    private function recordInlineJob(JobProcessing $event): void
+    {
+        $job = $event->job;
+        $payload = $job->payload();
+
+        // The sync queue fires no JobQueued event, so the dispatch row is written here.
+        $this->eyepiece->push('jobs', [
+            'job' => $job->resolveName(),
+            'connection' => $event->connectionName,
+            'queue' => $job->getQueue(),
+            'delay' => null,
+            'job_id' => $job->uuid(),
+            'batch_id' => $payload['data']['batchId'] ?? null,
+            'chained' => count($payload['data']['chained'] ?? []),
+            'sync' => true,
+        ]);
+
+        $span = $this->eyepiece->span($job->resolveName(), 'job');
+        $span->start([
+            'connection' => $event->connectionName,
+            'queue' => $job->getQueue(),
+            'job_id' => $job->uuid(),
+            'sync' => true,
+        ]);
+
+        $this->spans[$this->jobKey($job)] = $span;
+    }
+
+    /**
+     * A job picked up by a worker: its own capture, linked to the capture
+     * that dispatched it through the ids in the payload.
+     */
+    private function startJobCapture(JobProcessing $event): void
+    {
+        $job = $event->job;
+        $payload = $job->payload();
         $link = (array) ($payload[self::PAYLOAD_KEY] ?? []);
 
         $this->eyepiece->start(
@@ -240,19 +288,18 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             return;
         }
 
-        $capture = $this->eyepiece->active();
+        $capture = $this->activeJobCapture();
 
-        if ($capture === null || $capture->type !== CaptureType::Job) {
+        if ($capture === null) {
             return;
         }
 
+        // A failure recorded before is not overwritten by 'processed'.
         if ($capture->status === null || $status !== 'processed') {
             $this->eyepiece->describe(status: $status);
         }
 
-        $this->phase?->stop();
-        $this->phase = null;
-        $this->eyepiece->finalize();
+        $this->endJobCapture();
     }
 
     private function fail(Job $job, Throwable $exception, string $status, bool $finish = false): void
@@ -275,22 +322,39 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             return;
         }
 
-        $capture = $this->eyepiece->active();
+        $capture = $this->activeJobCapture();
 
-        if ($capture === null || $capture->type !== CaptureType::Job) {
+        if ($capture === null) {
             return;
         }
 
+        // JobFailed fires before JobExceptionOccurred; the exception event must not overwrite it.
         if ($capture->status !== 'failed') {
             $this->eyepiece->describe(status: $status);
             $this->eyepiece->set('job', ['exception' => $info]);
         }
 
         if ($finish) {
-            $this->phase?->stop();
-            $this->phase = null;
-            $this->eyepiece->finalize();
+            $this->endJobCapture();
         }
+    }
+
+    private function activeJobCapture(): ?Capture
+    {
+        $capture = $this->eyepiece->active();
+
+        if ($capture?->type !== CaptureType::Job) {
+            return null;
+        }
+
+        return $capture;
+    }
+
+    private function endJobCapture(): void
+    {
+        $this->phase?->stop();
+        $this->phase = null;
+        $this->eyepiece->finalize();
     }
 
     private function jobKey(Job $job): string
@@ -305,6 +369,20 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
         }
 
         return $this->app->make('config')->get("queue.connections.{$connection}.driver") === 'sync';
+    }
+
+    private function jobName(mixed $job): string
+    {
+        return is_object($job) ? $job::class : (string) $job;
+    }
+
+    private function delay(mixed $delay): mixed
+    {
+        if ($delay instanceof DateTimeInterface) {
+            return $delay->format(DATE_ATOM);
+        }
+
+        return $delay;
     }
 
     private function batchId(mixed $job): ?string

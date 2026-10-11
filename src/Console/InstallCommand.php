@@ -55,7 +55,7 @@ final class InstallCommand extends Command
 
         if ($choices['publish']) {
             $result = $publisher->publish($this->laravel->configPath('monocle.php'), $choices, $dryRun);
-            $this->components->twoColumnDetail('config/monocle.php', $dryRun ? "would be {$result}" : $result);
+            $this->components->twoColumnDetail('config/monocle.php', $this->outcome($result, $dryRun));
         }
 
         foreach ($choices['files'] as $file) {
@@ -67,17 +67,27 @@ final class InstallCommand extends Command
                 continue;
             }
 
-            $path = str_starts_with($file, '/') ? $file : $basePath.'/'.preg_replace('#^\./#', '', $file);
-            $result = $mcp->write($path, $server, $command, $dryRun);
-            $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
+            $result = $mcp->write($this->absolutePath($basePath, $file), $server, $command, $dryRun);
+            $this->components->twoColumnDetail($file, $this->outcome($result, $dryRun));
         }
 
         $this->ignoreFiles($gitignore, $ide, $basePath, $choices['driver'] === 'file', $dryRun);
 
         foreach ($skill->install($basePath, $choices['skill'], $dryRun) as $file => $result) {
-            $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
+            $this->components->twoColumnDetail($file, $this->outcome($result, $dryRun));
         }
 
+        $this->newLine();
+        $this->components->bulletList($this->nextSteps($boost, $platform, $server, $basePath));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function nextSteps(BoostAgents $boost, Platform $platform, string $server, string $basePath): array
+    {
         $next = [
             'Restart your MCP client so it picks up the new server.',
             "Claude Code: add \"{$server}\" to enabledMcpjsonServers in .claude/settings.local.json if you use that allow-list.",
@@ -91,10 +101,24 @@ final class InstallCommand extends Command
             $next[] = "Run `{$platform->artisan()} monocle:editor` to open file paths from Monocle in your editor.";
         }
 
-        $this->newLine();
-        $this->components->bulletList($next);
+        return $next;
+    }
 
-        return self::SUCCESS;
+    /**
+     * A --file value as an absolute path; relative ones are taken from the project root.
+     */
+    private function absolutePath(string $basePath, string $file): string
+    {
+        if (str_starts_with($file, '/')) {
+            return $file;
+        }
+
+        return $basePath.'/'.preg_replace('#^\./#', '', $file);
+    }
+
+    private function outcome(string $result, bool $dryRun): string
+    {
+        return $dryRun ? "would be {$result}" : $result;
     }
 
     /**
@@ -111,14 +135,26 @@ final class InstallCommand extends Command
             $platforms[$platform->value] = $this->platformLabel($platform);
         }
 
+        $drivers = [
+            'file' => 'Files in storage/monocle (shared by web, workers and the MCP server)',
+            'cache' => 'The application cache store',
+        ];
+
         $answers = form()
             ->intro('Monocle setup')
-            ->select('Where should captures be stored?', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'], 'file', name: 'driver')
-            ->text('How many captures should be kept?', default: '200', validate: fn (string $value): ?string => ctype_digit($value) && (int) $value > 0 ? null : 'Enter a positive number.', name: 'limit')
+            ->select('Where should captures be stored?', $drivers, 'file', name: 'driver')
+            ->text('How many captures should be kept?', default: '200', validate: $this->validateLimit(...), name: 'limit')
             ->select('How does your MCP client start PHP?', $platforms, $this->option('platform') ?: $detected->value, name: 'platform')
             ->multiselect('Register the MCP server in', $targets, $this->option('file') ?: $this->defaultTargets($boost), required: true, name: 'files')
             ->confirm('Publish config/monocle.php with these choices?', true, name: 'publish')
-            ->addIf(! $boost->detected(), fn () => multiselect('Install the Monocle skill for', $skills, $skillInstaller->detect($this->laravel->basePath()), scroll: 9, hint: 'Laravel Boost installs it for you with boost:update.'), name: 'skill')
+            // Boost installs the skill itself with boost:update, so the question is only asked without it.
+            ->addIf(! $boost->detected(), fn () => multiselect(
+                'Install the Monocle skill for',
+                $skills,
+                $skillInstaller->detect($this->laravel->basePath()),
+                scroll: 9,
+                hint: 'Laravel Boost installs it for you with boost:update.',
+            ), name: 'skill')
             ->submit();
 
         return [
@@ -131,12 +167,26 @@ final class InstallCommand extends Command
         ];
     }
 
+    private function validateLimit(string $value): ?string
+    {
+        if (! ctype_digit($value)) {
+            return 'Enter a positive number.';
+        }
+
+        if ((int) $value === 0) {
+            return 'Enter a positive number.';
+        }
+
+        return null;
+    }
+
     /**
      * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, skill: list<string>}
      */
     private function choicesFromOptions(BoostAgents $boost): array
     {
-        return [            'driver' => (string) ($this->option('driver') ?: 'file'),
+        return [
+            'driver' => (string) ($this->option('driver') ?: 'file'),
             'limit' => (int) ($this->option('limit') ?: 200),
             'platform' => (string) ($this->option('platform') ?: Platform::detect($this->laravel->basePath())->value),
             'files' => array_values((array) $this->option('file')) ?: $this->defaultTargets($boost),
@@ -185,13 +235,16 @@ final class InstallCommand extends Command
      */
     private function ignoreFiles(GitignoreWriter $gitignore, IdeExclusions $ide, string $basePath, bool $fileStore, bool $dryRun): void
     {
-        $config = $this->laravel->make('config');
-        $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
         $base = rtrim($basePath, '/').'/';
-        $storage = $fileStore && str_starts_with($path, $base) ? substr($path, strlen($base)) : null;
+        $storage = $fileStore ? $this->storageFolder($base) : null;
+        $entries = [EditorSettings::FILE];
 
-        $result = $gitignore->add($base.'.gitignore', array_filter([$storage === null ? null : $storage.'/', EditorSettings::FILE]), $dryRun);
-        $this->components->twoColumnDetail('.gitignore', $dryRun ? "would be {$result}" : $result);
+        if ($storage !== null) {
+            array_unshift($entries, $storage.'/');
+        }
+
+        $result = $gitignore->add($base.'.gitignore', $entries, $dryRun);
+        $this->components->twoColumnDetail('.gitignore', $this->outcome($result, $dryRun));
 
         if ($storage === null) {
             return;
@@ -200,6 +253,22 @@ final class InstallCommand extends Command
         foreach ($ide->apply($basePath, $storage, $dryRun) as $label => $outcome) {
             $this->components->twoColumnDetail($label, $outcome);
         }
+    }
+
+    /**
+     * The capture folder relative to the project, or null when it lives
+     * outside the project and so is nothing for git or the IDE to see.
+     */
+    private function storageFolder(string $base): ?string
+    {
+        $config = $this->laravel->make('config');
+        $path = (string) $config->get('monocle.storage.file.path', $this->laravel->storagePath('monocle'));
+
+        if (! str_starts_with($path, $base)) {
+            return null;
+        }
+
+        return substr($path, strlen($base));
     }
 
     protected function getOptions(): array

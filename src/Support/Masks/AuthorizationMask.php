@@ -25,7 +25,11 @@ final class AuthorizationMask
 
     public function __invoke(mixed $value, string $key): mixed
     {
-        if (! is_string($value) || ! str_contains($value, ' ')) {
+        if (! is_string($value)) {
+            return ($this->partial)($value, $key);
+        }
+
+        if (! str_contains($value, ' ')) {
             return ($this->partial)($value, $key);
         }
 

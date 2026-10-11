@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Http\Controllers;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Dashboard\TabList;
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Reader\CaptureReader;
@@ -41,31 +42,58 @@ final readonly class CapturesController
         abort_if($capture === null, 404);
 
         $result = $this->viewfinder->show(['id' => $capture->id, 'sections' => ['summary']]);
-
-        $route = $capture->section('request')['route'] ?? [];
-        $command = $capture->section('command');
+        $summary = $result['summary'] ?? [];
+        $presentations = array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations());
 
         return response()->json($result + [
             'timeline' => $timeline->present($capture),
-            'warning_links' => array_map($timeline->textLinks(...), $result['summary']['warnings'] ?? []),
-            'error_links' => array_map($timeline->textLinks(...), $result['summary']['errors'] ?? []),
+            'warning_links' => array_map($timeline->textLinks(...), $summary['warnings'] ?? []),
+            'error_links' => array_map($timeline->textLinks(...), $summary['errors'] ?? []),
             'editor' => $links->enabled(),
-            'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
-            'tabs' => $tabs->for($capture, $this->tabOrder(), $result['summary']['problems'] ?? []),
-            'children' => array_map(
-                fn (array $child): array => array_intersect_key($child, array_flip(['id', 'type', 'name', 'status', 'has_errors', 'job_id', 'started_at'])),
-                $captures->children($capture->id),
-            ),
-            'context' => [
-                // Only a GET request can be opened again from a link.
-                'url' => ($capture->section('request')['method'] ?? null) === 'GET' ? ($capture->section('request')['url'] ?? null) : null,
-                'route' => $route['name'] ?? null,
-                'action' => $route['action'] ?? null,
-                'action_link' => $timeline->link($route['action'] ?? null),
-                'command_class' => $command['class'] ?? null,
-                'command_link' => $timeline->link($command['class'] ?? null),
-            ],
+            'presentations' => $presentations,
+            'tabs' => $tabs->for($capture, $this->tabOrder(), $summary['problems'] ?? []),
+            'children' => $this->children($captures, $capture->id),
+            'context' => $this->context($capture, $timeline),
         ]);
+    }
+
+    /**
+     * The index fields the dashboard shows for each child capture.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function children(CaptureReader $captures, string $id): array
+    {
+        $fields = array_flip(['id', 'type', 'name', 'status', 'has_errors', 'job_id', 'started_at']);
+
+        return array_map(
+            fn (array $child): array => array_intersect_key($child, $fields),
+            $captures->children($id),
+        );
+    }
+
+    /**
+     * Where the capture came from: the URL to open again, the route or command, with editor links.
+     *
+     * @return array{url: mixed, route: mixed, action: mixed, action_link: string|null, command_class: mixed, command_link: string|null}
+     */
+    private function context(Capture $capture, TimelinePresenter $timeline): array
+    {
+        $request = $capture->section('request');
+        $route = $request['route'] ?? [];
+        $command = $capture->section('command');
+
+        // Only a GET request can be opened again from a link.
+        $url = ($request['method'] ?? null) === 'GET' ? ($request['url'] ?? null) : null;
+
+        return [
+            'url' => $url,
+            'route' => $route['name'] ?? null,
+            'action' => $route['action'] ?? null,
+            'action_link' => $timeline->link($route['action'] ?? null),
+            'command_class' => $command['class'] ?? null,
+            'command_link' => $timeline->link($command['class'] ?? null),
+        ];
     }
 
     /**

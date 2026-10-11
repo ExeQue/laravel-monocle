@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +23,6 @@ use Illuminate\Database\Eloquent\Model;
 final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     private const array ACTIONS = ['retrieved', 'created', 'updated', 'deleted', 'restored', 'forceDeleted'];
-
 
     /** @var array<class-string, array<string, int>> */
     private array $counts = [];
@@ -112,12 +112,18 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
 
     private function record(string $action, mixed $model): void
     {
-        if (! $model instanceof Model || ! $this->eyepiece->recording()) {
+        if (! $model instanceof Model) {
             return;
         }
 
-        $this->counts[$model::class][$action] = ($this->counts[$model::class][$action] ?? 0) + 1;
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
 
+        $class = $model::class;
+        $this->counts[$class][$action] = ($this->counts[$class][$action] ?? 0) + 1;
+
+        // Reads are only counted: listing every loaded model would drown the writes.
         if ($action === 'retrieved') {
             return;
         }
@@ -137,24 +143,51 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
      */
     private function markRolledBack(Capture $capture): void
     {
-        $rolledBack = array_filter(
-            $capture->spans,
-            fn ($span): bool => $span->kind === 'db.transaction' && ($span->meta['outcome'] ?? null) === 'rolled_back',
-        );
+        $rolledBack = array_filter($capture->spans, $this->isRolledBackTransaction(...));
 
-        if ($rolledBack === [] || ! isset($capture->sections['model_changes'])) {
+        if ($rolledBack === []) {
+            return;
+        }
+
+        if (! isset($capture->sections['model_changes'])) {
             return;
         }
 
         foreach ($capture->sections['model_changes'] as $index => $row) {
             foreach ($rolledBack as $span) {
-                if (($span->meta['connection'] ?? null) === ($row['connection'] ?? null) && $row['time'] >= $span->start && $row['time'] <= ($span->end ?? INF)) {
+                if ($this->happenedIn($row, $span)) {
                     $capture->sections['model_changes'][$index]['rolled_back'] = true;
 
                     break;
                 }
             }
         }
+    }
+
+    private function isRolledBackTransaction(Span $span): bool
+    {
+        if ($span->kind !== 'db.transaction') {
+            return false;
+        }
+
+        return ($span->meta['outcome'] ?? null) === 'rolled_back';
+    }
+
+    /**
+     * Whether a model change was made on the span's connection while the span ran.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function happenedIn(array $row, Span $span): bool
+    {
+        if (($span->meta['connection'] ?? null) !== ($row['connection'] ?? null)) {
+            return false;
+        }
+
+        // A transaction still open at the end of the capture has no end yet.
+        $end = $span->end ?? INF;
+
+        return $row['time'] >= $span->start && $row['time'] <= $end;
     }
 
     /**
@@ -173,9 +206,10 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
             default => $this->beforeAndAfter($model),
         };
 
+        $visible = array_diff_key($fields, array_flip($model->getHidden()));
         $changes = [];
 
-        foreach (array_diff_key($fields, array_flip($model->getHidden())) as $field => [$from, $to]) {
+        foreach ($visible as $field => [$from, $to]) {
             $changes[] = ['field' => (string) $field, 'from' => $from, 'to' => $to];
         }
 

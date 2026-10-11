@@ -99,17 +99,20 @@ final class McpLens implements Advises, Lens, Presentable, RequiresPackages, Sum
             return Summary::make();
         }
 
+        // A stdio call is a capture of its own, kept as the section rather than as rows.
         $calls = $rows === [] ? [$own] : $rows;
         $errors = array_filter($calls, fn (array $row): bool => (bool) ($row['is_error'] ?? false));
+        $durations = array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls);
+        $messages = array_map(
+            fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
+            array_slice(array_values($errors), 0, 3),
+        );
 
         return Summary::make()
-            ->total('mcp_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3), 'spent', Unit::Milliseconds)
+            ->total('mcp_ms', round(array_sum($durations), 3), 'spent', Unit::Milliseconds)
             ->total('mcp_calls', count($calls), 'calls')
             ->total('mcp_errors', count($errors), 'errors')
-            ->errors(array_map(
-                fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
-                array_slice(array_values($errors), 0, 3),
-            ));
+            ->errors($messages);
     }
 
     public function presentation(): Presentation

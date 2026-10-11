@@ -24,7 +24,10 @@ final class CaptureReader
      */
     public function list(Filter $filter): array
     {
-        $rows = array_values(array_filter($this->stores->store()->index(), fn (array $row): bool => $filter->matches($row)));
+        $rows = array_values(array_filter(
+            $this->stores->store()->index(),
+            fn (array $row): bool => $filter->matches($row),
+        ));
         $total = count($rows);
         $page = array_slice($rows, $filter->offset, $filter->limit);
         $next = $filter->offset + count($page);
@@ -82,29 +85,19 @@ final class CaptureReader
 
         usort($rows, fn (array $a, array $b): int => ($a['started_at'] ?? 0) <=> ($b['started_at'] ?? 0));
 
-        $byId = [];
-
-        foreach ($rows as $row) {
-            $byId[$row['id']] = $row;
-        }
-
+        $byId = array_column($rows, null, 'id');
         $root = null;
 
-        foreach ($rows as &$row) {
-            $depth = 0;
-            $cursor = $row;
+        foreach ($rows as $index => $row) {
+            $depth = $this->depth($row, $byId);
+            $rows[$index]['depth'] = $depth;
 
-            while (($cursor['parent_id'] ?? null) !== null && isset($byId[$cursor['parent_id']]) && $depth < 50) {
-                $cursor = $byId[$cursor['parent_id']];
-                $depth++;
+            if ($root === null && $depth === 0) {
+                $root = $row;
             }
-
-            $row['depth'] = $depth;
-            $root ??= $depth === 0 ? $row : null;
         }
 
-        unset($row);
-
+        // Offsets count from the first root, or the oldest capture when the root is gone.
         $rootStart = (float) ($root['started_at'] ?? ($rows[0]['started_at'] ?? 0));
 
         return array_map(function (array $row) use ($rootStart): array {
@@ -112,6 +105,25 @@ final class CaptureReader
 
             return $this->presentIndexRow($row);
         }, $rows);
+    }
+
+    /**
+     * Number of ancestors in the trace; capped so a parent cycle cannot loop forever.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  array<string, array<string, mixed>>  $byId
+     */
+    private function depth(array $row, array $byId): int
+    {
+        $depth = 0;
+        $parentId = $row['parent_id'] ?? null;
+
+        while ($parentId !== null && isset($byId[$parentId]) && $depth < 50) {
+            $depth++;
+            $parentId = $byId[$parentId]['parent_id'] ?? null;
+        }
+
+        return $depth;
     }
 
     public function clear(): void

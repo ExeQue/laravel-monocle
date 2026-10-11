@@ -17,7 +17,11 @@ final class JsonCapture implements ResponseCapture
     {
         $content = $response->getContent();
 
-        if (! is_string($content) || $content === '') {
+        if (! is_string($content)) {
+            return null;
+        }
+
+        if ($content === '') {
             return null;
         }
 
@@ -27,10 +31,14 @@ final class JsonCapture implements ResponseCapture
             return null;
         }
 
+        // An object shows its keys as items; a list or a scalar is one "data" item.
+        $isObject = is_array($decoded) && ! array_is_list($decoded);
+        $isList = is_array($decoded) && array_is_list($decoded);
+
         return [[
             'title' => 'JSON',
-            'subtitle' => is_array($decoded) && array_is_list($decoded) ? count($decoded).' items' : null,
-            'items' => is_array($decoded) && ! array_is_list($decoded) ? $decoded : ['data' => $decoded],
+            'subtitle' => $isList ? count($decoded).' items' : null,
+            'items' => $isObject ? $decoded : ['data' => $decoded],
         ]];
     }
 }

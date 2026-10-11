@@ -27,7 +27,7 @@ final class SnapshotsSession
 
     public function handle(mixed $request, Closure $next, mixed ...$parameters): mixed
     {
-        return $this->inner->handle($request, function (mixed $passable) use ($next): mixed {
+        $snapshotThenContinue = function (mixed $passable) use ($next): mixed {
             try {
                 ($this->snapshot)($passable->session()->all());
             } catch (Throwable) {
@@ -35,7 +35,9 @@ final class SnapshotsSession
             }
 
             return $next($passable);
-        }, ...$parameters);
+        };
+
+        return $this->inner->handle($request, $snapshotThenContinue, ...$parameters);
     }
 
     public function terminate(mixed $request, mixed $response): void

@@ -60,45 +60,70 @@ abstract class ImpersonationLens implements ExtendsLens, Lens, RequiresPackages,
 
     public function boot(): void
     {
-        if (class_exists($this->startedEvent())) {
-            $this->eyepiece->listen($this->startedEvent(), fn (object $event) => $this->pushImpersonation('impersonation_started', $event));
+        $started = $this->startedEvent();
+        $ended = $this->endedEvent();
+
+        if (class_exists($started)) {
+            $this->eyepiece->listen($started, function (object $event): void {
+                $this->pushImpersonation('impersonation_started', $event);
+            });
         }
 
-        if (class_exists($this->endedEvent())) {
-            $this->eyepiece->listen($this->endedEvent(), fn (object $event) => $this->pushImpersonation('impersonation_ended', $event));
+        if (class_exists($ended)) {
+            $this->eyepiece->listen($ended, function (object $event): void {
+                $this->pushImpersonation('impersonation_ended', $event);
+            });
         }
 
-        $this->eyepiece->modify('auth', function (array $row): array {
-            if (($row['event'] ?? null) !== 'authenticated') {
-                return $row;
-            }
+        $this->eyepiece->modify('auth', $this->markImpersonated(...));
+    }
 
-            try {
-                $by = $this->impersonator();
-            } catch (Throwable) {
-                // No session to look in, such as an API guard.
-                return $row;
-            }
+    /**
+     * Adds impersonated_by to the authenticated row while an impersonation lasts.
+     *
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function markImpersonated(array $row): array
+    {
+        if (($row['event'] ?? null) !== 'authenticated') {
+            return $row;
+        }
 
-            if ($by === null) {
-                return $row;
-            }
+        try {
+            $by = $this->impersonator();
+        } catch (Throwable) {
+            // No session to look in, such as an API guard.
+            return $row;
+        }
 
-            // Leaving an impersonation logs the impersonator back in before the session forgets them.
-            if (str_ends_with((string) ($row['user'] ?? ''), '#'.$by['id'])) {
-                return $row;
-            }
+        if ($by === null) {
+            return $row;
+        }
 
-            return [...$row, 'impersonated_by' => '#'.$by['id'].(empty($by['guard']) ? '' : ' ('.$by['guard'].' guard)')];
-        });
+        $impersonatorId = '#'.$by['id'];
+
+        // Leaving an impersonation logs the impersonator back in before the session forgets them.
+        if (str_ends_with((string) ($row['user'] ?? ''), $impersonatorId)) {
+            return $row;
+        }
+
+        $guard = empty($by['guard']) ? '' : ' ('.$by['guard'].' guard)';
+
+        return [...$row, 'impersonated_by' => $impersonatorId.$guard];
     }
 
     public function summarize(Capture $capture): Summary
     {
         $impersonator = null;
 
+        // The impersonator on the last authenticated row.
         foreach ($capture->rows('auth') as $row) {
-            if (($row['event'] ?? null) === 'authenticated' && isset($row['impersonated_by'])) {
+            if (($row['event'] ?? null) !== 'authenticated') {
+                continue;
+            }
+
+            if (isset($row['impersonated_by'])) {
                 $impersonator = $row['impersonated_by'];
             }
         }
@@ -126,6 +151,10 @@ abstract class ImpersonationLens implements ExtendsLens, Lens, RequiresPackages,
 
     private function describeUser(mixed $user): ?string
     {
-        return $user instanceof Authenticatable ? $user::class.'#'.$user->getAuthIdentifier() : null;
+        if (! $user instanceof Authenticatable) {
+            return null;
+        }
+
+        return $user::class.'#'.$user->getAuthIdentifier();
     }
 }

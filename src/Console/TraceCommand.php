@@ -66,6 +66,7 @@ final class TraceCommand extends Command
                 continue;
             }
 
+            // A parent outside the trace (pruned, or never captured) makes this a root of its own.
             if (! in_array($parent, $ids, true)) {
                 $roots[] = $capture;
 
@@ -75,21 +76,26 @@ final class TraceCommand extends Command
             $children[$parent][] = $capture;
         }
 
-        $pending = 0;
+        $pending = $data['pending'] ?? [];
 
-        foreach ($data['pending'] ?? [] as $job) {
-            $children[$job['parent_id']][] = ['pending' => true, 'type' => 'job', 'name' => $job['job'], 'id' => $job['job_id']];
-            $pending++;
+        foreach ($pending as $job) {
+            $children[$job['parent_id']][] = [
+                'pending' => true,
+                'type' => 'job',
+                'name' => $job['job'],
+                'id' => $job['job_id'],
+            ];
         }
 
         foreach ($roots as $index => $root) {
-            $this->renderNode($root, $children, $data['id'], '', $index === array_key_last($roots), true);
+            $isLast = $index === array_key_last($roots);
+
+            $this->renderNode($root, $children, $data['id'], '', $isLast, true);
         }
 
         $this->newLine();
-        $this->summary($captures, $pending);
+        $this->summary($captures, count($pending));
     }
-
 
     /**
      * @param  array<string, mixed>  $node
@@ -97,15 +103,21 @@ final class TraceCommand extends Command
      */
     private function renderNode(array $node, array $children, string $requested, string $prefix, bool $last, bool $root = false): void
     {
-        $guide = $root ? '' : ($last ? '└─ ' : '├─ ');
+        $branch = $last ? '└─ ' : '├─ ';
+        // Below the last child nothing continues, so its children get blank space instead of a line.
+        $continuation = $last ? '   ' : '│  ';
+
+        $guide = $root ? '' : $branch;
+        $childPrefix = $root ? '' : $prefix.$continuation;
 
         $this->output->writeln($prefix.$guide.$this->describe($node, $requested));
 
         $kids = $children[$node['id']] ?? [];
-        $childPrefix = $root ? '' : $prefix.($last ? '   ' : '│  ');
 
         foreach ($kids as $index => $kid) {
-            $this->renderNode($kid, $children, $requested, $childPrefix, $index === array_key_last($kids));
+            $isLast = $index === array_key_last($kids);
+
+            $this->renderNode($kid, $children, $requested, $childPrefix, $isLast);
         }
     }
 
@@ -124,14 +136,11 @@ final class TraceCommand extends Command
             return sprintf('<fg=gray>%s</> %s  <fg=yellow>PENDING, no capture yet</>  <fg=gray>job id %s</>', $type, $name, $node['id']);
         }
 
-        $status = (string) ($node['status'] ?? '');
-        $status = $this->failed($node) ? "<fg=red;options=bold>{$status} FAILED</>" : "<fg=green>{$status}</>";
-
         $line = sprintf(
             '<fg=gray>%s</> <options=bold>%s</>  %s  %s  <fg=gray>at +%s</>',
             $type,
             $name,
-            $status,
+            $this->status($node),
             $this->ms($node['duration'] ?? null),
             $this->ms($node['offset_ms'] ?? null),
         );
@@ -154,13 +163,40 @@ final class TraceCommand extends Command
     }
 
     /**
+     * @param  array<string, mixed>  $node
+     */
+    private function status(array $node): string
+    {
+        $status = (string) ($node['status'] ?? '');
+
+        if ($this->failed($node)) {
+            return "<fg=red;options=bold>{$status} FAILED</>";
+        }
+
+        return "<fg=green>{$status}</>";
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $captures
      */
     private function summary(array $captures, int $pending): void
     {
-        $failed = count(array_filter($captures, fn (array $capture): bool => $this->failed($capture)));
-        $work = array_sum(array_map(fn (array $capture): float => (float) ($capture['duration'] ?? 0), $captures));
-        $span = max(array_map(fn (array $capture): float => (float) ($capture['offset_ms'] ?? 0) + (float) ($capture['duration'] ?? 0), $captures));
+        $failed = 0;
+        // Work adds every duration up; span is the wall time from the root's start to the last finish.
+        $work = 0.0;
+        $span = 0.0;
+
+        foreach ($captures as $capture) {
+            $duration = (float) ($capture['duration'] ?? 0);
+            $finishedAt = (float) ($capture['offset_ms'] ?? 0) + $duration;
+
+            if ($this->failed($capture)) {
+                $failed++;
+            }
+
+            $work += $duration;
+            $span = max($span, $finishedAt);
+        }
 
         $line = sprintf(
             '%d %s, %s of work over %s, %d failed',

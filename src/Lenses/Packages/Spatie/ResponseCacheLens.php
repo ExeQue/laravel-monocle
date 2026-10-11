@@ -53,8 +53,13 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, RequiresPac
 
     public function boot(): void
     {
+        // Event class => the row it becomes.
         $events = [
-            ResponseCacheHitEvent::class => fn (object $event): array => ['event' => 'hit', 'age_seconds' => $event->ageInSeconds ?? null, 'tags' => $event->tags ?? null],
+            ResponseCacheHitEvent::class => fn (object $event): array => [
+                'event' => 'hit',
+                'age_seconds' => $event->ageInSeconds ?? null,
+                'tags' => $event->tags ?? null,
+            ],
             CacheMissedEvent::class => fn (object $event): array => ['event' => 'miss'],
             ClearingResponseCacheEvent::class => fn (object $event): array => ['event' => 'clearing'],
             ClearedResponseCacheEvent::class => fn (object $event): array => ['event' => 'cleared'],
@@ -77,18 +82,49 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, RequiresPac
     public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('response_cache');
-        $hit = array_values(array_filter($rows, fn (array $row): bool => $row['event'] === 'hit'))[0] ?? null;
 
         if ($rows === []) {
             return Summary::make();
         }
 
+        $hits = array_filter($rows, fn (array $row): bool => $row['event'] === 'hit');
+        $hit = array_values($hits)[0] ?? null;
+
         return Summary::make()
-            ->total('response_cache', $hit !== null ? 'hit' : (in_array('miss', array_column($rows, 'event'), true) ? 'miss' : 'cleared'), 'response cache')
-            ->warnings($hit === null ? [] : [sprintf(
-                'Served from the response cache%s; the controller did not run. Clear it (php artisan responsecache:clear) to see a change.',
-                $hit['age_seconds'] === null ? '' : " ({$hit['age_seconds']} s old)",
-            )]);
+            ->total('response_cache', $this->outcome($rows, $hit), 'response cache')
+            ->warnings($hit === null ? [] : [$this->hitWarning($hit)]);
+    }
+
+    /**
+     * A hit wins over a miss; rows with neither only cleared the cache.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array<string, mixed>|null  $hit
+     */
+    private function outcome(array $rows, ?array $hit): string
+    {
+        if ($hit !== null) {
+            return 'hit';
+        }
+
+        if (in_array('miss', array_column($rows, 'event'), true)) {
+            return 'miss';
+        }
+
+        return 'cleared';
+    }
+
+    /**
+     * @param  array<string, mixed>  $hit
+     */
+    private function hitWarning(array $hit): string
+    {
+        $age = $hit['age_seconds'] === null ? '' : " ({$hit['age_seconds']} s old)";
+
+        return sprintf(
+            'Served from the response cache%s; the controller did not run. Clear it (php artisan responsecache:clear) to see a change.',
+            $age,
+        );
     }
 
     public function presentation(): Presentation

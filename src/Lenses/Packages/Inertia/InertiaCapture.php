@@ -31,7 +31,11 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
     {
         $page = $this->page((string) $response->getContent());
 
-        if (! is_array($page) || ! isset($page['component'])) {
+        if (! is_array($page)) {
+            return null;
+        }
+
+        if (! isset($page['component'])) {
             return null;
         }
 
@@ -74,6 +78,7 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
             return null;
         }
 
+        // Newer Inertia puts the page in a script tag, older versions in an escaped data-page attribute.
         if (preg_match('#<script[^>]*data-page[^>]*>(.*?)</script>#s', $content, $match) === 1) {
             $decoded = json_decode($match[1], true);
 
@@ -96,6 +101,14 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
      */
     private function list(?string $header): array
     {
-        return $header === null || $header === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $header))));
+        if ($header === null) {
+            return [];
+        }
+
+        if ($header === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $header))));
     }
 }

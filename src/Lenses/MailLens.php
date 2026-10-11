@@ -53,17 +53,24 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
     public function boot(): void
     {
         $this->eyepiece->listen(MessageSending::class, function (MessageSending $event): void {
-            $this->pending['mail:'.spl_object_id($event->message)] = $this->eyepiece->now();
+            $this->pending[$this->mailKey($event->message)] = $this->eyepiece->now();
         });
 
         $this->eyepiece->listen(MessageSent::class, function (MessageSent $event): void {
             $message = $event->message;
-            $started = $this->pending['mail:'.spl_object_id($message)] ?? null;
-            unset($this->pending['mail:'.spl_object_id($message)]);
+            $key = $this->mailKey($message);
+            $started = $this->pending[$key] ?? null;
+            unset($this->pending[$key]);
 
-            if (! $this->eyepiece->recording() || ! $message instanceof Email) {
+            if (! $this->eyepiece->recording()) {
                 return;
             }
+
+            if (! $message instanceof Email) {
+                return;
+            }
+
+            $bodyBytes = strlen((string) $message->getTextBody()) + strlen((string) $message->getHtmlBody());
 
             $this->eyepiece->push('mail', [
                 'type' => 'mail',
@@ -74,8 +81,8 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
                 'cc' => $this->addresses($message->getCc()),
                 'bcc' => $this->addresses($message->getBcc()),
                 'attachments' => count($message->getAttachments()),
-                'body_bytes' => strlen((string) $message->getTextBody()) + strlen((string) $message->getHtmlBody()),
-                'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
+                'body_bytes' => $bodyBytes,
+                'duration' => $this->durationSince($started),
             ]);
         });
 
@@ -98,7 +105,7 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
                 'channel' => $event->channel,
                 'notifiable' => Normalizer::value($event->notifiable),
                 'response' => Normalizer::value($event->response),
-                'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
+                'duration' => $this->durationSince($started),
             ]);
         });
     }
@@ -116,9 +123,25 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
             return Summary::make();
         }
 
+        $byType = array_count_values(array_column($rows, 'type'));
+
         return Summary::make()
-            ->total('mail_sent', count(array_filter($rows, fn (array $row): bool => $row['type'] === 'mail')), 'mails sent')
-            ->total('notifications_sent', count(array_filter($rows, fn (array $row): bool => $row['type'] === 'notification')), 'notifications sent');
+            ->total('mail_sent', $byType['mail'] ?? 0, 'mails sent')
+            ->total('notifications_sent', $byType['notification'] ?? 0, 'notifications sent');
+    }
+
+    private function durationSince(?float $started): ?float
+    {
+        if ($started === null) {
+            return null;
+        }
+
+        return round($this->eyepiece->now() - $started, 3);
+    }
+
+    private function mailKey(object $message): string
+    {
+        return 'mail:'.spl_object_id($message);
     }
 
     /**

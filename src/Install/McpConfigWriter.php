@@ -31,12 +31,12 @@ final class McpConfigWriter
         }
 
         $current = $config['mcpServers'][$name] ?? null;
-        $config['mcpServers'] = ($config['mcpServers'] ?? []);
-        $config['mcpServers'][$name] = $server;
 
         if ($current === $server) {
             return 'unchanged';
         }
+
+        $config['mcpServers'][$name] = $server;
 
         if (! $dryRun) {
             $this->writeJson($file, $config);

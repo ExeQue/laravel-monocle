@@ -27,11 +27,18 @@ final class GitignoreWriter
         $missing = [];
 
         foreach ((array) $entries as $entry) {
+            // Anchored to the root, so "storage/monocle/" does not also match nested folders.
             $line = '/'.ltrim($entry, '/');
 
-            if (! in_array($this->normalize($line), $present, true) && ! in_array($line, $missing, true)) {
-                $missing[] = $line;
+            if (in_array($this->normalize($line), $present, true)) {
+                continue;
             }
+
+            if (in_array($line, $missing, true)) {
+                continue;
+            }
+
+            $missing[] = $line;
         }
 
         if ($missing === []) {
@@ -42,14 +49,29 @@ final class GitignoreWriter
             return 'added';
         }
 
-        $contents = $existing === '' || str_ends_with($existing, "\n") ? $existing : $existing."\n";
-        $contents .= $existing === '' ? '' : "\n";
+        $block = self::COMMENT."\n".implode("\n", $missing)."\n";
 
-        if (file_put_contents($file, $contents.self::COMMENT."\n".implode("\n", $missing)."\n") === false) {
+        if (file_put_contents($file, $this->withTrailingBlankLine($existing).$block) === false) {
             throw new RuntimeException("Could not write [{$file}].");
         }
 
         return 'added';
+    }
+
+    /**
+     * The existing contents ending in a blank line, to set the new block apart.
+     */
+    private function withTrailingBlankLine(string $existing): string
+    {
+        if ($existing === '') {
+            return '';
+        }
+
+        if (! str_ends_with($existing, "\n")) {
+            $existing .= "\n";
+        }
+
+        return $existing."\n";
     }
 
     private function normalize(string $line): string

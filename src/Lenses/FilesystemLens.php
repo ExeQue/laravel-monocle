@@ -67,8 +67,11 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             return;
         }
 
-        $app->extend('filesystem', fn (FilesystemManager $manager, Application $app): FilesystemManager => new MonocleFilesystemManager($app, $eyepiece, $this->records(...)));
+        $app->extend('filesystem', function (FilesystemManager $manager, Application $app) use ($eyepiece): FilesystemManager {
+            return new MonocleFilesystemManager($app, $eyepiece, $this->records(...));
+        });
 
+        // The facade may already hold the original manager.
         Storage::clearResolvedInstance('filesystem');
     }
 
@@ -99,7 +102,8 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             }
 
             if (($row['ok'] ?? true) === false) {
-                $failed[] = sprintf('Filesystem %s failed on %s:%s (%s)', $row['op'], $row['disk'], $row['path'], $row['exception']['message'] ?? 'unknown error');
+                $reason = $row['exception']['message'] ?? 'unknown error';
+                $failed[] = sprintf('Filesystem %s failed on %s:%s (%s)', $row['op'], $row['disk'], $row['path'], $reason);
             }
         }
 

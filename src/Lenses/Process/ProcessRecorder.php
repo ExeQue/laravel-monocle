@@ -75,24 +75,28 @@ final class ProcessRecorder
             return;
         }
 
-        if ($exception instanceof ProcessTimedOutException) {
+        $timedOut = $exception instanceof ProcessTimedOutException;
+
+        // A timeout still carries the result of the process up to that point.
+        if ($timedOut) {
             $result = $exception->result;
         }
 
-        $known = $result !== null || $exception !== null;
         $exitCode = $result?->exitCode();
 
-        $span = $this->eyepiece->span(Str::limit($process['command'], 60), 'process')->parent($process['parent']);
+        $span = $this->eyepiece->span(Str::limit($process['command'], 60), 'process');
+        $span->parent($process['parent']);
         $span->origin = $process['origin'];
         $span->stop(['exit_code' => $exitCode, 'async' => $process['async']]);
+        // The span is only made once the process finished, so its start is set back to when it began.
         $span->start = $process['started'];
 
         $this->eyepiece->push('processes', [
             'command' => $process['command'],
             'path' => $process['path'],
             'exit_code' => $exitCode,
-            'successful' => $known ? $exception === null && $result?->successful() === true : null,
-            'timed_out' => $exception instanceof ProcessTimedOutException,
+            'successful' => $this->successful($result, $exception),
+            'timed_out' => $timedOut,
             'duration' => round($this->eyepiece->now() - $process['started'], 3),
             'time' => $process['started'],
             'output_bytes' => $this->bytes($result, 'output'),
@@ -116,6 +120,22 @@ final class ProcessRecorder
     public function reset(): void
     {
         $this->open = [];
+    }
+
+    /**
+     * Null when neither a result nor an exception tells how the process ended.
+     */
+    private function successful(?ProcessResult $result, ?Throwable $exception): ?bool
+    {
+        if ($exception !== null) {
+            return false;
+        }
+
+        if ($result === null) {
+            return null;
+        }
+
+        return $result->successful() === true;
     }
 
     private function relative(?string $path): ?string

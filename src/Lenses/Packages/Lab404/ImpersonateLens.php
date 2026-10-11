@@ -36,9 +36,10 @@ final class ImpersonateLens extends ImpersonationLens
     protected function impersonator(): ?array
     {
         $key = (string) config('laravel-impersonate.session_key', 'impersonated_by');
+        $guardKey = (string) config('laravel-impersonate.session_guard', 'impersonator_guard');
 
         return session()->has($key)
-            ? ['id' => session($key), 'guard' => session((string) config('laravel-impersonate.session_guard', 'impersonator_guard'))]
+            ? ['id' => session($key), 'guard' => session($guardKey)]
             : null;
     }
 }

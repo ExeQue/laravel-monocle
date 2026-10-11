@@ -88,17 +88,28 @@ final class LensRegistry
      */
     public function enabled(): array
     {
-        $enabled = array_keys(array_filter(
-            $this->lenses(),
-            fn (array|bool $options, string $class): bool => $options !== false && self::available($class),
-            ARRAY_FILTER_USE_BOTH,
-        ));
+        $enabled = [];
+
+        foreach ($this->lenses() as $class => $options) {
+            if ($options === false) {
+                continue;
+            }
+
+            if (! self::available($class)) {
+                continue;
+            }
+
+            $enabled[] = $class;
+        }
 
         // An extension runs only while the lens it adds to does.
-        return array_values(array_filter(
-            $enabled,
-            fn (string $class): bool => ! is_subclass_of($class, ExtendsLens::class) || in_array($class::extends(), $enabled, true),
-        ));
+        return array_values(array_filter($enabled, function (string $class) use ($enabled): bool {
+            if (! is_subclass_of($class, ExtendsLens::class)) {
+                return true;
+            }
+
+            return in_array($class::extends(), $enabled, true);
+        }));
     }
 
     /**
@@ -179,13 +190,6 @@ final class LensRegistry
     }
 
     /**
-     * Section key => description for every enabled lens, whether or not the
-     * lenses have been booted in this process (the MCP server reads captures
-     * even when recording is off).
-     *
-     * @return array<string, string>
-     */
-    /**
      * How Presentable lenses want their sections shown, keyed by section.
      *
      * @return array<string, Presentation>
@@ -195,19 +199,30 @@ final class LensRegistry
         $presentations = [];
 
         foreach ($this->booted as $lens) {
-            if ($lens instanceof Presentable) {
-                $presentation = $lens->presentation();
-                $presentations = [...$presentation->included, ...$presentations, $lens->key() => $presentation];
+            if (! $lens instanceof Presentable) {
+                continue;
             }
+
+            $presentation = $lens->presentation();
+
+            // A section's own lens decides how it is shown; a presentation included by another lens is only a fallback.
+            $presentations = [...$presentation->included, ...$presentations, $lens->key() => $presentation];
         }
 
         return $presentations;
     }
 
+    /**
+     * Section key => description for every enabled lens, whether or not the
+     * lenses have been booted in this process (the MCP server reads captures
+     * even when recording is off).
+     *
+     * @return array<string, string>
+     */
     public function descriptions(): array
     {
         $descriptions = [];
-        $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
+        $lenses = $this->describedLenses();
 
         foreach ($lenses as $lens) {
             if (! $lens instanceof ExtendsLens) {
@@ -235,19 +250,47 @@ final class LensRegistry
     public function advice(): array
     {
         $advice = [];
-        $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
 
-        foreach ($lenses as $lens) {
+        foreach ($this->describedLenses() as $lens) {
             if ($lens instanceof ExtendsLens) {
                 continue;
             }
 
-            $advice[$lens->key()] = $lens instanceof Advises
-                ? $lens->advice()
-                : (preg_match('/^.+?[.!?](?=\s|$)/s', $lens->description(), $match) === 1 ? $match[0] : $lens->description());
+            if ($lens instanceof Advises) {
+                $advice[$lens->key()] = $lens->advice();
+
+                continue;
+            }
+
+            $advice[$lens->key()] = self::firstSentence($lens->description());
         }
 
         return $advice;
+    }
+
+    /**
+     * The booted lenses, or every enabled lens resolved fresh when nothing
+     * booted (recording is off, but captures can still be read).
+     *
+     * @return list<Lens>
+     */
+    private function describedLenses(): array
+    {
+        if ($this->booted !== []) {
+            return $this->booted;
+        }
+
+        return array_map($this->app->make(...), $this->enabled());
+    }
+
+    private static function firstSentence(string $text): string
+    {
+        // A sentence ends at . ! or ? followed by whitespace or the end, so "v1.2" does not cut it short.
+        if (preg_match('/^.+?[.!?](?=\s|$)/s', $text, $match) === 1) {
+            return $match[0];
+        }
+
+        return $text;
     }
 
     /**

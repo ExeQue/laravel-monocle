@@ -52,8 +52,7 @@ final class QueriesCommand extends Command
         /** @var array{slow_ms?: int|float, n_plus_one_threshold?: int} $options */
         $options = (array) (config('monocle.lenses')[DatabaseLens::class] ?? []);
         $slowMs = (float) ($options['slow_ms'] ?? 100);
-        // Many queries per table or transaction is normal; only a repeated shape or caller hints at N+1.
-        $repeats = in_array($data['group_by'], ['shape', 'caller'], true) ? (int) ($options['n_plus_one_threshold'] ?? 3) : PHP_INT_MAX;
+        $repeats = $this->nPlusOneThreshold($data['group_by'], $options);
 
         $rows = [];
         $warnings = [];
@@ -72,12 +71,14 @@ final class QueriesCommand extends Command
                 $warnings[] = sprintf('Slow, up to %s: %s', $this->ms($group['max_ms']), $this->cell($key, 80));
             }
 
+            $affectedRows = array_filter($group['rows'], fn (?int $count): bool => $count !== null);
+
             $rows[] = [
                 (string) $group['count'],
                 $this->ms($group['total_ms']),
                 $this->ms($group['avg_ms']),
                 $this->ms($group['max_ms']),
-                $this->cell(implode(',', array_filter($group['rows'], fn (?int $n): bool => $n !== null)), 12),
+                $this->cell(implode(',', $affectedRows), 12),
                 $this->cell($key, 50),
                 $this->cell($this->shortOrigin($group['origin']), 50),
                 implode(' ', $flags),
@@ -94,6 +95,21 @@ final class QueriesCommand extends Command
         if ($top['example'] !== null) {
             note('Example of the top group'.PHP_EOL.$this->cell($top['example'], 500));
         }
+    }
+
+    /**
+     * How often one group has to run before it is flagged as a likely N+1.
+     *
+     * @param  array{n_plus_one_threshold?: int}  $options
+     */
+    private function nPlusOneThreshold(string $groupBy, array $options): int
+    {
+        // Many queries per table or transaction is normal; only a repeated shape or caller hints at N+1.
+        if (! in_array($groupBy, ['shape', 'caller'], true)) {
+            return PHP_INT_MAX;
+        }
+
+        return (int) ($options['n_plus_one_threshold'] ?? 3);
     }
 
     protected function getArguments(): array

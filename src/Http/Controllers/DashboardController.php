@@ -17,7 +17,8 @@ final class DashboardController
         $tabs = [];
 
         foreach ($registry->booted() as $lens) {
-            $tabs[$lens->key()] = ($lens instanceof Presentable ? $lens->presentation()->tabView : null) ?? 'monocle::tabs.table';
+            $tabView = $lens instanceof Presentable ? $lens->presentation()->tabView : null;
+            $tabs[$lens->key()] = $tabView ?? 'monocle::tabs.table';
         }
 
         return view('monocle::dashboard', [
@@ -25,10 +26,18 @@ final class DashboardController
             'api' => route('monocle.api.captures'),
             'paths' => ['base' => base_path(), 'mappings' => $links->mappings()],
             'assets' => [
-                'css' => route('monocle.asset', ['file' => 'monocle.css']).'?v='.AssetController::version('monocle.css'),
-                'js' => route('monocle.asset', ['file' => 'monocle.js']).'?v='.AssetController::version('monocle.js'),
-                'icon' => route('monocle.asset', ['file' => 'monocle.svg']).'?v='.AssetController::version('monocle.svg'),
+                'css' => $this->assetUrl('monocle.css'),
+                'js' => $this->assetUrl('monocle.js'),
+                'icon' => $this->assetUrl('monocle.svg'),
             ],
         ]);
+    }
+
+    /**
+     * Versioned by content, so browsers cache an asset until the package updates it.
+     */
+    private function assetUrl(string $file): string
+    {
+        return route('monocle.asset', ['file' => $file]).'?v='.AssetController::version($file);
     }
 }

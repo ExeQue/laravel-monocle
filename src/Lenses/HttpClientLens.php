@@ -82,60 +82,87 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 
     public function boot(): void
     {
-        $this->eyepiece->listen(RequestSending::class, function (RequestSending $event): void {
-            $this->pending[spl_object_id($event->request)] = ['at' => $this->eyepiece->now(), 'pool' => $this->pool(), 'call' => $this->call($event->request)];
-        });
+        $this->eyepiece->listen(RequestSending::class, $this->onRequestSending(...));
+        $this->eyepiece->listen(ResponseReceived::class, $this->onResponseReceived(...));
+        $this->eyepiece->listen(ConnectionFailed::class, $this->onConnectionFailed(...));
+    }
 
-        $this->eyepiece->listen(ResponseReceived::class, function (ResponseReceived $event): void {
-            $pending = $this->take($event->request);
+    private function onRequestSending(RequestSending $event): void
+    {
+        $this->pending[spl_object_id($event->request)] = [
+            'at' => $this->eyepiece->now(),
+            'pool' => $this->pool(),
+            'call' => $this->call($event->request),
+        ];
+    }
 
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
+    private function onResponseReceived(ResponseReceived $event): void
+    {
+        // Take the pending start even when not recording, so it does not linger.
+        $pending = $this->take($event->request);
 
-            $status = $event->response->status();
-            $body = $this->eyepiece->outside(fn (): string => $event->response->body());
-            $capture = $this->captureResponse($event->request, $event->response, $body);
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
 
-            $this->eyepiece->push('http', [
-                ...$this->describe($event->request),
-                'status' => $status,
-                'response_headers' => $this->eyepiece->masker(self::class)->headers($event->response->headers()),
-                'response_bytes' => strlen($body),
-                'response_body' => $this->bodies && $capture === null ? $this->eyepiece->masker(self::class)->body($body, $event->response->header('Content-Type')) : null,
-                'response_capture' => $capture,
-                'duration' => $this->duration($pending['at'] ?? null, $event->response->handlerStats()),
-                'timing' => $this->timing($event->response->handlerStats()),
-                'failed' => $status >= 400,
-                'exception' => null,
-                'pool' => $pending['pool'] ?? null,
-            ]);
-        });
+        $response = $event->response;
+        $masker = $this->eyepiece->masker(self::class);
 
-        $this->eyepiece->listen(ConnectionFailed::class, function (ConnectionFailed $event): void {
-            $pending = $this->take($event->request);
-            $started = $pending['at'] ?? null;
+        $status = $response->status();
+        $body = $this->eyepiece->outside(fn (): string => $response->body());
+        $capture = $this->captureResponse($event->request, $response, $body);
+        $stats = $response->handlerStats();
 
-            if (! $this->eyepiece->recording()) {
-                return;
-            }
+        // A captured response already carries its raw body; only fall back to the plain body without one.
+        $responseBody = null;
 
-            $this->eyepiece->push('http', [
-                ...$this->describe($event->request),
-                'status' => null,
-                'response_headers' => [],
-                'response_bytes' => null,
-                'response_body' => null,
-                'response_capture' => null,
-                // Guzzle keeps no transfer stats on a failed connection; the wall clock is all there is.
-                'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
-                'timing' => null,
-                'failed' => true,
-                'exception' => ThrowableChain::describe($event->exception),
-                // A connection that fails before the request is sent never fired RequestSending.
-                'pool' => $pending === null ? $this->pool() : $pending['pool'],
-            ]);
-        });
+        if ($this->bodies && $capture === null) {
+            $responseBody = $masker->body($body, $response->header('Content-Type'));
+        }
+
+        $this->eyepiece->push('http', [
+            ...$this->describe($event->request),
+            'status' => $status,
+            'response_headers' => $masker->headers($response->headers()),
+            'response_bytes' => strlen($body),
+            'response_body' => $responseBody,
+            'response_capture' => $capture,
+            'duration' => $this->duration($pending['at'] ?? null, $stats),
+            'timing' => $this->timing($stats),
+            'failed' => $status >= 400,
+            'exception' => null,
+            'pool' => $pending['pool'] ?? null,
+        ]);
+    }
+
+    private function onConnectionFailed(ConnectionFailed $event): void
+    {
+        $pending = $this->take($event->request);
+        $started = $pending['at'] ?? null;
+
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
+
+        // Guzzle keeps no transfer stats on a failed connection; the wall clock is all there is.
+        $duration = $started === null ? null : round($this->eyepiece->now() - $started, 3);
+
+        // A connection that fails before the request is sent never fired RequestSending.
+        $pool = $pending === null ? $this->pool() : $pending['pool'];
+
+        $this->eyepiece->push('http', [
+            ...$this->describe($event->request),
+            'status' => null,
+            'response_headers' => [],
+            'response_bytes' => null,
+            'response_body' => null,
+            'response_capture' => null,
+            'duration' => $duration,
+            'timing' => null,
+            'failed' => true,
+            'exception' => ThrowableChain::describe($event->exception),
+            'pool' => $pool,
+        ]);
     }
 
     public function reset(): void
@@ -163,6 +190,13 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             $ms += (float) ($row['duration'] ?? 0);
         }
 
+        $errors = [];
+
+        foreach (array_slice(array_values($failed), 0, 3) as $row) {
+            $reason = $row['status'] ?? $row['exception']['message'] ?? 'no response';
+            $errors[] = sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $reason);
+        }
+
         return Summary::make()
             ->total('http_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
@@ -170,10 +204,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             ])
             ->total('http_calls', count($rows), 'calls')
             ->total('http_failed', count($failed), 'failed')
-            ->errors(array_map(
-                fn (array $row): string => sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $row['status'] ?? $row['exception']['message'] ?? 'no response'),
-                array_slice(array_values($failed), 0, 3),
-            ));
+            ->errors($errors);
     }
 
     /**
@@ -182,16 +213,26 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
     private function describe(Request $request): array
     {
         $masker = $this->eyepiece->masker(self::class);
+        $method = $request->method();
+        $url = $request->url();
+        $body = $request->body();
+
+        $requestBody = null;
+
+        if ($this->bodies) {
+            $contentType = $request->header('Content-Type')[0] ?? null;
+            $requestBody = $masker->body($body, $contentType);
+        }
 
         return [
-            'method' => $request->method(),
-            'url' => $this->maskedUrl($request->url()),
-            'host' => (string) parse_url($request->url(), PHP_URL_HOST),
-            'endpoint' => $request->method().' '.$this->endpoint($request->url()),
+            'method' => $method,
+            'url' => $this->maskedUrl($url),
+            'host' => (string) parse_url($url, PHP_URL_HOST),
+            'endpoint' => $method.' '.$this->endpoint($url),
             'request_headers' => $masker->headers($request->headers()),
-            'request_bytes' => strlen($request->body()),
+            'request_bytes' => strlen($body),
             'request_payload' => $this->payload($request),
-            'request_body' => $this->bodies ? $masker->body($request->body(), $request->header('Content-Type')[0] ?? null) : null,
+            'request_body' => $requestBody,
         ];
     }
 
@@ -208,7 +249,15 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             return null;
         }
 
-        return is_array($data) && $data !== [] ? $this->eyepiece->masker(self::class)->inputs($data) : null;
+        if (! is_array($data)) {
+            return null;
+        }
+
+        if ($data === []) {
+            return null;
+        }
+
+        return $this->eyepiece->masker(self::class)->inputs($data);
     }
 
     /**
@@ -219,30 +268,29 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
      */
     private function captureResponse(Request $request, ClientResponse $response, string $body): ?array
     {
-        $type = strtolower(trim(Str::before((string) $response->header('Content-Type'), ';')));
-        $class = null;
-
-        foreach ($this->responseTypes as $pattern => $candidate) {
-            if ($type !== '' && Str::is(strtolower((string) $pattern), $type) && LensRegistry::available($candidate)) {
-                $class = $candidate;
-
-                break;
-            }
-        }
+        $contentType = (string) $response->header('Content-Type');
+        $type = strtolower(trim(Str::before($contentType, ';')));
+        $class = $this->captureFor($type);
 
         if ($class === null) {
             return null;
         }
 
         try {
+            // Captures are written for incoming requests: replay the outgoing call as one.
             $incoming = HttpRequest::create($request->url(), $request->method(), [], [], [], [], $request->body());
             $incoming->headers->replace($request->headers());
+
             $cards = $this->eyepiece->outside(function () use ($class, $incoming, $body, $response): ?array {
                 $capture = $this->app->make($class);
 
-                return $capture instanceof ResponseCapture
-                    ? $capture->capture($incoming, new HttpResponse($body, $response->status(), $response->headers()))
-                    : null;
+                if (! $capture instanceof ResponseCapture) {
+                    return null;
+                }
+
+                $asResponse = new HttpResponse($body, $response->status(), $response->headers());
+
+                return $capture->capture($incoming, $asResponse);
             });
         } catch (Throwable $e) {
             $this->eyepiece->failed($e);
@@ -250,9 +298,41 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             return null;
         }
 
+        if ($cards === null) {
+            return null;
+        }
+
         $masker = $this->eyepiece->masker(self::class);
 
-        return $cards === null ? null : ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => $masker->body($body, $type)];
+        return [
+            'capture' => $class,
+            'cards' => $masker->cards($cards),
+            'raw' => $masker->body($body, $type),
+        ];
+    }
+
+    /**
+     * The first available capture whose content type pattern matches.
+     *
+     * @return class-string<ResponseCapture>|null
+     */
+    private function captureFor(string $type): ?string
+    {
+        if ($type === '') {
+            return null;
+        }
+
+        foreach ($this->responseTypes as $pattern => $candidate) {
+            if (! Str::is(strtolower((string) $pattern), $type)) {
+                continue;
+            }
+
+            if (LensRegistry::available($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -275,13 +355,17 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         parse_str($query, $parameters);
-        $masked = str_replace('%2A', '*', http_build_query($this->eyepiece->masker(self::class)->inputs($parameters)));
+        $maskedParameters = $this->eyepiece->masker(self::class)->inputs($parameters);
+
+        // Keep the mask readable: http_build_query() encodes its asterisks.
+        $masked = str_replace('%2A', '*', http_build_query($maskedParameters));
 
         return str_replace($query, $masked, $url);
     }
 
     /**
-     * The number of the Http::pool() or Http::batch() sending this request, if any.
+     * Whether an Http::pool() or Http::batch() is sending this request. A
+     * backtrace without objects is cheap enough to run on every call.
      */
     private function insidePool(): bool
     {
@@ -304,6 +388,9 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         return false;
     }
 
+    /**
+     * The number of the Http::pool() or Http::batch() sending this request, if any.
+     */
     private function pool(): ?int
     {
         // Most calls are not pooled: look for the pool's frame cheaply before asking for objects.
@@ -370,22 +457,74 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             return null;
         }
 
+        // cURL reports each phase as seconds since the start of the transfer.
         $at = fn (string $key): float => (float) ($stats[$key] ?? 0.0);
-        $phase = fn (float $from, float $to): ?float => $to > 0.0 && $to >= $from ? round(($to - $from) * 1000, 3) : null;
+
+        $nameLookup = $at('namelookup_time');
+        $connect = $at('connect_time');
+        $tlsDone = $at('appconnect_time');
+        $firstByte = $at('starttransfer_time');
+        $total = $at('total_time');
+        $redirect = $at('redirect_time');
+
+        // Without TLS appconnect_time is 0, so the wait starts at whichever step finished last.
+        $requestSent = max($at('pretransfer_time'), $tlsDone, $connect);
+        $redirects = (int) ($stats['redirect_count'] ?? 0);
 
         $timing = [
-            'dns' => $phase(0.0, $at('namelookup_time')),
-            'connect' => $phase($at('namelookup_time'), $at('connect_time')),
-            'tls' => $phase($at('connect_time'), $at('appconnect_time')),
-            'wait' => $phase(max($at('pretransfer_time'), $at('appconnect_time'), $at('connect_time')), $at('starttransfer_time')),
-            'download' => $phase($at('starttransfer_time'), $at('total_time')),
-            'redirect' => $at('redirect_time') > 0.0 ? round($at('redirect_time') * 1000, 3) : null,
-            'remote' => isset($stats['primary_ip']) && $stats['primary_ip'] !== '' ? $stats['primary_ip'].(isset($stats['primary_port']) ? ':'.$stats['primary_port'] : '') : null,
+            'dns' => $this->phase(0.0, $nameLookup),
+            'connect' => $this->phase($nameLookup, $connect),
+            'tls' => $this->phase($connect, $tlsDone),
+            'wait' => $this->phase($requestSent, $firstByte),
+            'download' => $this->phase($firstByte, $total),
+            'redirect' => $redirect > 0.0 ? round($redirect * 1000, 3) : null,
+            'remote' => $this->remote($stats),
             'protocol' => $this->protocol($stats['http_version'] ?? null),
-            'redirects' => (int) ($stats['redirect_count'] ?? 0) ?: null,
+            'redirects' => $redirects === 0 ? null : $redirects,
         ];
 
         return array_filter($timing, fn (mixed $value): bool => $value !== null);
+    }
+
+    /**
+     * The ms between two points of the transfer, or null when the later one
+     * was never reached (0) or lies before the earlier one.
+     */
+    private function phase(float $from, float $to): ?float
+    {
+        if ($to <= 0.0) {
+            return null;
+        }
+
+        if ($to < $from) {
+            return null;
+        }
+
+        return round(($to - $from) * 1000, 3);
+    }
+
+    /**
+     * The address connected to, with its port when known.
+     *
+     * @param  array<string, mixed>  $stats
+     */
+    private function remote(array $stats): ?string
+    {
+        $ip = $stats['primary_ip'] ?? null;
+
+        if ($ip === null) {
+            return null;
+        }
+
+        if ($ip === '') {
+            return null;
+        }
+
+        if (! isset($stats['primary_port'])) {
+            return (string) $ip;
+        }
+
+        return $ip.':'.$stats['primary_port'];
     }
 
     private function protocol(mixed $version): ?string

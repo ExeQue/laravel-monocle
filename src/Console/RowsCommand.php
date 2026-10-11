@@ -43,29 +43,39 @@ final class RowsCommand extends Command
             'kinds' => $this->option('kind'),
             'verbose' => $this->option('verbose-origin'),
             ...$this->optionArgs(['offset', 'limit', 'sort', 'dir', 'search']),
-        ]), function (array $data) use ($where): void {
-            info(Str::headline((string) ($data['section'] ?? $this->argument('section'))).' of '.$data['id']);
-            $this->filterLine($where, $data);
+        ]), fn (array $data) => $this->render($data, $where));
+    }
 
-            if (array_key_exists('data', $data)) {
-                $this->dotTable($data['data']);
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  list<array{field: string, op: string, value: string|null}>  $where
+     */
+    private function render(array $data, array $where): void
+    {
+        $section = (string) ($data['section'] ?? $this->argument('section'));
 
-                return;
-            }
+        info(Str::headline($section).' of '.$data['id']);
+        $this->filterLine($where, $data);
 
-            /** @var list<array<string, mixed>> $rows */
-            $rows = $data['rows'] ?? [];
+        if (array_key_exists('data', $data)) {
+            $this->dotTable($data['data']);
 
-            if (count($rows) === 1) {
-                $this->dotTable($this->readable($rows[0]));
-                $this->paging($data);
+            return;
+        }
 
-                return;
-            }
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $data['rows'] ?? [];
 
-            $this->rowsTable(array_map($this->readable(...), $rows), $this->pickColumns($rows));
+        // A single row reads better as key/value pairs than as one wide table line.
+        if (count($rows) === 1) {
+            $this->dotTable($this->readable($rows[0]));
             $this->paging($data);
-        });
+
+            return;
+        }
+
+        $this->rowsTable(array_map($this->readable(...), $rows), $this->pickColumns($rows));
+        $this->paging($data);
     }
 
     /**
@@ -76,14 +86,23 @@ final class RowsCommand extends Command
      */
     private function filterLine(array $where, array $data): void
     {
-        $parts = array_map(fn (array $clause): string => trim("{$clause['field']} {$clause['op']} {$clause['value']}"), $where);
+        $parts = [];
 
-        if ($this->option('search') !== null) {
-            $parts[] = 'containing "'.$this->option('search').'"';
+        foreach ($where as $clause) {
+            $parts[] = trim("{$clause['field']} {$clause['op']} {$clause['value']}");
         }
 
-        if ($this->option('sort') !== null) {
-            $parts[] = 'sorted by '.$this->option('sort').' '.($this->option('dir') ?? 'asc');
+        $search = $this->option('search');
+
+        if ($search !== null) {
+            $parts[] = 'containing "'.$search.'"';
+        }
+
+        $sort = $this->option('sort');
+
+        if ($sort !== null) {
+            $direction = $this->option('dir') ?? 'asc';
+            $parts[] = 'sorted by '.$sort.' '.$direction;
         }
 
         if ($parts === []) {

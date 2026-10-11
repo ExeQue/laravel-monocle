@@ -48,12 +48,12 @@ final class SummaryBuilder
     {
         $totals = [
             'duration_ms' => $capture->duration(),
-            'memory_peak_mb' => isset($capture->health['memory_peak_bytes']) ? round($capture->health['memory_peak_bytes'] / 1048576, 1) : null,
+            'memory_peak_mb' => $this->memoryPeakMb($capture),
         ];
         $labels = ['duration_ms' => 'duration', 'memory_peak_mb' => 'peak memory'];
-        $details = [];
         $units = ['duration_ms' => Unit::Milliseconds->value, 'memory_peak_mb' => Unit::Megabytes->value];
         $headlines = ['duration_ms', 'memory_peak_mb'];
+        $details = [];
         $groups = [];
         $warnings = [];
         $errors = [];
@@ -64,56 +64,59 @@ final class SummaryBuilder
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
             $section = $this->registry->sectionOf($summarizer);
+
             $totals = [...$totals, ...$contribution->totals];
-            $headlines = [...$headlines, ...$contribution->headlines];
-            $tags = [...$tags, ...$contribution->tags];
-            $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $section)];
             $labels = [...$labels, ...$contribution->labels];
             $units = [...$units, ...$contribution->units];
+            $headlines = [...$headlines, ...$contribution->headlines];
+            $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $section)];
+            $tags = [...$tags, ...$contribution->tags];
+
             $warnings = [...$warnings, ...$contribution->warnings];
             $errors = [...$errors, ...$contribution->errors];
             $problems = $this->flag($problems, $section, 'warnings', count($contribution->warnings));
             $problems = $this->flag($problems, $section, 'errors', count($contribution->errors));
-            $flags = [...$flags, ...$this->flags('error', $section, $contribution->errors), ...$this->flags('warning', $section, $contribution->warnings)];
+            $flags = [...$flags, ...$this->flags('error', $section, $contribution->errors)];
+            $flags = [...$flags, ...$this->flags('warning', $section, $contribution->warnings)];
         }
+
+        $overheadByLens = (array) ($capture->health['overhead_by'] ?? []);
 
         // Monocle's own time during the capture, last among the headlines.
         if (isset($capture->health['overhead_ms'])) {
             $overhead = (float) $capture->health['overhead_ms'];
             $duration = (float) $capture->duration();
+
             $totals['monocle_ms'] = $overhead;
             $totals['monocle_percent'] = $duration > 0 ? round($overhead / $duration * 100, 1) : null;
             $labels += ['monocle_ms' => 'monocle', 'monocle_percent' => 'monocle share'];
             $units += ['monocle_ms' => Unit::Milliseconds->value, 'monocle_percent' => Unit::Percent->value];
             $headlines = [...$headlines, 'monocle_ms', 'monocle_percent'];
-            $details['monocle_ms'] = (array) ($capture->health['overhead_by'] ?? []);
+            $details['monocle_ms'] = $overheadByLens;
         }
 
-        if (is_numeric($capture->status) && (int) $capture->status >= 500) {
-            $errors[] = "Response status {$capture->status}.";
+        if ($this->isServerError($capture)) {
+            $message = "Response status {$capture->status}.";
+            $errors[] = $message;
             $problems = $this->flag($problems, 'request', 'errors', 1);
-            $flags[] = ['level' => 'error', 'section' => 'request', 'message' => "Response status {$capture->status}."];
+            $flags[] = ['level' => 'error', 'section' => 'request', 'message' => $message];
         }
 
         foreach ((array) ($capture->health['failures'] ?? []) as $failure) {
-            $warnings[] = "Monocle failed to record part of this capture: {$failure['message']} ({$failure['file']}).";
-            $flags[] = ['level' => 'warning', 'section' => 'monocle', 'message' => end($warnings)];
+            $message = "Monocle failed to record part of this capture: {$failure['message']} ({$failure['file']}).";
+            $warnings[] = $message;
+            $flags[] = ['level' => 'warning', 'section' => 'monocle', 'message' => $message];
         }
 
         $openSpans = (int) ($capture->health['open_spans_at_finalize'] ?? 0);
 
         if ($openSpans > 0) {
-            $warnings[] = "{$openSpans} span(s) were never stopped and were closed at finalize.";
-            $flags[] = ['level' => 'warning', 'section' => 'timeline', 'message' => end($warnings)];
+            $message = "{$openSpans} span(s) were never stopped and were closed at finalize.";
+            $warnings[] = $message;
+            $flags[] = ['level' => 'warning', 'section' => 'timeline', 'message' => $message];
         }
 
-        $counts = [];
-
-        foreach ($capture->sections as $section => $rows) {
-            if (array_is_list($rows)) {
-                $counts[$section] = count($rows);
-            }
-        }
+        $childIds = $children ? array_column($this->captures->children($capture->id), 'id') : [];
 
         return [
             'id' => $capture->id,
@@ -125,16 +128,17 @@ final class SummaryBuilder
             'ended_by' => $capture->endedBy,
             'parent_id' => $capture->parentId,
             'trace_id' => $capture->traceId,
-            'children' => $children ? array_column($this->captures->children($capture->id), 'id') : [],
+            'children' => $childIds,
             'breakdown' => $this->breakdown($capture),
             'totals' => $totals,
             'labels' => $labels,
             'units' => $units,
             'headlines' => array_values(array_unique($headlines)),
             'details' => $details,
-            'monocle_by_section' => $this->overheadBySection((array) ($capture->health['overhead_by'] ?? [])),
+            'monocle_by_section' => $this->overheadBySection($overheadByLens),
+            // Headline totals are shown on their own; only the rest are grouped per section.
             'groups' => array_diff_key($groups, array_flip($headlines)),
-            'counts' => $counts,
+            'counts' => $this->rowCounts($capture),
             'warnings' => array_values(array_unique($warnings)),
             'errors' => array_values(array_unique($errors)),
             'flags' => $this->sortFlags($flags),
@@ -143,6 +147,42 @@ final class SummaryBuilder
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],
         ];
+    }
+
+    private function memoryPeakMb(Capture $capture): ?float
+    {
+        if (! isset($capture->health['memory_peak_bytes'])) {
+            return null;
+        }
+
+        return round($capture->health['memory_peak_bytes'] / 1048576, 1);
+    }
+
+    private function isServerError(Capture $capture): bool
+    {
+        if (! is_numeric($capture->status)) {
+            return false;
+        }
+
+        return (int) $capture->status >= 500;
+    }
+
+    /**
+     * Row count per section that holds rows (a list), not a single record.
+     *
+     * @return array<string, int>
+     */
+    private function rowCounts(Capture $capture): array
+    {
+        $counts = [];
+
+        foreach ($capture->sections as $section => $rows) {
+            if (array_is_list($rows)) {
+                $counts[$section] = count($rows);
+            }
+        }
+
+        return $counts;
     }
 
     /**
@@ -159,12 +199,7 @@ final class SummaryBuilder
         $accounted = 0.0;
 
         foreach (self::PHASES as $phase) {
-            [$ms, $count] = match ($phase) {
-                'middleware (request)' => $this->spanTime($capture, 'middleware.request', null),
-                'middleware (response)' => $this->spanTime($capture, 'middleware.response', null),
-                'controller' => $this->spanTime($capture, 'controller', null),
-                default => $this->spanTime($capture, 'phase', $phase),
-            };
+            [$ms, $count] = $this->phaseTime($capture, $phase);
 
             if ($count === 0) {
                 continue;
@@ -187,7 +222,12 @@ final class SummaryBuilder
                 continue;
             }
 
-            $ms = array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $rows));
+            $ms = 0.0;
+
+            foreach ($rows as $row) {
+                $ms += (float) ($row['duration'] ?? 0);
+            }
+
             $categories[] = $this->line($category, round($ms, 3), count($rows), $total);
         }
 
@@ -200,6 +240,22 @@ final class SummaryBuilder
         }
 
         return ['phases' => $phases, 'categories' => $categories];
+    }
+
+    /**
+     * Middleware and the controller are spans of their own kind; every other
+     * phase is a `phase` span named after it.
+     *
+     * @return array{0: float, 1: int}
+     */
+    private function phaseTime(Capture $capture, string $phase): array
+    {
+        return match ($phase) {
+            'middleware (request)' => $this->spanTime($capture, 'middleware.request', null),
+            'middleware (response)' => $this->spanTime($capture, 'middleware.response', null),
+            'controller' => $this->spanTime($capture, 'controller', null),
+            default => $this->spanTime($capture, 'phase', $phase),
+        };
     }
 
     /**
@@ -219,7 +275,8 @@ final class SummaryBuilder
                 continue;
             }
 
-            if ($topLevelOnly && $span->parentId !== null && isset($capture->spans[$span->parentId]) && $capture->spans[$span->parentId]->kind === $kind) {
+            // A view rendered inside another view is already part of the outer one's time.
+            if ($topLevelOnly && $this->hasParentOfSameKind($span, $capture)) {
                 continue;
             }
 
@@ -228,6 +285,21 @@ final class SummaryBuilder
         }
 
         return [round($ms, 3), $count];
+    }
+
+    private function hasParentOfSameKind(Span $span, Capture $capture): bool
+    {
+        if ($span->parentId === null) {
+            return false;
+        }
+
+        $parent = $capture->spans[$span->parentId] ?? null;
+
+        if ($parent === null) {
+            return false;
+        }
+
+        return $parent->kind === $span->kind;
     }
 
     /**
@@ -267,10 +339,18 @@ final class SummaryBuilder
             $unique[$flag['level'].'|'.$flag['message']] ??= $flag;
         }
 
-        return [
-            ...array_values(array_filter($unique, fn (array $flag): bool => $flag['level'] === 'error')),
-            ...array_values(array_filter($unique, fn (array $flag): bool => $flag['level'] === 'warning')),
-        ];
+        $errors = [];
+        $warnings = [];
+
+        foreach ($unique as $flag) {
+            if ($flag['level'] === 'error') {
+                $errors[] = $flag;
+            } elseif ($flag['level'] === 'warning') {
+                $warnings[] = $flag;
+            }
+        }
+
+        return [...$errors, ...$warnings];
     }
 
     /**

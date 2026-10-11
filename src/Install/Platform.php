@@ -25,15 +25,13 @@ enum Platform: string
     public static function detect(string $basePath, array $env = [], string $phpBinary = PHP_BINARY): self
     {
         $env = $env === [] ? getenv() : $env;
-        $has = fn (string $file): bool => file_exists(rtrim($basePath, '/').'/'.$file);
+        $base = rtrim($basePath, '/').'/';
 
-        if ($has('.lerd.yaml') || $has('.lerd') || self::envStartsWith($env, 'LERD_')) {
+        if (self::usesLerd($base, $env)) {
             return self::Lerd;
         }
 
-        $compose = $has('compose.yaml') || $has('compose.yml') || $has('docker-compose.yml') || $has('docker-compose.yaml');
-
-        if (($has('vendor/bin/sail') && $compose) || ($env['LARAVEL_SAIL'] ?? null) === '1') {
+        if (self::usesSail($base, $env)) {
             return self::Sail;
         }
 
@@ -58,9 +56,6 @@ enum Platform: string
     }
 
     /**
-     * @param  array<string, string|false>  $env
-     */
-    /**
      * How to run artisan on this platform, for instructions shown to the user.
      */
     public function artisan(): string
@@ -73,6 +68,54 @@ enum Platform: string
         };
     }
 
+    /**
+     * @param  array<string, string|false>  $env
+     */
+    private static function usesLerd(string $base, array $env): bool
+    {
+        if (self::anyExists($base, ['.lerd.yaml', '.lerd'])) {
+            return true;
+        }
+
+        return self::envStartsWith($env, 'LERD_');
+    }
+
+    /**
+     * Inside a Sail container LARAVEL_SAIL is set; on the host the project
+     * has the Sail script next to a compose file.
+     *
+     * @param  array<string, string|false>  $env
+     */
+    private static function usesSail(string $base, array $env): bool
+    {
+        if (($env['LARAVEL_SAIL'] ?? null) === '1') {
+            return true;
+        }
+
+        if (! file_exists($base.'vendor/bin/sail')) {
+            return false;
+        }
+
+        return self::anyExists($base, ['compose.yaml', 'compose.yml', 'docker-compose.yml', 'docker-compose.yaml']);
+    }
+
+    /**
+     * @param  list<string>  $files
+     */
+    private static function anyExists(string $base, array $files): bool
+    {
+        foreach ($files as $file) {
+            if (file_exists($base.$file)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, string|false>  $env
+     */
     private static function envStartsWith(array $env, string $prefix): bool
     {
         foreach (array_keys($env) as $key) {

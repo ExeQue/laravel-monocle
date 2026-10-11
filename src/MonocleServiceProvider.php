@@ -87,21 +87,32 @@ final class MonocleServiceProvider extends ServiceProvider
 
         $config = $this->app->make('config');
 
-        if (! $config->get('monocle.dashboard.enabled', true) || $this->app->routesAreCached()) {
+        if (! $config->get('monocle.dashboard.enabled', true)) {
             return;
         }
 
+        // Cached routes already contain the dashboard's.
+        if ($this->app->routesAreCached()) {
+            return;
+        }
+
+        $path = trim((string) $config->get('monocle.dashboard.path', '_monocle'), '/');
+        $middleware = (array) $config->get('monocle.dashboard.middleware', ['web']);
+
         Route::group([
-            'prefix' => trim((string) $config->get('monocle.dashboard.path', '_monocle'), '/'),
+            'prefix' => $path,
             'domain' => $config->get('monocle.dashboard.domain'),
-            'middleware' => [...(array) $config->get('monocle.dashboard.middleware', ['web']), Authorize::class],
+            // Authorize comes last so it runs after the configured middleware has started the session and resolved the user.
+            'middleware' => [...$middleware, Authorize::class],
             'as' => 'monocle.',
         ], fn () => $this->loadRoutesFrom(__DIR__.'/../routes/dashboard.php'));
     }
 
     private function registerMcpServer(): void
     {
-        if (! $this->app->make('config')->get('monocle.mcp.enabled', true)) {
+        $config = $this->app->make('config');
+
+        if (! $config->get('monocle.mcp.enabled', true)) {
             return;
         }
 
@@ -109,6 +120,8 @@ final class MonocleServiceProvider extends ServiceProvider
             return;
         }
 
-        Mcp::local((string) $this->app->make('config')->get('monocle.mcp.server', 'monocle'), MonocleServer::class);
+        $name = (string) $config->get('monocle.mcp.server', 'monocle');
+
+        Mcp::local($name, MonocleServer::class);
     }
 }

@@ -71,7 +71,11 @@ final readonly class EditorLinks
      */
     public function class(string $class, ?string $method = null): ?string
     {
-        if (! $this->enabled() || ! class_exists($class) && ! interface_exists($class) && ! trait_exists($class) && ! enum_exists($class)) {
+        if (! $this->enabled()) {
+            return null;
+        }
+
+        if (! $this->isDeclared($class)) {
             return null;
         }
 
@@ -84,6 +88,17 @@ final readonly class EditorLinks
         $file = $reflection->getFileName();
 
         return $file === false ? null : $this->file($file, $reflection->getStartLine() ?: null);
+    }
+
+    /**
+     * Whether the class, interface, trait or enum exists, autoloading it if needed.
+     */
+    private function isDeclared(string $class): bool
+    {
+        return class_exists($class)
+            || interface_exists($class)
+            || trait_exists($class)
+            || enum_exists($class);
     }
 
     /**
@@ -128,12 +143,28 @@ final readonly class EditorLinks
         $match = null;
 
         foreach (array_keys($this->mappings()) as $prefix) {
-            if (($path === $prefix || str_starts_with($path, $prefix.'/')) && ($match === null || strlen($prefix) > strlen($match))) {
+            if (! $this->startsWithDirectory($path, $prefix)) {
+                continue;
+            }
+
+            if ($match === null || strlen($prefix) > strlen($match)) {
                 $match = $prefix;
             }
         }
 
         return $match;
+    }
+
+    /**
+     * True for the directory itself or anything below it, never for /app-old under /app.
+     */
+    private function startsWithDirectory(string $path, string $directory): bool
+    {
+        if ($path === $directory) {
+            return true;
+        }
+
+        return str_starts_with($path, $directory.'/');
     }
 
     private function absolute(string $file): string
@@ -158,12 +189,20 @@ final readonly class EditorLinks
         foreach ($this->settings->paths ?? [] as $from => $to) {
             $prefix = rtrim(str_replace('\\', '/', (string) $from), '/');
 
-            if (($path === $prefix || str_starts_with($path, $prefix.'/')) && ($match === null || strlen($prefix) > strlen($match))) {
+            if (! $this->startsWithDirectory($path, $prefix)) {
+                continue;
+            }
+
+            if ($match === null || strlen($prefix) > strlen($match)) {
                 $match = $prefix;
                 $target = rtrim(str_replace('\\', '/', $to), '/');
             }
         }
 
-        return $match === null ? $path : $target.substr($path, strlen($match));
+        if ($match === null) {
+            return $path;
+        }
+
+        return $target.substr($path, strlen($match));
     }
 }

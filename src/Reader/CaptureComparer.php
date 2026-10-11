@@ -29,20 +29,40 @@ final class CaptureComparer
         $summaryB = $this->summary->build($b);
 
         return [
-            'a' => ['id' => $a->id, 'name' => $a->name, 'label' => $a->label, 'started_at' => date('c', (int) $a->startedAt)],
-            'b' => ['id' => $b->id, 'name' => $b->name, 'label' => $b->label, 'started_at' => date('c', (int) $b->startedAt)],
+            'a' => $this->describe($a),
+            'b' => $this->describe($b),
             'totals' => $this->diffNumeric($summaryA['totals'], $summaryB['totals']),
             'phases' => $this->diffLines($summaryA['breakdown']['phases'], $summaryB['breakdown']['phases']),
             'categories' => $this->diffLines($summaryA['breakdown']['categories'], $summaryB['breakdown']['categories']),
             'queries' => $this->diffQueries($a, $b),
-            'warnings' => [
-                'only_in_a' => array_values(array_diff($summaryA['warnings'], $summaryB['warnings'])),
-                'only_in_b' => array_values(array_diff($summaryB['warnings'], $summaryA['warnings'])),
-            ],
-            'errors' => [
-                'only_in_a' => array_values(array_diff($summaryA['errors'], $summaryB['errors'])),
-                'only_in_b' => array_values(array_diff($summaryB['errors'], $summaryA['errors'])),
-            ],
+            'warnings' => $this->diffMessages($summaryA['warnings'], $summaryB['warnings']),
+            'errors' => $this->diffMessages($summaryA['errors'], $summaryB['errors']),
+        ];
+    }
+
+    /**
+     * @return array{id: string, name: string, label: string|null, started_at: string}
+     */
+    private function describe(Capture $capture): array
+    {
+        return [
+            'id' => $capture->id,
+            'name' => $capture->name,
+            'label' => $capture->label,
+            'started_at' => date('c', (int) $capture->startedAt),
+        ];
+    }
+
+    /**
+     * @param  list<string>  $a
+     * @param  list<string>  $b
+     * @return array{only_in_a: list<string>, only_in_b: list<string>}
+     */
+    private function diffMessages(array $a, array $b): array
+    {
+        return [
+            'only_in_a' => array_values(array_diff($a, $b)),
+            'only_in_b' => array_values(array_diff($b, $a)),
         ];
     }
 
@@ -63,13 +83,20 @@ final class CaptureComparer
                 continue;
             }
 
-            $delta = is_numeric($valueA) && is_numeric($valueB) ? round($valueB - $valueA, 3) : null;
+            // A total only one side has gets no delta.
+            $delta = null;
+            $percent = null;
+
+            if (is_numeric($valueA) && is_numeric($valueB)) {
+                $delta = round($valueB - $valueA, 3);
+                $percent = (float) $valueA === 0.0 ? null : round($delta / (float) $valueA * 100, 1);
+            }
 
             $diff[$key] = [
                 'a' => $valueA,
                 'b' => $valueB,
                 'delta' => $delta,
-                'percent' => $delta !== null && (float) $valueA !== 0.0 ? round($delta / (float) $valueA * 100, 1) : null,
+                'percent' => $percent,
             ];
         }
 
@@ -119,7 +146,13 @@ final class CaptureComparer
             if (! isset($shapesB[$shape])) {
                 $onlyA[] = ['shape' => $shape, 'count' => $group['count'], 'total_ms' => $group['total_ms']];
             } elseif ($shapesB[$shape]['count'] !== $group['count']) {
-                $changed[] = ['shape' => $shape, 'a_count' => $group['count'], 'b_count' => $shapesB[$shape]['count'], 'a_ms' => $group['total_ms'], 'b_ms' => $shapesB[$shape]['total_ms']];
+                $changed[] = [
+                    'shape' => $shape,
+                    'a_count' => $group['count'],
+                    'b_count' => $shapesB[$shape]['count'],
+                    'a_ms' => $group['total_ms'],
+                    'b_ms' => $shapesB[$shape]['total_ms'],
+                ];
             }
         }
 

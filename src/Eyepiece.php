@@ -221,17 +221,25 @@ final class Eyepiece
      */
     private function resolveMask(mixed $mask, string $key): object
     {
-        if (is_string($mask) && class_exists($mask)) {
-            return $this->app->make($mask);
+        $class = is_array($mask) ? ($mask[0] ?? null) : $mask;
+
+        if (! is_string($class)) {
+            throw InvalidMaskException::forKey($key);
         }
 
-        if (is_array($mask) && is_string($mask[0] ?? null) && class_exists($mask[0])) {
-            $class = array_shift($mask);
-
-            return new $class(...$mask);
+        if (! class_exists($class)) {
+            throw InvalidMaskException::forKey($key);
         }
 
-        throw InvalidMaskException::forKey($key);
+        // A bare class name goes through the container, so the mask can have dependencies injected.
+        if (! is_array($mask)) {
+            return $this->app->make($class);
+        }
+
+        $arguments = $mask;
+        array_shift($arguments);
+
+        return new $class(...$arguments);
     }
 
     public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Capture
@@ -316,7 +324,11 @@ final class Eyepiece
      */
     public function currentSpan(): ?Span
     {
-        if ($this->capture === null || $this->stack === []) {
+        if ($this->capture === null) {
+            return null;
+        }
+
+        if ($this->stack === []) {
             return null;
         }
 
@@ -329,9 +341,16 @@ final class Eyepiece
      */
     public function span(?string $name = null, string $kind = 'user', ?string $key = null): Span
     {
-        if ($key !== null && isset($this->keyed[$key])) {
-            return $this->keyed[$key];
+        if ($key !== null) {
+            $open = $this->keyed[$key] ?? null;
+
+            if ($open !== null) {
+                return $open;
+            }
         }
+
+        // Without a capture the span is a handle that records nothing.
+        $eyepiece = $this->capture === null ? null : $this;
 
         $span = new Span(
             id: 's'.++$this->spanCounter,
@@ -339,7 +358,7 @@ final class Eyepiece
             kind: $kind,
             parentId: null,
             key: $key,
-            eyepiece: $this->capture === null ? null : $this,
+            eyepiece: $eyepiece,
         );
 
         if ($key !== null && $this->capture !== null) {
@@ -382,6 +401,7 @@ final class Eyepiece
             $span->end = $this->now();
             $span->endedBy = $endedBy;
 
+            // Spans can be stopped out of order, so take this one out wherever it sits on the stack.
             $this->stack = array_values(array_filter($this->stack, fn (string $id): bool => $id !== $span->id));
 
             if ($span->key !== null) {
@@ -420,7 +440,11 @@ final class Eyepiece
                 return;
             }
 
-            $row['time'] ??= round($this->now() - (is_numeric($row['duration'] ?? null) ? (float) $row['duration'] : 0.0), 3);
+            // Rows arrive when the operation has finished; it started `duration` ms ago.
+            if (! isset($row['time'])) {
+                $duration = is_numeric($row['duration'] ?? null) ? (float) $row['duration'] : 0.0;
+                $row['time'] = round($this->now() - $duration, 3);
+            }
 
             if ($origin && ! array_key_exists('origin', $row)) {
                 $row['origin'] = $this->origin();
@@ -449,7 +473,11 @@ final class Eyepiece
             }
 
             $existing = $this->capture->sections[$section] ?? [];
-            $existing = array_is_list($existing) ? [] : $existing;
+
+            // A section that holds pushed rows is replaced, not merged into.
+            if (array_is_list($existing)) {
+                $existing = [];
+            }
 
             $this->capture->sections[$section] = array_merge($existing, Normalizer::normalize($data));
         }, $section);
@@ -490,7 +518,12 @@ final class Eyepiece
      */
     public function finalize(string $endedBy = 'normal'): ?Capture
     {
-        if ($this->capture === null || $this->finalizing) {
+        if ($this->capture === null) {
+            return null;
+        }
+
+        // Called again while finalizing (a lens or listener ending the capture): the outer call finishes it.
+        if ($this->finalizing) {
             return null;
         }
 
@@ -517,13 +550,17 @@ final class Eyepiece
 
             $this->creditMeasured();
 
+            $closedByFinalize = array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize');
+
             $capture->health = [
                 'memory_peak_bytes' => memory_get_peak_usage(true),
                 'overhead_ms' => round(array_sum($this->overhead) / 1_000_000, 3),
                 'overhead_by' => $this->overheadBy(),
-                'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
+                'open_spans_at_finalize' => count($closedByFinalize),
                 'failures' => $this->failures,
             ];
+
+            // The summary reads the health above; its counts are added after it.
             $summary = $this->app->make(SummaryBuilder::class)->build($capture, children: false);
             $capture->health['warnings'] = count($summary['warnings']);
             $capture->health['errors'] = count($summary['errors']);
@@ -701,7 +738,10 @@ final class Eyepiece
         }
 
         $now = hrtime(true);
-        $this->overhead[$this->owner] = ($this->overhead[$this->owner] ?? 0) + $now - $this->measureStarted - ($this->outsideNs - $this->measureOutsideBase);
+        $outside = $this->outsideNs - $this->measureOutsideBase;
+        $elapsed = $now - $this->measureStarted - $outside;
+
+        $this->overhead[$this->owner] = ($this->overhead[$this->owner] ?? 0) + $elapsed;
         $this->measureStarted = $now;
         $this->measureOutsideBase = $this->outsideNs;
     }
@@ -745,7 +785,11 @@ final class Eyepiece
             throw $e;
         }
 
-        $failure = ['exception' => $e::class, 'message' => $e->getMessage(), 'file' => $e->getFile().':'.$e->getLine()];
+        $failure = [
+            'exception' => $e::class,
+            'message' => $e->getMessage(),
+            'file' => $e->getFile().':'.$e->getLine(),
+        ];
 
         if ($this->capture !== null && ! in_array($failure, $this->failures, true)) {
             $this->failures[] = $failure;

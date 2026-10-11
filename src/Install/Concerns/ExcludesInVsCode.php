@@ -35,7 +35,10 @@ trait ExcludesInVsCode
         $search = $relativePath.'/**';
         $watcher = '**/'.$relativePath.'/**';
 
-        if (($settings['search.exclude'][$search] ?? null) === true && ($settings['files.watcherExclude'][$watcher] ?? null) === true) {
+        $searchExcluded = ($settings['search.exclude'][$search] ?? null) === true;
+        $watcherExcluded = ($settings['files.watcherExclude'][$watcher] ?? null) === true;
+
+        if ($searchExcluded && $watcherExcluded) {
             return [$label => 'unchanged'];
         }
 

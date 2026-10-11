@@ -140,30 +140,38 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
      */
     private function record(Request $request, InertiaResponse $inertia, array $page): void
     {
-        [$shared] = (fn (): array => [$this->sharedProps])->call($inertia);
-
         $sent = (array) ($page['props'] ?? []);
         $partial = $request->headers->get('X-Inertia-Partial-Component') === ($page['component'] ?? null);
         $only = $partial ? $this->list($request->headers->get('X-Inertia-Partial-Data')) : [];
         $except = $partial ? $this->list($request->headers->get('X-Inertia-Partial-Except')) : [];
-        $sharedKeys = array_unique([...$this->topLevel(array_keys($shared)), ...(array) ($page['sharedProps'] ?? [])]);
+
+        $sharedOnServer = $this->topLevel(array_keys($this->sharedProps($inertia)));
+        $sharedOnPage = (array) ($page['sharedProps'] ?? []);
+        $sharedKeys = array_unique([...$sharedOnServer, ...$sharedOnPage]);
+
         ['types' => $types, 'sources' => $sources] = $this->declared;
         $groups = $this->groups((array) ($page['deferredProps'] ?? []));
-        $merges = [
-            ...$this->flag((array) ($page['mergeProps'] ?? []), 'append'),
-            ...$this->flag((array) ($page['prependProps'] ?? []), 'prepend'),
-            ...$this->flag((array) ($page['deepMergeProps'] ?? []), 'deep'),
-        ];
+        $merges = $this->merges($page);
 
-        $names = array_values(array_unique([...array_keys($types), ...array_map('strval', array_keys($sent))]));
+        // Declared props that were not sent still get a row, saying why.
+        $sentNames = array_map('strval', array_keys($sent));
+        $names = array_values(array_unique([...array_keys($types), ...$sentNames]));
         $omitted = 0;
 
         foreach ($names as $name) {
             $type = $types[$name] ?? 'plain';
             $isSent = array_key_exists($name, $sent);
             $isShared = in_array($name, $sharedKeys, true);
-            $size = $isSent ? strlen((string) $this->eyepiece->outside(fn () => json_encode($sent[$name], JSON_PARTIAL_OUTPUT_ON_ERROR))) : null;
-            $omitted += $isSent ? 0 : 1;
+            $size = $isSent ? $this->jsonSize($sent[$name]) : null;
+
+            if (! $isSent) {
+                $omitted++;
+            }
+
+            $reason = $isSent ? null : $this->omitted($name, $type, $page, $groups, $partial);
+            $value = $isSent ? $this->value($name, $sent[$name], (int) $size) : null;
+            $isLarge = $size !== null && $size > $this->largePropBytes;
+            $sharedOnPartial = $this->sharedOnPartial($partial, $isShared, $isSent, $type, $name, $only);
 
             $this->eyepiece->push('inertia', [
                 'prop' => $name,
@@ -173,29 +181,68 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
                 'size_bytes' => $size,
                 'group' => $groups[$name] ?? null,
                 'merge' => $merges[$name] ?? null,
-                'omitted' => $isSent ? null : $this->omitted($name, $type, $page, $groups, $partial),
+                'omitted' => $reason,
                 'defined_at' => $sources[$name] ?? null,
                 'duration' => $this->timings[$name]['duration'] ?? null,
                 'time' => $this->timings[$name]['time'] ?? null,
-                'value' => $isSent ? $this->value($name, $sent[$name], (int) $size) : null,
-                'large' => $size !== null && $size > $this->largePropBytes ? true : null,
-                'shared_on_partial' => $this->sharedOnPartial($partial, $isShared, $isSent, $type, $name, $only) ? true : null,
+                'value' => $value,
+                'large' => $isLarge ? true : null,
+                'shared_on_partial' => $sharedOnPartial ? true : null,
             ], origin: false);
         }
+
+        $partialRow = $partial
+            ? array_filter(['component' => $page['component'], 'only' => $only, 'except' => $except])
+            : null;
 
         $this->eyepiece->push('inertia_pages', [
             'component' => $page['component'] ?? null,
             'url' => $page['url'] ?? null,
             'version' => $page['version'] ?? null,
             'visit' => $request->headers->has('X-Inertia') ? 'inertia' : 'first load',
-            'partial' => $partial ? array_filter(['component' => $page['component'], 'only' => $only, 'except' => $except]) : null,
+            'partial' => $partialRow,
             'props_sent' => count($sent),
             'props_omitted' => $omitted,
-            'payload_bytes' => strlen((string) $this->eyepiece->outside(fn () => json_encode($page, JSON_PARTIAL_OUTPUT_ON_ERROR))),
+            'payload_bytes' => $this->jsonSize($page),
             'deferred' => ($page['deferredProps'] ?? []) ?: null,
             'encrypt_history' => (bool) ($page['encryptHistory'] ?? false),
             'clear_history' => (bool) ($page['clearHistory'] ?? false),
         ], origin: false);
+    }
+
+    /**
+     * The shared props, read from the response's protected property.
+     *
+     * @return array<array-key, mixed>
+     */
+    private function sharedProps(InertiaResponse $inertia): array
+    {
+        return (fn (): array => $this->sharedProps)->call($inertia);
+    }
+
+    /**
+     * How each prop is merged on the client, by top-level prop.
+     *
+     * @param  array<string, mixed>  $page
+     * @return array<string, string>
+     */
+    private function merges(array $page): array
+    {
+        return [
+            ...$this->flag((array) ($page['mergeProps'] ?? []), 'append'),
+            ...$this->flag((array) ($page['prependProps'] ?? []), 'prepend'),
+            ...$this->flag((array) ($page['deepMergeProps'] ?? []), 'deep'),
+        ];
+    }
+
+    /**
+     * Encoding runs the application's JsonSerializable code, so it is not Monocle's time.
+     */
+    private function jsonSize(mixed $value): int
+    {
+        $json = $this->eyepiece->outside(fn () => json_encode($value, JSON_PARTIAL_OUTPUT_ON_ERROR));
+
+        return strlen((string) $json);
     }
 
     /**
@@ -238,8 +285,16 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
                 continue;
             }
 
-            $top = $this->topLevel([$key])[0];
-            $types[$top] = $top === $key ? $this->type($value) : ($types[$top] ?? 'plain');
+            $top = $this->root($key);
+
+            if ($top === $key) {
+                $types[$top] = $this->type($value);
+
+                continue;
+            }
+
+            // A dotted key such as "auth.user" sets part of a prop; the prop keeps the type it has.
+            $types[$top] ??= 'plain';
         }
 
         return $types;
@@ -253,6 +308,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
      */
     private function prepare(InertiaResponse $inertia): void
     {
+        // Both lists are protected on the response.
         [$shared, $props] = (fn (): array => [$this->sharedProps, $this->props])->call($inertia);
 
         $this->declared = [
@@ -265,20 +321,29 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             return;
         }
 
-        $time = function (array $props): array {
-            foreach ($props as $key => $value) {
-                if (is_string($key)) {
-                    $props[$key] = $this->timed($this->topLevel([$key])[0], $value);
-                }
-            }
+        $timedShared = $this->timedProps($shared);
+        $timedProps = $this->timedProps($props);
 
-            return $props;
-        };
-
+        // Put the timed props back on the response, through the same protected properties.
         (function (array $shared, array $props): void {
             $this->sharedProps = $shared;
             $this->props = $props;
-        })->call($inertia, $time($shared), $time($props));
+        })->call($inertia, $timedShared, $timedProps);
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $props
+     * @return array<array-key, mixed>
+     */
+    private function timedProps(array $props): array
+    {
+        foreach ($props as $key => $value) {
+            if (is_string($key)) {
+                $props[$key] = $this->timed($this->root($key), $value);
+            }
+        }
+
+        return $props;
     }
 
     private function timed(string $name, mixed $value): mixed
@@ -345,7 +410,7 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             $source = $this->source($value);
 
             if ($source !== null) {
-                $sources[$this->topLevel([$key])[0]] = $source;
+                $sources[$this->root($key)] = $source;
             }
         }
 
@@ -368,7 +433,12 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
 
         $file = (string) $function->getFileName();
 
-        if ($file === '' || str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
+        if ($file === '') {
+            return null;
+        }
+
+        // A closure defined in a package says nothing about where the app declared the prop.
+        if (str_contains($file, DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR)) {
             return null;
         }
 
@@ -435,7 +505,9 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
      */
     private function omitted(string $name, string $type, array $page, array $groups, bool $partial): string
     {
-        if (in_array($name, $this->topLevel((array) ($page['rescuedProps'] ?? [])), true)) {
+        $rescued = $this->topLevel((array) ($page['rescuedProps'] ?? []));
+
+        if (in_array($name, $rescued, true)) {
             return 'rescued';
         }
 
@@ -451,7 +523,9 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             return 'optional';
         }
 
-        if (in_array($name, $this->topLevel(array_column((array) ($page['onceProps'] ?? []), 'prop')), true)) {
+        $loadedOnce = $this->topLevel(array_column((array) ($page['onceProps'] ?? []), 'prop'));
+
+        if (in_array($name, $loadedOnce, true)) {
             return 'loaded once';
         }
 
@@ -517,7 +591,17 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
      */
     private function topLevel(array $keys): array
     {
-        return array_values(array_unique(array_map(fn (mixed $key): string => explode('.', (string) $key)[0], $keys)));
+        $roots = array_map($this->root(...), $keys);
+
+        return array_values(array_unique($roots));
+    }
+
+    /**
+     * The top-level prop a dotted key belongs to: "auth.user" is part of "auth".
+     */
+    private function root(int|string $key): string
+    {
+        return explode('.', (string) $key)[0];
     }
 
     /**
@@ -559,11 +643,14 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             }
         }
 
+        $durations = array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $props);
+        $deferred = array_filter($props, fn (array $row): bool => ($row['omitted'] ?? null) === 'deferred');
+
         return Summary::make()
-            ->total('inertia_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $props)), 3), 'spent', Unit::Milliseconds)
+            ->total('inertia_ms', round(array_sum($durations), 3), 'spent', Unit::Milliseconds)
             ->total('inertia_props', count($sent), 'props sent')
             ->total('inertia_payload_bytes', array_sum(array_column($pages, 'payload_bytes')), 'payload', Unit::Bytes)
-            ->total('inertia_deferred', count(array_filter($props, fn (array $row): bool => ($row['omitted'] ?? null) === 'deferred')), 'deferred')
+            ->total('inertia_deferred', count($deferred), 'deferred')
             ->warnings($warnings);
     }
 

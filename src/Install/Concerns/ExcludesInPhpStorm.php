@@ -51,19 +51,32 @@ trait ExcludesInPhpStorm
 
     private function phpstormModule(string $basePath): ?string
     {
-        $modules = $basePath.'/.idea/modules.xml';
+        $listed = $this->moduleListedInModulesXml($basePath);
 
-        if (is_file($modules) && preg_match('#filepath="\$PROJECT_DIR\$/(\.idea/[^"]+\.iml)"#', (string) file_get_contents($modules), $matches) === 1) {
-            $path = $basePath.'/'.$matches[1];
-
-            if (is_file($path)) {
-                return $path;
-            }
+        if ($listed !== null) {
+            return $listed;
         }
 
         $candidates = glob($basePath.'/.idea/*.iml') ?: [];
 
         return $candidates[0] ?? null;
+    }
+
+    private function moduleListedInModulesXml(string $basePath): ?string
+    {
+        $modules = $basePath.'/.idea/modules.xml';
+
+        if (! is_file($modules)) {
+            return null;
+        }
+
+        if (preg_match('#filepath="\$PROJECT_DIR\$/(\.idea/[^"]+\.iml)"#', (string) file_get_contents($modules), $matches) !== 1) {
+            return null;
+        }
+
+        $path = $basePath.'/'.$matches[1];
+
+        return is_file($path) ? $path : null;
     }
 
     private function insertExcludeFolder(string $contents, string $url): ?string
@@ -88,11 +101,12 @@ trait ExcludesInPhpStorm
             return null;
         }
 
+        // Insert on its own line right before the line that closes </content>.
         [$text, $offset] = $block[0];
         $childIndent = $block[1][0].'  ';
-        $closing = strrpos($text, '</content>');
-        $lineStart = strrpos(substr($text, 0, (int) $closing), "\n");
-        $insertAt = $offset + ($lineStart === false ? (int) $closing : $lineStart + 1);
+        $closing = (int) strrpos($text, '</content>');
+        $closingLineStart = strrpos(substr($text, 0, $closing), "\n");
+        $insertAt = $offset + ($closingLineStart === false ? $closing : $closingLineStart + 1);
 
         return substr($contents, 0, $insertAt).$childIndent.$element."\n".substr($contents, $insertAt);
     }

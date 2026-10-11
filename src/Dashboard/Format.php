@@ -20,7 +20,11 @@ final class Format
             return '<0.1 ms';
         }
 
-        return $value >= 1000 ? number_format($value / 1000, 2, '.', '').' s' : number_format($value, 1, '.', '').' ms';
+        if ($value >= 1000) {
+            return number_format($value / 1000, 2, '.', '').' s';
+        }
+
+        return number_format($value, 1, '.', '').' ms';
     }
 
     public static function bytes(mixed $bytes): string
@@ -47,11 +51,35 @@ final class Format
             return $value ? 'true' : 'false';
         }
 
-        if (is_array($value) && $value !== [] && array_is_list($value) && array_filter($value, is_scalar(...)) === $value) {
+        if (is_scalar($value)) {
+            return (string) $value;
+        }
+
+        if (self::isScalarList($value)) {
             return implode(', ', $value);
         }
 
-        return is_scalar($value) ? (string) $value : (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        return (string) json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * @phpstan-assert-if-true list<scalar> $value
+     */
+    private static function isScalarList(mixed $value): bool
+    {
+        if (! is_array($value)) {
+            return false;
+        }
+
+        if ($value === []) {
+            return false;
+        }
+
+        if (! array_is_list($value)) {
+            return false;
+        }
+
+        return array_filter($value, is_scalar(...)) === $value;
     }
 
     /**
@@ -72,7 +100,8 @@ final class Format
         $pairs = [];
 
         foreach ($value as $key => $item) {
-            $pairs = [...$pairs, ...self::dot($item, $prefix === '' ? (string) $key : "{$prefix}.{$key}")];
+            $path = $prefix === '' ? (string) $key : "{$prefix}.{$key}";
+            $pairs = [...$pairs, ...self::dot($item, $path)];
         }
 
         return $pairs;
@@ -89,7 +118,11 @@ final class Format
         $pairs = [];
 
         foreach ($headers ?? [] as $name => $values) {
-            $pairs[] = [(string) $name, is_array($values) ? implode(', ', array_map(self::value(...), $values)) : self::value($values)];
+            $value = is_array($values)
+                ? implode(', ', array_map(self::value(...), $values))
+                : self::value($values);
+
+            $pairs[] = [(string) $name, $value];
         }
 
         return $pairs;

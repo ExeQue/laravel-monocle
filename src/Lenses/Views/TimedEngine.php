@@ -37,10 +37,7 @@ final class TimedEngine implements Engine
 
         $name = $this->viewName((string) $path, $data);
         $relative = $this->relative((string) $path);
-        $keys = array_values(array_filter(
-            array_diff(array_keys($data), self::INTERNAL_KEYS),
-            fn (int|string $key): bool => ! str_starts_with((string) $key, '_'),
-        ));
+        $keys = $this->dataKeys($data);
 
         $span = $this->eyepiece->span($name, 'view')->start([
             'path' => $relative,
@@ -84,6 +81,21 @@ final class TimedEngine implements Engine
     }
 
     /**
+     * The keys of the data the view was given, without Laravel's own and the
+     * underscored ones.
+     *
+     * @param  array<array-key, mixed>  $data
+     * @return list<array-key>
+     */
+    private function dataKeys(array $data): array
+    {
+        $keys = array_diff(array_keys($data), self::INTERNAL_KEYS);
+        $keys = array_filter($keys, fn (int|string $key): bool => ! str_starts_with((string) $key, '_'));
+
+        return array_values($keys);
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function viewName(string $path, array $data): string
@@ -91,9 +103,14 @@ final class TimedEngine implements Engine
         foreach (($this->viewPaths)() as $views) {
             $views = rtrim((string) $views, '/').'/';
 
-            if (str_starts_with($path, $views)) {
-                return str_replace('/', '.', $this->stripExtension(substr($path, strlen($views))));
+            if (! str_starts_with($path, $views)) {
+                continue;
             }
+
+            // resources/views/users/show.blade.php is users.show.
+            $file = $this->stripExtension(substr($path, strlen($views)));
+
+            return str_replace('/', '.', $file);
         }
 
         $name = $this->stripExtension(basename($path));
@@ -104,8 +121,10 @@ final class TimedEngine implements Engine
             return $name;
         }
 
-        if (is_string($data['componentName'] ?? null) && $data['componentName'] !== '') {
-            return '<x-'.$data['componentName'].'>';
+        $component = $data['componentName'] ?? null;
+
+        if (is_string($component) && $component !== '') {
+            return '<x-'.$component.'>';
         }
 
         return 'inline:'.substr($name, 0, 8);

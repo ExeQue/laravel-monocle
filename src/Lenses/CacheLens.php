@@ -81,22 +81,42 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
     public function boot(): void
     {
+        // Stores that fire start events get a duration: the time until the matching end event.
         foreach ([RetrievingKey::class, WritingKey::class, ForgettingKey::class] as $start) {
             $this->eyepiece->listen($start, function (CacheEvent $event): void {
                 $this->pending[$this->pendingKey($event)] = $this->eyepiece->now();
             });
         }
 
-        $this->eyepiece->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
-        $this->eyepiece->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
-        $this->eyepiece->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
-        $this->eyepiece->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
-        $this->eyepiece->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
-        $this->eyepiece->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
+        $this->eyepiece->listen(CacheHit::class, function (CacheHit $event): void {
+            $this->record('hit', $event, ['value' => $event->value]);
+        });
+        $this->eyepiece->listen(CacheMissed::class, function (CacheMissed $event): void {
+            $this->record('miss', $event);
+        });
+        $this->eyepiece->listen(KeyWritten::class, function (KeyWritten $event): void {
+            $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]);
+        });
+        $this->eyepiece->listen(KeyWriteFailed::class, function (KeyWriteFailed $event): void {
+            $this->record('write_failed', $event, ['ttl' => $event->seconds]);
+        });
+        $this->eyepiece->listen(KeyForgotten::class, function (KeyForgotten $event): void {
+            $this->record('forget', $event);
+        });
+        $this->eyepiece->listen(KeyForgetFailed::class, function (KeyForgetFailed $event): void {
+            $this->record('forget_failed', $event);
+        });
         $this->eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
-            if ($this->eyepiece->recording()) {
-                $this->eyepiece->push('cache', ['type' => 'flush', 'store' => $event->storeName, 'key' => null, 'duration' => null]);
+            if (! $this->eyepiece->recording()) {
+                return;
             }
+
+            $this->eyepiece->push('cache', [
+                'type' => 'flush',
+                'store' => $event->storeName,
+                'key' => null,
+                'duration' => null,
+            ]);
         });
     }
 
@@ -125,21 +145,24 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         }
 
         arsort($keys);
+        $hottestKeys = array_slice($keys, 0, 5, true);
+
         $reads = $counts['hit'] + $counts['miss'];
+        $hitRate = round($counts['hit'] / max($reads, 1) * 100, 1);
 
         return Summary::make()
             ->total('cache_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->warnings($this->slowWarnings($rows))
             ->warnings($this->repeatWarnings($rows))
             ->totals([
-                'cache_hottest_keys' => array_slice($keys, 0, 5, true),
+                'cache_hottest_keys' => $hottestKeys,
             ])
             ->total('cache_hits', $counts['hit'], 'hits')
             ->total('cache_misses', $counts['miss'], 'misses')
             ->total('cache_writes', $counts['write'], 'writes')
             ->total('cache_forgets', $counts['forget'], 'forgets')
             ->when($reads > 0)
-            ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent);
+            ->total('cache_hit_rate', $hitRate, 'hit rate', Unit::Percent);
     }
 
     /**
@@ -160,9 +183,12 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
                 continue;
             }
 
-            $origin = Origin::describe(is_array($row['origin'] ?? null) ? $row['origin'] : null);
-            $where = $origin === null ? '' : ' from '.$origin;
-            $warnings[] = sprintf('Slow cache %s (%.1f ms) on %s: %s%s', $row['type'] ?? 'call', $duration, $this->describeStore($row['store'] ?? null), $row['key'] ?? '?', $where);
+            $operation = $row['type'] ?? 'call';
+            $store = $this->describeStore($row['store'] ?? null);
+            $key = $row['key'] ?? '?';
+            $where = $this->where($row['origin'] ?? null);
+
+            $warnings[] = sprintf('Slow cache %s (%.1f ms) on %s: %s%s', $operation, $duration, $store, $key, $where);
         }
 
         return $warnings;
@@ -179,7 +205,25 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
 
         $driver = config("cache.stores.{$store}.driver");
 
-        return is_string($driver) && $driver !== $store ? "the \"{$store}\" store ({$driver})" : "the \"{$store}\" store";
+        if (! is_string($driver)) {
+            return "the \"{$store}\" store";
+        }
+
+        if ($driver === $store) {
+            return "the \"{$store}\" store";
+        }
+
+        return "the \"{$store}\" store ({$driver})";
+    }
+
+    /**
+     * ' from file:line' for a row's origin, or nothing when it has none.
+     */
+    private function where(mixed $origin): string
+    {
+        $described = Origin::describe(is_array($origin) ? $origin : null);
+
+        return $described === null ? '' : ' from '.$described;
     }
 
     /**
@@ -191,28 +235,49 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
      */
     private function repeatWarnings(array $rows): array
     {
+        /** @var array<string, array{key: string, count: int, ms: float, origin: mixed}> $reads store|key => reads of it, with the origin of the first */
         $reads = [];
 
         foreach ($rows as $row) {
-            if (in_array($row['type'] ?? null, ['hit', 'miss'], true) && isset($row['key'])) {
-                $read = &$reads[($row['store'] ?? '').'|'.$row['key']];
-                $read ??= ['key' => $row['key'], 'count' => 0, 'ms' => 0.0, 'origin' => $row['origin'] ?? null];
-                $read['count']++;
-                $read['ms'] += (float) ($row['duration'] ?? 0);
-                unset($read);
+            if (! in_array($row['type'] ?? null, ['hit', 'miss'], true)) {
+                continue;
             }
+
+            if (! isset($row['key'])) {
+                continue;
+            }
+
+            $id = ($row['store'] ?? '').'|'.$row['key'];
+            $reads[$id] ??= ['key' => $row['key'], 'count' => 0, 'ms' => 0.0, 'origin' => $row['origin'] ?? null];
+            $reads[$id]['count']++;
+            $reads[$id]['ms'] += (float) ($row['duration'] ?? 0);
         }
 
         $warnings = [];
 
         foreach ($reads as $read) {
-            if ($read['count'] < $this->repeatThreshold || $read['ms'] < $this->repeatMs || Origin::fromLibrary(is_array($read['origin']) ? $read['origin'] : null)) {
+            if ($read['count'] < $this->repeatThreshold) {
                 continue;
             }
 
-            $origin = Origin::describe(is_array($read['origin']) ? $read['origin'] : null);
-            $where = $origin === null ? '' : ' from '.$origin;
-            $warnings[] = sprintf('Cache key %s read %d times (%.1f ms)%s; remember it for the request with Cache::memo() or once().', $read['key'], $read['count'], $read['ms'], $where);
+            if ($read['ms'] < $this->repeatMs) {
+                continue;
+            }
+
+            // Repeated reads inside vendor code are not the app's to fix.
+            if (Origin::fromLibrary(is_array($read['origin']) ? $read['origin'] : null)) {
+                continue;
+            }
+
+            $where = $this->where($read['origin']);
+
+            $warnings[] = sprintf(
+                'Cache key %s read %d times (%.1f ms)%s; remember it for the request with Cache::memo() or once().',
+                $read['key'],
+                $read['count'],
+                $read['ms'],
+                $where,
+            );
         }
 
         return $warnings;
@@ -231,14 +296,16 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $startedAt = $this->pending[$pendingKey] ?? null;
         unset($this->pending[$pendingKey]);
 
+        $elapsed = $startedAt === null ? null : $this->eyepiece->now() - $startedAt;
+
         $row = [
             'n' => ++$this->counter,
             'type' => $type,
             'store' => $event->storeName,
             'key' => $event->key,
             'tags' => $event->tags,
-            'duration' => $startedAt === null ? null : round($this->eyepiece->now() - $startedAt, 3),
-            'slow' => $startedAt !== null && $this->eyepiece->now() - $startedAt >= $this->slowMs,
+            'duration' => $elapsed === null ? null : round($elapsed, 3),
+            'slow' => $elapsed !== null && $elapsed >= $this->slowMs,
             'ttl' => $extra['ttl'] ?? null,
         ];
 
@@ -250,6 +317,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             }
         }
 
+        // Reads point back at the first read of the same key, so repeats are easy to spot.
         if (in_array($type, ['hit', 'miss'], true)) {
             $row['repeat_of'] = $this->firstRead[$pendingKey] ?? null;
             $this->firstRead[$pendingKey] ??= $row['n'];

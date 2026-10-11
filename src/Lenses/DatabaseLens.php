@@ -91,8 +91,12 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     {
         $this->eyepiece->listen(QueryExecuted::class, $this->onQuery(...));
         $this->eyepiece->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
-        $this->eyepiece->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
-        $this->eyepiece->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
+        $this->eyepiece->listen(TransactionCommitted::class, function (TransactionCommitted $event): void {
+            $this->endTransaction($event->connectionName, 'committed');
+        });
+        $this->eyepiece->listen(TransactionRolledBack::class, function (TransactionRolledBack $event): void {
+            $this->endTransaction($event->connectionName, 'rolled_back');
+        });
     }
 
     public function finalize(Capture $capture): void
@@ -114,11 +118,24 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
      */
     private function markRepeats(Capture $capture): void
     {
-        $repeats = array_count_values(array_filter(array_column($capture->sections['queries'] ?? [], 'duplicate_of')));
+        $rows = $capture->sections['queries'] ?? [];
 
-        foreach ($capture->sections['queries'] ?? [] as $index => $row) {
-            if (isset($repeats[$row['n'] ?? 0])) {
-                $capture->sections['queries'][$index]['repeated'] = $repeats[$row['n']];
+        /** @var array<int, int> $repeats first row number => how many later rows repeated it */
+        $repeats = [];
+
+        foreach ($rows as $row) {
+            $original = $row['duplicate_of'] ?? null;
+
+            if ($original) {
+                $repeats[$original] = ($repeats[$original] ?? 0) + 1;
+            }
+        }
+
+        foreach ($rows as $index => $row) {
+            $number = $row['n'] ?? 0;
+
+            if (isset($repeats[$number])) {
+                $capture->sections['queries'][$index]['repeated'] = $repeats[$number];
             }
         }
     }
@@ -130,19 +147,43 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     private function markNPlusOne(Capture $capture): void
     {
         $rows = $capture->sections['queries'] ?? [];
-        // Repeats with the same bindings are duplicates, not an N+1; count each distinct query once.
-        $counts = array_count_values(array_map(
-            fn (array $row): string => ($row['type'] ?? null) === 'select' && ($row['duplicate_of'] ?? null) === null ? (string) ($row['shape'] ?? '') : '',
-            $rows,
-        ));
+
+        /** @var array<string, int> $counts shape => distinct selects with that shape */
+        $counts = [];
+
+        foreach ($rows as $row) {
+            // Repeats with the same bindings are duplicates, not an N+1; count each distinct query once.
+            if (! $this->isDistinctSelect($row)) {
+                continue;
+            }
+
+            $shape = (string) ($row['shape'] ?? '');
+            $counts[$shape] = ($counts[$shape] ?? 0) + 1;
+        }
 
         foreach ($rows as $index => $row) {
-            $count = ($row['type'] ?? null) === 'select' ? $counts[(string) ($row['shape'] ?? '')] ?? 0 : 0;
+            if (($row['type'] ?? null) !== 'select') {
+                continue;
+            }
+
+            $count = $counts[(string) ($row['shape'] ?? '')] ?? 0;
 
             if ($count >= $this->nPlusOneThreshold) {
                 $capture->sections['queries'][$index]['n_plus_one'] = $count;
             }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function isDistinctSelect(array $row): bool
+    {
+        if (($row['type'] ?? null) !== 'select') {
+            return false;
+        }
+
+        return ($row['duplicate_of'] ?? null) === null;
     }
 
     public function reset(): void
@@ -156,7 +197,12 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     public function summarize(Capture $capture): Summary
     {
-        $rows = array_values(array_filter($capture->rows('queries'), fn (array $row): bool => ($row['type'] ?? null) !== 'transaction'));
+        // Transaction statements are listed with the queries but are not queries themselves.
+        $rows = array_values(array_filter(
+            $capture->rows('queries'),
+            fn (array $row): bool => ($row['type'] ?? null) !== 'transaction',
+        ));
+
         $total = 0.0;
         $slow = [];
         $duplicates = 0;
@@ -166,19 +212,26 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         foreach ($rows as $row) {
             $duration = (float) ($row['duration'] ?? 0);
             $total += $duration;
-            $byType[$row['type'] ?? 'other'] = ($byType[$row['type'] ?? 'other'] ?? 0) + 1;
 
-            $fromLibrary = Origin::fromLibrary(is_array($row['origin'] ?? null) ? $row['origin'] : null);
+            $type = $row['type'] ?? 'other';
+            $byType[$type] = ($byType[$type] ?? 0) + 1;
 
-            if (($row['slow'] ?? false) && ! $fromLibrary) {
+            $origin = is_array($row['origin'] ?? null) ? $row['origin'] : null;
+
+            // Slow or duplicate queries from vendor code are not something the app can fix: keep them out of the warnings.
+            $fromLibrary = Origin::fromLibrary($origin);
+            $isSlow = (bool) ($row['slow'] ?? false);
+            $isDuplicate = ($row['duplicate_of'] ?? null) !== null;
+
+            if ($isSlow && ! $fromLibrary) {
                 $slow[] = $row;
             }
 
-            if (($row['duplicate_of'] ?? null) !== null && ! $fromLibrary) {
+            if ($isDuplicate && ! $fromLibrary) {
                 $duplicates++;
             }
 
-            if (($row['type'] ?? null) === 'select' && ($row['duplicate_of'] ?? null) === null) {
+            if ($this->isDistinctSelect($row)) {
                 $shape = (string) ($row['shape'] ?? '');
                 $shapes[$shape] ??= ['count' => 0, 'origin' => $row['origin'] ?? null];
                 $shapes[$shape]['count']++;
@@ -235,6 +288,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $hash = hash('xxh128', $sql.'|'.json_encode($event->bindings));
         $open = $this->transactions[$event->connectionName] ?? [];
         $duration = round((float) $event->time, 3);
+        $transactionId = $open === [] ? null : end($open)->id;
 
         $this->eyepiece->push('queries', [
             'n' => $this->counter,
@@ -249,7 +303,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             'tables' => $parsed['tables'],
             'shape' => $parsed['shape'],
             'shape_hash' => $parsed['shape_hash'],
-            'transaction_id' => $open === [] ? null : end($open)->id,
+            'transaction_id' => $transactionId,
             'slow' => $duration >= $this->slowMs,
             'duplicate_of' => $this->seen[$hash] ?? null,
         ]);
@@ -272,7 +326,10 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             }
 
             try {
-                $capture->sections['queries'][$index]['sql_with_bindings'] = $connection->getQueryGrammar()->substituteBindingsIntoRawSql($sql, $connection->prepareBindings($bindings));
+                $prepared = $connection->prepareBindings($bindings);
+                $rendered = $connection->getQueryGrammar()->substituteBindingsIntoRawSql($sql, $prepared);
+
+                $capture->sections['queries'][$index]['sql_with_bindings'] = $rendered;
             } catch (Throwable) {
                 // A connection that can no longer quote leaves the plain SQL.
             }
@@ -287,12 +344,19 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             return;
         }
 
-        $depth = count($this->transactions[$event->connectionName] ?? []);
-        $span = $this->eyepiece->span('transaction'.($depth > 0 ? ' (savepoint '.$depth.')' : ''), 'db.transaction');
-        $span->start(['connection' => $event->connectionName, 'level' => $depth + 1]);
+        $connection = $event->connectionName;
+        $depth = count($this->transactions[$connection] ?? []);
+        $level = $depth + 1;
 
-        $this->transactions[$event->connectionName][] = $span;
-        $this->transactionRow($event->connectionName, $depth === 0 ? 'BEGIN TRANSACTION' : 'SAVEPOINT trans'.($depth + 1), $span);
+        // A nested transaction is a savepoint on the outer one.
+        $name = $depth === 0 ? 'transaction' : "transaction (savepoint {$depth})";
+        $sql = $depth === 0 ? 'BEGIN TRANSACTION' : "SAVEPOINT trans{$level}";
+
+        $span = $this->eyepiece->span($name, 'db.transaction');
+        $span->start(['connection' => $connection, 'level' => $level]);
+
+        $this->transactions[$connection][] = $span;
+        $this->transactionRow($connection, $sql, $span);
     }
 
     private function endTransaction(string $connection, string $outcome): void
@@ -305,12 +369,18 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $span = array_pop($this->transactions[$connection]);
         $span->stop(['outcome' => $outcome]);
 
-        $sql = match ($outcome) {
-            'committed' => $level === 1 ? 'COMMIT' : 'RELEASE SAVEPOINT trans'.$level,
-            default => $level === 1 ? 'ROLLBACK' : 'ROLLBACK TO SAVEPOINT trans'.$level,
-        };
+        $this->transactionRow($connection, $this->endTransactionSql($outcome, $level), $span);
+    }
 
-        $this->transactionRow($connection, $sql, $span);
+    private function endTransactionSql(string $outcome, int $level): string
+    {
+        $outermost = $level === 1;
+
+        if ($outcome === 'committed') {
+            return $outermost ? 'COMMIT' : "RELEASE SAVEPOINT trans{$level}";
+        }
+
+        return $outermost ? 'ROLLBACK' : "ROLLBACK TO SAVEPOINT trans{$level}";
     }
 
     /**
@@ -343,7 +413,6 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         ], origin: false);
     }
 
-
     private function driver(QueryExecuted $event): ?string
     {
         try {
@@ -364,9 +433,6 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         };
     }
 
-    /**
-     * @return list<string>
-     */
     /**
      * @return array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string}
      */
@@ -400,6 +466,9 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         return array_filter($tables, fn (string $table): bool => ! Str::is($this->ignoreTables, $table)) === [];
     }
 
+    /**
+     * @return list<string>
+     */
     private function tables(string $sql): array
     {
         preg_match_all('/\b(?:from|join|into|update)\s+[`"\[]?([\w.]+)[`"\]]?/i', $sql, $matches);

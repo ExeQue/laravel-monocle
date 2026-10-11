@@ -50,7 +50,7 @@ final class ListCommand extends Command
 
         table(
             ['When', 'Type', 'Name', 'Status', 'Duration', 'Queries', 'Flags', 'ID'],
-            array_map(fn (array $row): array => $this->row($row), $rows),
+            array_map($this->row(...), $rows),
         );
 
         $this->paging($data);
@@ -62,6 +62,27 @@ final class ListCommand extends Command
      */
     private function row(array $row): array
     {
+        $marker = $row['has_errors'] ? '<fg=red>✗</> ' : '';
+
+        return [
+            $this->ago($row['started_at']),
+            (string) $row['type'],
+            $marker.$this->cell($this->name($row), 70),
+            (string) $row['status'],
+            $this->ms($row['duration']),
+            (string) ($row['counts']['queries'] ?? 0),
+            $this->flagsCell($row),
+            (string) $row['id'],
+        ];
+    }
+
+    /**
+     * The capture name followed by its tags and label.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function name(array $row): string
+    {
         $name = (string) $row['name'];
 
         foreach ((array) ($row['tags'] ?? []) as $tag) {
@@ -72,26 +93,32 @@ final class ListCommand extends Command
             $name .= ' ('.$row['label'].')';
         }
 
+        return $name;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function flagsCell(array $row): string
+    {
         $flags = [];
 
         if ($row['errors'] > 0) {
-            $flags[] = '<fg=red;options=bold>'.$row['errors'].' error'.($row['errors'] === 1 ? '' : 's').'</>';
+            $flags[] = '<fg=red;options=bold>'.$this->counted($row['errors'], 'error').'</>';
         }
 
         if ($row['warnings'] > 0) {
-            $flags[] = '<fg=yellow>'.$row['warnings'].' warning'.($row['warnings'] === 1 ? '' : 's').'</>';
+            $flags[] = '<fg=yellow>'.$this->counted($row['warnings'], 'warning').'</>';
         }
 
-        return [
-            $this->ago($row['started_at']),
-            (string) $row['type'],
-            ($row['has_errors'] ? '<fg=red>✗</> ' : '').$this->cell($name, 70),
-            (string) $row['status'],
-            $this->ms($row['duration']),
-            (string) ($row['counts']['queries'] ?? 0),
-            implode(' ', $flags),
-            (string) $row['id'],
-        ];
+        return implode(' ', $flags);
+    }
+
+    private function counted(int $count, string $noun): string
+    {
+        $suffix = $count === 1 ? '' : 's';
+
+        return $count.' '.$noun.$suffix;
     }
 
     protected function getOptions(): array

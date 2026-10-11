@@ -43,7 +43,9 @@ trait RendersForHumans
      */
     protected function cell(mixed $value, int $width = 60): string
     {
-        return OutputFormatter::escape(Str::limit(preg_replace('/\s+/', ' ', Format::value($value)) ?? '', $width));
+        $oneLine = preg_replace('/\s+/', ' ', Format::value($value)) ?? '';
+
+        return OutputFormatter::escape(Str::limit($oneLine, $width));
     }
 
     /**
@@ -60,12 +62,28 @@ trait RendersForHumans
             return $this->cell($value);
         }
 
-        return match (true) {
-            in_array($name, ['duration', 'time', 'start'], true), str_ends_with($name, '_ms') => $this->ms($value),
-            str_ends_with($name, '_bytes') => $this->bytes($value),
-            str_ends_with($name, '_mb') => $value.' MB',
-            default => (string) $value,
-        };
+        if ($this->isDuration($name)) {
+            return $this->ms($value);
+        }
+
+        if (str_ends_with($name, '_bytes')) {
+            return $this->bytes($value);
+        }
+
+        if (str_ends_with($name, '_mb')) {
+            return $value.' MB';
+        }
+
+        return (string) $value;
+    }
+
+    private function isDuration(string $name): bool
+    {
+        if (in_array($name, ['duration', 'time', 'start'], true)) {
+            return true;
+        }
+
+        return str_ends_with($name, '_ms');
     }
 
     /**
@@ -136,13 +154,42 @@ trait RendersForHumans
             return;
         }
 
-        $columns ??= array_keys($rows[0]);
-        $columns = array_is_list($columns) ? array_combine($columns, array_map(fn (string $key): string => Str::headline($key), $columns)) : $columns;
+        $headers = $this->headers($columns ?? array_keys($rows[0]));
+        $keys = array_keys($headers);
+        $cells = [];
 
-        table(
-            array_values($columns),
-            array_map(fn (array $row): array => array_map(fn (string $key): string => $this->cell($row[$key] ?? null, $width), array_keys($columns)), $rows),
-        );
+        foreach ($rows as $row) {
+            $line = [];
+
+            foreach ($keys as $key) {
+                $line[] = $this->cell($row[$key] ?? null, $width);
+            }
+
+            $cells[] = $line;
+        }
+
+        table(array_values($headers), $cells);
+    }
+
+    /**
+     * Column key => header; bare keys get their headline as header.
+     *
+     * @param  array<string, string>|list<string>  $columns
+     * @return array<string, string>
+     */
+    private function headers(array $columns): array
+    {
+        if (! array_is_list($columns)) {
+            return $columns;
+        }
+
+        $headers = [];
+
+        foreach ($columns as $key) {
+            $headers[$key] = Str::headline($key);
+        }
+
+        return $headers;
     }
 
     /**
@@ -165,11 +212,11 @@ trait RendersForHumans
 
             $values = array_column($rows, $key);
 
-            if (array_filter($values, fn (mixed $value): bool => is_array($value) && array_filter($value, is_scalar(...)) !== $value) !== []) {
+            if ($this->holdsNestedData($values)) {
                 continue;
             }
 
-            if (array_filter($values, fn (mixed $value): bool => $value !== null && $value !== []) === []) {
+            if ($this->allEmpty($values)) {
                 continue;
             }
 
@@ -178,11 +225,46 @@ trait RendersForHumans
 
         $shown = array_slice($useful, 0, $max);
 
+        // The duration is what people look for first, so it takes the last slot when it was cut.
         if (in_array('duration', $useful, true) && ! in_array('duration', $shown, true)) {
             $shown[$max - 1] = 'duration';
         }
 
         return [$shown, array_values(array_diff($useful, $shown))];
+    }
+
+    /**
+     * A column with an array that holds more than plain values does not fit a cell.
+     *
+     * @param  list<mixed>  $values
+     */
+    private function holdsNestedData(array $values): bool
+    {
+        foreach ($values as $value) {
+            if (! is_array($value)) {
+                continue;
+            }
+
+            if (array_filter($value, is_scalar(...)) !== $value) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<mixed>  $values
+     */
+    private function allEmpty(array $values): bool
+    {
+        foreach ($values as $value) {
+            if ($value !== null && $value !== []) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -199,7 +281,13 @@ trait RendersForHumans
             return;
         }
 
-        table([$key, $header], array_map(fn (array $pair): array => [$this->cell($pair[0], 50), $this->cell($pair[1], $width)], $pairs));
+        $rows = [];
+
+        foreach ($pairs as [$dotKey, $item]) {
+            $rows[] = [$this->cell($dotKey, 50), $this->cell($item, $width)];
+        }
+
+        table([$key, $header], $rows);
     }
 
     /**
@@ -214,14 +302,22 @@ trait RendersForHumans
         $returned = (int) ($data['returned'] ?? 0);
         $total = (int) ($data['total'] ?? 0);
 
-        if ($returned === 0 || ($offset === 0 && $returned >= $total)) {
+        if ($returned === 0) {
+            return;
+        }
+
+        $everythingShown = $offset === 0 && $returned >= $total;
+
+        if ($everythingShown) {
             return;
         }
 
         $line = 'Showing '.($offset + 1).'-'.($offset + $returned).' of '.$total.'.';
+        $nextOffset = $data['next_offset'] ?? null;
 
-        if (($data['next_offset'] ?? null) !== null) {
-            $line .= ' Next page: '.($command === null ? '' : $command.' ').'--offset='.$data['next_offset'];
+        if ($nextOffset !== null) {
+            $prefix = $command === null ? '' : $command.' ';
+            $line .= ' Next page: '.$prefix.'--offset='.$nextOffset;
         }
 
         note($line);

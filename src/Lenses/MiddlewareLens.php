@@ -38,7 +38,6 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
 {
     private Application $app;
 
-
     private ?Kernel $kernel = null;
 
     /** @var array<class-string, true> */
@@ -87,9 +86,14 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
         });
 
         $this->eyepiece->listen(RouteMatched::class, function (RouteMatched $event): void {
-            foreach ($this->eyepiece->outside(fn (): array => $event->route->gatherMiddleware()) as $middleware) {
+            $routeMiddleware = $this->eyepiece->outside(fn (): array => $event->route->gatherMiddleware());
+
+            foreach ($routeMiddleware as $middleware) {
                 foreach ($this->resolveNames($middleware) as $class) {
-                    $this->wrap($class, isset($this->global[$class]) ? 'global' : 'route');
+                    // Global middleware listed on the route again keeps its global group.
+                    $group = isset($this->global[$class]) ? 'global' : 'route';
+
+                    $this->wrap($class, $group);
                 }
             }
         });
@@ -110,23 +114,27 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
         $rows = [];
 
         foreach ($capture->spansOfKind('middleware.request') as $request) {
+            // Pair each request span with the next unclaimed response span of the same middleware.
             $responses[$request->name] ??= [];
             $response = array_shift($responses[$request->name]);
+
+            $class = $request->meta['class'] ?? null;
             $before = round($request->duration() ?? 0.0, 3);
             $after = $response instanceof Span ? round($response->duration() ?? 0.0, 3) : null;
+            $ownMs = $before + ($after ?? 0.0);
 
             $rows[] = [
                 'n' => count($rows) + 1,
-                'middleware' => $request->meta['class'] ?? $request->name,
+                'middleware' => $class ?? $request->name,
                 'parameters' => $request->meta['parameters'] ?? [],
                 'group' => $request->meta['group'] ?? null,
                 'request_ms' => $before,
                 'response_ms' => $after,
-                'duration' => round($before + ($after ?? 0.0), 3),
+                'duration' => round($ownMs, 3),
                 'time' => round($request->start ?? 0.0, 3),
                 'passed' => $request->meta['passed'] ?? true,
                 'short_circuited_with' => $request->meta['short_circuited_with'] ?? null,
-                'slow' => $before + ($after ?? 0.0) >= $this->slowMs && ! $this->isLibrary($request->meta['class'] ?? null),
+                'slow' => $this->isSlow($ownMs, $class),
             ];
         }
 
@@ -138,26 +146,29 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
     public function summarize(Capture $capture): Summary
     {
         $requests = $capture->spansOfKind('middleware.request');
+        $spans = [...$requests, ...$capture->spansOfKind('middleware.response')];
         $own = [];
+        $classes = [];
         $warnings = [];
 
-        $classes = [];
-
-        foreach ([...$requests, ...$capture->spansOfKind('middleware.response')] as $span) {
+        foreach ($spans as $span) {
             $own[$span->name] = ($own[$span->name] ?? 0.0) + ($span->duration() ?? 0.0);
             $classes[$span->name] ??= $span->meta['class'] ?? null;
         }
 
         foreach ($own as $name => $ms) {
-            if ($ms >= $this->slowMs && ! $this->isLibrary($classes[$name] ?? null)) {
+            if ($this->isSlow($ms, $classes[$name] ?? null)) {
                 $warnings[] = sprintf('Middleware %s spent %.1f ms of its own time.', $name, $ms);
             }
         }
 
         foreach ($requests as $span) {
-            if (($span->meta['passed'] ?? true) === false) {
-                $warnings[] = sprintf('Middleware %s short-circuited the request (%s).', $span->name, $span->meta['short_circuited_with'] ?? 'no response');
+            if (($span->meta['passed'] ?? true) !== false) {
+                continue;
             }
+
+            $status = $span->meta['short_circuited_with'] ?? 'no response';
+            $warnings[] = sprintf('Middleware %s short-circuited the request (%s).', $span->name, $status);
         }
 
         return Summary::make()
@@ -166,12 +177,25 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
             ->warnings($warnings);
     }
 
+    private function isSlow(float $ms, mixed $class): bool
+    {
+        if ($ms < $this->slowMs) {
+            return false;
+        }
+
+        return ! $this->isLibrary($class);
+    }
+
     /**
      * Middleware shipped by a package; its time is not the application's to fix.
      */
     private function isLibrary(mixed $class): bool
     {
-        if (! is_string($class) || ! class_exists($class)) {
+        if (! is_string($class)) {
+            return false;
+        }
+
+        if (! class_exists($class)) {
             return false;
         }
 
@@ -182,13 +206,18 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
 
     private function wrap(string $class, string $group): void
     {
-        if (isset($this->wrapped[$class]) || ! class_exists($class)) {
+        if (isset($this->wrapped[$class])) {
+            return;
+        }
+
+        if (! class_exists($class)) {
             return;
         }
 
         $this->wrapped[$class] = true;
 
         $this->app->extend($class, fn (object $inner): TimedMiddleware => new TimedMiddleware(
+            // Unwrap first, so a middleware is never timed twice.
             inner: $inner instanceof TimedMiddleware ? $inner->inner() : $inner,
             class: $class,
             group: $group,
@@ -205,7 +234,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
             return [];
         }
 
-        if ($this->kernel === null || ! method_exists($this->kernel, 'getMiddlewareAliases')) {
+        if (! $this->kernelHas('getMiddlewareAliases')) {
             return is_string($middleware) ? [Str::before($middleware, ':')] : [];
         }
 
@@ -231,11 +260,23 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
      */
     private function globalMiddleware(): array
     {
-        if ($this->kernel === null || ! method_exists($this->kernel, 'getGlobalMiddleware')) {
+        if (! $this->kernelHas('getGlobalMiddleware')) {
             return [];
         }
 
-        return array_values(array_filter($this->kernel->getGlobalMiddleware(), 'is_string'));
+        // Closures in the global stack cannot be wrapped.
+        $classes = array_filter($this->kernel->getGlobalMiddleware(), 'is_string');
+
+        return array_values($classes);
+    }
+
+    private function kernelHas(string $method): bool
+    {
+        if ($this->kernel === null) {
+            return false;
+        }
+
+        return method_exists($this->kernel, $method);
     }
 
     private function resolveKernel(Application $app): ?Kernel

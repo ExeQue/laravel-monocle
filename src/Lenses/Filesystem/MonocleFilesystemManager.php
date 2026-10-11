@@ -47,15 +47,24 @@ final class MonocleFilesystemManager extends FilesystemManager
     {
         $disk = $this->resolving ?? (string) ($config['name'] ?? 'disk');
 
-        if (($this->shouldRecord)($disk) && ! $adapter instanceof RecordingAdapter) {
-            $adapter = new RecordingAdapter(
-                inner: $adapter,
-                disk: $disk,
-                driver: isset($config['driver']) ? (string) $config['driver'] : null,
-                eyepiece: $this->eyepiece,
-            );
+        if (! ($this->shouldRecord)($disk)) {
+            return parent::createFlysystem($adapter, $config);
         }
 
-        return parent::createFlysystem($adapter, $config);
+        // Never wrap twice, or every operation would be recorded twice.
+        if ($adapter instanceof RecordingAdapter) {
+            return parent::createFlysystem($adapter, $config);
+        }
+
+        $driver = isset($config['driver']) ? (string) $config['driver'] : null;
+
+        $recording = new RecordingAdapter(
+            inner: $adapter,
+            disk: $disk,
+            driver: $driver,
+            eyepiece: $this->eyepiece,
+        );
+
+        return parent::createFlysystem($recording, $config);
     }
 }

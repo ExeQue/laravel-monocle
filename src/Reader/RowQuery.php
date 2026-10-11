@@ -39,10 +39,36 @@ final class RowQuery
      */
     public static function fromArray(array $input): self
     {
+        $limit = (int) ($input['limit'] ?? 50);
+        $dir = strtolower((string) ($input['dir'] ?? 'asc'));
+
+        return new self(
+            offset: max(0, (int) ($input['offset'] ?? 0)),
+            limit: max(1, min(self::MAX_LIMIT, $limit)),
+            sort: self::optionalString($input['sort'] ?? null),
+            dir: $dir === 'desc' ? 'desc' : 'asc',
+            where: self::whereClauses($input['where'] ?? []),
+            fields: array_values(array_map('strval', (array) ($input['fields'] ?? []))),
+            verbose: filter_var($input['verbose'] ?? false, FILTER_VALIDATE_BOOL),
+            search: self::optionalString($input['search'] ?? null),
+        );
+    }
+
+    /**
+     * Clauses without a field are dropped; the operator defaults to "=".
+     *
+     * @return list<array{field: string, op: string, value: mixed}>
+     */
+    private static function whereClauses(mixed $input): array
+    {
         $where = [];
 
-        foreach ((array) ($input['where'] ?? []) as $clause) {
-            if (! is_array($clause) || ! isset($clause['field'])) {
+        foreach ((array) $input as $clause) {
+            if (! is_array($clause)) {
+                continue;
+            }
+
+            if (! isset($clause['field'])) {
                 continue;
             }
 
@@ -53,16 +79,20 @@ final class RowQuery
             ];
         }
 
-        return new self(
-            offset: max(0, (int) ($input['offset'] ?? 0)),
-            limit: max(1, min(self::MAX_LIMIT, (int) ($input['limit'] ?? 50))),
-            sort: isset($input['sort']) && $input['sort'] !== '' ? (string) $input['sort'] : null,
-            dir: strtolower((string) ($input['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc',
-            where: $where,
-            fields: array_values(array_map('strval', (array) ($input['fields'] ?? []))),
-            verbose: filter_var($input['verbose'] ?? false, FILTER_VALIDATE_BOOL),
-            search: isset($input['search']) && $input['search'] !== '' ? (string) $input['search'] : null,
-        );
+        return $where;
+    }
+
+    private static function optionalString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value === '') {
+            return null;
+        }
+
+        return (string) $value;
     }
 
     /**
@@ -150,11 +180,32 @@ final class RowQuery
             $row = $projected;
         }
 
-        if (! $this->verbose && isset($row['origin']) && is_array($row['origin']) && ! $this->requestsOriginField()) {
+        if ($this->shortensOrigin($row)) {
             $row['origin'] = Origin::describe($row['origin']);
         }
 
         return $row;
+    }
+
+    /**
+     * Origins are cut down to "file:line" unless asked for in full, either
+     * with verbose or by projecting one of their fields.
+     *
+     * @param  array<string, mixed>  $row
+     *
+     * @phpstan-assert-if-true array{origin: array<string, mixed>} $row
+     */
+    private function shortensOrigin(array $row): bool
+    {
+        if ($this->verbose) {
+            return false;
+        }
+
+        if (! is_array($row['origin'] ?? null)) {
+            return false;
+        }
+
+        return ! $this->requestsOriginField();
     }
 
     private function requestsOriginField(): bool

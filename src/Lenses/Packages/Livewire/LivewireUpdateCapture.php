@@ -32,38 +32,56 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
     {
         $body = json_decode((string) $response->getContent(), true);
 
-        if (! is_array($body) || ! is_array($body['components'] ?? null)) {
+        if (! is_array($body)) {
             return null;
         }
 
+        if (! is_array($body['components'] ?? null)) {
+            return null;
+        }
+
+        // The request lists the components in the same order the response does.
         $sent = (array) $request->input('components', []);
-        $masker = $this->eyepiece->masker();
         $cards = [];
 
         foreach ($body['components'] as $index => $component) {
-            $after = $this->snapshot($component['snapshot'] ?? null);
-            $before = $this->snapshot($sent[$index]['snapshot'] ?? null);
-            $effects = (array) ($component['effects'] ?? []);
-
-            $cards[] = [
-                'title' => (string) ($after['memo']['name'] ?? 'component'),
-                'subtitle' => isset($after['memo']['id']) ? (string) $after['memo']['id'] : null,
-                'items' => array_filter([
-                    'calls' => array_map($this->call(...), (array) ($sent[$index]['calls'] ?? [])),
-                    'updates' => $masker->inputs((array) ($sent[$index]['updates'] ?? [])),
-                    'changes' => $this->changes(
-                        $masker->inputs($this->unwrap((array) ($before['data'] ?? []))),
-                        $masker->inputs($this->unwrap((array) ($after['data'] ?? []))),
-                    ),
-                    'dispatched' => array_map($this->dispatched(...), (array) ($effects['dispatches'] ?? [])),
-                    'returns' => array_values(array_filter((array) ($effects['returns'] ?? []), fn (mixed $value): bool => $value !== null)),
-                    'redirect' => $effects['redirect'] ?? null,
-                    'html_bytes' => isset($effects['html']) ? strlen((string) $effects['html']) : null,
-                ], fn (mixed $value): bool => $value !== null && $value !== []),
-            ];
+            $cards[] = $this->card($component, $sent[$index] ?? []);
         }
 
         return $cards;
+    }
+
+    /**
+     * @param  mixed  $component  the component as the response returned it
+     * @param  mixed  $sent  the same component as the request sent it
+     * @return array{title: string, subtitle: ?string, items: array<string, mixed>}
+     */
+    private function card(mixed $component, mixed $sent): array
+    {
+        $masker = $this->eyepiece->masker();
+        $after = $this->snapshot($component['snapshot'] ?? null);
+        $before = $this->snapshot($sent['snapshot'] ?? null);
+        $effects = (array) ($component['effects'] ?? []);
+
+        $dataBefore = $masker->inputs($this->unwrap((array) ($before['data'] ?? [])));
+        $dataAfter = $masker->inputs($this->unwrap((array) ($after['data'] ?? [])));
+        $returns = array_filter((array) ($effects['returns'] ?? []), fn (mixed $value): bool => $value !== null);
+
+        $items = [
+            'calls' => array_map($this->call(...), (array) ($sent['calls'] ?? [])),
+            'updates' => $masker->inputs((array) ($sent['updates'] ?? [])),
+            'changes' => $this->changes($dataBefore, $dataAfter),
+            'dispatched' => array_map($this->dispatched(...), (array) ($effects['dispatches'] ?? [])),
+            'returns' => array_values($returns),
+            'redirect' => $effects['redirect'] ?? null,
+            'html_bytes' => isset($effects['html']) ? strlen((string) $effects['html']) : null,
+        ];
+
+        return [
+            'title' => (string) ($after['memo']['name'] ?? 'component'),
+            'subtitle' => isset($after['memo']['id']) ? (string) $after['memo']['id'] : null,
+            'items' => array_filter($items, fn (mixed $value): bool => $value !== null && $value !== []),
+        ];
     }
 
     /**
@@ -85,11 +103,27 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
             return $value;
         }
 
-        if (array_is_list($value) && count($value) === 2 && is_array($value[1]) && isset($value[1]['s'])) {
+        if ($this->isTuple($value)) {
             return $this->unwrap($value[0]);
         }
 
         return array_map($this->unwrap(...), $value);
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $value
+     */
+    private function isTuple(array $value): bool
+    {
+        if (! array_is_list($value)) {
+            return false;
+        }
+
+        if (count($value) !== 2) {
+            return false;
+        }
+
+        return is_array($value[1]) && isset($value[1]['s']);
     }
 
     /**
@@ -113,7 +147,11 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
      */
     private function dispatched(mixed $event): array
     {
-        return is_array($event) ? $this->event((string) ($event['name'] ?? '?'), $event['params'] ?? []) : ['name' => (string) $event, 'params' => null];
+        if (! is_array($event)) {
+            return ['name' => (string) $event, 'params' => null];
+        }
+
+        return $this->event((string) ($event['name'] ?? '?'), $event['params'] ?? []);
     }
 
     /**
@@ -138,12 +176,24 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
         $changes = [];
 
         foreach (array_unique([...array_keys($from), ...array_keys($to)]) as $field) {
-            if ($this->becameParent((string) $field, $from, $to) || $this->becameParent((string) $field, $to, $from)) {
+            $field = (string) $field;
+
+            if ($this->becameParent($field, $from, $to)) {
                 continue;
             }
 
-            if (($from[$field] ?? null) !== ($to[$field] ?? null) || array_key_exists($field, $from) !== array_key_exists($field, $to)) {
-                $changes[] = ['field' => (string) $field, 'from' => $from[$field] ?? null, 'to' => $to[$field] ?? null];
+            if ($this->becameParent($field, $to, $from)) {
+                continue;
+            }
+
+            $old = $from[$field] ?? null;
+            $new = $to[$field] ?? null;
+
+            // A key added or removed with a null value is a change too.
+            $existenceChanged = array_key_exists($field, $from) !== array_key_exists($field, $to);
+
+            if ($old !== $new || $existenceChanged) {
+                $changes[] = ['field' => $field, 'from' => $old, 'to' => $new];
             }
         }
 
@@ -159,7 +209,15 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
      */
     private function becameParent(string $field, array $side, array $other): bool
     {
-        if (! array_key_exists($field, $side) || $side[$field] !== [] || array_key_exists($field, $other)) {
+        if (! array_key_exists($field, $side)) {
+            return false;
+        }
+
+        if ($side[$field] !== []) {
+            return false;
+        }
+
+        if (array_key_exists($field, $other)) {
             return false;
         }
 

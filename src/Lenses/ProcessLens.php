@@ -29,6 +29,8 @@ use Illuminate\Support\Facades\Process;
  */
 final class ProcessLens implements Advises, Configurable, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
+    private const int MAX_MESSAGES = 3;
+
     private float $slowMs = 1000.0;
 
     private readonly ProcessRecorder $recorder;
@@ -119,7 +121,7 @@ final class ProcessLens implements Advises, Configurable, Finalizable, Lens, Pre
             }
 
             if (($row['successful'] ?? null) === false) {
-                $failed[] = sprintf('Process %s failed (%s).', $row['command'], $row['exception']['message'] ?? 'exit code '.($row['exit_code'] ?? '?'));
+                $failed[] = sprintf('Process %s failed (%s).', $row['command'], $this->failureReason($row));
             }
         }
 
@@ -127,16 +129,45 @@ final class ProcessLens implements Advises, Configurable, Finalizable, Lens, Pre
             ->total('processes_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->total('processes', count($rows), 'processes')
             ->total('processes_failed', count($failed), 'failed')
-            ->errors(array_slice($failed, 0, 3))
-            ->warnings(array_slice($slow, 0, 3));
+            ->errors(array_slice($failed, 0, self::MAX_MESSAGES))
+            ->warnings(array_slice($slow, 0, self::MAX_MESSAGES));
+    }
+
+    /**
+     * The exception message, or the exit code when the process failed without one.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function failureReason(array $row): string
+    {
+        if (isset($row['exception']['message'])) {
+            return (string) $row['exception']['message'];
+        }
+
+        return 'exit code '.($row['exit_code'] ?? '?');
     }
 
     public function presentation(): Presentation
     {
         return Presentation::table()
             ->tab('monocle::tabs.processes')
-            ->columns(['command', 'path', 'exit_code' => 'Exit', 'successful' => 'OK', 'timed_out', 'async', 'duration', 'output_bytes' => 'Output', 'error_output_bytes' => 'Errors'])
-            ->format(['command' => 'code', 'exit_code' => 'status', 'successful' => ['flag', 'ok', 'failed'], 'timed_out' => ['flag', 'timed out', null, 'bad', 'bad']])
+            ->columns([
+                'command',
+                'path',
+                'exit_code' => 'Exit',
+                'successful' => 'OK',
+                'timed_out',
+                'async',
+                'duration',
+                'output_bytes' => 'Output',
+                'error_output_bytes' => 'Errors',
+            ])
+            ->format([
+                'command' => 'code',
+                'exit_code' => 'status',
+                'successful' => ['flag', 'ok', 'failed'],
+                'timed_out' => ['flag', 'timed out', null, 'bad', 'bad'],
+            ])
             ->groupBy(['command' => 'by command']);
     }
 }

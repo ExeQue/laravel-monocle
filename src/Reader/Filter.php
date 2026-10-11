@@ -49,8 +49,8 @@ final class Filter
             hasErrors: isset($input['has_errors']) ? filter_var($input['has_errors'], FILTER_VALIDATE_BOOL) : null,
             traceId: self::string($input['trace_id'] ?? null),
             parentId: self::string($input['parent_id'] ?? null),
-            has: array_values(array_filter(array_map('strval', (array) ($input['has'] ?? [])))),
-            exclude: array_values(array_filter(array_map('strval', (array) ($input['exclude'] ?? [])))),
+            has: self::strings($input['has'] ?? []),
+            exclude: self::strings($input['exclude'] ?? []),
             offset: max(0, (int) ($input['offset'] ?? 0)),
             limit: max(1, min(500, (int) ($input['limit'] ?? 20))),
             search: self::string($input['search'] ?? null),
@@ -98,13 +98,18 @@ final class Filter
             return false;
         }
 
-        foreach ($this->exclude as $part) {
-            if (str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($part)) || ($row['route'] ?? null) === $part) {
-                return false;
-            }
+        if ($this->isExcluded($row)) {
+            return false;
         }
 
-        $searchable = [$row['name'] ?? null, $row['route'] ?? null, $row['type'] ?? null, $row['status'] ?? null, $row['label'] ?? null, ...array_column((array) ($row['tags'] ?? []), 'label')];
+        $searchable = [
+            $row['name'] ?? null,
+            $row['route'] ?? null,
+            $row['type'] ?? null,
+            $row['status'] ?? null,
+            $row['label'] ?? null,
+            ...array_column((array) ($row['tags'] ?? []), 'label'),
+        ];
 
         if (! Search::matches($searchable, $this->search)) {
             return false;
@@ -119,9 +124,35 @@ final class Filter
         return true;
     }
 
+    /**
+     * Excluded by a part of its name or by its exact route name.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    private function isExcluded(array $row): bool
+    {
+        $name = strtolower((string) ($row['name'] ?? ''));
+
+        foreach ($this->exclude as $part) {
+            if (str_contains($name, strtolower($part))) {
+                return true;
+            }
+
+            if (($row['route'] ?? null) === $part) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private static function string(mixed $value): ?string
     {
-        if ($value === null || $value === '') {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value === '') {
             return null;
         }
 
@@ -129,11 +160,25 @@ final class Filter
     }
 
     /**
+     * As strings, leaving out the empty ones.
+     *
+     * @return list<string>
+     */
+    private static function strings(mixed $value): array
+    {
+        return array_values(array_filter(array_map('strval', (array) $value)));
+    }
+
+    /**
      * Accepts a unix timestamp, an ISO date or a relative expression like "15m" / "2h".
      */
     private static function since(mixed $value): ?float
     {
-        if ($value === null || $value === '') {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value === '') {
             return null;
         }
 

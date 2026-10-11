@@ -69,7 +69,10 @@ final class EditorCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
 
         if (! $dryRun) {
-            $this->writeJson($file, [...array_diff_key($raw, array_flip(['editor', 'paths', 'wsl', 'project'])), ...$settings->toArray()]);
+            // Keys this command does not own are kept, so other tools can share the file.
+            $otherKeys = array_diff_key($raw, array_flip(['editor', 'paths', 'wsl', 'project']));
+
+            $this->writeJson($file, [...$otherKeys, ...$settings->toArray()]);
         }
 
         $this->components->twoColumnDetail(EditorSettings::FILE, $dryRun ? 'would be written' : 'written');
@@ -102,21 +105,32 @@ final class EditorCommand extends Command
         }
 
         $options[self::CUSTOM] = 'Other (URL template)';
-        $default = $current->editor === null ? Editor::PhpStorm->value : (Editor::tryFrom($current->editor)?->value ?? self::CUSTOM);
-        $choice = (string) select('Which editor do you use?', $options, $default);
+        $choice = (string) select('Which editor do you use?', $options, $this->defaultEditorChoice($current));
 
         if ($choice !== self::CUSTOM) {
             return $choice;
         }
 
+        // Prefill the template only when the current editor is one already.
+        $isTemplate = Editor::tryFrom((string) $current->editor) === null;
+
         return text(
             'URL template',
             placeholder: 'myeditor://open?file={file}&line={line}',
-            default: Editor::tryFrom((string) $current->editor) === null ? (string) $current->editor : '',
+            default: $isTemplate ? (string) $current->editor : '',
             required: true,
             validate: fn (string $value): ?string => str_contains($value, '{file}') ? null : 'The template needs {file}.',
             hint: 'Placeholders: {file}, {line}, and under WSL {distro} and {linux_file}.',
         );
+    }
+
+    private function defaultEditorChoice(EditorSettings $current): string
+    {
+        if ($current->editor === null) {
+            return Editor::PhpStorm->value;
+        }
+
+        return Editor::tryFrom($current->editor)?->value ?? self::CUSTOM;
     }
 
     /**
@@ -174,9 +188,11 @@ final class EditorCommand extends Command
             return $option === '' ? null : $option;
         }
 
-        $onWindows = in_array($location, ['windows', 'windows-drive'], true) || $environment->os() === 'Windows';
+        if (! Editor::tryFrom($editor)?->isJetBrains()) {
+            return null;
+        }
 
-        if (! Editor::tryFrom($editor)?->isJetBrains() || ! $onWindows) {
+        if (! $this->editorOnWindows($location, $environment)) {
             return null;
         }
 
@@ -189,18 +205,42 @@ final class EditorCommand extends Command
         return text('Project name in your JetBrains IDE', default: $default, required: true, hint: 'Links open through JetBrains Toolbox, which finds the file in this open project.');
     }
 
+    private function editorOnWindows(?string $location, Environment $environment): bool
+    {
+        if (in_array($location, ['windows', 'windows-drive'], true)) {
+            return true;
+        }
+
+        return $environment->os() === 'Windows';
+    }
+
     /**
+     * The JetBrains project name: from .idea/.name, else the module file,
+     * else the folder name as the editor sees it.
+     *
      * @param  array<string, string>  $paths
      */
     private function detectProject(string $basePath, array $paths): string
     {
-        $name = is_file($basePath.'/.idea/.name') ? trim((string) file_get_contents($basePath.'/.idea/.name')) : '';
+        $nameFile = $basePath.'/.idea/.name';
 
-        if ($name === '' && is_file($basePath.'/.idea/modules.xml') && preg_match('#/\.idea/([^/"]+)\.iml"#', (string) file_get_contents($basePath.'/.idea/modules.xml'), $match) === 1) {
-            $name = $match[1];
+        if (is_file($nameFile)) {
+            $name = trim((string) file_get_contents($nameFile));
+
+            if ($name !== '') {
+                return $name;
+            }
         }
 
-        return $name !== '' ? $name : basename(str_replace('\\', '/', $paths[$basePath] ?? $basePath));
+        $modules = $basePath.'/.idea/modules.xml';
+
+        if (is_file($modules) && preg_match('#/\.idea/([^/"]+)\.iml"#', (string) file_get_contents($modules), $match) === 1) {
+            return $match[1];
+        }
+
+        $editorPath = $paths[$basePath] ?? $basePath;
+
+        return basename(str_replace('\\', '/', $editorPath));
     }
 
     /**
@@ -218,14 +258,17 @@ final class EditorCommand extends Command
             }
         }
 
-        if (! $this->input->isInteractive() || $this->option('map') !== []) {
+        if (! $this->input->isInteractive()) {
             return $paths;
         }
 
-        $platform = Platform::detect($basePath);
+        if ($this->option('map') !== []) {
+            return $paths;
+        }
+
         $root = $this->projectRoot($basePath);
 
-        if (! in_array($platform, [Platform::Sail, Platform::Lerd], true) && ! $environment->inContainer() && $location !== 'windows-drive' && ! isset($paths[$root])) {
+        if (! $this->pathsMayDiffer($basePath, $location, $environment, $paths, $root)) {
             return $paths;
         }
 
@@ -246,6 +289,29 @@ final class EditorCommand extends Command
     }
 
     /**
+     * Whether the editor may see the project under another path than PHP
+     * does: in a container, on a Windows drive, or a mapping already exists.
+     *
+     * @param  array<string, string>  $paths
+     */
+    private function pathsMayDiffer(string $basePath, ?string $location, Environment $environment, array $paths, string $root): bool
+    {
+        if (in_array(Platform::detect($basePath), [Platform::Sail, Platform::Lerd], true)) {
+            return true;
+        }
+
+        if ($environment->inContainer()) {
+            return true;
+        }
+
+        if ($location === 'windows-drive') {
+            return true;
+        }
+
+        return isset($paths[$root]);
+    }
+
+    /**
      * The folder to map: the project the command runs from, which holds the
      * application even when its base path lives deeper, as with Testbench.
      */
@@ -253,7 +319,15 @@ final class EditorCommand extends Command
     {
         $cwd = getcwd();
 
-        return $cwd !== false && str_starts_with($basePath, rtrim($cwd, '/').'/') ? $cwd : $basePath;
+        if ($cwd === false) {
+            return $basePath;
+        }
+
+        if (! str_starts_with($basePath, rtrim($cwd, '/').'/')) {
+            return $basePath;
+        }
+
+        return $cwd;
     }
 
     protected function getOptions(): array

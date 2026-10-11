@@ -38,25 +38,34 @@ final class TimedMiddleware
         $passed = false;
         $response = null;
 
-        try {
-            $response = $this->inner->handle($request, function (mixed $passable) use ($next, $name, $before, &$after, &$passed): mixed {
-                $passed = true;
-                $before->stop();
+        // Handing the request on ends the "before" span; the "after" span starts once the rest of the pipeline returned.
+        $handOn = function (mixed $passable) use ($next, $name, $before, &$after, &$passed): mixed {
+            $passed = true;
+            $before->stop();
 
-                try {
-                    return $next($passable);
-                } finally {
-                    $after = $this->eyepiece->span($name, 'middleware.response');
-                    $after->meta(['class' => $this->class, 'group' => $this->group]);
-                    $this->eyepiece->startSpan($after, origin: false);
-                }
-            }, ...$parameters);
+            try {
+                return $next($passable);
+            } finally {
+                $after = $this->eyepiece->span($name, 'middleware.response');
+                $after->meta(['class' => $this->class, 'group' => $this->group]);
+                $this->eyepiece->startSpan($after, origin: false);
+            }
+        };
+
+        try {
+            $response = $this->inner->handle($request, $handOn, ...$parameters);
 
             return $response;
         } finally {
+            $shortCircuitedWith = null;
+
+            if (! $passed && $response instanceof Response) {
+                $shortCircuitedWith = $response->getStatusCode();
+            }
+
             $before->stop([
                 'passed' => $passed,
-                'short_circuited_with' => $passed ? null : ($response instanceof Response ? $response->getStatusCode() : null),
+                'short_circuited_with' => $shortCircuitedWith,
             ]);
             $after?->stop();
         }
@@ -68,7 +77,9 @@ final class TimedMiddleware
             return;
         }
 
-        $span = $this->eyepiece->span(Str::afterLast($this->class, '\\').'::terminate', 'middleware.terminate');
+        $name = Str::afterLast($this->class, '\\').'::terminate';
+
+        $span = $this->eyepiece->span($name, 'middleware.terminate');
         $span->meta(['class' => $this->class]);
         $this->eyepiece->startSpan($span, origin: false);
 

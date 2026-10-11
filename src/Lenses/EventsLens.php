@@ -74,20 +74,30 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
     {
         $this->events = $app->make(Dispatcher::class);
 
-        $this->eyepiece->listen('*', function (string $event, array $payload): void {
-            if (! $this->eyepiece->recording() || $this->ignored($event)) {
-                return;
-            }
+        $this->eyepiece->listen('*', $this->onEvent(...));
+    }
 
-            $object = $payload[0] ?? null;
+    /**
+     * @param  array<int, mixed>  $payload
+     */
+    private function onEvent(string $event, array $payload): void
+    {
+        if (! $this->eyepiece->recording()) {
+            return;
+        }
 
-            $this->eyepiece->push('events', [
-                'event' => $event,
-                'payload' => $this->payload($event, $payload),
-                'listeners' => $this->listeners($event),
-                'broadcast' => $object instanceof ShouldBroadcast,
-            ]);
-        });
+        if ($this->ignored($event)) {
+            return;
+        }
+
+        $object = $payload[0] ?? null;
+
+        $this->eyepiece->push('events', [
+            'event' => $event,
+            'payload' => $this->payload($event, $payload),
+            'listeners' => $this->listeners($event),
+            'broadcast' => $object instanceof ShouldBroadcast,
+        ]);
     }
 
     public function summarize(Capture $capture): Summary
@@ -98,10 +108,14 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
             return Summary::make();
         }
 
-        $unhandled = array_values(array_unique(array_column(
-            array_filter($rows, fn (array $row): bool => $row['listeners'] === []),
-            'event',
-        )));
+        /** @var array<string, true> $unhandled event names nobody listened to */
+        $unhandled = [];
+
+        foreach ($rows as $row) {
+            if ($row['listeners'] === []) {
+                $unhandled[$row['event']] = true;
+            }
+        }
 
         return Summary::make()
             ->total('events', count($rows), 'events')
@@ -137,6 +151,7 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
     {
         $object = $payload[0] ?? null;
 
+        // An event object dispatched under its own class name: its properties are the payload.
         if (is_object($object) && $object::class === $event) {
             return Normalizer::normalize(get_object_vars($object));
         }
@@ -149,20 +164,52 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
      */
     private function listeners(string $event): array
     {
-        $raw = method_exists($this->events, 'getRawListeners') ? ($this->events->getRawListeners()[$event] ?? []) : [];
-        $listeners = [];
-
-        foreach ($raw as $listener) {
-            $listeners[] = match (true) {
-                is_string($listener) => $listener,
-                is_array($listener) => (is_object($listener[0]) ? $listener[0]::class : (string) $listener[0]).'@'.($listener[1] ?? 'handle'),
-                $listener instanceof Closure => 'Closure',
-                is_object($listener) => $listener::class,
-                default => 'listener',
-            };
+        // getRawListeners() is not on the Dispatcher contract; a custom dispatcher may lack it.
+        if (! method_exists($this->events, 'getRawListeners')) {
+            return [];
         }
 
-        return array_values(array_filter($listeners, fn (string $listener): bool => ! str_starts_with($listener, 'ExeQue\\Monocle\\')));
+        $listeners = [];
+
+        foreach ($this->events->getRawListeners()[$event] ?? [] as $listener) {
+            $name = $this->describeListener($listener);
+
+            // Monocle listens to everything itself; that is not the application's listener.
+            if (str_starts_with($name, 'ExeQue\\Monocle\\')) {
+                continue;
+            }
+
+            $listeners[] = $name;
+        }
+
+        return $listeners;
+    }
+
+    /**
+     * class@method for an [object or class, method] pair, the class for an
+     * invokable, 'Closure' for a closure.
+     */
+    private function describeListener(mixed $listener): string
+    {
+        if (is_string($listener)) {
+            return $listener;
+        }
+
+        if (is_array($listener)) {
+            $class = is_object($listener[0]) ? $listener[0]::class : (string) $listener[0];
+
+            return $class.'@'.($listener[1] ?? 'handle');
+        }
+
+        if ($listener instanceof Closure) {
+            return 'Closure';
+        }
+
+        if (is_object($listener)) {
+            return $listener::class;
+        }
+
+        return 'listener';
     }
 
     public function presentation(): Presentation
