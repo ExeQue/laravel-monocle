@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitepress'
 
 // The markdown in this repository is the source: the site is a view of it, not a copy.
@@ -24,10 +25,18 @@ export default defineConfig({
   },
 
   head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/laravel-monocle/monocle.svg' }],
     ['meta', { property: 'og:image', content: 'https://exeque.github.io/laravel-monocle/art/cover.jpg' }],
   ],
 
+  // The dashboard's icon doubles as the favicon, served from its own folder.
+  vite: {
+    publicDir: fileURLToPath(new URL('../resources/static', import.meta.url)),
+  },
+
   themeConfig: {
+    logo: '/monocle.svg',
+
     nav: [
       { text: 'Documentation', link: '/docs/' },
       { text: 'Packagist', link: 'https://packagist.org/packages/exeque/laravel-monocle' },
