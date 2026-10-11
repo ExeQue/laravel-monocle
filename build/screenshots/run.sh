@@ -11,4 +11,4 @@ docker run --rm --network host \
     -e MONOCLE_URL="${MONOCLE_URL:-http://localhost:8000}" \
     -v "$PWD":/work -w /work \
     ghcr.io/puppeteer/puppeteer:latest \
-    node workbench/screenshots/shoot.cjs "$@"
+    node build/screenshots/shoot.cjs "$@"

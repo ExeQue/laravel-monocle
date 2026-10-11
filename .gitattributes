@@ -1,6 +1,7 @@
 * text=auto eol=lf
 *.jpg binary
 *.png binary
+*.webp binary
 
 /.gitattributes         export-ignore
 /.gitignore             export-ignore
@@ -13,6 +14,7 @@
 /docker-compose.yml     export-ignore
 /pint.json              export-ignore
 /workbench              export-ignore
+/build                  export-ignore
 /testbench.yaml         export-ignore
 /.vitepress             export-ignore
 /docs                   export-ignore

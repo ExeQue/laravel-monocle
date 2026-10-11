@@ -1,8 +1,8 @@
 // Takes the dashboard screenshots for the docs, in light and dark.
 // Each file in shots/ describes one picture; this script only runs them.
 //
-//   workbench/screenshots/run.sh              every shot
-//   workbench/screenshots/run.sh 17 lens-ai   only shots whose name starts with or contains these
+//   build/screenshots/run.sh              every shot
+//   build/screenshots/run.sh 17 lens-ai   only shots whose name starts with or contains these
 //
 // Captures are cleared before each demo runs, so every picture shows only
 // what its own demo recorded; the pictures of one demo are taken in parallel.
