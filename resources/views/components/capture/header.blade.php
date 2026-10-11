@@ -123,20 +123,23 @@
                 :data-label="t.label"
                 x-text="t.label"
             ></span>
-            <x-monocle::badge
-                count="t.count"
-                x-show="t.count"
-                ::class="
-                    t.errors && t.problems
-                        ? 'bg-[linear-gradient(90deg,var(--warn)_50%,var(--bad)_50%)] text-bg font-bold'
-                        : t.errors
-                          ? 'bg-bad-soft text-bad font-bold'
-                          : t.problems
-                            ? 'bg-warn-soft text-warn font-bold'
-                            : 'bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass'
-                "
-                ::data-tip="problemTip(t)"
-            />
+            <span class="relative inline-flex" x-show="t.count">
+                <x-monocle::badge
+                    count="t.count"
+                    ::class="
+                        t.errors
+                            ? 'bg-bad-soft text-bad font-bold'
+                            : t.problems
+                              ? 'bg-warn-soft text-warn font-bold'
+                              : 'bg-sunk text-muted group-aria-selected:bg-brass group-aria-selected:text-on-brass'
+                    "
+                    ::data-tip="problemTip(t)"
+                />
+                <span
+                    class="bg-warn ring-bg absolute -top-0.5 -right-0.5 size-1.5 rounded-full ring-2"
+                    x-show="t.errors && t.problems"
+                ></span>
+            </span>
             <span
                 class="size-1.5 rounded-full"
                 :class="t.errors ? 'bg-bad' : 'bg-warn'"
