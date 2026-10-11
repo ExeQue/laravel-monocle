@@ -416,6 +416,7 @@ Alpine.data('monocle', (config) => ({
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     let used = keys.filter((k) => rows.some((row) => !blank(row[k])));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
+    used = used.filter((k) => k !== 'rolled_back');
     return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
@@ -467,6 +468,7 @@ Alpine.data('monocle', (config) => ({
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'rule' in c)) {
       return v.map((c) => `<div><span class="font-mono">${esc(c.field)}</span> <span class="text-warn">${esc(c.rule)}${c.parameters?.length ? esc('(' + c.parameters.join(', ') + ')') : ''}</span>${c.message ? ` <span class="text-muted">${esc(c.message)}</span>` : ''}</div>`).join('');
     }
+    if (key === 'action' && row.rolled_back) return `${esc(v)} <span class="ml-1 whitespace-nowrap rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">rolled back</span>`;
     if (key === 'passed' && typeof v === 'boolean') return v ? '<span class="text-ok">passed</span>' : '<span class="font-medium text-warn">failed</span>';
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;

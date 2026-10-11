@@ -43,6 +43,25 @@ describe(EloquentLens::class, function (): void {
             ->and($changes[0]['origin']['file'])->toContain('EloquentLensTest.php');
     });
 
+    it('flags writes made inside a transaction that was rolled back', function (): void {
+        Thing::create(['name' => 'kept']);
+
+        try {
+            DB::transaction(function (): void {
+                Thing::create(['name' => 'never saved']);
+
+                throw new \RuntimeException('undo');
+            });
+        } catch (\RuntimeException) {
+        }
+
+        $changes = app(Eyepiece::class)->finalize()->rows('model_changes');
+
+        expect($changes[0])->not->toHaveKey('rolled_back')
+            ->and($changes[0]['connection'])->toBe(DB::getDefaultConnection())
+            ->and($changes[1]['rolled_back'])->toBeTrue();
+    });
+
     it('summarizes retrieved totals and the busiest models', function (): void {
         Thing::create(['name' => 'a']);
         Thing::query()->get();

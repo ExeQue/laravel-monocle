@@ -36,7 +36,7 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
 
     public function description(): string
     {
-        return 'Eloquent activity: one row per model class and action (retrieved, created, updated, deleted, restored, forceDeleted) with a count. Writes are also listed individually in the model_changes section with the model key and changes: one {field, from, to} per changed attribute (hidden attributes left out).';
+        return 'Eloquent activity: one row per model class and action (retrieved, created, updated, deleted, restored, forceDeleted) with a count. Writes are also listed individually in the model_changes section with the model key, the connection and changes: one {field, from, to} per changed attribute (hidden attributes left out); rolled_back is true when the write happened in a transaction that was rolled back.';
     }
 
     public function advice(): string
@@ -68,6 +68,8 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
         if ($rows !== []) {
             $capture->sections['models'] = $rows;
         }
+
+        $this->markRolledBack($capture);
     }
 
     public function reset(): void
@@ -118,7 +120,34 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
             'key' => $model->getKey(),
             'action' => $action,
             'changes' => $this->changes($model, $action),
+            'connection' => $model->getConnection()->getName(),
         ]);
+    }
+
+    /**
+     * Writes made inside a transaction that was rolled back never reached the
+     * database; flag them so the change list does not read as saved.
+     */
+    private function markRolledBack(Capture $capture): void
+    {
+        $rolledBack = array_filter(
+            $capture->spans,
+            fn ($span): bool => $span->kind === 'db.transaction' && ($span->meta['outcome'] ?? null) === 'rolled_back',
+        );
+
+        if ($rolledBack === [] || ! isset($capture->sections['model_changes'])) {
+            return;
+        }
+
+        foreach ($capture->sections['model_changes'] as $index => $row) {
+            foreach ($rolledBack as $span) {
+                if (($span->meta['connection'] ?? null) === ($row['connection'] ?? null) && $row['time'] >= $span->start && $row['time'] <= ($span->end ?? INF)) {
+                    $capture->sections['model_changes'][$index]['rolled_back'] = true;
+
+                    break;
+                }
+            }
+        }
     }
 
     /**
