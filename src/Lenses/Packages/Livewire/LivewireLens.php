@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -26,7 +27,7 @@ use Throwable;
  * methods called on them, property updates, render time and exceptions. A
  * Livewire request otherwise looks like a bare `POST /livewire/update`.
  */
-final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
+final class LivewireLens implements Advises, Finalizable, Lens, Presentable, RequiresPackages, Resettable, Summarizable
 {
     /** @var array<string, array<string, mixed>> */
     private array $components = [];
@@ -42,6 +43,11 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
     public function key(): string
     {
         return 'livewire';
+    }
+
+    public static function packages(): array
+    {
+        return ['livewire/livewire'];
     }
 
     public function description(): string

@@ -13,6 +13,7 @@ use ExeQue\Monocle\Lenses\DatabaseLens;
 use ExeQue\Monocle\LensRegistry;
 use Tests\Fixtures\CounterEvent;
 use Tests\Fixtures\CounterLens;
+use Tests\Fixtures\MissingPackageLens;
 
 covers(LensRegistry::class, LensAlreadyBootedException::class);
 
@@ -35,6 +36,18 @@ describe(LensRegistry::class, function (): void {
             ->and(CounterLens::$options)->toBe(['threshold' => 2])
             ->and(array_map(fn ($lens): string => $lens::class, $registry->booted()))->toBe([CounterLens::class, CacheLens::class])
             ->and($registry->descriptions())->toHaveKey('counter', 'Counts CounterEvent dispatches.');
+    });
+
+    it('leaves out lenses whose packages are not installed', function () use ($freshRegistry): void {
+        MissingPackageLens::$booted = 0;
+        $registry = $freshRegistry([MissingPackageLens::class => true, CacheLens::class => true]);
+        $registry->boot(app(Eyepiece::class));
+
+        expect(MissingPackageLens::$booted)->toBe(0)
+            ->and($registry->enabled())->toBe([CacheLens::class])
+            ->and($registry->descriptions())->not->toHaveKey('missing')
+            ->and(LensRegistry::available(MissingPackageLens::class))->toBeFalse()
+            ->and(LensRegistry::available(CacheLens::class))->toBeTrue();
     });
 
     it('lets facade registrations override config and runs finalize/reset', function () use ($freshRegistry): void {

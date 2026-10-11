@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle;
 
+use Composer\InstalledVersions;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -85,7 +87,29 @@ final class LensRegistry
      */
     public function enabled(): array
     {
-        return array_keys(array_filter($this->lenses(), fn (array|bool $options): bool => $options !== false));
+        return array_keys(array_filter(
+            $this->lenses(),
+            fn (array|bool $options, string $class): bool => $options !== false && self::available($class),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+    }
+
+    /**
+     * Whether the packages a lens records are installed.
+     */
+    public static function available(string $class): bool
+    {
+        if (! is_subclass_of($class, RequiresPackages::class)) {
+            return true;
+        }
+
+        foreach ($class::packages() as $package) {
+            if (! InstalledVersions::isInstalled($package)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function boot(Eyepiece $eyepiece): void
@@ -96,10 +120,8 @@ final class LensRegistry
 
         $this->isBooted = true;
 
-        foreach ($this->lenses() as $class => $options) {
-            if ($options === false) {
-                continue;
-            }
+        foreach ($this->enabled() as $class) {
+            $options = $this->lenses()[$class];
 
             /** @var Lens $lens */
             $lens = $this->app->make($class);

@@ -6,6 +6,7 @@ namespace Tests\Arch;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Exceptions\MonocleExceptionInterface;
 use ExeQue\Monocle\Lenses\ValidationLens;
 use ExeQue\Monocle\Support\Concerns\Immutable;
@@ -79,6 +80,19 @@ test('every lens implements Lens and Advises', function (): void {
         $class = 'ExeQue\Monocle\Lenses\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
         expect($class)->toImplement(Lens::class)->toImplement(Advises::class);
+    }
+});
+
+test('lenses for other packages say which packages they need', function (): void {
+    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src/Lenses/Packages')->name('*Lens.php');
+
+    expect($files)->not->toBeEmpty();
+
+    foreach ($files as $file) {
+        $class = 'ExeQue\Monocle\Lenses\Packages\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+
+        expect($class)->toImplement(RequiresPackages::class)
+            ->and($class::packages())->not->toBeEmpty();
     }
 });
 

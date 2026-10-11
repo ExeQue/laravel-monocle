@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -38,7 +39,7 @@ use Throwable;
  * tokens, prompt and response, nested agents linked through their parent
  * invocation.
  */
-final class AiLens implements Advises, Configurable, Lens, Presentable, Resettable, Summarizable
+final class AiLens implements Advises, Configurable, Lens, Presentable, RequiresPackages, Resettable, Summarizable
 {
     private ?int $maxText = null;
 
@@ -62,6 +63,11 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
     public function key(): string
     {
         return 'ai';
+    }
+
+    public static function packages(): array
+    {
+        return ['laravel/ai'];
     }
 
     public function description(): string

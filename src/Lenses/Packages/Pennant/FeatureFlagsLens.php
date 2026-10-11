@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Lenses\Packages\Pennant;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
@@ -24,7 +25,7 @@ use Laravel\Pennant\Events\UnknownFeatureResolved;
  * scope, the value it got and whether that came from storage or was resolved
  * just now. Explains why a request took one branch rather than another.
  */
-final class FeatureFlagsLens implements Advises, Lens, Presentable, Summarizable
+final class FeatureFlagsLens implements Advises, Lens, Presentable, RequiresPackages, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -34,6 +35,11 @@ final class FeatureFlagsLens implements Advises, Lens, Presentable, Summarizable
     public function key(): string
     {
         return 'features';
+    }
+
+    public static function packages(): array
+    {
+        return ['laravel/pennant'];
     }
 
     public function description(): string

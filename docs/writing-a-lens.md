@@ -189,6 +189,22 @@ final class PaymentsLens implements Advises, Lens
 - `Finalizable::finalize(Capture $capture)` - runs just before a capture is saved.
 - `Resettable::reset()` - runs after each capture, to clear anything you kept between events.
 
+## Lenses for other packages
+
+A lens that records another package implements `RequiresPackages` and names the Composer packages it needs. Unless all of them are installed, the lens is left out entirely - it does not boot, gets no tab and adds nothing to the summary - so it can be listed in the configuration of applications that do not use the package.
+
+```php
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
+
+final class StripeLens implements Lens, RequiresPackages
+{
+    public static function packages(): array
+    {
+        return ['stripe/stripe-php'];
+    }
+}
+```
+
 ## Extending the request lens
 
 The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. Write your own capture for responses that read better another way - an API error format, a GraphQL result, an export.

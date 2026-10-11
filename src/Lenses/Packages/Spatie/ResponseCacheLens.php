@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Lenses\Packages\Spatie;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
@@ -23,7 +24,7 @@ use Spatie\ResponseCache\Events\ResponseCacheHitEvent;
  * cache. On a hit the controller never ran, so a change to it shows nothing
  * until the cache entry expires or is cleared.
  */
-final class ResponseCacheLens implements Advises, Lens, Presentable, Summarizable
+final class ResponseCacheLens implements Advises, Lens, Presentable, RequiresPackages, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -33,6 +34,11 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, Summarizabl
     public function key(): string
     {
         return 'response_cache';
+    }
+
+    public static function packages(): array
+    {
+        return ['spatie/laravel-responsecache'];
     }
 
     public function description(): string
