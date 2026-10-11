@@ -42,4 +42,18 @@ describe(Masker::class, function (): void {
 
         expect($masker->headers(['X-Secret' => 'v']))->toBe(['X-Secret' => 'X-SECRET']);
     });
+
+    it('uses the mask configured per header and per cookie, with wildcards', function (): void {
+        $masker = new Masker(
+            ['authorization' => new FullMask(), 'x-api-*' => new PartialMask(), 'x-plain'],
+            '/pass/i',
+            fn (): string => 'default',
+            ['remember_*' => new FullMask(), 'XSRF-TOKEN'],
+        );
+
+        expect($masker->headers(['Authorization' => 'Bearer secret', 'X-Api-Key' => 'abcdefghijklmnop', 'X-Plain' => 'v', 'Accept' => 'a']))
+            ->toBe(['Authorization' => '********', 'X-Api-Key' => 'abcd****', 'X-Plain' => 'default', 'Accept' => 'a'])
+            ->and($masker->cookies(['remember_web_59ba' => 'secret', 'XSRF-TOKEN' => 'x', 'password_hint' => 'p', 'theme' => 'dark']))
+            ->toBe(['remember_web_59ba' => '********', 'XSRF-TOKEN' => 'default', 'password_hint' => 'default', 'theme' => 'dark']);
+    });
 });

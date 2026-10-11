@@ -424,7 +424,6 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
     private function cookies(Request $request): array
     {
         $masker = $this->eyepiece->masker();
-        $sensitive = [(string) $this->app->make('config')->get('session.cookie'), 'XSRF-TOKEN'];
         $cookies = [];
 
         $raw = $this->rawCookies($request);
@@ -435,10 +434,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
                 $value = Str::limit($raw[$name], 80);
             }
 
-            $cookies[$name] = in_array($name, $sensitive, true) ? $masker->mask($value, (string) $name) : $value;
+            $cookies[$name] = $value;
         }
 
-        return $masker->inputs($cookies);
+        return $masker->cookies($cookies);
     }
 
     /**

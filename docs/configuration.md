@@ -55,14 +55,31 @@ Paths and command names support `*`. By default the dashboards and assets of Tel
 ## Masking
 
 ```php
+use ExeQue\Monocle\Support\Masks\FullMask;
+use ExeQue\Monocle\Support\Masks\PartialMask;
+
 'mask' => [
-    'headers' => ['authorization', 'cookie', 'set-cookie', 'x-xsrf-token', 'x-csrf-token'],
+    'headers' => [
+        'authorization' => PartialMask::class,
+        'cookie' => FullMask::class,
+        'set-cookie' => FullMask::class,
+        'x-xsrf-token' => PartialMask::class,
+        'x-csrf-token' => PartialMask::class,
+    ],
+    'cookies' => [
+        'XSRF-TOKEN' => PartialMask::class,
+        'remember_*' => PartialMask::class,
+    ],
     'inputs' => '/pass|token|secret|authorization/i',
-    'using' => ExeQue\Monocle\Support\Masks\PartialMask::class,
+    'using' => PartialMask::class,
 ],
 ```
 
-The listed headers and any input whose name matches `inputs` are masked before they are stored. By default the first few characters stay visible, so you can tell which token was sent without seeing it: `Bear****`. Use `FullMask` to hide the whole value, or point `using` at your own class with an `__invoke($value, $key)` method.
+Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
+
+Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name.
+
+`PartialMask` keeps the first few characters visible, so you can tell which token was sent without seeing it: `Bear****`. `FullMask` hides the whole value. A mask can also be your own class with an `__invoke($value, $key)` method.
 
 ## `origin`
 

@@ -32,6 +32,7 @@ use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
 use ExeQue\Monocle\Lenses\ValidationLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
+use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
 return [
@@ -224,15 +225,27 @@ return [
     | Masking
     |--------------------------------------------------------------------------
     |
-    | Header names (lowercase) whose values are masked before storing, and a
-    | regular expression matched against input keys whose values are masked.
-    | `using` is an invokable class receiving ($value, $key) and returning the
-    | masked value; the default keeps the first four characters visible.
+    | Headers and cookies to mask before storing, each mapped to the mask to
+    | use (wildcards allowed, header names lowercase). The session cookie is
+    | always masked. Input keys matching the `inputs` expression are masked
+    | with `using`, which is also the mask for list entries without a class.
+    | A mask is an invokable receiving ($value, $key) and returning the
+    | masked value; PartialMask keeps the first four characters visible.
     |
     */
 
     'mask' => [
-        'headers' => ['authorization', 'cookie', 'set-cookie', 'x-xsrf-token', 'x-csrf-token'],
+        'headers' => [
+            'authorization' => PartialMask::class,
+            'cookie' => FullMask::class,
+            'set-cookie' => FullMask::class,
+            'x-xsrf-token' => PartialMask::class,
+            'x-csrf-token' => PartialMask::class,
+        ],
+        'cookies' => [
+            'XSRF-TOKEN' => PartialMask::class,
+            'remember_*' => PartialMask::class,
+        ],
         'inputs' => '/pass|token|secret|authorization/i',
         'using' => PartialMask::class,
     ],

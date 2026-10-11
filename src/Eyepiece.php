@@ -91,12 +91,15 @@ final class Eyepiece
 
     public function masker(): Masker
     {
-        $using = $this->config('mask.using', PartialMask::class);
+        $resolve = fn (mixed $mask): mixed => is_string($mask) && class_exists($mask) ? $this->app->make($mask) : $mask;
+        $resolveAll = fn (array $list): array => array_map($resolve, $list);
 
         return new Masker(
-            headers: array_map('strtolower', (array) $this->config('mask.headers', [])),
+            headers: $resolveAll((array) $this->config('mask.headers', [])),
             pattern: $this->config('mask.inputs'),
-            mask: is_callable($using) ? $using : $this->app->make($using),
+            mask: $resolve($this->config('mask.using', PartialMask::class)),
+            // The session cookie is always masked; a mask configured for it wins because it is matched first.
+            cookies: [...$resolveAll((array) $this->config('mask.cookies', [])), (string) $this->app->make('config')->get('session.cookie')],
         );
     }
 
