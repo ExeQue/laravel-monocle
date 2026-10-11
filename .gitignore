@@ -3,7 +3,6 @@
 composer.lock
 .phpunit.cache
 .phpunit.result.cache
-workbench/
 
 # VitePress
 node_modules/
@@ -15,3 +14,7 @@ node_modules/
 /*.monocle.lock
 /index.json
 /index.lock
+
+# Workbench demo application
+/workbench/database/database.sqlite
+/workbench/storage/

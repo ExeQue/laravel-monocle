@@ -52,7 +52,10 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Tests\\": "tests/",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
         }
     },
     "extra": {
@@ -78,10 +81,10 @@
             "@lint:blade"
         ],
         "lint:code": "vendor/bin/pint -p",
-        "lint:blade": "vendor/bin/pint --blade resources/views tests/Fixtures/views",
+        "lint:blade": "vendor/bin/pint --blade resources/views tests/Fixtures/views workbench/resources/views",
         "lint:test": [
             "vendor/bin/pint -p --test",
-            "vendor/bin/pint --blade --test resources/views tests/Fixtures/views"
+            "vendor/bin/pint --blade --test resources/views tests/Fixtures/views workbench/resources/views"
         ],
         "pre-commit": [
             "@composer lint",
@@ -93,6 +96,12 @@
         ],
         "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
-        "test:coverage": "vendor/bin/pest -p --coverage --min=90"
+        "test:coverage": "vendor/bin/pest -p --coverage --min=90",
+        "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "serve": [
+            "Composer\\Config::disableProcessTimeout",
+            "@build",
+            "@php vendor/bin/testbench serve --ansi --host=0.0.0.0 --port=8000"
+        ]
     }
 }

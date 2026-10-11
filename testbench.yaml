@@ -1,14 +1,50 @@
 laravel: '@testbench'
 
 providers:
+  - Laravel\Mcp\Server\McpServiceProvider
+  - Laravel\Ai\AiServiceProvider
+  - Livewire\LivewireServiceProvider
+  - Laravel\Pennant\PennantServiceProvider
+  - Spatie\ResponseCache\ResponseCacheServiceProvider
+  - Spatie\MediaLibrary\MediaLibraryServiceProvider
+  - Laravel\Sanctum\SanctumServiceProvider
+  - Laravel\Folio\FolioServiceProvider
+  - Inertia\ServiceProvider
   - ExeQue\Monocle\MonocleServiceProvider
+  - Workbench\App\Providers\WorkbenchServiceProvider
+
+migrations:
+  - workbench/database/migrations
+
+seeders:
+  - Workbench\Database\Seeders\DatabaseSeeder
+
+env:
+  - APP_NAME="Monocle Demo"
+  - APP_ENV=local
+  - APP_DEBUG=true
+  - APP_KEY=base64:akJ7vn9BpDVeT/oS+fyl2B768eJ8u6vBKsm6C5/94pk=
+  - APP_URL=http://localhost:8000
+  - AUTH_MODEL=Workbench\App\Models\User
+  - DB_CONNECTION=sqlite
+  - CACHE_STORE=file
+  - SESSION_DRIVER=file
+  - QUEUE_CONNECTION=sync
+  - MAIL_MAILER=log
+  - PENNANT_STORE=array
+  - RESPONSE_CACHE_DRIVER=file
+  - MONOCLE_ENABLED=true
 
 workbench:
+  start: '/'
   install: false
+  health: false
   discovers:
-    web: false
-    api: false
+    web: true
+    api: true
     commands: false
     components: false
-    factories: false
-    views: false
+    factories: true
+    views: true
+  build:
+    - migrate-fresh

@@ -19,3 +19,13 @@ services:
     volumes:
       - .:/var/www/html
     entrypoint: [ "vendor/bin/testbench" ]
+  serve:
+    extends:
+      service: php
+    volumes:
+      - .:/var/www/html
+    environment:
+      - COMPOSER_HOME=/tmp/composer
+    ports:
+      - "8000:8000"
+    entrypoint: [ "composer", "serve" ]

@@ -39,3 +39,19 @@ Gate::define('viewMonocle', fn ($user = null) => $user?->isAdmin() ?? false);
 | `middleware` | middleware for the dashboard and its API |
 
 Requests to the dashboard are not recorded.
+
+## Demo application
+
+The repository ships a small demo application for trying Monocle without an app of your own. From a clone of the repository, run:
+
+```bash
+composer serve
+```
+
+or, with Docker:
+
+```bash
+docker compose up serve
+```
+
+Then open [http://localhost:8000](http://localhost:8000). The start page lists every demo, one or more per lens, with a short description. Trigger one and open the dashboard at `/_monocle` to inspect the capture it recorded. The database is rebuilt and seeded each time the server starts; the seeded users share the password `password`.
