@@ -94,6 +94,9 @@
         'laravel/ai' => [
             ['GET', '/demo/ai', 'Agent call', 'Prompts a faked agent, no network needed.'],
         ],
+        'prism-php/prism' => [
+            ['GET', '/demo/prism', 'Prism text call', 'Prompts a faked Prism provider, no network needed.'],
+        ],
         'MCP' => [
             ['GET', '/demo/mcp', 'MCP tool call', 'Calls a tool on a small web MCP server.'],
         ],

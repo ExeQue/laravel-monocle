@@ -21,6 +21,9 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Laravel\Pennant\Feature;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\Testing\TextResponseFake;
+use Prism\Prism\ValueObjects\Usage;
 use Spatie\ResponseCache\Facades\ResponseCache;
 use Spatie\ResponseCache\Middlewares\CacheResponse;
 use Workbench\App\Ai\Greeter;
@@ -454,6 +457,14 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         return $result('Agent call', (string) (new Greeter())->prompt('Say hi to Ada'));
     })->name('ai');
+
+    Route::get('prism', function () use ($result): View {
+        Prism::fake([
+            TextResponseFake::make()->withText('Hello Ada, lovely to meet you!')->withUsage(new Usage(12, 9)),
+        ]);
+
+        return $result('Prism text call', Prism::text()->using('openai', 'gpt-4o')->withPrompt('Say hi to Ada')->asText()->text);
+    })->name('prism');
 
     Route::get('mcp', fn (): View => view('fetch', [
         'title' => 'MCP tool call',

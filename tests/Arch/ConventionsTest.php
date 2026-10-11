@@ -43,7 +43,7 @@ arch('exceptions implement the package exception interface')
 // ValidationLens recognises Livewire components as a validation source behind a class_exists() guard.
 arch('core lenses do not depend on optional packages')
     ->expect('ExeQue\Monocle\Lenses')
-    ->not->toUse(['Livewire', 'Inertia', 'Laravel\Ai', 'Laravel\Mcp', 'Laravel\Pennant', 'Spatie'])
+    ->not->toUse(['Livewire', 'Inertia', 'Laravel\Ai', 'Laravel\Mcp', 'Laravel\Pennant', 'Prism', 'Spatie'])
     ->ignoring(['ExeQue\Monocle\Lenses\Packages', ValidationLens::class]);
 
 test('immutables are final readonly classes built only through their own methods', function (): void {

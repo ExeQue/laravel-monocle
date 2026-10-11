@@ -45,6 +45,7 @@ These record something only when the package is installed; otherwise they do not
 | Package | Lens | Section | Records |
 |---|---|---|---|
 | [Inertia](https://inertiajs.com) | [Inertia](#inertia) | `request` | the page component and its props |
+| [Prism](https://prismphp.com) | [Prism](#prism) | `prism` | text, structured, stream, embeddings, image and audio calls with tokens |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
 | [Laravel Folio](https://laravel.com/docs/folio) | [Folio](#folio) | `request` | the page file a request matched |
@@ -272,6 +273,16 @@ Warning: `dd()` ended the process before the response was sent.
 ### Inertia
 
 Inertia responses are shown as a card on the Request tab: the component, its props and, on a partial reload, which props were asked for. This works for Inertia visits and for the page embedded in the first load.
+
+### Prism
+
+Section `prism`: calls made with `prism-php/prism` - operation (text, structured, stream, embeddings, images, moderation, text to speech, speech to text), provider, model, prompt, response, structured output, finish reason, steps, tool calls, the tools offered, tokens, duration and status. Each call is shown in the timeline; a stream shows its steps. A stream that is not read to the end has the status `abandoned`. The HTTP requests Prism sends to the provider are in the `http` section too.
+
+Needs `prism-php/prism`. Calls made with `Prism::fake()` are recorded as well.
+
+Error: a call that failed, or a tool that failed during a stream.
+
+Option: `max_text` (no limit) - shorten long prompts and responses.
 
 ### Laravel
 

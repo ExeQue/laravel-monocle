@@ -3,6 +3,7 @@ laravel: '@testbench'
 providers:
   - Laravel\Mcp\Server\McpServiceProvider
   - Laravel\Ai\AiServiceProvider
+  - Prism\Prism\PrismServiceProvider
   - Livewire\LivewireServiceProvider
   - Laravel\Pennant\PennantServiceProvider
   - Spatie\ResponseCache\ResponseCacheServiceProvider

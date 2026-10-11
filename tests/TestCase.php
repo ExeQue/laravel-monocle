@@ -39,6 +39,7 @@ abstract class TestCase extends BaseTestCase
         return [
             McpServiceProvider::class,
             AiServiceProvider::class,
+            \Prism\Prism\PrismServiceProvider::class,
             LivewireServiceProvider::class,
             \Laravel\Pennant\PennantServiceProvider::class,
             \Spatie\ResponseCache\ResponseCacheServiceProvider::class,

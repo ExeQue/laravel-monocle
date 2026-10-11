@@ -22,6 +22,7 @@ use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Packages\Mcp\McpLens;
 use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
+use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
 use ExeQue\Monocle\Lenses\QueueLens;
@@ -151,6 +152,11 @@ return [
 
         // laravel/ai
         AiLens::class => [
+            'max_text' => null,                     // null = never truncate prompts and responses
+        ],
+
+        // prism-php/prism
+        PrismLens::class => [
             'max_text' => null,                     // null = never truncate prompts and responses
         ],
 
@@ -367,6 +373,7 @@ return [
             ViewsLens::class,
             HttpClientLens::class,
             AiLens::class,
+            PrismLens::class,
             FilesystemLens::class,
             MediaLibraryLens::class,
             QueueLens::class,
