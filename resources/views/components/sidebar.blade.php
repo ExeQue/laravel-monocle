@@ -27,21 +27,32 @@
         @click="listOpen = ! listOpen"
         :aria-expanded="listOpen"
     >
-        <span
-            ><span class="font-medium">Captures</span> <span class="text-muted" x-text="'(' + total + ')'"></span
+        <span><span class="font-medium">Captures</span>
+            <span class="text-muted" x-text="'(' + (filters.q ? captures.length + ' of ' + total : total) + ')'"></span
         ></span>
         <svg class="text-brass size-4 transition-transform duration-200" :class="listOpen && 'rotate-180'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6" /></svg>
     </button>
     <div class="flex min-h-0 flex-1 flex-col" x-show="wide || ! selectedId || listOpen" x-collapse>
         <div class="border-line flex flex-col gap-2.5 border-b px-4 py-3">
-            <input
-                class="border-line bg-bg text-fg w-full rounded-md border px-2.5 py-2"
-                id="monocle-search"
-                type="search"
-                placeholder="Filter by path or name"
-                aria-label="Filter captures"
-                x-model.debounce.300ms="filters.q"
-            />
+            <div class="relative">
+                <input
+                    class="border-line bg-bg text-fg w-full rounded-md border py-2 pr-16 pl-2.5"
+                    id="monocle-search"
+                    type="search"
+                    placeholder="Filter: name, #kind, @route, $section"
+                    aria-label="Filter captures"
+                    x-model.debounce.300ms="filters.q"
+                />
+                <button
+                    type="button"
+                    class="border-line text-muted hover:text-fg absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded border px-1.5 font-mono text-[11px]"
+                    data-tip="Go to a tab or capture"
+                    aria-label="Open the command palette"
+                    @click="openPalette()"
+                >
+                    <kbd x-text="paletteShortcut"></kbd>
+                </button>
+            </div>
             <div class="flex flex-wrap gap-1.5" role="group" aria-label="Capture type">
                 <template
                     x-for="

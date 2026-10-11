@@ -54,9 +54,42 @@ const fuzzyScore = (query, text) => {
   return (at - first) + first / 10;
 };
 
+/** The lowest of some scores, ignoring nulls; null when there are none. */
+const lowest = (scores) => scores.reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
+
+/**
+ * A search as a function scoring an entry ({ label, route, status, kind, sections }), lower
+ * is closer and null is no match; null itself when there is nothing to search for.
+ * "|" splits the search into alternatives, and the words on each side must all match:
+ * "404 demo" finds 404s under /demo. "#req" matches the kind only, "@users" the route name
+ * only, "$live" a section by its key or tab name; other words the name, route, status and kind.
+ */
+const searchMatcher = (query) => {
+  const alternatives = String(query ?? '').toLowerCase().split('|')
+    .map((side) => side.split(/\s+/).filter((word) => word.replace(/^[#$@]/, '')))
+    .filter((words) => words.length);
+  if (!alternatives.length) return null;
+
+  const best = (needle, haystacks) => lowest(haystacks.map((haystack) => fuzzyScore(needle, String(haystack).toLowerCase())));
+  const allOf = (entry, words) => {
+    const text = `${entry.label} ${entry.route ?? ''} ${entry.status ?? ''} ${entry.kind}`;
+    let total = 0;
+    for (const word of words) {
+      const fields = { '#': [entry.kind], $: entry.sections ?? [], '@': entry.route ? [entry.route] : [] }[word[0]] ?? [text];
+      const score = best(word.replace(/^[#$@]/, ''), fields);
+      if (score === null) return null;
+      total += score;
+    }
+    return total;
+  };
+
+  return (entry) => lowest(alternatives.map((words) => allOf(entry, words)));
+};
+
 Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   api: config.api,
-  captures: [],
+  /** The captures the server returned; `captures` is what the search field leaves of them. */
+  loaded: [],
   total: 0,
   filters: { type: '', q: '', errors: false },
   hidden: hiddenNames.get(),
@@ -141,17 +174,16 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   async load(quiet = false) {
     const params = new URLSearchParams({ limit: 200 });
     if (this.filters.type) params.set('type', this.filters.type);
-    if (this.filters.q) params.set('uri', this.filters.q);
     if (this.filters.errors) params.set('has_errors', '1');
     this.hidden.forEach((name) => params.append('exclude[]', name));
     try {
       const result = await this.fetchJson(`${this.api}?${params}`);
-      this.captures = result.rows;
+      this.loaded = result.rows;
       this.total = result.total;
       this.error = null;
       // A filtered list hides captures on purpose; only an unfiltered or empty one means it may be gone.
-      const filtered = this.filters.type || this.filters.q || this.filters.errors || this.hidden.length;
-      if (this.selectedId && (!filtered || !this.captures.length) && !this.captures.some((c) => c.id === this.selectedId)) await this.dropIfGone();
+      const filtered = this.filters.type || this.filters.errors || this.hidden.length;
+      if (this.selectedId && (!filtered || !this.loaded.length) && !this.loaded.some((c) => c.id === this.selectedId)) await this.dropIfGone();
       if (!this.selectedId && this.captures[0]) this.select(this.captures[0].id);
       else if (!quiet && this.selectedId && !this.capture) this.select(this.selectedId, this.tab);
     } catch (e) {
@@ -194,7 +226,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   },
 
   duration(capture) {
-    const row = this.captures.find((c) => c.id === capture.id);
+    const row = this.loaded.find((c) => c.id === capture.id);
     return row?.duration ?? 0;
   },
 
@@ -324,6 +356,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   /** The command palette: quick actions, a tab of the open capture, or another capture. */
   palette: { open: false, query: '', index: 0, confirmClear: false },
 
+  /** The key that opens the palette, as this machine names it. */
+  paletteShortcut: /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K',
+
   openPalette() {
     this.palette = { open: true, query: '', index: 0, confirmClear: false };
     this.$nextTick(() => document.getElementById('monocle-palette-input')?.focus());
@@ -336,14 +371,14 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   /**
    * Entries in groups, in this order: quick actions (the latest capture of each type, then
-   * clearing), tabs, then captures by type. With a query, each group keeps the entries where
-   * every word's letters appear in order in the name, route name, status or kind, closest first.
+   * clearing), tabs, then captures by type. With a query (see searchMatcher), each group keeps
+   * its matching entries, closest first.
    */
   get paletteItems() {
     const types = ['request', 'command', 'job', 'mcp'];
     const typeName = (type) => (type === 'mcp' ? 'MCP call' : type);
     const groupOf = { request: 'Requests', command: 'Commands', job: 'Jobs', mcp: 'MCP' };
-    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, route: c.route, sections: Object.keys(c.counts ?? {}).flatMap((key) => [key, config.labels?.[key] ?? humanize(key)]), run: () => this.select(c.id, this.tab) });
+    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ ...this.captureEntry(c), id: `${group}:${c.id}`, group, label, hint, run: () => this.select(c.id, this.tab) });
 
     const quick = types
       .map((type) => this.captures.find((c) => c.type === type))
@@ -365,38 +400,15 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: 'Tabs', kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
     const byType = types.flatMap((type) => this.captures.filter((c) => c.type === type).map((c) => capture(c, groupOf[type])));
 
-    // "|" splits the search into alternatives; the words on each side must all match.
-    const alternatives = this.palette.query.toLowerCase().split('|')
-      .map((side) => side.split(/\s+/).filter((word) => word.replace(/^[#$@]/, '')))
-      .filter((words) => words.length);
-    if (!alternatives.length) {
+    const match = searchMatcher(this.palette.query);
+    if (!match) {
       const shown = {};
       return [...quick, ...tabs, ...byType.filter((item) => (shown[item.group] = (shown[item.group] ?? 0) + 1) <= 5)];
     }
 
     const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
-    // Every word has to match: "404 demo" finds 404s under /demo. "#req" matches the kind only, "@users.index" the route name only,
-    // "$live" a section the capture has, by its key or the name its tab shows (livewire, "Model changes").
-    const best = (needle, haystacks) => haystacks
-      .map((haystack) => fuzzyScore(needle, haystack.toLowerCase()))
-      .reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
-    const allOf = (item, words) => {
-      const text = `${item.label} ${item.route ?? ''} ${item.status ?? ''} ${item.kind}`;
-      let total = 0;
-      for (const word of words) {
-        const needle = word.replace(/^[#$@]/, '');
-        const fields = { '#': [item.kind], $: item.sections ?? [], '@': item.route ? [item.route] : [] }[word[0]] ?? [text];
-        const score = best(needle, fields);
-        if (score === null) return null;
-        total += score;
-      }
-      return total;
-    };
-    const scoreOf = (item) => alternatives
-      .map((words) => allOf(item, words))
-      .reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
     return [...quick, ...tabs, ...byType]
-      .map((item) => ({ item, score: scoreOf(item) }))
+      .map((item) => ({ item, score: match(item) }))
       .filter((match) => match.score !== null)
       .sort((a, b) => groups.indexOf(a.item.group) - groups.indexOf(b.item.group) || a.score - b.score)
       .map((match) => match.item)
@@ -423,6 +435,23 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     // An entry that returns true keeps the palette open (clearing asks first).
     if (item.run() === true) return;
     this.closePalette();
+  },
+
+  /** A capture as the search sees it: name, route, status, kind and its sections by key and tab name. */
+  captureEntry(c) {
+    return {
+      label: c.name,
+      route: c.route,
+      status: c.status,
+      kind: shortType(c.type),
+      sections: Object.keys(c.counts ?? {}).flatMap((key) => [key, config.labels?.[key] ?? humanize(key)]),
+    };
+  },
+
+  /** The loaded captures the search field matches, newest first, with the palette's syntax. */
+  get captures() {
+    const match = searchMatcher(this.filters.q);
+    return match ? this.loaded.filter((c) => match(this.captureEntry(c)) !== null) : this.loaded;
   },
 
   get summary() { return this.capture?.summary ?? {}; },
