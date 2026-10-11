@@ -15,10 +15,11 @@ use ExeQue\Monocle\Support\Concerns\Immutable;
 use ReflectionClass;
 use Symfony\Component\Finder\Finder;
 
-// Recording where a call came from is what a profiler does.
-arch()->preset()->php()->ignoring('debug_backtrace');
+// Recording where a call came from is what a profiler does. The demos call dump(),
+// tempnam() and the like on purpose, to have something to record.
+arch()->preset()->php()->ignoring(['debug_backtrace', 'Workbench\App\Http\Controllers\Demos']);
 
-arch()->preset()->security();
+arch()->preset()->security()->ignoring('Workbench\App\Http\Controllers\Demos');
 
 arch('every file declares strict types')
     ->expect('ExeQue\Monocle')
