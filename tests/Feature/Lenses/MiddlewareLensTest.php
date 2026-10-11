@@ -55,6 +55,22 @@ describe(MiddlewareLens::class, function (): void {
             ->and(latestCapture()->spans)->not->toHaveKey('controller');
     });
 
+    it('lists every middleware in order with its time before and after the rest of the request', function (): void {
+        $this->get('/timed')->assertOk();
+
+        $rows = collect(latestCapture()->rows('middleware'))->keyBy(fn (array $row): string => class_basename($row['middleware']));
+
+        expect($rows['SleepBefore'])->toMatchArray(['parameters' => ['5'], 'group' => 'route', 'passed' => true, 'short_circuited_with' => null])
+            ->and($rows['SleepBefore']['request_ms'])->toBeGreaterThanOrEqual(4)
+            ->and($rows['SleepAfter']['response_ms'])->toBeGreaterThanOrEqual(4)
+            ->and($rows['SleepAfter']['own_ms'])->toBe(round($rows['SleepAfter']['request_ms'] + $rows['SleepAfter']['response_ms'], 3))
+            ->and($rows->keys()->search('SleepBefore'))->toBeLessThan($rows->keys()->search('SleepAfter'));
+
+        $this->get('/aborted')->assertStatus(418);
+
+        expect(collect(latestCapture()->rows('middleware'))->firstWhere('middleware', Abort::class))->toMatchArray(['passed' => false, 'short_circuited_with' => 418, 'response_ms' => null]);
+    });
+
     it('splits middleware time into a request and a response phase', function (): void {
         $this->get('/timed')->assertOk();
 

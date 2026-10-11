@@ -8,10 +8,12 @@ use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
@@ -32,7 +34,7 @@ use Throwable;
  * ponytail: closure middleware and instances created outside the container
  * are not timed.
  */
-final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, Summarizable
+final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, Presentable, Summarizable
 {
     private Application $app;
 
@@ -59,7 +61,7 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
 
     public function description(): string
     {
-        return 'Two timeline spans per class-based middleware: middleware.request (the work done before it called $next, with passed=false and the HTTP status when it short-circuited) and middleware.response (the work done once $next returned). Use kinds=[middleware] on the timeline.';
+        return 'One row per class-based middleware, in the order the request passed through them: middleware (class), parameters, group, request_ms (work before it called $next), response_ms (work once $next returned), own_ms, passed (false when it short-circuited) and short_circuited_with (the HTTP status). The same work is in the timeline as middleware.request and middleware.response spans.';
     }
 
     public function advice(): string
@@ -91,6 +93,44 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
                 }
             }
         });
+    }
+
+    /**
+     * One row per middleware the request passed through, in order, from its
+     * request and response spans.
+     */
+    public function finalize(Capture $capture): void
+    {
+        $responses = [];
+
+        foreach ($capture->spansOfKind('middleware.response') as $span) {
+            $responses[$span->name][] = $span;
+        }
+
+        $rows = [];
+
+        foreach ($capture->spansOfKind('middleware.request') as $request) {
+            $responses[$request->name] ??= [];
+            $response = array_shift($responses[$request->name]);
+            $before = round($request->duration() ?? 0.0, 3);
+            $after = $response instanceof Span ? round($response->duration() ?? 0.0, 3) : null;
+
+            $rows[] = [
+                'n' => count($rows) + 1,
+                'middleware' => $request->meta['class'] ?? $request->name,
+                'parameters' => $request->meta['parameters'] ?? [],
+                'group' => $request->meta['group'] ?? null,
+                'request_ms' => $before,
+                'response_ms' => $after,
+                'own_ms' => round($before + ($after ?? 0.0), 3),
+                'passed' => $request->meta['passed'] ?? true,
+                'short_circuited_with' => $request->meta['short_circuited_with'] ?? null,
+            ];
+        }
+
+        if ($rows !== []) {
+            $capture->sections['middleware'] = $rows;
+        }
     }
 
     public function summarize(Capture $capture): Summary
@@ -207,6 +247,10 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.middleware');
+        return Presentation::table()
+            ->tab('monocle::tabs.middleware')
+            ->columns(['middleware', 'group', 'request_ms' => 'Before', 'response_ms' => 'After', 'own_ms' => 'Own time', 'passed'])
+            ->detailsOnly(['parameters', 'short_circuited_with'])
+            ->groupBy(['group' => 'by group']);
     }
 }
