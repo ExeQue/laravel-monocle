@@ -89,3 +89,31 @@ export function linkText(text, links = {}) {
   }
   return out + esc(text.slice(last));
 }
+
+/** Response capture cards: a title, an optional subtitle and named items. */
+export function cardsHtml(cards) {
+  return `<div class="grid gap-3">${(cards ?? []).map((card) => `<div class="overflow-hidden rounded-md border border-line bg-panel">
+    <div class="flex flex-wrap items-baseline gap-x-2 border-b border-line bg-sunk px-3 py-2"><b class="text-[13px]">${esc(card.title ?? '')}</b><span class="font-mono text-[11px] text-muted">${esc(card.subtitle ?? '')}</span></div>
+    <dl class="m-0">${Object.entries(card.items ?? {}).map(([k, v]) => `<div class="grid gap-1 border-b border-line px-3 py-2 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-3"><dt class="text-xs text-muted">${esc(humanize(k))}</dt><dd class="m-0 min-w-0 font-mono text-xs [overflow-wrap:anywhere]">${cardValue(v, k)}</dd></div>`).join('') || '<p class="m-0 px-3 py-2 text-xs text-muted">Nothing happened in this component.</p>'}</dl>
+  </div>`).join('')}</div>`;
+}
+
+/**
+ * HTML rendered on the server (a lens's details view), finished like the rest of the dashboard:
+ * class names and paths shortened and linked, capture cards drawn.
+ */
+export function hydrate(html) {
+  const root = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html').body.firstElementChild;
+  root.querySelectorAll('[data-monocle-name]').forEach((el) => {
+    const text = el.textContent ?? '';
+    const extra = el.dataset.class ?? '';
+    // data-full keeps the whole name (details show full class names); otherwise it is shortened like everywhere else.
+    el.outerHTML = 'full' in el.dataset
+      ? (el.dataset.link ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(el.dataset.link)}">${esc(text)}</a>` : `<span class="${extra}">${esc(text)}</span>`)
+      : maybeLink(text, el.dataset.link, extra);
+  });
+  root.querySelectorAll('[data-monocle-cards]').forEach((el) => {
+    try { el.outerHTML = cardsHtml(JSON.parse(el.dataset.monocleCards)); } catch { /* not cards */ }
+  });
+  return root.innerHTML;
+}

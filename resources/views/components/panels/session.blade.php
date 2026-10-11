@@ -6,8 +6,8 @@
                 <span>Driver <b class="text-fg font-mono" x-text="session.driver"></b></span>
                 <span
                     >Session <b class="text-fg font-mono" x-text="session.id"></b>
-                    <span x-html="copyButton(session.id ?? '', 'session id')"></span
-                ></span>
+                    <x-monocle::copy bind="session.id ?? ''" what="session id" />
+                </span>
                 <span x-show="session.flash?.length"
                     >Flashed for the next request: <b class="text-fg font-mono" x-text="session.flash?.join(', ')"></b
                 ></span>

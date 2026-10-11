@@ -24,11 +24,10 @@
                             x-html="dottedKey(k)"
                         ></td>
                     @endif
-                    <td
-                        :class="cls.td"
-                        class="group/copy font-mono text-xs"
-                        x-html="{{ $value }} + ' ' + copyButton(copyText(v), k, { hover: true })"
-                    ></td>
+                    <td :class="cls.td" class="group/copy font-mono text-xs">
+                        <span x-html="{{ $value }}"></span>
+                        <x-monocle::copy bind="copyText(v)" what-bind="k" hover />
+                    </td>
                 </tr>
             </template>
         </tbody>

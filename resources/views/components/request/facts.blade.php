@@ -3,7 +3,7 @@
     <h3 :class="cls.sectionTitle" class="mb-0">Request</h3>
     <p class="m-0 font-mono text-[13px] [overflow-wrap:anywhere]">
         <b x-text="request.method"></b> <span x-text="readableUrl(request.url)"></span>
-        <span x-html="copyButton(request.url, 'url')"></span>
+        <x-monocle::copy bind="request.url" what="url" />
     </p>
     <dl class="m-0 grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[160px_minmax(0,1fr)]">
         <template
@@ -18,10 +18,10 @@
         >
             <div class="contents">
                 <dt class="text-muted" x-text="k"></dt>
-                <dd
-                    class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]"
-                    x-html="linked(v, path) + ' ' + copyButton(String(v), k.toLowerCase(), { hover: true })"
-                ></dd>
+                <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
+                    <span x-html="linked(v, path)"></span>
+                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" hover />
+                </dd>
             </div>
         </template>
         <template x-if="authUser">
@@ -46,10 +46,10 @@
         >
             <div class="contents">
                 <dt class="text-muted" x-text="k"></dt>
-                <dd
-                    class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]"
-                    x-html="linked(v, path) + ' ' + copyButton(String(v), k.toLowerCase(), { hover: true })"
-                ></dd>
+                <dd class="group/copy m-0 font-mono text-xs [overflow-wrap:anywhere]">
+                    <span x-html="linked(v, path)"></span>
+                    <x-monocle::copy bind="String(v)" what-bind="k.toLowerCase()" hover />
+                </dd>
             </div>
         </template>
     </dl>

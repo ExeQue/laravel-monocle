@@ -37,7 +37,7 @@
                                         class="block font-mono text-xs [overflow-wrap:anywhere]"
                                         x-html="g.html"
                                     ></code>
-                                    <span x-html="copyButton(g.key, rowGroup, { hover: true })"></span>
+                                    <x-monocle::copy bind="g.key" what-bind="rowGroup" hover />
                                 </span>
                                 <span x-html="originHtml(g.origin)"></span>
                             </div>

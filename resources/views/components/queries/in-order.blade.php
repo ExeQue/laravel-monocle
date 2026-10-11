@@ -33,13 +33,7 @@
                                 class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
                                 x-text="q.sql_with_bindings ?? q.sql"
                             ></code>
-                            <span
-                                x-html="
-                                    copyButton(q.sql_with_bindings ?? q.sql, 'query', {
-                                        hover: true,
-                                    })
-                                "
-                            ></span>
+                            <x-monocle::copy bind="q.sql_with_bindings ?? q.sql" what="query" hover />
                         </span>
                         <span class="mt-1 flex flex-wrap items-center gap-2">
                             <span x-html="originHtml(q.origin)"></span>

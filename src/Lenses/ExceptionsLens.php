@@ -130,6 +130,7 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
     public function presentation(): Presentation
     {
         return Presentation::table()
-            ->groupBy(['class' => 'by exception']);
+            ->groupBy(['class' => 'by exception'])
+            ->details('monocle::details.exception');
     }
 }

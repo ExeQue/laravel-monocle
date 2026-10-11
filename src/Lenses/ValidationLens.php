@@ -258,6 +258,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
     public function presentation(): Presentation
     {
         return Presentation::table()
-            ->detailsOnly(['input']);
+            ->detailsOnly(['input'])
+            ->details('monocle::details.validation');
     }
 }

@@ -46,13 +46,11 @@
                                         'mt-0.5 text-muted'"
                                         x-text="groupBy === 'shape' ? q.key : (q.example ?? q.key)"
                                     ></code>
-                                    <span
-                                        x-html="
-                                            copyButton(groupBy === 'shape' ? q.key : (q.example ?? q.key), 'query', {
-                                                hover: true,
-                                            })
-                                        "
-                                    ></span>
+                                    <x-monocle::copy
+                                        bind="groupBy === 'shape' ? q.key : (q.example ?? q.key)"
+                                        what="query"
+                                        hover
+                                    />
                                 </span>
                                 <span x-html="originHtml(q.origin)"></span>
                             </div>
@@ -89,15 +87,11 @@
                                                         queryRows[n]?.sql_with_bindings ?? queryRows[n]?.sql ?? '...'
                                                     "
                                                 ></code>
-                                                <span
-                                                    x-html="
-                                                        copyButton(
-                                                            queryRows[n]?.sql_with_bindings ?? queryRows[n]?.sql ?? '',
-                                                            'query',
-                                                            { hover: true },
-                                                        )
-                                                    "
-                                                ></span>
+                                                <x-monocle::copy
+                                                    bind="queryRows[n]?.sql_with_bindings ?? queryRows[n]?.sql ?? ''"
+                                                    what="query"
+                                                    hover
+                                                />
                                             </span>
                                             <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
                                             <span

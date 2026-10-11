@@ -15,8 +15,12 @@ use ExeQue\Monocle\MonocleServiceProvider;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
+use LogicException;
+use RuntimeException;
 use Tests\Fixtures\PaymentsLens;
 use Tests\TestCase;
 
@@ -75,6 +79,31 @@ describe('dashboard', function (): void {
             $this->getJson('/_monocle/api/captures')->assertOk();
 
             expect(latestCapture())->toBeNull();
+        });
+    });
+
+    describe('built-in detail views', function (): void {
+        it('renders http calls, validations and exceptions on the server', function (): void {
+            Http::fake(['api.example.test/*' => Http::response(['ok' => true], 201)]);
+            Route::get('/busy', function () {
+                Http::withToken('secret-token-123')->post('https://api.example.test/orders', ['sku' => 'A1']);
+                Validator::make(['name' => 'Ada'], ['name' => 'required|string'])->validate();
+                report(new RuntimeException('outer', 0, new LogicException('inner')));
+
+                return 'ok';
+            });
+
+            $this->get('/busy')->assertOk();
+            $id = latestCapture()->id;
+
+            $http = $this->getJson("/_monocle/api/captures/{$id}/rows/http/1/details")->assertOk()->json('html');
+            $validation = $this->getJson("/_monocle/api/captures/{$id}/rows/validation/1/details")->assertOk()->json('html');
+            $exception = $this->getJson("/_monocle/api/captures/{$id}/rows/exceptions/1/details")->assertOk()->json('html');
+
+            expect($http)->toContain('https://api.example.test/orders', 'Request headers', 'data-monocle-cards', 'Bearer secr****')
+                ->not->toContain('secret-token-123')
+                ->and($validation)->toContain('name', 'required', 'Ada', 'passed')
+                ->and($exception)->toContain('RuntimeException', 'outer', 'LogicException', 'inner', 'data-full');
         });
     });
 

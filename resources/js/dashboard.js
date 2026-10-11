@@ -534,13 +534,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (!(key in this.customDetails)) {
       this.customDetails[key] = '<p class="text-xs text-muted">Loading...</p>';
       this.fetchJson(`${this.api}/${encodeURIComponent(this.selectedId)}/rows/${encodeURIComponent(section)}/${n}/details`)
-        .then((result) => { this.customDetails = { ...this.customDetails, [key]: result.html }; })
+        .then((result) => { this.customDetails = { ...this.customDetails, [key]: values.hydrate(result.html) }; })
         .catch((e) => { this.customDetails = { ...this.customDetails, [key]: `<p class="text-xs text-bad">${esc(e.message)}</p>` }; });
     }
     return this.customDetails[key];
   },
 
-  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody, classes,
+  cls, ms, ago, statusClass, humanize, esc, maybeLink, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
 
