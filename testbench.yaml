@@ -22,6 +22,7 @@ providers:
   - Spatie\ResponseCache\ResponseCacheServiceProvider
   - Spatie\MediaLibrary\MediaLibraryServiceProvider
   - Laravel\Sanctum\SanctumServiceProvider
+  - Lab404\Impersonate\ImpersonateServiceProvider
   - Laravel\Folio\FolioServiceProvider
   - Inertia\ServiceProvider
   - ExeQue\Monocle\MonocleServiceProvider

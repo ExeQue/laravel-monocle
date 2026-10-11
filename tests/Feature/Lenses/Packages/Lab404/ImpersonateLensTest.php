@@ -48,6 +48,15 @@ describe(ImpersonateLens::class, function (): void {
             ->and(app(SummaryBuilder::class)->build($capture, children: false)['groups']['auth_impersonated_by'])->toBe('auth');
     });
 
+    it('does not mark the impersonator as impersonated when they are logged back in', function (): void {
+        session()->put('impersonated_by', 5);
+        session()->put('impersonator_guard', 'web');
+
+        event(new Authenticated('web', $this->user));
+
+        expect(app(Eyepiece::class)->finalize()->rows('auth')[0])->not->toHaveKey('impersonated_by');
+    });
+
     it('leaves the impersonator out when nobody is impersonating', function (): void {
         event(new Authenticated('web', $this->user));
 

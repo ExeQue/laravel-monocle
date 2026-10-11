@@ -53,6 +53,11 @@ trait RecordsImpersonation
                 return $row;
             }
 
+            // Leaving an impersonation logs the impersonator back in before the session forgets them.
+            if (str_ends_with((string) ($row['user'] ?? ''), '#'.$by['id'])) {
+                return $row;
+            }
+
             return [...$row, 'impersonated_by' => '#'.$by['id'].(empty($by['guard']) ? '' : ' ('.$by['guard'].' guard)')];
         });
     }

@@ -31,6 +31,11 @@
             ['POST', '/demo/auth/logout', 'Log out', 'Logs the current user out.'],
             ['GET', '/demo/auth/token', 'Sanctum token', 'Creates a token for Ada and lets you call an auth:sanctum route with it.'],
         ],
+        'Impersonation' => [
+            ['GET', '/demo/impersonate/start', 'Start impersonating', 'Logs in as Ada and impersonates another user with lab404/laravel-impersonate.'],
+            ['GET', '/demo/impersonate/whoami', 'Who am I', 'Shows the current user; while impersonating, the auth tab names who is impersonating them.'],
+            ['GET', '/demo/impersonate/stop', 'Stop impersonating', 'Leaves the impersonation and goes back to Ada.'],
+        ],
         'Authorization' => [
             ['GET', '/demo/authorization/allowed', 'Allowed gate', 'A gate check that passes.'],
             ['GET', '/demo/authorization/denied', 'Denied gate', 'A gate check that fails with a 403.'],

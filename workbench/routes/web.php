@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Inertia\Inertia;
+use Lab404\Impersonate\Services\ImpersonateManager;
 use Laravel\Pennant\Feature;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Testing\TextResponseFake;
@@ -263,6 +264,27 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         return redirect('/');
     })->name('auth.logout');
+
+    Route::get('impersonate/start', function () {
+        $ada = User::query()->where('email', 'ada@example.com')->firstOrFail();
+        $other = User::query()->whereKeyNot($ada->getKey())->firstOrFail();
+
+        Auth::login($ada);
+        app(ImpersonateManager::class)->take($ada, $other);
+
+        return redirect()->route('demo.impersonate.whoami');
+    })->name('impersonate.start');
+
+    Route::get('impersonate/whoami', fn (): View => $result('Who am I', [
+        'user' => Auth::user()?->name,
+        'impersonated by' => app(ImpersonateManager::class)->isImpersonating() ? app(ImpersonateManager::class)->getImpersonatorId() : null,
+    ]))->name('impersonate.whoami');
+
+    Route::get('impersonate/stop', function () {
+        app(ImpersonateManager::class)->leave();
+
+        return redirect()->route('demo.impersonate.whoami');
+    })->name('impersonate.stop');
 
     Route::get('auth/token', function (): View {
         $token = User::query()->where('email', 'ada@example.com')->firstOrFail()->createToken('demo')->plainTextToken;
