@@ -102,13 +102,8 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
             return;
         }
 
-        $capture = $this->eyepiece->active();
-
-        if ($capture === null) {
-            return;
-        }
-
-        $capture->sections['exceptions'][$row]['unhandled'] = true;
+        // The rows are forgotten whenever a capture ends, so a known row belongs to the active one.
+        $this->eyepiece->active()->sections['exceptions'][$row]['unhandled'] = true;
     }
 
     public function summarize(Capture $capture): Summary
