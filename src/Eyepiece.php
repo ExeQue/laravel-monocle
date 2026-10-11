@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle;
 
 use Closure;
+use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -90,18 +91,73 @@ final class Eyepiece
         return (bool) $this->app->make('config')->get('app.debug', false);
     }
 
-    public function masker(): Masker
+    /**
+     * The masker for a lens. Entries in mask.headers, mask.cookies and
+     * mask.inputs keyed by a lens class apply to that lens only, on top of
+     * the entries that apply to every lens; a lens-specific mask for a name
+     * wins over the shared one.
+     *
+     * @param  class-string<Lens>|null  $lens
+     */
+    public function masker(?string $lens = null): Masker
     {
         return new Masker(
-            headers: $this->masks((array) $this->config('mask.headers', []), 'mask.headers'),
-            pattern: $this->config('mask.inputs'),
+            headers: $this->masks($this->forLens((array) $this->config('mask.headers', []), $lens), 'mask.headers'),
+            pattern: array_values(array_filter($this->forLens((array) $this->config('mask.inputs', []), $lens), 'is_string')),
             mask: $this->resolveMask($this->config('mask.using', PartialMask::class), 'mask.using'),
             // The session cookie is always masked; a mask configured for it wins because it is matched first.
             cookies: [
-                ...$this->masks((array) $this->config('mask.cookies', []), 'mask.cookies'),
+                ...$this->masks($this->forLens((array) $this->config('mask.cookies', []), $lens), 'mask.cookies'),
                 (string) $this->app->make('config')->get('session.cookie'),
             ],
         );
+    }
+
+    /**
+     * The entries of a mask list that apply to a lens: its own (under its
+     * class name) first, then the shared ones.
+     *
+     * @param  array<array-key, mixed>  $list
+     * @return array<array-key, mixed>
+     */
+    private function forLens(array $list, ?string $lens): array
+    {
+        $shared = [];
+        $own = [];
+
+        foreach ($list as $key => $value) {
+            if (is_int($key)) {
+                $shared[] = $value;
+
+                continue;
+            }
+
+            if (! is_a($key, Lens::class, true)) {
+                $shared[$key] = $value;
+
+                continue;
+            }
+
+            if ($key === $lens) {
+                $own = (array) $value;
+            }
+        }
+
+        $merged = [];
+
+        foreach ([$own, $shared] as $entries) {
+            foreach ($entries as $key => $value) {
+                if (is_int($key)) {
+                    $merged[] = $value;
+
+                    continue;
+                }
+
+                $merged[$key] ??= $value;
+            }
+        }
+
+        return $merged;
     }
 
     /**

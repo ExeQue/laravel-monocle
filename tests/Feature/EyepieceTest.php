@@ -12,7 +12,10 @@ use ExeQue\Monocle\Exceptions\InvalidMaskException;
 use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
+use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\MonocleManager;
+use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -238,6 +241,24 @@ describe(Eyepiece::class, function (): void {
 
             expect($this->eyepiece->active()->section('info'))->toBe(['a' => 1, 'b' => 2])
                 ->and($this->eyepiece->active()->sections['rows'])->toBe(['replaced' => true]);
+        });
+
+        it('applies mask entries keyed by a lens class to that lens only', function (): void {
+            config([
+                'monocle.mask.headers' => [
+                    'authorization' => FullMask::class,
+                    HttpClientLens::class => ['x-api-key' => FullMask::class, 'authorization' => [PartialMask::class, 2]],
+                ],
+                'monocle.mask.inputs' => ['/pass/i', HttpClientLens::class => '/client_id/i'],
+            ]);
+
+            $headers = ['Authorization' => 'Bearer abcdefghijklmnop', 'X-Api-Key' => 'abcdefghijklmnop'];
+            $input = ['password' => 'x', 'client_id' => 'abcdefghijklmnop'];
+
+            expect($this->eyepiece->masker()->headers($headers))->toBe(['Authorization' => '********', 'X-Api-Key' => 'abcdefghijklmnop'])
+                ->and($this->eyepiece->masker(RequestLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcdefghijklmnop'])
+                ->and($this->eyepiece->masker(HttpClientLens::class)->headers($headers))->toBe(['Authorization' => 'Be****', 'X-Api-Key' => '********'])
+                ->and($this->eyepiece->masker(HttpClientLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcd****']);
         });
 
         it('refuses masks that are not class names', function (string $key, mixed $mask): void {

@@ -328,7 +328,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
 
     private function recordRequest(Request $request): void
     {
-        $masker = $this->eyepiece->masker();
+        $masker = $this->eyepiece->masker(self::class);
 
         $this->eyepiece->describe(
             name: $request->getMethod().' /'.ltrim($request->path(), '/'),
@@ -407,7 +407,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
 
         return [
             'status' => $response->getStatusCode(),
-            'response_headers' => $this->eyepiece->masker()->headers($response->headers->all()),
+            'response_headers' => $this->eyepiece->masker(self::class)->headers($response->headers->all()),
             'response_bytes' => is_string($content) ? strlen($content) : null,
             'content_type' => $type === '' ? null : $type,
             'redirect' => $response->isRedirection() ? $response->headers->get('Location') : null,
@@ -423,7 +423,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
      */
     private function cookies(Request $request): array
     {
-        $masker = $this->eyepiece->masker();
+        $masker = $this->eyepiece->masker(self::class);
         $cookies = [];
 
         $raw = $this->rawCookies($request);
@@ -498,7 +498,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
             $raw = null;
         }
 
-        $masker = $this->eyepiece->masker();
+        $masker = $this->eyepiece->masker(self::class);
 
         return ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => is_string($raw) ? $masker->body($raw, $type) : null];
     }

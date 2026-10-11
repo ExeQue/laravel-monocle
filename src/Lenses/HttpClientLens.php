@@ -94,9 +94,9 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             $this->eyepiece->push('http', [
                 ...$this->describe($event->request),
                 'status' => $status,
-                'response_headers' => $this->eyepiece->masker()->headers($event->response->headers()),
+                'response_headers' => $this->eyepiece->masker(self::class)->headers($event->response->headers()),
                 'response_bytes' => strlen($body),
-                'response_body' => $this->bodies && $capture === null ? $this->eyepiece->masker()->body($body, $event->response->header('Content-Type')) : null,
+                'response_body' => $this->bodies && $capture === null ? $this->eyepiece->masker(self::class)->body($body, $event->response->header('Content-Type')) : null,
                 'response_capture' => $capture,
                 'duration' => $this->duration($pending['at'] ?? null, $event->response->handlerStats()),
                 'failed' => $status >= 400,
@@ -172,7 +172,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
      */
     private function describe(Request $request): array
     {
-        $masker = $this->eyepiece->masker();
+        $masker = $this->eyepiece->masker(self::class);
 
         return [
             'method' => $request->method(),
@@ -197,7 +197,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             return null;
         }
 
-        return is_array($data) && $data !== [] ? $this->eyepiece->masker()->inputs($data) : null;
+        return is_array($data) && $data !== [] ? $this->eyepiece->masker(self::class)->inputs($data) : null;
     }
 
     /**
@@ -236,7 +236,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             return null;
         }
 
-        $masker = $this->eyepiece->masker();
+        $masker = $this->eyepiece->masker(self::class);
 
         return $cards === null ? null : ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => $masker->body($body, $type)];
     }
@@ -250,7 +250,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         }
 
         parse_str($query, $parameters);
-        $masked = str_replace('%2A', '*', http_build_query($this->eyepiece->masker()->inputs($parameters)));
+        $masked = str_replace('%2A', '*', http_build_query($this->eyepiece->masker(self::class)->inputs($parameters)));
 
         return str_replace($query, $masked, $url);
     }

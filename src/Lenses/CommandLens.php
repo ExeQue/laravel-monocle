@@ -95,7 +95,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Resettable
         }
 
         $arguments = $this->arguments($event->input);
-        $options = $this->eyepiece->masker()->inputs($this->options($event->input));
+        $options = $this->eyepiece->masker(self::class)->inputs($this->options($event->input));
 
         if ($this->eyepiece->active() !== null) {
             if (! $this->eyepiece->recording()) {

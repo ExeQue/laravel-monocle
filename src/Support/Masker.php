@@ -15,6 +15,9 @@ final class Masker
 {
     private readonly Closure $mask;
 
+    /** @var list<string> */
+    private readonly array $patterns;
+
     /** @var array<string, Closure> */
     private readonly array $headers;
 
@@ -26,15 +29,16 @@ final class Masker
      * for it; a plain list entry uses the default mask.
      *
      * @param  array<array-key, mixed>  $headers  header name => mask, or header name
-     * @param  string|null  $pattern  regex matched against input keys
+     * @param  string|list<string>|null  $pattern  regular expressions matched against input keys
      * @param  array<array-key, mixed>  $cookies  cookie name => mask, or cookie name
      */
     public function __construct(
         array $headers,
-        private readonly ?string $pattern,
+        string|array|null $pattern,
         callable $mask,
         array $cookies = [],
     ) {
+        $this->patterns = array_values(array_filter((array) $pattern, fn (mixed $value): bool => is_string($value) && $value !== ''));
         $this->mask = $mask(...);
         $this->headers = $this->masks($headers, lowercase: true);
         $this->cookies = $this->masks($cookies, lowercase: false);
@@ -87,14 +91,14 @@ final class Masker
      */
     public function inputs(array $input): array
     {
-        if ($this->pattern === null || $this->pattern === '') {
+        if ($this->patterns === []) {
             return $input;
         }
 
         $out = [];
 
         foreach ($input as $key => $value) {
-            if (is_string($key) && preg_match($this->pattern, $key) === 1) {
+            if (is_string($key) && $this->matches($key)) {
                 $out[$key] = $this->mask($value, $key);
 
                 continue;
@@ -142,6 +146,17 @@ final class Masker
         }
 
         return $body;
+    }
+
+    private function matches(string $key): bool
+    {
+        foreach ($this->patterns as $pattern) {
+            if (preg_match($pattern, $key) === 1) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

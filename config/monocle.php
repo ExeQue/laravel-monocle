@@ -239,6 +239,12 @@ return [
     | Input keys matching the `inputs` expression are masked with `using`,
     | as are list entries given without a mask.
     |
+    | Entries apply to every lens. Key them by a lens class to apply them to
+    | that lens only; a mask set for one lens wins over the shared one:
+    |
+    |     'headers' => [HttpClientLens::class => ['x-api-key' => FullMask::class]],
+    |     'inputs' => ['/pass|token/i', HttpClientLens::class => '/client_secret/i'],
+    |
     | A mask is an invokable receiving ($value, $key). Pass constructor
     | arguments with an array, class first:
     |

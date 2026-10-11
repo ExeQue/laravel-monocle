@@ -69,7 +69,7 @@ final class SessionLens implements Advises, Lens, Resettable
 
             $flash = (array) ($data['_flash'] ?? []);
             unset($data['_flash']);
-            $masker = $this->eyepiece->masker();
+            $masker = $this->eyepiece->masker(self::class);
             $after = $masker->inputs($data);
 
             $this->eyepiece->set('session', [

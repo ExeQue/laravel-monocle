@@ -83,7 +83,21 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
 
 Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
 
-Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name.
+Input, session data and command options whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
+
+Everything above applies to every lens. To mask something for one lens only, key it by the lens class. A mask set for one lens wins over the shared one:
+
+```php
+use ExeQue\Monocle\Lenses\HttpClientLens;
+use ExeQue\Monocle\Lenses\RequestLens;
+
+'headers' => [
+    'authorization' => [AuthorizationMask::class, ['Bearer']],
+    HttpClientLens::class => ['x-api-key' => FullMask::class],
+    RequestLens::class => ['x-tenant' => PartialMask::class],
+],
+'inputs' => ['/pass|token|secret/i', HttpClientLens::class => '/client_id/i'],
+```
 
 ### Masks
 
