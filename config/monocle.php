@@ -225,14 +225,19 @@ return [
     | Masking
     |--------------------------------------------------------------------------
     |
-    | Headers and cookies to mask before storing, each mapped to the mask to
-    | use (wildcards allowed, header names lowercase). The session cookie is
-    | always masked. Input keys matching the `inputs` expression are masked
-    | with `using`, which is also the mask for list entries without a class.
-    | A mask is an invokable receiving ($value, $key) and returning the
-    | masked value; PartialMask keeps the first four characters visible.
-    | Give a mask constructor arguments with an array, class first:
-    | [PartialMask::class, 8] or [PartialMask::class, 'visible' => 8].
+    | Headers and cookies are mapped to the mask used for them. Names may use
+    | wildcards; header names are lowercase. The session cookie is always
+    | masked, even when it is not listed.
+    |
+    | Input keys matching the `inputs` expression are masked with `using`,
+    | as are list entries given without a mask.
+    |
+    | A mask is an invokable receiving ($value, $key). Pass constructor
+    | arguments with an array, class first:
+    |
+    |     'authorization' => PartialMask::class,
+    |     'authorization' => [PartialMask::class, 8],
+    |     'authorization' => [PartialMask::class, 'visible' => 8],
     |
     */
 
