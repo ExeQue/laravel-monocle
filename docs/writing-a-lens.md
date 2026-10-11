@@ -90,6 +90,8 @@ What the `Eyepiece` offers a lens:
 | `masker(?string $lens = null)` | Masks values the way the [masking configuration](configuration.md#masking) says, including entries keyed by your lens class: `headers()`, `cookies()`, `inputs()` and `body($body, $contentType)`. |
 | `config(string $key, mixed $default = null)` | Reads a value from `config/monocle.php`. |
 
+Methods that record or change something - `push()`, `set()`, `meta()`, `listen()`, `modify()` and the like - return the eyepiece, so the calls chain.
+
 An exception thrown inside a `listen()` handler, or while pushing, setting or timing a span, never reaches your application: it is logged and shown as a warning on the capture. Exceptions thrown in `boot()` itself, or in code you put in place with `$app->extend()` (see [Timing a client you call](#timing-a-client-you-call)), are not caught. While you work on a lens, set `MONOCLE_THROW_FAILURES=true` to have the caught ones thrown instead.
 
 ## Options
