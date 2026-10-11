@@ -36,7 +36,9 @@ describe(ViewsLens::class, function (): void {
             ->and(array_column($rows, 'view'))->toBe(['partial', 'partial', 'partial', 'parent'])
             ->and($rows[3]['duration'])->toBeGreaterThanOrEqual($rows[0]['duration'])
             ->and($rows[3]['path'])->toContain('parent.blade.php')
-            ->and($rows[3])->not->toHaveKey('data');
+            ->and($rows[3])->not->toHaveKey('data')
+            ->and($rows[0]['self_ms'])->toBe(round($rows[0]['duration'], 3))
+            ->and($rows[3]['self_ms'])->toEqualWithDelta($rows[3]['duration'] - $rows[0]['duration'] - $rows[1]['duration'] - $rows[2]['duration'], 0.01);
     });
 
     it('summarizes with top-level time only and warns about repeated partials', function (): void {

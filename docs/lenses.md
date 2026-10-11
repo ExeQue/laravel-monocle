@@ -131,7 +131,7 @@ Section `log`: everything written to the log, with level and context. Errors are
 
 ## Views
 
-Section `views`: every rendered view and component with its duration and the names of the variables passed to it. Nested views appear nested in the timeline, so a partial rendered in a loop is easy to spot.
+Section `views`: every rendered view and component with its duration (including the views it renders), its own time without them (`self_ms`) and the names of the variables passed to it. Nested views appear nested in the timeline, so a partial rendered in a loop is easy to spot.
 
 Options: `data` (false) - also record the variable values; `repeat_threshold` (10) and `repeat_ms` (20) - warn when a view is rendered at least this often and takes at least this long in all.
 
