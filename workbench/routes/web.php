@@ -29,6 +29,7 @@ use Workbench\App\Events\PostPublished;
 use Workbench\App\Http\Middleware\SlowMiddleware;
 use Workbench\App\Http\Requests\ContactRequest;
 use Workbench\App\Jobs\BrokenJob;
+use Workbench\App\Jobs\Countdown;
 use Workbench\App\Jobs\ImportBatch;
 use Workbench\App\Jobs\ProcessReport;
 use Workbench\App\Mail\OrderShipped;
@@ -301,6 +302,12 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         return $result('Queue a job', 'ProcessReport is waiting on the database queue. Work the queue to run it as a capture of its own.');
     })->name('queue.database');
+
+    Route::get('queue/countdown', function () use ($result): View {
+        Countdown::dispatch(3)->onConnection('database');
+
+        return $result('Count down', 'Countdown(3) is on the database queue; each run queues the next until 0. Work the queue to follow the trace.');
+    })->name('queue.countdown');
 
     Route::get('queue/work', function () use ($result): View {
         // A separate process, like a real worker: each job it runs is a capture of its own.

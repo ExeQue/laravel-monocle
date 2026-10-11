@@ -41,6 +41,7 @@
         'Queue' => [
             ['GET', '/demo/queue', 'Dispatch a job', 'Runs a job on the sync queue.'],
             ['GET', '/demo/queue/database', 'Queue a job', 'Puts a job on the database queue for a worker to run.'],
+            ['GET', '/demo/queue/countdown', 'Count down', 'Queues a job that queues itself again three times, for a trace four jobs deep.'],
             ['GET', '/demo/queue/work', 'Work the queue', 'Runs every waiting job in a worker process; each job becomes a capture of its own.'],
             ['GET', '/demo/queue/chain', 'Job dispatching a job', 'A job that dispatches another job.'],
             ['GET', '/demo/queue/failing', 'Failing job', 'A job that throws; the failure is caught and shown.'],

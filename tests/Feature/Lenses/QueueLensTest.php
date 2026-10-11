@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
-use Tests\Fixtures\Jobs\DispatchingJob;
+use Tests\Fixtures\Jobs\CountdownJob;
 use Tests\Fixtures\Jobs\FailingJob;
 use Tests\Fixtures\Jobs\PlainCommand;
 use Tests\Fixtures\Jobs\RecordingJob;
@@ -106,29 +106,25 @@ describe(QueueLens::class, function (): void {
     });
 
     it('follows a trace through jobs that dispatch jobs, however deep', function (): void {
-        Route::get('/dispatch-nested', function () {
-            DispatchingJob::dispatch()->onConnection('database');
+        Route::get('/countdown', function () {
+            CountdownJob::dispatch(3)->onConnection('database');
 
             return 'dispatched';
         });
 
-        $this->get('/dispatch-nested')->assertOk();
-        $request = latestCapture();
+        $this->get('/countdown')->assertOk();
+        $ids = [latestCapture()->id];
 
-        Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
-        $outer = latestCapture();
+        foreach (range(1, 4) as $ignored) {
+            Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
+            $ids[] = latestCapture()->id;
+        }
 
-        Artisan::call('queue:work', ['--once' => true, 'connection' => 'database']);
-        $inner = latestCapture();
+        $trace = app(CaptureReader::class)->trace($ids[0]);
 
-        $trace = app(CaptureReader::class)->trace($request->id);
-
-        expect($outer->parentId)->toBe($request->id)
-            ->and($inner->parentId)->toBe($outer->id)
-            ->and([$outer->traceId, $inner->traceId])->toBe([$request->id, $request->id])
-            ->and(array_column($trace, 'id'))->toBe([$request->id, $outer->id, $inner->id])
-            ->and(array_column($trace, 'depth'))->toBe([0, 1, 2])
-            ->and(array_column(app(CaptureReader::class)->trace($request->id), 'id'))->toBe(array_column(app(CaptureReader::class)->trace($inner->traceId), 'id'));
+        expect(array_column($trace, 'id'))->toBe($ids)
+            ->and(array_column($trace, 'depth'))->toBe([0, 1, 2, 3, 4])
+            ->and(array_column($trace, 'parent_id'))->toBe([null, ...array_slice($ids, 0, 4)]);
     });
 
     it('marks failed jobs with the exception', function (): void {
