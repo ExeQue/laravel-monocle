@@ -442,10 +442,11 @@ Alpine.data('monocle', (config) => ({
 
   columnsOf(rows, section = null) {
     const keys = [];
-    const detailOnly = ['n', '_links', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : [])];
+    const detailOnly = ['n', '_links', 'frames', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : [])];
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
-    let used = keys.filter((k) => rows.some((row) => !blank(row[k])));
+    // An exception code is nearly always 0; the column only shows when one is not.
+    let used = keys.filter((k) => rows.some((row) => !blank(row[k]) && !(k === 'code' && row[k] === 0)));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
     used = used.filter((k) => k !== 'rolled_back');
     // HTTP calls read as "GET 200 https://...".

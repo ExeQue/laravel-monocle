@@ -62,7 +62,8 @@ function nodeDetails(model, n) {
 export function rowBody(row) {
   // A row that is itself an exception (the exceptions section) leads with its chain.
   const thrown = isThrowable(row) && Array.isArray(row.previous);
-  const hidden = ['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash', ...(thrown ? ['class', 'message', 'previous'] : [])];
+  const hidden = ['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash', 'frames', ...(thrown ? ['class', 'message', 'previous', 'file'] : []), ...(row.code === 0 ? ['code'] : [])];
+  const frames = Array.isArray(row.frames) && row.frames.length ? row.frames : null;
   const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !hidden.includes(k)));
   const rows = metaRows(meta);
   const sql = row.sql_with_bindings ?? row.sql;
@@ -71,6 +72,7 @@ export function rowBody(row) {
     ${sql ? `<div class="${SEC} border-t-0 pt-0">${codeBlock('Query', sql)}</div>` : ''}
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
     ${rows ? `<div class="${SEC} ${sql || thrown ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
+    ${frames ? `<div class="${SEC}"><div class="flex items-center gap-1.5"><div class="${K}">Stack (${frames.length})</div>${copyButton(frames.map((f) => (typeof f === 'string' ? f : `${f.file} ${f.call ?? ''}`.trim())).join('\n'), 'stack')}</div><ol class="m-0 grid list-decimal gap-0.5 pl-6 text-[11.5px] [overflow-wrap:anywhere]">${frames.map((f) => (typeof f === 'string' ? `<li class="font-mono">${esc(f)}</li>` : `<li class="font-mono"><span class="text-brass">${maybeLink(f.file, f.link)}</span> ${f.call ? `<span class="text-muted">${maybeLink(f.call, f.call_link)}</span>` : ''}</li>`)).join('')}</ol></div>` : ''}
     ${originHtml(row.origin)}`;
 }
 

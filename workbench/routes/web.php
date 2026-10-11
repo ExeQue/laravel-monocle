@@ -110,7 +110,11 @@ Route::prefix('demo')->group(function () use ($result): void {
 
         $request->session()->put('demo.last_post', $post->id);
         Log::info('Post published.', ['post' => $post->id]);
-        report(new RuntimeException('Search index unavailable, retrying later.'));
+        report(new RuntimeException('Search index unavailable, retrying later.', 0, new ConnectionException(
+            'Could not connect to search.internal:9200',
+            0,
+            new RuntimeException('Connection refused'),
+        )));
         Artisan::call('demo:greet', ['name' => $author->name]);
 
         $post->comments()->delete();

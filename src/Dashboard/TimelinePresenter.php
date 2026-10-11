@@ -249,6 +249,10 @@ final readonly class TimelinePresenter
                 $meta[$key] = $value = $this->throwable($value);
             }
 
+            if ($key === 'frames' && is_array($value) && array_is_list($value)) {
+                $meta[$key] = $value = array_map(fn (mixed $frame): mixed => is_string($frame) ? $this->frame($frame) : $frame, $value);
+            }
+
             if ($key === 'previous' && is_array($value) && array_is_list($value)) {
                 $meta[$key] = $value = array_map(fn (mixed $one): mixed => $this->isThrowable($one) ? $this->throwable($one) : $one, $value);
             }
@@ -350,6 +354,18 @@ final readonly class TimelinePresenter
         }
 
         return $throwable;
+    }
+
+    /**
+     * A stack frame recorded as "file:line call", split up and linked.
+     *
+     * @return array{file: string, call: string|null, link: string|null, call_link: string|null}
+     */
+    private function frame(string $frame): array
+    {
+        [$where, $call] = array_pad(explode(' ', $frame, 2), 2, null);
+
+        return ['file' => $where, 'call' => $call, 'link' => $this->link($where), 'call_link' => $call === null ? null : $this->link($call)];
     }
 
     /**
