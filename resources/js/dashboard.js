@@ -346,6 +346,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return [...groups.values()].sort((a, b) => rank(a.key) - rank(b.key));
   },
 
+  /** The open tab's own totals, shown above its rows. */
+  get tabTotals() {
+    return this.totalGroups.find((g) => g.key === this.tab)?.items ?? [];
+  },
+
 
 
 
