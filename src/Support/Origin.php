@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Support;
 use Closure;
 use ReflectionException;
 use ReflectionFunction;
+use ReflectionMethod;
 use ReflectionProperty;
 
 /**
@@ -39,6 +40,7 @@ final class Origin
      */
     public static function capture(string $basePath, int $frames = 5, array $includeVendor = [], ?array $trace = null): ?array
     {
+        $live = $trace === null;
         $trace ??= debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 60);
         $kept = [];
         $library = null;
@@ -111,6 +113,10 @@ final class Origin
             'call' => $first['call'],
             'frames' => $kept,
         ];
+
+        if ($called !== null && str_ends_with((string) $called['call'], '->__get')) {
+            $called = self::relation($live ? debug_backtrace(DEBUG_BACKTRACE_PROVIDE_OBJECT, 120) : $trace, $basePath) ?? $called;
+        }
 
         if ($called !== null) {
             $origin['via'] = $called;
@@ -197,6 +203,40 @@ final class Origin
                     'call' => $class.($caller['type'] ?? '->').$name,
                 ];
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * A relation loaded by reading a model property: the relation method,
+     * found in the arguments of Eloquent's getRelationshipFromMethod() call.
+     *
+     * @param  list<array<string, mixed>>  $trace  a backtrace with arguments
+     * @return array{file: string, line: int|null, call: string}|null
+     */
+    private static function relation(array $trace, string $basePath): ?array
+    {
+        foreach ($trace as $frame) {
+            $method = $frame['args'][0] ?? null;
+
+            if (($frame['function'] ?? null) !== 'getRelationshipFromMethod' || ! is_string($method)) {
+                continue;
+            }
+
+            $class = isset($frame['object']) ? $frame['object']::class : ($frame['class'] ?? null);
+
+            if (! is_string($class) || ! method_exists($class, $method)) {
+                return null;
+            }
+
+            $reflection = new ReflectionMethod($class, $method);
+
+            return [
+                'file' => self::relative((string) $reflection->getFileName(), $basePath),
+                'line' => $reflection->getStartLine() ?: null,
+                'call' => $class.'->'.$method,
+            ];
         }
 
         return null;

@@ -8,6 +8,7 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use Illuminate\Support\Facades\DB;
+use ReflectionMethod;
 use RuntimeException;
 
 covers(DatabaseLens::class);
@@ -81,6 +82,22 @@ describe(DatabaseLens::class, function (): void {
             ->and($rows[1]['transaction_id'])->toBe($transactions[0]->id)
             ->and($rows[4]['transaction_id'])->toBe($transactions[1]->id)
             ->and($rows[5]['transaction_id'])->toBe($transactions[1]->id);
+    });
+
+    it('names the relation a lazily loaded query came from as via', function (): void {
+        DB::statement('create table writers (id integer primary key, name text)');
+        DB::statement('create table books (id integer primary key, writer_id integer, title text)');
+        $writer = \Tests\Fixtures\Models\Writer::query()->create(['name' => 'Ada']);
+
+        $writer->books;
+
+        $query = collect(app(Eyepiece::class)->finalize()->rows('queries'))->last();
+        $method = new ReflectionMethod(\Tests\Fixtures\Models\Writer::class, 'books');
+
+        expect($query['sql'])->toContain('"books"')
+            ->and($query['origin']['via']['call'])->toBe(\Tests\Fixtures\Models\Writer::class.'->books')
+            ->and($query['origin']['via']['line'])->toBe($method->getStartLine())
+            ->and($query['origin']['via']['file'])->toEndWith('tests/Fixtures/Models/Writer.php');
     });
 
     it('summarizes totals, slow queries and N+1 candidates', function (): void {
