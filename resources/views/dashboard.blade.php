@@ -708,7 +708,7 @@
                                                     <tr>
                                                         <td
                                                             :class="cls.td"
-                                                            class="text-muted w-56 font-mono text-xs"
+                                                            class="text-muted font-mono text-xs ![overflow-wrap:normal] whitespace-nowrap"
                                                             :data-tip="k.length > 40 ? k : ''"
                                                             x-text="k.length > 40 ? k.slice(0, 40) + '…' : k"
                                                         ></td>
