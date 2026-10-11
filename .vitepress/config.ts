@@ -62,7 +62,7 @@ export default defineConfig({
         ],
       },
       {
-        text: 'Lenses',
+        text: 'Core lenses',
         collapsed: true,
         items: [
           { text: 'Request', link: '/docs/lenses/request' },
@@ -87,6 +87,12 @@ export default defineConfig({
           { text: 'Log', link: '/docs/lenses/log' },
           { text: 'Authorization', link: '/docs/lenses/authorization' },
           { text: 'Dumps', link: '/docs/lenses/dumps' },
+        ],
+      },
+      {
+        text: 'Package lenses',
+        collapsed: true,
+        items: [
           { text: 'Filament', link: '/docs/lenses/filament' },
           { text: 'Inertia', link: '/docs/lenses/inertia' },
           { text: 'Livewire', link: '/docs/lenses/livewire' },

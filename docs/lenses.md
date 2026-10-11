@@ -12,7 +12,9 @@ Lenses report two kinds of problems in the summary: **errors** for things that f
 
 ## At a glance
 
-### Laravel
+### Core
+
+Built on Laravel itself; nothing else to install.
 
 | Lens | Section | Records |
 |---|---|---|
