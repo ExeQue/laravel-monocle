@@ -22,11 +22,11 @@
                 </template>
             </div>
         </div>
-        <button type="button" class="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 text-left text-[13px] min-[861px]:hidden" x-show="capture" @click="listOpen = !listOpen" :aria-expanded="listOpen">
+        <button type="button" class="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 text-left text-[13px] min-[861px]:hidden" x-show="selectedId" @click="listOpen = !listOpen" :aria-expanded="listOpen">
             <span><span class="font-medium">Captures</span> <span class="text-muted" x-text="'(' + total + ')'"></span></span>
             <svg class="size-4 text-brass transition-transform duration-200" :class="listOpen && 'rotate-180'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>
         </button>
-        <div class="flex min-h-0 flex-1 flex-col" x-show="wide || !capture || listOpen" x-collapse>
+        <div class="flex min-h-0 flex-1 flex-col" x-show="wide || !selectedId || listOpen" x-collapse>
         <div class="flex flex-col gap-2.5 border-b border-line px-4 py-3">
             <input class="w-full rounded-md border border-line bg-bg px-2.5 py-2 text-fg" id="monocle-search" type="search" placeholder="Filter by path or name" aria-label="Filter captures" x-model.debounce.300ms="filters.q">
             <div class="flex flex-wrap gap-1.5" role="group" aria-label="Capture type">
