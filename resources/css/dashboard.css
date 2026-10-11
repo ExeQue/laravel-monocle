@@ -72,6 +72,18 @@
   button { @apply cursor-pointer; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-brass; }
   [x-cloak] { display: none !important; }
+
+  /* Thin scrollbars without arrow buttons. Chromium only drops the arrows when the
+     scrollbar is drawn through these pseudo-elements, and it ignores them once
+     scrollbar-width or scrollbar-color is set, so those two are for Firefox only. */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-button { display: none; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scroll-thumb, var(--line)); border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--brass-2); }
+  @supports not selector(::-webkit-scrollbar) {
+    * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  }
 }
 
 /* Scrollbars stay out of sight until the area is hovered or reached by keyboard, then fade in, in bronze. */
@@ -83,15 +95,15 @@
 
 @utility scroll-quiet {
   --scroll-thumb: transparent;
-  scrollbar-width: thin;
-  scrollbar-color: var(--scroll-thumb) transparent;
   transition: --scroll-thumb 0.25s ease;
   @media (prefers-reduced-motion: reduce) { transition: none; }
   &:hover, &:focus-visible, &:has(:focus-visible) { --scroll-thumb: var(--brass); }
-  &::-webkit-scrollbar { width: 8px; height: 8px; }
-  &::-webkit-scrollbar-track { background: transparent; }
-  &::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 8px; }
-  &::-webkit-scrollbar-thumb:hover { background: var(--brass-2); }
+  @supports not selector(::-webkit-scrollbar) { scrollbar-color: var(--scroll-thumb) transparent; }
+}
+
+/* An even thinner scrollbar, for a strip such as the tab bar. Firefox has no size between thin and none. */
+@utility scroll-slim {
+  &::-webkit-scrollbar { width: 3px; height: 3px; }
 }
 
 /* The arrow on the popover points at what was clicked. */

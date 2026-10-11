@@ -117,7 +117,7 @@
 </div>
 
 <nav
-    class="scroll-quiet border-line flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b"
+    class="scroll-quiet scroll-slim border-line bg-bg sticky -top-5 z-10 flex snap-x snap-mandatory scroll-px-2 gap-0.5 overflow-x-auto border-b py-1.5"
     role="tablist"
     aria-label="Capture sections"
     x-ref="tabs"
@@ -125,7 +125,7 @@
     <template x-for="t in tabs" :key="t.key">
         <button
             type="button"
-            class="group text-muted aria-selected:border-brass aria-selected:text-fg flex shrink-0 snap-start items-center gap-1.5 border-b-2 border-transparent px-3 py-2 whitespace-nowrap aria-selected:font-semibold"
+            class="group text-muted hover:bg-sunk hover:text-fg aria-selected:bg-brass-soft aria-selected:text-fg flex shrink-0 snap-start items-center gap-1.5 rounded-md px-3 py-1.5 whitespace-nowrap aria-selected:font-semibold"
             role="tab"
             :id="'monocle-tab-' + t.key"
             :aria-controls="panelId(t.key)"
