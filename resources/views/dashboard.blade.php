@@ -156,10 +156,10 @@
                         <div>
                             <h3 :class="cls.sectionTitle">Warnings</h3>
                             <div class="grid gap-2" x-show="summary.warnings?.length">
-                                <template x-for="w in summary.warnings" :key="w">
+                                <template x-for="(w, wi) in summary.warnings" :key="w">
                                     <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md bg-warn-soft px-3 py-2.5">
                                         <span class="pt-0.5 font-mono text-[11px] text-warn">!</span>
-                                        <span class="[overflow-wrap:anywhere]" x-text="w"></span>
+                                        <span class="[overflow-wrap:anywhere]" x-html="linkText(w, capture.warning_links?.[wi])"></span>
                                     </div>
                                 </template>
                             </div>

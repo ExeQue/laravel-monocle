@@ -395,6 +395,20 @@ Alpine.data('monocle', (config) => ({
     return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
+  /** Text with the given substrings turned into editor links. */
+  linkText(text, links = {}) {
+    const tokens = Object.keys(links ?? {}).sort((a, b) => b.length - a.length);
+    if (!tokens.length) return esc(text);
+    const pattern = new RegExp(tokens.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g');
+    let out = '';
+    let last = 0;
+    for (const m of text.matchAll(pattern)) {
+      out += esc(text.slice(last, m.index)) + maybeLink(m[0], links[m[0]]);
+      last = m.index + m[0].length;
+    }
+    return out + esc(text.slice(last));
+  },
+
   numeric(key) {
     return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
   },

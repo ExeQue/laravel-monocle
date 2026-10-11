@@ -239,6 +239,32 @@ final readonly class TimelinePresenter
     }
 
     /**
+     * Editor links for the file paths and class names mentioned in a sentence,
+     * such as a warning, keyed by the text they replace.
+     *
+     * @return array<string, string>
+     */
+    public function textLinks(string $text): array
+    {
+        if (! $this->links->enabled()) {
+            return [];
+        }
+
+        preg_match_all('#[\w.-]*(?:/[\w.-]+)+\.[a-z]{2,5}(?::\d+)?|\\\\?[A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+(?:(?:->|::|@)\w+(?:\(\))?)?#', $text, $matches);
+        $links = [];
+
+        foreach (array_unique($matches[0]) as $token) {
+            $link = $this->link($token);
+
+            if ($link !== null) {
+                $links[$token] = $link;
+            }
+        }
+
+        return $links;
+    }
+
+    /**
      * A section row with editor links on its origin and class/path values.
      *
      * @param  array<string, mixed>  $row

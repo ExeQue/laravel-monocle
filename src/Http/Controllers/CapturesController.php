@@ -40,6 +40,7 @@ final readonly class CapturesController
 
         return response()->json($result + [
             'timeline' => $timeline->present($capture),
+            'warning_links' => array_map($timeline->textLinks(...), $result['summary']['warnings'] ?? []),
             'editor' => $links->enabled(),
             'context' => [
                 'route' => $route['name'] ?? null,

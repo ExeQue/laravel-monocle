@@ -29,6 +29,17 @@ describe(TimelinePresenter::class, function (): void {
             ->and($presenter->originFromString('app/X.php:4 via Lib->go')['line'])->toBe(4);
     });
 
+    it('links the paths and classes mentioned in a warning', function (): void {
+        $presenter = new TimelinePresenter(new EditorLinks(new EditorSettings('vscode'), '/app'));
+        $warning = 'Possible N+1: 12 x select * from `photos` (app/Livewire/Gallery.php:44 via '.TimelinePresenter::class.'->present). Run php artisan x.';
+
+        expect($presenter->textLinks($warning))->toBe([
+            'app/Livewire/Gallery.php:44' => 'vscode://file/app/app/Livewire/Gallery.php:44',
+            TimelinePresenter::class.'->present' => $presenter->link(TimelinePresenter::class.'->present'),
+        ])
+            ->and((new TimelinePresenter(new EditorLinks(null, '/app')))->textLinks($warning))->toBe([]);
+    });
+
     it('passes on only colours the dashboard can draw', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
         $capture = ExeQue\Monocle\Data\Capture::fromArray([
