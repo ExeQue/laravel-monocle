@@ -38,6 +38,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'media-library.disk_name' => 'media',
             'media-library.queue_conversions_by_default' => false,
             'monocle.lenses.'.FilesystemLens::class => ['disks' => ['demo']],
+            'monocle.except.paths' => [...(array) config('monocle.except.paths', []), '/', 'favicon.ico'],
+            'monocle.except.commands' => [...(array) config('monocle.except.commands', []), 'workbench:*', 'package:purge-skeleton', 'migrate*', 'db:seed'],
         ]);
     }
 
