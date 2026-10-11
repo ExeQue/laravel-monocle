@@ -41,7 +41,7 @@ final class ShowCommand extends Command
             'sections' => $this->option('section') ?: ['summary'],
             'kinds' => $this->option('kind'),
             'verbose' => (bool) $this->option('verbose-origin'),
-            ...$this->optionArgs(['limit']),
+            ...$this->optionArgs(['limit', 'search']),
         ]), $this->render(...));
     }
 
@@ -306,6 +306,7 @@ final class ShowCommand extends Command
         return [
             new InputOption('section', 's', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Sections to include (summary, timeline, queries, ...)'),
             new InputOption('kind', 'k', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Timeline: only these span kinds'),
+            new InputOption('search', null, InputOption::VALUE_REQUIRED, 'Free text: only rows and timeline spans where every word appears in some value'),
             new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'Rows per section (default 25)'),
             new InputOption('verbose-origin', null, InputOption::VALUE_NONE, 'Include full origin call chains'),
             ...$this->jsonOptions(),

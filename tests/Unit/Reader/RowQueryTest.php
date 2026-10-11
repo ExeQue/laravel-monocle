@@ -72,4 +72,32 @@ describe(RowQuery::class, function (): void {
                 ->and($verbose['rows'][0]['origin']['frames'])->toHaveCount(1);
         });
     });
+
+    it('keeps only rows containing the search words', function (): void {
+        $result = RowQuery::fromArray(['search' => 'users'])->apply([['sql' => 'select * from users'], ['sql' => 'select * from posts']]);
+
+        expect($result['rows'])->toBe([['sql' => 'select * from users']])
+            ->and($result['filtered_from'])->toBe(2);
+    });
+
+    it('filters with every operator and skips malformed clauses', function (string $op, mixed $value, array $expected): void {
+        $rows = [['n' => 1, 'name' => 'Alpha', 'gone' => null], ['n' => 2, 'name' => 'beta', 'gone' => 'x'], ['n' => 3, 'name' => 'Gamma', 'gone' => null]];
+        $result = RowQuery::fromArray(['where' => ['broken', ['op' => '='], ['field' => $op === 'null' || $op === 'not_null' ? 'gone' : (in_array($op, ['contains', 'starts_with'], true) ? 'name' : 'n'), 'op' => $op, 'value' => $value]]])->apply($rows);
+
+        expect(array_column($result['rows'], 'n'))->toBe($expected);
+    })->with([
+        '=' => ['=', 2, [2]],
+        '==' => ['==', 2, [2]],
+        '!=' => ['!=', 2, [1, 3]],
+        '>' => ['>', 2, [3]],
+        '<' => ['<', 2, [1]],
+        '>=' => ['>=', 2, [2, 3]],
+        '<=' => ['<=', 2, [1, 2]],
+        'contains' => ['contains', 'MM', [3]],
+        'starts_with' => ['starts_with', 'be', [2]],
+        'in' => ['in', [1, 3], [1, 3]],
+        'null' => ['null', null, [1, 3]],
+        'not_null' => ['not_null', null, [2]],
+        'unknown' => ['between', null, [1, 2, 3]],
+    ]);
 });

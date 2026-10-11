@@ -6,6 +6,28 @@ services:
       - .:/var/www/html
     environment:
       - XDEBUG_MODE=coverage
+      # AI agent markers, passed through from the host when set, so
+      # laravel/agent-detector sees the agent inside the container too.
+      - AI_AGENT
+      - CLAUDECODE
+      - CLAUDE_CODE
+      - CLAUDE_CODE_IS_COWORK
+      - CURSOR_AGENT
+      - GEMINI_CLI
+      - CODEX_SANDBOX
+      - CODEX_CI
+      - CODEX_THREAD_ID
+      - AUGMENT_AGENT
+      - OPENCODE_CLIENT
+      - OPENCODE
+      - AMP_CURRENT_THREAD_ID
+      - REPL_ID
+      - COPILOT_MODEL
+      - COPILOT_ALLOW_ALL
+      - COPILOT_CLI
+      - ANTIGRAVITY_AGENT
+      - PI_CODING_AGENT
+      - KIRO_AGENT_PATH
   composer:
     extends:
       service: php

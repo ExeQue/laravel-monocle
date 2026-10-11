@@ -27,6 +27,7 @@ Recent captures, newest first.
 | Argument | Meaning |
 |---|---|
 | `type` | `request`, `job`, `command` or `mcp` |
+| `search` | free text; every word must appear in the name, route, type, status, label or a tag |
 | `uri` | part of the name, e.g. `/api/orders` or `POST` |
 | `status` | HTTP status |
 | `min_duration_ms` | only captures at least this slow |
@@ -82,7 +83,7 @@ Rows of one section, with filtering, sorting, paging and a choice of fields:
 }
 ```
 
-Operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `in`, `null`, `not_null`. Use dots for nested fields, e.g. `origin.file`. Add `verbose: true` to see the full call chain behind each `origin`. For `section: "timeline"`, `kinds` limits the spans as in `monocle-show`.
+Operators: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `in`, `null`, `not_null`. Use dots for nested fields, e.g. `origin.file`. Add `verbose: true` to see the full call chain behind each `origin`. For `section: "timeline"`, `kinds` limits the spans as in `monocle-show`. `search` keeps only rows where every word appears in some value, nested values included.
 
 ### `monocle-queries`
 

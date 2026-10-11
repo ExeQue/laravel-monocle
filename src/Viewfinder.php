@@ -13,6 +13,7 @@ use ExeQue\Monocle\Reader\RowQuery;
 use ExeQue\Monocle\Reader\SectionReader;
 use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Reader\TimelineBuilder;
+use ExeQue\Monocle\Support\Search;
 
 /**
  * One array-in, array-out API shared by the MCP tools, the artisan commands
@@ -55,13 +56,16 @@ final class Viewfinder
         }
 
         $requested = array_values(array_filter(array_map('strval', (array) ($args['sections'] ?? ['summary']))));
-        $query = RowQuery::fromArray(['limit' => $args['limit'] ?? 25, 'verbose' => $args['verbose'] ?? false]);
+        $query = RowQuery::fromArray(['limit' => $args['limit'] ?? 25, 'verbose' => $args['verbose'] ?? false, 'search' => $args['search'] ?? null]);
         $result = ['id' => $capture->id, 'available_sections' => $this->availableSections($capture)];
 
         foreach ($requested as $section) {
             $result[$section] = match ($section) {
                 'summary' => $this->summary->build($capture),
-                'timeline' => $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose),
+                'timeline' => array_values(array_filter(
+                    $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose),
+                    fn (array $span): bool => Search::matches($span, $query->search),
+                )),
                 default => $this->sections->read($capture, $section, $query),
             };
         }

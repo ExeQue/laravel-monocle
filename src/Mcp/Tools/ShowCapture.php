@@ -33,6 +33,7 @@ final class ShowCapture extends Tool
             'id' => $schema->string()->description('Capture id from monocle-list or the X-Monocle-Id response header. Defaults to "latest".'),
             'sections' => $schema->array()->items($schema->string())->description('Sections to include. Default ["summary"]. "timeline" plus every lens section listed in the server instructions; the response also lists available_sections with descriptions and row counts.'),
             'limit' => $schema->integer()->description('Rows per included section (default 25).'),
+            'search' => $schema->string()->description('Free text: only rows and timeline spans where every word appears in some value.'),
             'kinds' => $schema->array()->items($schema->string())->description('For timeline: only spans of these kinds (phase, middleware, controller, user, db.transaction, ...).'),
             'verbose' => $schema->boolean()->description('Include full origin call chains.'),
         ];

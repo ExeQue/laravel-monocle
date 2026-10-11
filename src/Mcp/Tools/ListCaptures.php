@@ -32,6 +32,7 @@ final class ListCaptures extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
+            'search' => $schema->string()->description('Free text: every word must appear in the name, route, type, status, label or a tag.'),
             'type' => $schema->string()->enum(['request', 'job', 'command', 'mcp'])->description('Only captures of this type.'),
             'uri' => $schema->string()->description('Substring of the capture name, e.g. "/api/orders" or "POST".'),
             'status' => $schema->integer()->description('Exact HTTP status (requests) to match.'),

@@ -42,7 +42,7 @@ final class RowsCommand extends Command
             'fields' => $this->option('field'),
             'kinds' => $this->option('kind'),
             'verbose' => $this->option('verbose-origin'),
-            ...$this->optionArgs(['offset', 'limit', 'sort', 'dir']),
+            ...$this->optionArgs(['offset', 'limit', 'sort', 'dir', 'search']),
         ]), function (array $data) use ($where): void {
             info(Str::headline((string) ($data['section'] ?? $this->argument('section'))).' of '.$data['id']);
             $this->filterLine($where, $data);
@@ -77,6 +77,10 @@ final class RowsCommand extends Command
     private function filterLine(array $where, array $data): void
     {
         $parts = array_map(fn (array $clause): string => trim("{$clause['field']} {$clause['op']} {$clause['value']}"), $where);
+
+        if ($this->option('search') !== null) {
+            $parts[] = 'containing "'.$this->option('search').'"';
+        }
 
         if ($this->option('sort') !== null) {
             $parts[] = 'sorted by '.$this->option('sort').' '.($this->option('dir') ?? 'asc');
@@ -131,6 +135,7 @@ final class RowsCommand extends Command
             new InputOption('where', 'w', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Filter as field:op:value, e.g. duration:>:20'),
             new InputOption('field', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Only output these fields'),
             new InputOption('kind', 'k', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Timeline: only these span kinds'),
+            new InputOption('search', null, InputOption::VALUE_REQUIRED, 'Free text: only rows where every word appears in some value'),
             new InputOption('sort', null, InputOption::VALUE_REQUIRED, 'Sort field'),
             new InputOption('dir', null, InputOption::VALUE_REQUIRED, 'asc|desc'),
             new InputOption('offset', null, InputOption::VALUE_REQUIRED, 'Skip this many rows'),

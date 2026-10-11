@@ -37,6 +37,7 @@ trait DescribesPagination
                     'value' => $schema->string(),
                 ]),
             )->description('Filter clauses, all must match. Example: [{"field":"duration","op":">","value":"20"}].'),
+            'search' => $schema->string()->description('Free text: only rows where every word appears in some value, case-insensitive.'),
             'fields' => $schema->array()->items($schema->string())->description('Only return these fields (dot notation) to save tokens.'),
             'verbose' => $schema->boolean()->description('Include full origin call chains and other large fields.'),
         ];

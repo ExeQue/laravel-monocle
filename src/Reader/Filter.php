@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
+use ExeQue\Monocle\Support\Search;
+
 /**
  * Filters applied to index rows when listing captures.
  *
@@ -27,6 +29,8 @@ final class Filter
         public readonly array $exclude = [],
         public readonly int $offset = 0,
         public readonly int $limit = 20,
+        /** Free text: every word must appear in the name, route, type, status, label or a tag. */
+        public readonly ?string $search = null,
     ) {
     }
 
@@ -49,6 +53,7 @@ final class Filter
             exclude: array_values(array_filter(array_map('strval', (array) ($input['exclude'] ?? [])))),
             offset: max(0, (int) ($input['offset'] ?? 0)),
             limit: max(1, min(500, (int) ($input['limit'] ?? 20))),
+            search: self::string($input['search'] ?? null),
         );
     }
 
@@ -97,6 +102,12 @@ final class Filter
             if (str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($part)) || ($row['route'] ?? null) === $part) {
                 return false;
             }
+        }
+
+        $searchable = [$row['name'] ?? null, $row['route'] ?? null, $row['type'] ?? null, $row['status'] ?? null, $row['label'] ?? null, ...array_column((array) ($row['tags'] ?? []), 'label')];
+
+        if (! Search::matches($searchable, $this->search)) {
+            return false;
         }
 
         foreach ($this->has as $section) {

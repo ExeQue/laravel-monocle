@@ -37,6 +37,15 @@ describe(RowsCommand::class, function (): void {
             ->not->toContain('Origin');
     });
 
+    it('keeps only rows containing --search', function (): void {
+        Artisan::call('monocle:rows', ['section' => 'queries', '--search' => 'count']);
+        $output = Artisan::output();
+
+        expect($output)->toContain('containing "count"')
+            ->toContain('count(*)')
+            ->not->toContain('where "id" = ?');
+    });
+
     it('renders a single row as a key/value table', function (): void {
         Artisan::call('monocle:rows', ['section' => 'queries', '--limit' => 1]);
 

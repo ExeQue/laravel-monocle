@@ -19,6 +19,12 @@ describe(ListCommand::class, function (): void {
         $this->get('/broken')->assertServerError();
     });
 
+    it('lists only captures matching --search', function (): void {
+        Artisan::call('monocle:list', ['--search' => 'broken', '--json' => true]);
+
+        expect(array_column(json_decode(Artisan::output(), true)['rows'], 'name'))->toBe(['GET /broken']);
+    });
+
     it('renders captures as a table for people', function (): void {
         Artisan::call('monocle:list', ['--json' => true]);
         $id = json_decode(Artisan::output(), true)['rows'][0]['id'];

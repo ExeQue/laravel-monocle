@@ -20,6 +20,7 @@ Without an `id` the latest capture is used.
 ```bash
 php artisan monocle:list --uri=/orders --min-duration-ms=300 --since=15m
 php artisan monocle:list --has=exceptions
+php artisan monocle:list --search="orders impersonated"
 php artisan monocle:show
 php artisan monocle:show --section=timeline --kind=middleware
 php artisan monocle:rows queries --where='duration:>:20' --sort=duration --dir=desc --field=sql --field=origin
@@ -29,7 +30,7 @@ php artisan monocle:compare before
 php artisan monocle:clear
 ```
 
-`--where` takes `field:op:value` and can be repeated. `--verbose-origin` shows the full call chain behind each `origin`.
+`--where` takes `field:op:value` and can be repeated. `--search` on `monocle:list`, `monocle:show` and `monocle:rows` keeps only what contains every word, as the MCP tools' `search` does. `--verbose-origin` shows the full call chain behind each `origin`.
 
 `monocle:clear` asks before it deletes anything; add `--force` to skip the question.
 

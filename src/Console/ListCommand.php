@@ -29,7 +29,7 @@ final class ListCommand extends Command
         $data = $viewfinder->list([
             'has' => $this->option('has'),
             'exclude' => $this->option('exclude'),
-            ...$this->optionArgs(['type', 'uri', 'status', 'min-duration-ms', 'since', 'label', 'has-errors', 'offset', 'limit']),
+            ...$this->optionArgs(['type', 'uri', 'status', 'min-duration-ms', 'since', 'label', 'has-errors', 'offset', 'limit', 'search']),
         ]);
 
         return $this->respond($data, fn (array $data) => $this->renderForHumans($data));
@@ -97,6 +97,7 @@ final class ListCommand extends Command
     protected function getOptions(): array
     {
         return [
+            new InputOption('search', null, InputOption::VALUE_REQUIRED, 'Free text: every word in the name, route, type, status, label or a tag'),
             new InputOption('type', null, InputOption::VALUE_REQUIRED, 'request|job|command|mcp'),
             new InputOption('uri', null, InputOption::VALUE_REQUIRED, 'Substring of the capture name'),
             new InputOption('status', null, InputOption::VALUE_REQUIRED, 'Exact HTTP status'),

@@ -40,6 +40,14 @@ describe(ShowCommand::class, function (): void {
             ->and($output)->toContain('Next page: php artisan monocle:rows timeline');
     });
 
+    it('keeps only timeline spans matching --search', function (): void {
+        Artisan::call('monocle:show', ['--section' => ['timeline'], '--search' => 'phase', '--json' => true]);
+        $kinds = array_column(json_decode(Artisan::output(), true)['timeline'], 'kind');
+
+        expect($kinds)->not->toBeEmpty()
+            ->and(array_unique($kinds))->toBe(['phase']);
+    });
+
     it('renders the timeline as an indented tree', function (): void {
         Artisan::call('monocle:show', ['--section' => ['timeline']]);
         $output = Artisan::output();

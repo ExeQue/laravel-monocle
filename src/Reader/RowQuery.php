@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Support\Origin;
+use ExeQue\Monocle\Support\Search;
 use Illuminate\Support\Arr;
 
 /**
@@ -29,6 +30,7 @@ final class RowQuery
         public readonly array $where = [],
         public readonly array $fields = [],
         public readonly bool $verbose = false,
+        public readonly ?string $search = null,
     ) {
     }
 
@@ -59,6 +61,7 @@ final class RowQuery
             where: $where,
             fields: array_values(array_map('strval', (array) ($input['fields'] ?? []))),
             verbose: filter_var($input['verbose'] ?? false, FILTER_VALIDATE_BOOL),
+            search: isset($input['search']) && $input['search'] !== '' ? (string) $input['search'] : null,
         );
     }
 
@@ -100,6 +103,10 @@ final class RowQuery
      */
     private function matches(array $row): bool
     {
+        if (! Search::matches($row, $this->search)) {
+            return false;
+        }
+
         foreach ($this->where as $clause) {
             $actual = Arr::get($row, $clause['field']);
             $expected = $clause['value'];
