@@ -7,7 +7,9 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
@@ -20,7 +22,7 @@ use Throwable;
  * Times every view render by wrapping the view engines, so nested includes
  * and components show up as nested spans with real durations.
  */
-final class ViewsLens implements Advises, Configurable, Lens, Summarizable
+final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summarizable
 {
     /** @var list<string> */
     private array $engines = ['blade', 'php', 'file'];
@@ -129,5 +131,11 @@ final class ViewsLens implements Advises, Configurable, Lens, Summarizable
             ],
             'warnings' => $warnings,
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['view' => 'by view', 'engine' => 'by engine']);
     }
 }

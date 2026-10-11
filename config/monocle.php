@@ -343,6 +343,9 @@ return [
     | allows the local environment; define the gate yourself to change that.
     | Requests to the dashboard are never recorded.
     |
+    | `tabs` orders the section tabs after Request, Session and Queries: a
+    | lens class or a section key per entry. Sections not listed follow.
+    |
     */
 
     'dashboard' => [
@@ -350,6 +353,30 @@ return [
         'path' => env('MONOCLE_PATH', '_monocle'),
         'domain' => env('MONOCLE_DOMAIN'),
         'middleware' => ['web'],
+        'tabs' => [
+            ExceptionsLens::class,
+            ValidationLens::class,
+            ResponseCacheLens::class,
+            FeatureFlagsLens::class,
+            CacheLens::class,
+            ViewsLens::class,
+            HttpClientLens::class,
+            AiLens::class,
+            FilesystemLens::class,
+            MediaLibraryLens::class,
+            QueueLens::class,
+            LivewireLens::class,
+            EloquentLens::class,
+            MailLens::class,
+            LogLens::class,
+            DumpLens::class,
+            RedisLens::class,
+            EventsLens::class,
+            AuthorizationLens::class,
+            MiddlewareLens::class,
+            McpLens::class,
+            ScheduleLens::class,
+        ],
     ],
 
 ];

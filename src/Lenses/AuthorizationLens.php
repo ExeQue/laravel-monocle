@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
@@ -18,7 +20,7 @@ use Illuminate\Contracts\Foundation\Application;
 /**
  * Every gate and policy check with its outcome, so a 403 explains itself.
  */
-final class AuthorizationLens implements Advises, Lens, Summarizable
+final class AuthorizationLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -79,5 +81,11 @@ final class AuthorizationLens implements Advises, Lens, Summarizable
                 array_slice($denied, 0, 3),
             ),
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['ability' => 'by ability', 'allowed' => 'by outcome']);
     }
 }

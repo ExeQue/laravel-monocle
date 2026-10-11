@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
@@ -29,7 +31,7 @@ use Throwable;
  * Records cache hits, misses, writes and forgets with durations measured from
  * the matching start events.
  */
-final class CacheLens implements Advises, Configurable, Lens, Resettable, Summarizable
+final class CacheLens implements Advises, Configurable, Lens, Presentable, Resettable, Summarizable
 {
     private bool $values = false;
 
@@ -221,5 +223,11 @@ final class CacheLens implements Advises, Configurable, Lens, Resettable, Summar
         } catch (Throwable) {
             return null;
         }
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['key' => 'by key', 'type' => 'by operation', 'store' => 'by store']);
     }
 }

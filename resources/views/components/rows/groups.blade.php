@@ -35,7 +35,7 @@
                                 <span class="group/copy flex items-start gap-1.5">
                                     <code
                                         class="block font-mono text-xs [overflow-wrap:anywhere]"
-                                        x-text="g.key"
+                                        x-html="g.html"
                                     ></code>
                                     <span x-html="copyButton(g.key, rowGroup, { hover: true })"></span>
                                 </span>

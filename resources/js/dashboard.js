@@ -37,26 +37,9 @@ const TOTAL_GROUPS = [
   ['Authorization', (k) => k.startsWith('authorization_')],
 ];
 
-/** How each section's rows can be grouped, besides in order: [key, label]. */
-const GROUPINGS = {
-  http: [['endpoint', 'by endpoint'], ['host', 'by host'], ['pool', 'by pool'], ['status', 'by status']],
-  views: [['view', 'by view'], ['engine', 'by engine']],
-  cache: [['key', 'by key'], ['type', 'by operation'], ['store', 'by store']],
-  events: [['event', 'by event']],
-  filesystem: [['path', 'by path'], ['op', 'by operation'], ['disk', 'by disk']],
-  jobs: [['job', 'by job'], ['queue', 'by queue']],
-  mail: [['type', 'by type']],
-  authorization: [['ability', 'by ability'], ['allowed', 'by outcome']],
-  exceptions: [['class', 'by exception']],
-  features: [['feature', 'by feature']],
-  redis: [['command', 'by command']],
-  log: [['message', 'by message']],
-};
 
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'validation', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
-const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {
   get() { try { return localStorage.getItem('monocle.theme') ?? 'system'; } catch { return 'system'; } },
@@ -232,7 +215,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
         ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
         : tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
-          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=${tab === 'http' ? 500 : 100}&verbose=1`);
+          : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=${this.presentationOf(tab)?.groupings?.length ? 500 : 100}&verbose=1`);
     } catch (e) {
       this.error = e.message;
     } finally {
@@ -320,6 +303,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     // Model changes are shown in the Models tab, under the counts.
     const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
     if (changes && !sections.some((s) => s.key === 'models')) sections.push({ ...changes, key: 'models', rows: 0 });
+    // Section tabs follow monocle.dashboard.tabs; sections not listed follow in their own order.
+    const order = this.capture.tab_order ?? [];
+    const rank = (key) => { const i = order.indexOf(key); return i === -1 ? order.length : i; };
     for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
       tabs.push({ key: s.key, label: this.capture.presentations?.[s.key]?.label ?? humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key] ?? 0 });
     }
@@ -476,7 +462,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
   /** The groupings the open section offers, and the one picked. */
-  get groupings() { return GROUPINGS[this.tab] ?? this.presentationOf(this.tab)?.groupings ?? []; },
+  get groupings() { return this.presentationOf(this.tab)?.groupings ?? []; },
   get rowGroup() { return this.rowGroups[this.tab] ?? 'order'; },
   setRowGroup(by) { this.rowGroups = { ...this.rowGroups, [this.tab]: by }; this.openGroups = []; },
 
@@ -484,19 +470,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   get groups() {
     const by = this.rowGroup;
     if (by === 'order' || !this.groupings.length) return [];
-    const host = (url) => { try { return new URL(url).host; } catch { return '?'; } };
-    const keyOf = {
-      endpoint: (row) => `${row.method} ${String(row.url ?? '').split('?')[0].replace(/\/(\d+|[0-9a-f-]{32,36}|[0-9a-f]{24,})(?=\/|$)/gi, '/{id}')}`,
-      host: (row) => host(row.url),
-      pool: (row) => (row.pool == null ? 'not pooled' : `pool #${row.pool}`),
-      status: (row) => (row.status == null ? 'no response' : String(row.status)),
-      allowed: (row) => (row.allowed ? 'allowed' : 'denied'),
-    }[this.tab === 'http' || by === 'allowed' ? by : null] ?? ((row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by])));
+    const keyOf = (row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by]));
     const failed = (row) => row.failed === true || row.ok === false || row.passed === false || row.allowed === false || (typeof row.status === 'number' && row.status >= 400);
     const groups = new Map();
     (this.tabData?.rows ?? []).forEach((row, i) => {
       const key = keyOf(row);
-      const g = groups.get(key) ?? { key, count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
+      // The group shows its value the way the table cell would (a coloured status, #1 for a pool).
+      const g = groups.get(key) ?? { key, html: this.cell(row, by) || '<span class="text-muted">(none)</span>', count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
       const ms = Number(row.duration ?? 0);
       g.count++;
       g.failed += failed(row) ? 1 : 0;
@@ -510,9 +490,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   /** A row inside a group, in one line: the columns that tell it apart from the rest of its group. */
   memberLabel(row) {
-    if (this.tab === 'http') return `${row.method} ${row.url}`;
     const skip = [this.rowGroup, 'duration', 'time', 'origin'];
-    return this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c)).slice(0, 2).map((c) => fmtValue(row[c])).filter(Boolean).join(' · ');
+    const columns = this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c) && !this.narrow(c));
+    return [row.method, ...columns.slice(0, row.method ? 1 : 2).map((c) => fmtValue(row[c]))].filter(Boolean).join(' · ');
   },
 
 

@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
@@ -17,7 +19,7 @@ use Throwable;
 /**
  * Log messages written during the capture, with level and context.
  */
-final class LogLens implements Advises, Lens, Summarizable
+final class LogLens implements Advises, Lens, Presentable, Summarizable
 {
     private const array ERROR_LEVELS = ['emergency', 'alert', 'critical', 'error'];
 
@@ -95,5 +97,11 @@ final class LogLens implements Advises, Lens, Summarizable
         }
 
         return Normalizer::normalize($context);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['message' => 'by message']);
     }
 }

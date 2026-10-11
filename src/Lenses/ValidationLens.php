@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses;
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
@@ -34,7 +36,7 @@ use Stringable;
  * failed, which rule failed for which field with the message. Values are
  * never recorded, only field names.
  */
-final class ValidationLens implements Advises, Lens, Resettable, Summarizable
+final class ValidationLens implements Advises, Lens, Presentable, Resettable, Summarizable
 {
     private ?Closure $resolver = null;
 
@@ -251,5 +253,11 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
         }
 
         return (string) json_encode($rule);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->detailsOnly(['input']);
     }
 }

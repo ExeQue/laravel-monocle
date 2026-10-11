@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -18,7 +20,7 @@ use Throwable;
  * Exceptions reported through the exception handler, bound to the capture they
  * happened in, with the user-land frames of their trace.
  */
-final class ExceptionsLens implements Advises, Lens, Summarizable
+final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
 {
     private string $basePath = '';
 
@@ -123,5 +125,11 @@ final class ExceptionsLens implements Advises, Lens, Summarizable
     private function relative(string $file): string
     {
         return str_starts_with($file, $this->basePath) ? substr($file, strlen($this->basePath)) : $file;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['class' => 'by exception']);
     }
 }

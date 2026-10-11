@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
@@ -17,7 +19,7 @@ use Throwable;
  * Every Redis command with its parameters, connection and duration. Turns on
  * the Redis manager's events itself.
  */
-final class RedisLens implements Advises, Lens, Summarizable
+final class RedisLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -91,5 +93,11 @@ final class RedisLens implements Advises, Lens, Summarizable
                 'redis_by_command' => $byCommand,
             ],
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['command' => 'by command']);
     }
 }

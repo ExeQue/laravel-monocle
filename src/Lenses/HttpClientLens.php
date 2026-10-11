@@ -7,9 +7,11 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -32,7 +34,7 @@ use WeakMap;
  * Outgoing HTTP client calls with masked headers and query, sizes, status
  * and duration.
  */
-final class HttpClientLens implements Advises, Configurable, Lens, Resettable, Summarizable
+final class HttpClientLens implements Advises, Configurable, Lens, Presentable, Resettable, Summarizable
 {
     private bool $bodies = false;
 
@@ -182,6 +184,8 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         return [
             'method' => $request->method(),
             'url' => $this->maskedUrl($request->url()),
+            'host' => (string) parse_url($request->url(), PHP_URL_HOST),
+            'endpoint' => $request->method().' '.$this->endpoint($request->url()),
             'request_headers' => $masker->headers($request->headers()),
             'request_bytes' => strlen($request->body()),
             'request_payload' => $this->payload($request),
@@ -244,6 +248,17 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         $masker = $this->eyepiece->masker(self::class);
 
         return $cards === null ? null : ['capture' => $class, 'cards' => $masker->cards($cards), 'raw' => $masker->body($body, $type)];
+    }
+
+    /**
+     * The url without its query, ids in the path collapsed to {id}, so calls
+     * to the same endpoint group together.
+     */
+    private function endpoint(string $url): string
+    {
+        $path = (string) strtok($url, '?');
+
+        return (string) preg_replace('#/(\d+|[0-9a-f-]{32,36}|[0-9a-f]{24,})(?=/|$)#i', '/{id}', $path);
     }
 
     private function maskedUrl(string $url): string
@@ -367,5 +382,13 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         }
 
         return $started === null ? null : round($this->eyepiece->now() - $started, 3);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->columns(['method', 'status', 'url', 'request_bytes', 'response_bytes', 'pool', 'duration'])
+            ->detailsOnly(['exception', 'failed', 'timing', 'host', 'endpoint'])
+            ->groupBy(['endpoint' => 'by endpoint', 'host' => 'by host', 'pool' => 'by pool', 'status' => 'by status']);
     }
 }

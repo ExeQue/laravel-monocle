@@ -99,6 +99,12 @@ describe('dashboard', function (): void {
             TestCase::$bootConfig = [];
         });
 
+        it('orders tabs by monocle.dashboard.tabs, lens classes or section keys', function (): void {
+            config(['monocle.dashboard.tabs' => [PaymentsLens::class, 'cache', \ExeQue\Monocle\Lenses\ExceptionsLens::class]]);
+
+            expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('tab_order'))->toBe(['payments', 'cache', 'exceptions']);
+        });
+
         it('sends how the section is shown with the capture', function (): void {
             expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('presentations.payments'))->toBe([
                 'label' => 'Payments',

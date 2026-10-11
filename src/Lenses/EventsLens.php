@@ -8,7 +8,9 @@ use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
@@ -21,7 +23,7 @@ use Illuminate\Support\Str;
  * Application events with their payload summary and the listeners that
  * handled them. Framework and Monocle internals are ignored by default.
  */
-final class EventsLens implements Advises, Configurable, Lens, Summarizable
+final class EventsLens implements Advises, Configurable, Lens, Presentable, Summarizable
 {
     private Dispatcher $events;
 
@@ -153,5 +155,11 @@ final class EventsLens implements Advises, Configurable, Lens, Summarizable
         }
 
         return array_values(array_filter($listeners, fn (string $listener): bool => ! str_starts_with($listener, 'ExeQue\\Monocle\\')));
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['event' => 'by event']);
     }
 }

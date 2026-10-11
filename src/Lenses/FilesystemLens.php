@@ -7,7 +7,9 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Filesystem\MonocleFilesystemManager;
@@ -21,7 +23,7 @@ use Illuminate\Support\Str;
  * (wildcards allowed). Laravel fires no events for Storage, so the filesystem
  * manager is replaced with one that wraps those disks' adapters.
  */
-final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
+final class FilesystemLens implements Advises, Configurable, Lens, Presentable, Summarizable
 {
     /** @var list<string> */
     private array $disks = [];
@@ -109,5 +111,11 @@ final class FilesystemLens implements Advises, Configurable, Lens, Summarizable
             ],
             'warnings' => array_slice($failed, 0, 3),
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['path' => 'by path', 'op' => 'by operation', 'disk' => 'by disk']);
     }
 }

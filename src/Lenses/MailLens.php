@@ -6,8 +6,10 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
@@ -22,7 +24,7 @@ use Throwable;
 /**
  * Mail messages and notifications, with the time between sending and sent.
  */
-final class MailLens implements Advises, Lens, Resettable, Summarizable
+final class MailLens implements Advises, Lens, Presentable, Resettable, Summarizable
 {
     /** @var array<string, float> */
     private array $pending = [];
@@ -139,5 +141,11 @@ final class MailLens implements Advises, Lens, Resettable, Summarizable
         }
 
         return 'notification:'.$id.'|'.$channel;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['type' => 'by type']);
     }
 }

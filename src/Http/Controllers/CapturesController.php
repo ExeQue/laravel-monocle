@@ -47,6 +47,7 @@ final readonly class CapturesController
             'warning_links' => array_map($timeline->textLinks(...), $result['summary']['warnings'] ?? []),
             'editor' => $links->enabled(),
             'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
+            'tab_order' => $this->tabOrder(),
             'context' => [
                 'route' => $route['name'] ?? null,
                 'action' => $route['action'] ?? null,
@@ -55,6 +56,26 @@ final readonly class CapturesController
                 'command_link' => $timeline->link($command['class'] ?? null),
             ],
         ]);
+    }
+
+    /**
+     * The section keys in the order monocle.dashboard.tabs lists them; lens
+     * classes stand for the section they record.
+     *
+     * @return list<string>
+     */
+    private function tabOrder(): array
+    {
+        $keys = [];
+
+        foreach ($this->registry->booted() as $lens) {
+            $keys[$lens::class] = $lens->key();
+        }
+
+        return array_values(array_map(
+            fn (mixed $tab): string => $keys[$tab] ?? (string) $tab,
+            (array) config('monocle.dashboard.tabs', []),
+        ));
     }
 
     /**

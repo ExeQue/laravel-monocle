@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses;
 use DateTimeInterface;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -35,7 +37,7 @@ use Throwable;
  * turns every processed job into its own capture linked to the capture that
  * dispatched it, or into a span when it runs inline inside another capture.
  */
-final class QueueLens implements Advises, Lens, Resettable, Summarizable
+final class QueueLens implements Advises, Lens, Presentable, Resettable, Summarizable
 {
     public const string PAYLOAD_KEY = 'monocle';
 
@@ -315,5 +317,11 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
     private function chain(mixed $job): array
     {
         return is_object($job) && property_exists($job, 'chained') ? (array) $job->chained : [];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()
+            ->groupBy(['job' => 'by job', 'queue' => 'by queue']);
     }
 }

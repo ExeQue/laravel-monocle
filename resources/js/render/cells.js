@@ -12,7 +12,7 @@ export function longValue(value) {
 
 export function columnsOf(rows, section = null, presentation = null) {
   const keys = [];
-  const detailOnly = [...(presentation?.details_only ?? []), 'n', '_links', 'frames', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : []), ...(section === 'validation' ? ['input'] : [])];
+  const detailOnly = [...(presentation?.details_only ?? []), 'n', '_links', 'frames', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture'];
   // A lens that names its columns gets those, in its order.
   if (presentation?.columns?.length) return presentation.columns.filter((c) => rows.some((row) => c in row)).concat(rows.some((row) => row.origin) ? ['origin'] : []);
   for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
@@ -22,8 +22,6 @@ export function columnsOf(rows, section = null, presentation = null) {
   let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0) && !(k === 'ok' && row[k] === true) && !(['chained', 'attempts', 'delay', 'retries', 'attachments'].includes(k) && row[k] === 0)));
   if (used.includes('duration')) used = used.filter((k) => k !== 'time');
   used = used.filter((k) => k !== 'rolled_back');
-  // HTTP calls read as "GET 200 https://...".
-  if (section === 'http' && used.includes('status')) used = ['method', 'status', ...used.filter((k) => k !== 'method' && k !== 'status')].filter((k) => used.includes(k));
   // Duration and origin always make it in, at the end; the rest is capped to keep the table readable.
   const tail = ['duration', 'origin'].filter((k) => used.includes(k));
   return used.filter((k) => !tail.includes(k)).slice(0, 8 - (tail.includes('duration') ? 1 : 0)).concat(tail);
