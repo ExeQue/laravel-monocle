@@ -90,22 +90,21 @@ final class MediaLibraryLens implements Advises, Lens, Presentable, Summarizable
         $rows = $capture->rows('media');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $conversions = array_values(array_filter($rows, fn (array $row): bool => $row['event'] === 'conversion'));
         $ms = round(array_sum(array_column($conversions, 'duration')), 1);
 
-        return new Summary(
-            totals: array_filter([
+        return Summary::make()
+            ->total(array_filter([
                 'media_added' => count($rows) - count($conversions),
                 'media_conversions' => count($conversions),
                 'media_conversion_ms' => $conversions === [] ? null : $ms,
-            ], fn (mixed $value): bool => $value !== null && $value !== 0),
-            warnings: $capture->type === CaptureType::Request && $conversions !== []
+            ], fn (mixed $value): bool => $value !== null && $value !== 0))
+            ->warning($capture->type === CaptureType::Request && $conversions !== []
                 ? [sprintf('%d media conversion(s) ran during the request (%s ms); queued conversions keep the response fast.', count($conversions), $ms)]
-                : [],
-        );
+                : []);
     }
 
     private function recording(): bool

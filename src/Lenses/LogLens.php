@@ -65,7 +65,7 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
         $rows = $capture->rows('log');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $byLevel = [];
@@ -79,10 +79,9 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        return new Summary(
-            totals: ['log_captures' => count($rows), 'log_by_level' => $byLevel],
-            warnings: $warnings,
-        );
+        return Summary::make()
+            ->total(['log_captures' => count($rows), 'log_by_level' => $byLevel])
+            ->warning($warnings);
     }
 
     /**

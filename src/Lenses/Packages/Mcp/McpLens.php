@@ -89,23 +89,22 @@ final class McpLens implements Advises, Lens, Presentable, Summarizable
         $own = $capture->section('mcp');
 
         if ($rows === [] && $own === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $calls = $rows === [] ? [$own] : $rows;
         $errors = array_filter($calls, fn (array $row): bool => (bool) ($row['is_error'] ?? false));
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'mcp_calls' => count($calls),
                 'mcp_errors' => count($errors),
                 'mcp_ms' => round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3),
-            ],
-            warnings: array_map(
+            ])
+            ->warning(array_map(
                 fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
                 array_slice(array_values($errors), 0, 3),
-            ),
-        );
+            ));
     }
 
     public function presentation(): Presentation

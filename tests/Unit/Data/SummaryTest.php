@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Tests\Unit\Data;
 
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Exceptions\InvalidSummaryTotalException;
 
-covers(Summary::class);
+covers(Summary::class, InvalidSummaryTotalException::class);
 
 describe(Summary::class, function (): void {
     it('collects totals and warnings fluently', function (): void {
@@ -21,6 +22,12 @@ describe(Summary::class, function (): void {
 
     it('takes several totals at once as a map', function (): void {
         expect(Summary::make()->total(['a' => 1, 'b' => 2])->total('c', 3)->totals())->toBe(['a' => 1, 'b' => 2, 'c' => 3]);
+    });
+
+    it('refuses a single total without a value', function (): void {
+        expect(fn () => Summary::make()->total('payments'))->toThrow(InvalidSummaryTotalException::class)
+            ->and(fn () => Summary::make()->total('payments', null))->toThrow(InvalidSummaryTotalException::class)
+            ->and(Summary::make()->total(['payments' => null])->totals())->toBe(['payments' => null]);
     });
 
     it('takes several warnings at once', function (): void {

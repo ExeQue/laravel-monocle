@@ -76,7 +76,7 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
         $rows = $capture->rows('filesystem');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $read = 0;
@@ -102,16 +102,15 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             }
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'filesystem_ops' => count($rows),
                 'filesystem_ms' => round($ms, 3),
                 'filesystem_bytes_read' => $read,
                 'filesystem_bytes_written' => $written,
                 'filesystem_by_disk' => $byDisk,
-            ],
-            warnings: array_slice($failed, 0, 3),
-        );
+            ])
+            ->warning(array_slice($failed, 0, 3));
     }
 
     public function presentation(): Presentation

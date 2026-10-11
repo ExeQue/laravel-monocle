@@ -113,7 +113,7 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
         $rows = $capture->rows('auth');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $counts = array_count_values(array_column($rows, 'event'));
@@ -125,15 +125,14 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        return new Summary(
-            totals: array_filter([
+        return Summary::make()
+            ->total(array_filter([
                 'auth_user' => $user,
                 'auth_failed' => $counts['failed'] ?? null,
                 'auth_lockouts' => $counts['lockout'] ?? null,
                 'auth_2fa_failed' => $counts['2fa_failed'] ?? null,
-            ], fn (mixed $value): bool => $value !== null),
-            warnings: isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : [],
-        );
+            ], fn (mixed $value): bool => $value !== null))
+            ->warning(isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : []);
     }
 
     /**

@@ -97,13 +97,12 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
 
         arsort($top);
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'models_retrieved' => $retrieved,
                 'models_written' => $written,
                 'models_top_retrieved' => array_slice($top, 0, 3, true),
-            ],
-        );
+            ]);
     }
 
     private function record(string $action, mixed $model): void

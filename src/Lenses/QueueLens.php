@@ -108,7 +108,9 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             }
         }
 
-        return new Summary(totals: $totals, warnings: $warnings);
+        return Summary::make()
+            ->total($totals)
+            ->warning($warnings);
     }
 
     private function registerPayloadHook(): void

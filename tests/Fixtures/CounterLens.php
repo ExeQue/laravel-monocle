@@ -71,10 +71,9 @@ final class CounterLens implements Configurable, Finalizable, Lens, Resettable, 
     {
         $count = count($capture->rows('counter'));
 
-        return new Summary(
-            totals: ['counter_events' => $count],
-            warnings: $count > 2 ? ['Too many counter events.'] : [],
-        );
+        return Summary::make()
+            ->total(['counter_events' => $count])
+            ->warning($count > 2 ? ['Too many counter events.'] : []);
     }
 
     public static function clear(): void

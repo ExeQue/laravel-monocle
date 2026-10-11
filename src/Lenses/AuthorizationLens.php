@@ -67,21 +67,20 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
         $rows = $capture->rows('authorization');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $denied = array_values(array_filter($rows, fn (array $row): bool => $row['allowed'] === false));
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'authorization_checks' => count($rows),
                 'authorization_denied' => count($denied),
-            ],
-            warnings: array_map(
+            ])
+            ->warning(array_map(
                 fn (array $row): string => sprintf('Authorization denied: %s for %s', $row['ability'], $row['user'] ?? 'guest'),
                 array_slice($denied, 0, 3),
-            ),
-        );
+            ));
     }
 
     public function presentation(): Presentation

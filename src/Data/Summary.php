@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Data;
 
+use ExeQue\Monocle\Exceptions\InvalidSummaryTotalException;
+
 /**
  * What a lens adds to a capture's summary: named totals for the overview
  * (and monocle-show), and warnings that flag the capture and its tab.
@@ -32,6 +34,10 @@ final class Summary
      */
     public function total(string|array $name, mixed $value = null): self
     {
+        if (is_string($name) && $value === null) {
+            throw InvalidSummaryTotalException::withoutValue($name);
+        }
+
         foreach (is_array($name) ? $name : [$name => $value] as $total => $amount) {
             $this->totals[$total] = $amount;
         }

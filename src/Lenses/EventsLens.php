@@ -91,7 +91,7 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
         $rows = $capture->rows('events');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $unhandled = array_values(array_unique(array_column(
@@ -99,12 +99,11 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
             'event',
         )));
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'events' => count($rows),
                 'events_without_listeners' => count($unhandled),
-            ],
-        );
+            ]);
     }
 
     private function ignored(string $event): bool

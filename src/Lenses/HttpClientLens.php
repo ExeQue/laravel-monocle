@@ -148,7 +148,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         $rows = $capture->rows('http');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $failed = array_filter($rows, fn (array $row): bool => (bool) $row['failed']);
@@ -161,18 +161,17 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             $ms += (float) ($row['duration'] ?? 0);
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'http_calls' => count($rows),
                 'http_ms' => round($ms, 3),
                 'http_failed' => count($failed),
                 'http_by_host' => $byHost,
-            ],
-            warnings: array_map(
+            ])
+            ->warning(array_map(
                 fn (array $row): string => sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $row['status'] ?? $row['exception']['message'] ?? 'no response'),
                 array_slice(array_values($failed), 0, 3),
-            ),
-        );
+            ));
     }
 
     /**

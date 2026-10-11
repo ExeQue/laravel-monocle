@@ -113,15 +113,14 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
         $rows = $capture->rows('mail');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'mail_sent' => count(array_filter($rows, fn (array $row): bool => $row['type'] === 'mail')),
                 'notifications_sent' => count(array_filter($rows, fn (array $row): bool => $row['type'] === 'notification')),
-            ],
-        );
+            ]);
     }
 
     /**

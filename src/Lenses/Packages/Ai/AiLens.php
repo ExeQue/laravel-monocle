@@ -108,7 +108,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
         $rows = $capture->rows('ai');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $tokens = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
@@ -134,15 +134,14 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
             }
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'ai_calls' => count($rows),
                 'ai_ms' => round($ms, 3),
                 'ai_tokens' => $tokens,
                 'ai_by_model' => $byModel,
-            ],
-            warnings: array_slice($warnings, 0, 5),
-        );
+            ])
+            ->warning(array_slice($warnings, 0, 5));
     }
 
     private function onPrompting(PromptingAgent $event): void

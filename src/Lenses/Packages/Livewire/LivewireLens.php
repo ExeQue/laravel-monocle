@@ -137,7 +137,7 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
         $rows = $capture->rows('livewire');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $calls = 0;
@@ -151,10 +151,9 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Res
             }
         }
 
-        return new Summary(
-            totals: ['livewire_components' => count($rows), 'livewire_calls' => $calls],
-            warnings: $warnings,
-        );
+        return Summary::make()
+            ->total(['livewire_components' => count($rows), 'livewire_calls' => $calls])
+            ->warning($warnings);
     }
 
     private function hook(string $event, callable $callback): void

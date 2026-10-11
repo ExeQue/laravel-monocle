@@ -92,7 +92,7 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
         $rows = $capture->rows('views');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $topLevel = 0.0;
@@ -124,14 +124,13 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
             }
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'views_rendered' => count($rows),
                 'views_ms' => round($topLevel, 3),
                 'views_most_rendered' => array_slice($repeats, 0, 3, true),
-            ],
-            warnings: $warnings,
-        );
+            ])
+            ->warning($warnings);
     }
 
     public function presentation(): Presentation

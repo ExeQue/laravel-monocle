@@ -149,16 +149,15 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
             }
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'queries' => count($rows),
                 'query_ms' => round($total, 3),
                 'queries_by_type' => $byType,
                 'slow_queries' => count($slow),
                 'duplicate_queries' => $duplicates,
-            ],
-            warnings: $warnings,
-        );
+            ])
+            ->warning($warnings);
     }
 
     private function onQuery(QueryExecuted $event): void

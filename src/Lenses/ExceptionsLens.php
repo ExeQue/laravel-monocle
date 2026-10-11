@@ -69,16 +69,15 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
         $rows = $capture->rows('exceptions');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
-        return new Summary(
-            totals: ['exceptions' => count($rows)],
-            warnings: array_map(
+        return Summary::make()
+            ->total(['exceptions' => count($rows)])
+            ->warning(array_map(
                 fn (array $row): string => sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']),
                 array_slice($rows, 0, 3),
-            ),
-        );
+            ));
     }
 
     /**

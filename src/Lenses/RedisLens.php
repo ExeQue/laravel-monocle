@@ -73,7 +73,7 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
         $rows = $capture->rows('redis');
 
         if ($rows === []) {
-            return new Summary();
+            return Summary::make();
         }
 
         $byCommand = [];
@@ -87,13 +87,12 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
 
         arsort($byCommand);
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'redis_commands' => count($rows),
                 'redis_ms' => round($ms, 3),
                 'redis_by_command' => $byCommand,
-            ],
-        );
+            ]);
     }
 
     public function presentation(): Presentation

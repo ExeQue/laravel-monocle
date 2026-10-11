@@ -123,9 +123,9 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         arsort($keys);
         $reads = $counts['hit'] + $counts['miss'];
 
-        return new Summary(
-            warnings: $this->repeatWarnings($rows),
-            totals: [
+        return Summary::make()
+            ->warning($this->repeatWarnings($rows))
+            ->total([
                 'cache_hits' => $counts['hit'],
                 'cache_misses' => $counts['miss'],
                 'cache_hit_rate' => $reads === 0 ? null : round($counts['hit'] / $reads * 100, 1),
@@ -133,8 +133,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
                 'cache_forgets' => $counts['forget'],
                 'cache_ms' => round($ms, 3),
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
-            ],
-        );
+            ]);
     }
 
     /**

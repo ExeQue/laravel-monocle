@@ -117,13 +117,12 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
             }
         }
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'middleware_count' => count($requests),
                 'middleware_self_ms' => round(array_sum($own), 3),
-            ],
-            warnings: $warnings,
-        );
+            ])
+            ->warning($warnings);
     }
 
     /**

@@ -149,11 +149,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $request = $capture->section('request');
 
-        return new Summary(
-            totals: [
+        return Summary::make()
+            ->total([
                 'response_bytes' => $request['response_bytes'] ?? null,
-            ],
-        );
+            ]);
     }
 
     private function onRouting(Routing $event): void
