@@ -33,10 +33,29 @@ async function expandRow(page, text) {
     await page.waitForFunction(() => {
         const details = document.querySelector('[data-shot-row]')?.nextElementSibling;
 
-        return details?.offsetParent !== null && (details?.textContent.trim().length ?? 0) > 20;
+        // Drawn, not just present: the row stays a pixel high until its content is in.
+        return (details?.offsetHeight ?? 0) > 40;
     }, { timeout: 8000 }).catch(() => console.warn(`no details for "${text}"`));
 
+    // The row folds out with an animation; scroll once the pane has stopped growing.
+    await settle(page);
     await page.evaluate(`(${scrollPaneTo})(document.querySelector('[data-shot-row]'))`);
+}
+
+// Waits until the capture's pane keeps the same height for a moment.
+async function settle(page) {
+    let last = -1;
+
+    for (let tries = 0; tries < 20; tries++) {
+        const height = await page.evaluate(() => document.querySelector('main')?.scrollHeight ?? 0);
+
+        if (height === last) {
+            return;
+        }
+
+        last = height;
+        await new Promise((resolve) => setTimeout(resolve, 150));
+    }
 }
 
 // Scrolls the capture's pane so the tab bar is at its top, past the capture's header.
