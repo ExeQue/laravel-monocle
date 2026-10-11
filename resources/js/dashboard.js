@@ -69,6 +69,8 @@ Alpine.data('monocle', (config) => ({
   model: null,
   tab: 'overview',
   authRows: [],
+  openGroups: [],
+  queryRows: {},
   tabData: null,
   tabLoading: false,
   groupBy: 'order',
@@ -170,6 +172,10 @@ Alpine.data('monocle', (config) => ({
     this.tabLoading = true;
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
+      this.openGroups = [];
+      this.queryRows = tab === 'queries' && this.groupBy !== 'order'
+        ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
+        : {};
       this.authRows = tab === 'request' && this.summary.counts?.auth
         ? (await this.fetchJson(`${base}/rows/auth?limit=100&verbose=1`)).rows ?? []
         : [];
@@ -450,6 +456,10 @@ Alpine.data('monocle', (config) => ({
   /** Values long enough to need breaking anywhere, like keys, SQL and paths. */
   longValue(value) {
     return typeof value === 'string' ? value.length > 24 : value !== null && typeof value === 'object';
+  },
+
+  toggleGroup(key) {
+    this.openGroups = this.openGroups.includes(key) ? this.openGroups.filter((k) => k !== key) : [...this.openGroups, key];
   },
 
   numeric(key) {

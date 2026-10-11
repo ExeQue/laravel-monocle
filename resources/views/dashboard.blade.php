@@ -918,8 +918,7 @@
                                     <tr>
                                         <th scope="col" :class="cls.th" class="text-right">#</th>
                                         <th scope="col" :class="cls.th">Query</th>
-                                        <th scope="col" :class="cls.th" class="text-right">At</th>
-                                        <th scope="col" :class="cls.th" class="text-right">Time</th>
+                                        <th scope="col" :class="[cls.th, '!text-right']">Duration</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -959,13 +958,12 @@
                                             </td>
                                             <td
                                                 :class="cls.td"
-                                                class="text-muted text-right font-mono text-xs tabular-nums"
-                                                x-text="ms(q.time)"
-                                            ></td>
-                                            <td
-                                                :class="cls.td"
-                                                class="text-right font-mono text-xs tabular-nums"
-                                                x-text="q.duration == null ? '-' : ms(q.duration)"
+                                                class="text-right tabular-nums"
+                                                x-html="
+                                                    q.duration == null
+                                                        ? `<span class='text-muted'>-</span><span class='block whitespace-nowrap text-[11px] text-muted'>at ${ms(q.time)}</span>`
+                                                        : cell(q, 'duration')
+                                                "
                                             ></td>
                                         </tr>
                                     </template>
@@ -994,25 +992,53 @@
                                         <th scope="col" :class="[cls.th, '!text-right']">Max</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <template
-                                        x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])"
-                                        :key="q.key"
-                                    >
-                                        <tr>
+                                <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
+                                    <tbody>
+                                        <tr class="hover:bg-sunk cursor-pointer" @click="toggleGroup(q.key)">
                                             <td :class="cls.td">
-                                                <div
-                                                    class="font-mono text-xs font-medium [overflow-wrap:anywhere]"
-                                                    x-show="groupBy === 'table' || groupBy === 'transaction'"
-                                                    x-text="q.key === '(none)' ? 'outside a transaction' : q.key"
-                                                ></div>
-                                                <code
-                                                    class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                    :class="(groupBy === 'table' || groupBy === 'transaction') &&
-                                                    'mt-0.5 text-muted'"
-                                                    x-text="q.example ?? q.key"
-                                                ></code
-                                                ><span x-html="originHtml(q.origin)"></span>
+                                                <div class="flex items-start gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        class="text-brass mt-0.5 shrink-0 cursor-pointer"
+                                                        :aria-expanded="openGroups.includes(q.key)"
+                                                        :aria-label="(openGroups.includes(q.key) ? 'Hide' : 'Show') +
+                                                        ' the ' +
+                                                        q.count +
+                                                        ' queries in this group'"
+                                                        @click.stop="toggleGroup(q.key)"
+                                                    >
+                                                        <svg
+                                                            class="size-3.5 transition-transform duration-200"
+                                                            :class="openGroups.includes(q.key) && 'rotate-90'"
+                                                            viewBox="0 0 16 16"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            stroke-width="2"
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            aria-hidden="true"
+                                                        >
+                                                            <path d="M6 3.5 10.5 8 6 12.5" />
+                                                        </svg>
+                                                    </button>
+                                                    <div class="min-w-0">
+                                                        <div
+                                                            class="font-mono text-xs font-medium [overflow-wrap:anywhere]"
+                                                            x-show="groupBy === 'table' || groupBy === 'transaction'"
+                                                            x-text="
+                                                                q.key === '(none)' ? 'outside a transaction' : q.key
+                                                            "
+                                                        ></div>
+                                                        <code
+                                                            class="block max-w-[680px] font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                            :class="(groupBy === 'table' ||
+                                                                groupBy === 'transaction') &&
+                                                            'mt-0.5 text-muted'"
+                                                            x-text="q.example ?? q.key"
+                                                        ></code>
+                                                        <span x-html="originHtml(q.origin)"></span>
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td :class="cls.td" class="text-right tabular-nums" x-text="q.count"></td>
                                             <td
@@ -1031,8 +1057,42 @@
                                                 x-text="ms(q.max_ms)"
                                             ></td>
                                         </tr>
-                                    </template>
-                                </tbody>
+                                        <tr x-show="openGroups.includes(q.key)" x-cloak>
+                                            <td colspan="5" class="border-line bg-sunk/50 border-b px-3 py-0">
+                                                <div x-show="openGroups.includes(q.key)" x-collapse>
+                                                    <template x-for="n in q.rows ?? []" :key="n">
+                                                        <div
+                                                            class="border-line hover:bg-sunk grid cursor-pointer grid-cols-[3rem_minmax(0,1fr)_auto] gap-x-3 border-b py-1.5 text-xs last:border-b-0"
+                                                            @click="rowPopover($event, queryRows[n] ?? {}, 'queries')"
+                                                        >
+                                                            <span
+                                                                class="text-muted font-mono tabular-nums"
+                                                                x-text="'#' + n"
+                                                            ></span>
+                                                            <div class="min-w-0">
+                                                                <code
+                                                                    class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
+                                                                    x-text="
+                                                                        queryRows[n]?.sql_with_bindings ??
+                                                                        queryRows[n]?.sql ??
+                                                                        '...'
+                                                                    "
+                                                                ></code>
+                                                                <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
+                                                            </div>
+                                                            <span
+                                                                class="text-right whitespace-nowrap tabular-nums"
+                                                                x-html="
+                                                                    queryRows[n] ? cell(queryRows[n], 'duration') : ''
+                                                                "
+                                                            ></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </template>
                             </table>
                         </div>
                         <button

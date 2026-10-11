@@ -36,6 +36,7 @@ final class QueryAggregator
                     'example' => $row['sql_with_bindings'] ?? $row['sql'] ?? null,
                     'origin' => Origin::describe(is_array($row['origin'] ?? null) ? $row['origin'] : null),
                     'connections' => [],
+                    'rows' => [],
                 ];
 
                 $duration = (float) ($row['duration'] ?? 0);
@@ -43,6 +44,7 @@ final class QueryAggregator
                 $group['total_ms'] += $duration;
                 $group['max_ms'] = max($group['max_ms'], $duration);
                 $group['connections'][$row['connection'] ?? 'default'] = true;
+                $group['rows'][] = $row['n'] ?? null;
 
                 unset($group);
             }

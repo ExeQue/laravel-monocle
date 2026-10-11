@@ -72,8 +72,11 @@ describe(Viewfinder::class, function (): void {
         $byTable = $aggregator->group($capture, 'table', 'count');
         $byTransaction = $aggregator->group($capture, 'transaction', 'bogus');
 
+        $queries = array_values(array_filter($capture->rows('queries'), fn (array $row): bool => $row['type'] !== 'transaction'));
+
         expect($byTable[0]['key'])->toBe('things')
             ->and($byTable[0]['count'])->toBe(2)
+            ->and($byTable[0]['rows'])->toBe(array_column($queries, 'n'))
             ->and(array_column($byTransaction, 'key'))->toContain('(none)');
 
         $capture->sections['queries'] = [['sql' => 'select 1', 'duration' => 1.0, 'tables' => []]];
