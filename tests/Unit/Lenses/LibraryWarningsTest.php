@@ -31,6 +31,7 @@ describe('warnings for library code', function (): void {
             $query(1, $library, slow: true),
             $query(2, $library, duplicateOf: 1),
             $query(3, $library),
+            $query(4, $library),
         ]]))->warnings;
 
         expect($warnings)->toHaveCount(1)

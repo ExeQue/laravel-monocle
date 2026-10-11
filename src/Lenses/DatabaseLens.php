@@ -60,7 +60,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     public function description(): string
     {
-        return 'Every executed query, plus transaction statements (BEGIN TRANSACTION, COMMIT, ROLLBACK and savepoints, type transaction, no duration): sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query). Transactions are db.transaction spans in the timeline.';
+        return 'Every executed query, plus transaction statements (BEGIN TRANSACTION, COMMIT, ROLLBACK and savepoints, type transaction, no duration): sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query), n_plus_one (how often its shape ran, on selects that look like an N+1). Transactions are db.transaction spans in the timeline.';
     }
 
     public function advice(): string
@@ -89,6 +89,30 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         foreach ($this->transactions as $spans) {
             foreach ($spans as $span) {
                 $span->stop(['outcome' => 'left_open']);
+            }
+        }
+
+        $this->markNPlusOne($capture);
+    }
+
+    /**
+     * Gives each select whose shape ran at least n_plus_one_threshold times
+     * an `n_plus_one` count, so the rows behind an N+1 warning can be found.
+     */
+    private function markNPlusOne(Capture $capture): void
+    {
+        $rows = $capture->sections['queries'] ?? [];
+        // Repeats with the same bindings are duplicates, not an N+1; count each distinct query once.
+        $counts = array_count_values(array_map(
+            fn (array $row): string => ($row['type'] ?? null) === 'select' && ($row['duplicate_of'] ?? null) === null ? (string) ($row['shape'] ?? '') : '',
+            $rows,
+        ));
+
+        foreach ($rows as $index => $row) {
+            $count = ($row['type'] ?? null) === 'select' ? $counts[(string) ($row['shape'] ?? '')] ?? 0 : 0;
+
+            if ($count >= $this->nPlusOneThreshold) {
+                $capture->sections['queries'][$index]['n_plus_one'] = $count;
             }
         }
     }
@@ -124,7 +148,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
                 $duplicates++;
             }
 
-            if (($row['type'] ?? null) === 'select') {
+            if (($row['type'] ?? null) === 'select' && ($row['duplicate_of'] ?? null) === null) {
                 $shape = (string) ($row['shape'] ?? '');
                 $shapes[$shape] ??= ['count' => 0, 'origin' => $row['origin'] ?? null];
                 $shapes[$shape]['count']++;

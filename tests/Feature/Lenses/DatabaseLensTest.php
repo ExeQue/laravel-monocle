@@ -108,13 +108,20 @@ describe(DatabaseLens::class, function (): void {
             DB::table('things')->where('id', $id)->first();
         }
 
+        // The same query again is a duplicate, not another N+1 query.
+        DB::table('things')->where('name', 'a')->first();
+        DB::table('things')->where('name', 'a')->first();
+        DB::table('things')->where('name', 'a')->first();
+
         $capture = app(Eyepiece::class)->finalize();
         $summary = $lens->summarize($capture);
 
-        expect($summary->totals['queries'])->toBe(3)
-            ->and($summary->totals['queries_by_type'])->toBe(['select' => 3])
+        expect($summary->totals['queries'])->toBe(6)
+            ->and($summary->totals['queries_by_type'])->toBe(['select' => 6])
             ->and($summary->totals['query_ms'])->toBeGreaterThan(0)
             ->and(implode(' ', $summary->warnings))->toContain('Possible N+1: 3 x')
+            ->and(implode(' ', $summary->warnings))->not->toContain('"name"')
+            ->and(array_column($capture->rows('queries'), 'n_plus_one', 'n'))->toBe([1 => 3, 2 => 3, 3 => 3])
             ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries']['warnings'] ?? 0)->toBeGreaterThan(0)
             ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
     });

@@ -47,6 +47,11 @@
                                 x-show="duplicates[q.n]"
                                 x-text="'repeated ' + duplicates[q.n] + '×'"
                             ></span>
+                            <span
+                                class="bg-warn-soft text-warn rounded px-1.5 font-mono text-[10.5px]"
+                                x-show="q.n_plus_one"
+                                x-text="'N+1 ×' + q.n_plus_one"
+                            ></span>
                             <span class="bg-bad-soft text-bad rounded px-1.5 font-mono text-[10.5px]" x-show="q.slow"
                                 >slow</span>
                         </span>
