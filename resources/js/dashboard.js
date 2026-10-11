@@ -436,8 +436,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     if (by === 'order' || !this.groupings.length) return [];
     const keyOf = (row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by]));
     const formats = Object.entries(this.presentationOf(this.tab)?.formats ?? {});
-    // A row failed when it says so, or when a field its lens shows as a flag or an HTTP status says so.
-    const failed = (row) => row.failed === true || formats.some(([field, [format]]) => (format === 'flag' && row[field] === false) || (format === 'http-status' && (row[field] == null || row[field] >= 400)));
+    // A row failed when it says so, or when a field its lens shows as a bad flag or an HTTP status says so.
+    const failed = (row) => row.failed === true || formats.some(([field, [format, , , tone = 'bad']]) => (format === 'flag' && tone === 'bad' && row[field] === false) || (format === 'http-status' && (row[field] == null || row[field] >= 400)));
     const groups = new Map();
     (this.tabData?.rows ?? []).forEach((row, i) => {
       const key = keyOf(row);
@@ -452,6 +452,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       groups.set(key, g);
     });
     return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms || b.count - a.count);
+  },
+
+  /** Whether the open section's rows have durations, so its groups show timing. */
+  get groupsTimed() {
+    return (this.tabData?.rows ?? []).some((row) => typeof row.duration === 'number');
   },
 
   /** A row inside a group, in one line: the columns that tell it apart from the rest of its group. */

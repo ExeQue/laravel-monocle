@@ -14,9 +14,9 @@
                 ></th>
                 <th scope="col" :class="[cls.th, '!text-right']">Count</th>
                 <th scope="col" :class="[cls.th, '!text-right']" x-show="groups.some((g) => g.failed)">Failed</th>
-                <th scope="col" :class="[cls.th, '!text-right']">Total</th>
-                <th scope="col" :class="[cls.th, '!text-right']">Avg</th>
-                <th scope="col" :class="[cls.th, '!text-right']">Max</th>
+                <th scope="col" :class="[cls.th, '!text-right']" x-show="groupsTimed">Total</th>
+                <th scope="col" :class="[cls.th, '!text-right']" x-show="groupsTimed">Avg</th>
+                <th scope="col" :class="[cls.th, '!text-right']" x-show="groupsTimed">Max</th>
             </tr>
         </thead>
         <template x-for="g in groups" :key="g.key">
@@ -50,9 +50,14 @@
                         x-show="groups.some((group) => group.failed)"
                         x-html="g.failed ? `<span class='text-bad'>${g.failed}</span>` : '0'"
                     ></td>
-                    <td :class="cls.td" class="text-right tabular-nums" x-text="ms(g.total_ms)"></td>
-                    <td :class="cls.td" class="text-right tabular-nums" x-text="ms(g.avg_ms)"></td>
-                    <td :class="cls.td" class="text-right tabular-nums" x-text="ms(g.max_ms)"></td>
+                    <td
+                        :class="cls.td"
+                        class="text-right tabular-nums"
+                        x-show="groupsTimed"
+                        x-text="ms(g.total_ms)"
+                    ></td>
+                    <td :class="cls.td" class="text-right tabular-nums" x-show="groupsTimed" x-text="ms(g.avg_ms)"></td>
+                    <td :class="cls.td" class="text-right tabular-nums" x-show="groupsTimed" x-text="ms(g.max_ms)"></td>
                 </tr>
                 <tr x-show="openGroups.includes(g.key)" x-cloak>
                     <td colspan="6" class="border-line bg-sunk/50 border-b p-0">

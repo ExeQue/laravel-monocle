@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml, humanize } from './format.js';
+import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml, humanize, classes } from './format.js';
 import { cls } from './classes.js';
 import { changesTable, dot, dottedKey } from './render/values.js';
 
@@ -48,7 +48,9 @@ function metaRows(meta) {
         return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted"><span class="inline-flex items-center gap-1">${label} ${copyButton(JSON.stringify(v, null, 2), k + ' as JSON', { hover: true })}</span></th><td class="py-0.5 text-xs"><table class="border-collapse">${dot(v).map(([path, x]) => `<tr class="group/copy"><td class="pr-3 align-top font-mono">${dottedKey(path)}</td><td class="font-mono [overflow-wrap:anywhere]">${x === null ? '<span class="text-muted">null</span>' : esc(fmtValue(x))}</td><td class="pl-2">${x === null ? '' : copyButton(fmtValue(x), path, { hover: true })}</td></tr>`).join('')}</table></td></tr>`;
       }
       if (isThrowable(v)) return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted"><span class="inline-flex items-center gap-1">${label} ${copyButton(`${v.class}: ${v.message}`, k, { hover: true })}</span></th><td class="py-0.5 text-xs">${exceptionHtml(v, { full: true })}</td></tr>`;
-      const value = links[k] ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline" href="${esc(links[k])}">${esc(text)}</a>` : esc(text);
+      // File paths read like everywhere else (shortened, the full path in a tooltip); class names stay in full.
+      const shown = typeof v === 'string' && /\/[^\s]*\.php(:\d+)?$/.test(v) ? classes(text) : esc(text);
+      const value = links[k] ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline" href="${esc(links[k])}">${shown}</a>` : shown;
       return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${label}</th><td class="py-0.5 font-mono text-xs [overflow-wrap:anywhere]">${value} ${copyButton(text, k, { hover: true })}</td></tr>`;
     })
     .join('');

@@ -481,8 +481,8 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
             ->includes(['inertia_pages'])
             ->columns(['prop', 'type', 'shared', 'sent', 'size_bytes', 'group', 'merge', 'omitted', 'defined_at' => 'Defined at'])
             ->detailsOnly(['value'])
-            ->format(['shared' => 'bool', 'sent' => ['flag', 'sent', 'not sent', 'muted']])
+            ->format(['shared' => ['flag', 'shared', 'page', 'muted', 'muted'], 'sent' => ['flag', 'sent', 'not sent', 'muted']])
             ->highlight(['large' => 'warn', 'shared_on_partial' => 'warn'])
-            ->groupBy(['type' => 'by type', 'shared' => 'shared or page']);
+            ->groupBy(['type' => 'by type', 'shared' => 'by page or shared']);
     }
 }

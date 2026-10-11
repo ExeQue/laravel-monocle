@@ -518,7 +518,7 @@ Durations (`duration`, `*_ms`), sizes (`*_bytes`), file paths, exceptions, `{fie
 | `'fields'` | a key/value map as a short list |
 | `'rules'` | validation rules per field |
 
-When rows are grouped, a group counts a row as failed when its `failed` field is `true`, a `flag` field is `false` or an `http-status` field is empty or 400 and up. A row inside a group leads with its first `http-status`, `status` or `level` field.
+When rows are grouped, a group counts a row as failed when its `failed` field is `true`, a `flag` field shown in red is `false` or an `http-status` field is empty or 400 and up. A row inside a group leads with its first `http-status`, `status` or `level` field.
 
 A column that is empty, `false` or `0` in every row, or `true` in every row, is left out.
 
