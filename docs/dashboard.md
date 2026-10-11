@@ -33,7 +33,7 @@ A capture made while one user impersonates another is tagged "impersonated by ..
 
 Every section with rows gets a tab, and so does a section of facts (such as the request or the session) whose lens has a view for it. Tables list rows in order or grouped: queries by query, caller, table or transaction, HTTP calls by endpoint, host, pool or status, middleware by group, and views, cache, events, files, jobs, mail, authorization, exceptions, feature flags, Redis and log entries by what they have in common, such as the view, the cache key or the event. The log can also be filtered by level. Each group shows its count and timing and expands to the calls in it, and a query expands to its bindings and details in both views.
 
-Queries that look like an N+1 are marked with how often they ran, duplicates point at the first query like them, and slow queries are marked as slow. Model changes are listed in the Models tab under the counts, and login and other auth events in the Request tab.
+Queries that look like an N+1 are marked with how often they ran, duplicates point at the first query like them, and slow queries are marked as slow. Model changes are listed in the Models tab under the counts, login and other auth events in the Request tab, and commands a request or job ran with `Artisan::call()` in a Commands tab.
 
 The tabs follow `dashboard.tabs` in the configuration; see below.
 

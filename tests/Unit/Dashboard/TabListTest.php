@@ -38,6 +38,10 @@ describe(TabList::class, function (): void {
             ->and(array_column($tabs(['auth' => $auth]), 'key'))->toBe(['auth']);
     });
 
+    it('gives an included section shown on its own the problems of its host', function () use ($tabs): void {
+        expect(array_column($tabs(['commands' => [['name' => 'x']]], [], ['command' => ['warnings' => 0, 'errors' => 2]]), 'errors', 'key'))->toBe(['commands' => 2]);
+    });
+
     it('counts the host tab by its own rows', function () use ($tabs): void {
         expect($tabs(['models' => [['n' => 1]], 'model_changes' => [['n' => 1], ['n' => 2]]]))->toBe([
             ['key' => 'models', 'label' => null, 'count' => 1, 'description' => app(LensRegistry::class)->descriptions()['models'] ?? null, 'problems' => 0, 'errors' => 0],

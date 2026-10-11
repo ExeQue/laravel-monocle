@@ -426,6 +426,7 @@ return [
             McpLens::class,
             ScheduleLens::class,
             ProcessLens::class,
+            'commands',
         ],
     ],
 

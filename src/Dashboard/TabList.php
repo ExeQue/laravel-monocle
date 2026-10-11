@@ -10,7 +10,8 @@ use ExeQue\Monocle\LensRegistry;
 /**
  * The dashboard tabs a capture gets, after Overview and Timeline: one per
  * section with rows, or with data and a tab view of its own. A section
- * another tab includes is shown there instead, as long as that tab is.
+ * another tab includes is shown there instead, as long as that tab is; on
+ * its own, it carries the problems its host's lens reported.
  *
  * @internal
  */
@@ -43,6 +44,14 @@ final readonly class TabList
         $keys = array_values(array_unique([...array_map('strval', array_keys($capture->sections)), ...array_keys($presentations)]));
         $keys = array_values(array_filter($keys, $shown));
 
+        $hosts = [];
+
+        foreach ($presentations as $host => $presentation) {
+            foreach ($presentation->includes as $section) {
+                $hosts[$section][] = (string) $host;
+            }
+        }
+
         $hosted = [];
 
         foreach ($keys as $key) {
@@ -55,8 +64,8 @@ final readonly class TabList
         $rank = fn (string $key): int => in_array($key, $order, true) ? (int) array_search($key, $order, true) : count($order);
         usort($keys, fn (string $a, string $b): int => $rank($a) <=> $rank($b));
 
-        return array_map(function (string $key) use ($presentations, $descriptions, $rows, $included, $problems): array {
-            $sections = [$key, ...$included($key)];
+        return array_map(function (string $key) use ($presentations, $descriptions, $rows, $included, $hosts, $problems): array {
+            $sections = [$key, ...$included($key), ...($hosts[$key] ?? [])];
             $count = $rows($key);
 
             return [

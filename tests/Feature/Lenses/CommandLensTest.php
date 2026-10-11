@@ -21,6 +21,20 @@ describe(CommandLens::class, function (): void {
             return 3;
         });
 
+        Artisan::command('monocle-test:ok', fn (): int => 0);
+
+        Artisan::command('monocle-test:outer', function (): int {
+            Artisan::call('monocle-test:ok');
+
+            return 0;
+        });
+
+        Route::get('/call-ok', function () {
+            Artisan::call('monocle-test:ok');
+
+            return 'called';
+        });
+
         Route::get('/call', function () {
             Artisan::call('monocle-test:ping', ['name' => 'nested']);
 
@@ -76,6 +90,71 @@ describe(CommandLens::class, function (): void {
             ->and($spans[0]->name)->toBe('monocle-test:ping')
             ->and($spans[0]->meta['exit_code'])->toBe(3)
             ->and($count('command'))->toBe(0);
+    });
+
+    it('records nested commands as rows with masked options, exit code and duration', function (): void {
+        Route::get('/call-secret', function () {
+            Artisan::call('monocle-test:ping', ['name' => 'nested', '--secret' => 'hunter22hunter22']);
+
+            return 'called';
+        });
+
+        $this->get('/call-secret')->assertOk();
+
+        $request = latestCapture();
+        $row = $request->rows('commands')[0];
+
+        expect($request->rows('commands'))->toHaveCount(1)
+            ->and($row['name'])->toBe('monocle-test:ping')
+            ->and($row['class'])->toBeNull()
+            ->and($row['arguments'])->toBe(['name' => 'nested'])
+            ->and($row['options']['secret'])->toBe('hunt****')
+            ->and($row['exit_code'])->toBe(3)
+            ->and($row['failed'])->toBeTrue()
+            ->and($row['duration'])->toBeFloat()
+            ->and($row['time'])->toBeFloat()
+            ->and($row['origin']['file'])->toContain('CommandLensTest.php');
+    });
+
+    it('reports a failed nested command as an error with totals', function (): void {
+        $this->get('/call')->assertOk();
+
+        $summary = app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build(latestCapture());
+
+        expect($summary['errors'])->toContain('Command monocle-test:ping failed (exit code 3).')
+            ->and($summary['totals']['commands'])->toBe(1)
+            ->and($summary['totals']['commands_failed'])->toBe(1)
+            ->and($summary['totals'])->toHaveKey('commands_ms')
+            ->and($summary['problems']['command']['errors'])->toBe(1);
+    });
+
+    it('reports no error for a successful nested command and nothing without one', function (): void {
+        $this->get('/call-ok')->assertOk();
+
+        $lens = app(CommandLens::class);
+        $ok = $lens->summarize(latestCapture());
+
+        expect($ok->errors)->toBe([])
+            ->and($ok->totals['commands_failed'])->toBe(0)
+            ->and(latestCapture()->rows('commands')[0]['failed'])->toBeFalse()
+            ->and($lens->summarize(new \ExeQue\Monocle\Data\Capture('c1', CaptureType::Request, microtime(true)))->totals)->toBe([]);
+    });
+
+    it('shows nested commands on a Commands tab, or on the command tab of a command capture', function (): void {
+        $this->get('/call')->assertOk();
+
+        $tabs = app(\ExeQue\Monocle\Dashboard\TabList::class)->for(latestCapture(), [], ['command' => ['warnings' => 0, 'errors' => 1]]);
+        $tab = array_values(array_filter($tabs, fn (array $tab): bool => $tab['key'] === 'commands'))[0];
+
+        Artisan::call('monocle-test:outer');
+
+        $command = latestCapture();
+
+        expect($tab)->toMatchArray(['label' => 'Commands', 'count' => 1, 'errors' => 1])
+            ->and($command->section('command')['name'])->toBe('monocle-test:outer')
+            ->and($command->section('command')['exit_code'])->toBe(0)
+            ->and($command->rows('commands')[0]['name'])->toBe('monocle-test:ok')
+            ->and(app(CommandLens::class)->presentation()->includes)->toBe(['commands']);
     });
 
     it('never records the Monocle MCP server process', function () use ($count): void {

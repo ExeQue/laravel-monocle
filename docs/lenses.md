@@ -28,7 +28,7 @@ Lenses report two kinds of problems in the summary: **errors** for things that f
 | [Views](#views) | `views` | every view and component with its duration |
 | [Events](#events) | `events` | your events and their listeners |
 | [Queue](#queue) | `jobs` | jobs dispatched, and each job as its own capture |
-| [Artisan commands](#artisan-commands) | `command` | arguments, options and exit code |
+| [Artisan commands](#artisan-commands) | `command`, `commands` | arguments, options and exit code; commands called during a capture |
 | [Scheduler](#scheduler) | `scheduled_tasks` | each scheduled task and its outcome |
 | [HTTP client](#http-client) | `http` | outgoing calls made with the `Http` client |
 | [Mail and notifications](#mail-and-notifications) | `mail` | mail and notifications sent |
@@ -225,7 +225,7 @@ Error: a job that failed, on the job's own capture.
 
 ### Artisan commands
 
-Section `command`: every artisan command is recorded as its own capture, with its arguments, options (secrets masked) and exit code. A command called from somewhere else, like `Artisan::call()` inside a request, appears in that capture's timeline.
+Section `command`: every artisan command is recorded as its own capture, with its arguments, options (secrets masked) and exit code. A command called from somewhere else, like `Artisan::call()` inside a request, job or another command, appears in that capture's timeline and as a row in section `commands`: name, class, arguments, options (masked), exit code, duration and the line that called it. A request or job that called commands gets a **Commands** tab; on a command capture they are listed on its own tab. A non-zero exit code marks the row as failed and is reported as an error. Totals: `commands_ms` (time spent), `commands` and `commands_failed`.
 
 ### Scheduler
 

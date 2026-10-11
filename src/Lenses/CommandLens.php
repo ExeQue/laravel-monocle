@@ -9,10 +9,13 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
@@ -26,9 +29,9 @@ use Throwable;
 /**
  * Artisan commands become captures of type command; a command invoked while
  * another capture is active (Artisan::call inside a request or a command)
- * becomes a span instead.
+ * becomes a span instead, and a row of the commands section when it finishes.
  */
-final class CommandLens implements Advises, Finalizable, Lens, Presentable, Resettable
+final class CommandLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     private bool $usedLaravelStart = false;
 
@@ -51,7 +54,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
     public function description(): string
     {
-        return 'Artisan command facts for captures of type command: name, arguments, options (masked), exit code. Nested Artisan::call() invocations are command spans in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
+        return 'Artisan command facts for captures of type command: name, arguments, options (masked), exit code. Section commands has one row per Artisan::call() made while any capture (request, job, command) is active: name, class, arguments, options (masked), exit_code, failed (non-zero exit code), duration, time and origin; each is also a command span in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
     }
 
     public function advice(): string
@@ -150,7 +153,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         }
 
         if ($this->spans !== []) {
-            array_pop($this->spans)->stop(['exit_code' => $event->exitCode]);
+            $this->finishNested(array_pop($this->spans), $event->exitCode);
 
             return;
         }
@@ -164,6 +167,45 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         $this->eyepiece->describe(status: (string) $event->exitCode);
         $this->eyepiece->set('command', ['exit_code' => $event->exitCode]);
         $this->eyepiece->finalize();
+    }
+
+    private function finishNested(Span $span, int $exitCode): void
+    {
+        $span->stop(['exit_code' => $exitCode]);
+
+        $this->eyepiece->push('commands', [
+            'name' => $span->name,
+            'class' => $span->meta['class'] ?? null,
+            'arguments' => $span->meta['arguments'] ?? [],
+            'options' => $span->meta['options'] ?? [],
+            'exit_code' => $exitCode,
+            'failed' => $exitCode !== 0,
+            'duration' => $span->duration(),
+            'time' => $span->start,
+        ]);
+    }
+
+    public function summarize(Capture $capture): Summary
+    {
+        $rows = $capture->rows('commands');
+
+        if ($rows === []) {
+            return Summary::make();
+        }
+
+        $failed = [];
+
+        foreach ($rows as $row) {
+            if ($row['failed'] ?? false) {
+                $failed[] = sprintf('Command %s failed (exit code %s).', $row['name'], $row['exit_code']);
+            }
+        }
+
+        return Summary::make()
+            ->total('commands_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $rows)), 3), 'spent', Unit::Milliseconds)
+            ->total('commands', count($rows), 'commands')
+            ->total('commands_failed', count($failed), 'failed')
+            ->errors(array_slice($failed, 0, 3));
     }
 
     /**
@@ -183,7 +225,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     private function isExcepted(string $command, InputInterface $input): bool
     {
         $withArguments = trim($command.' '.implode(' ', array_map('strval', array_filter(
-            array_values(array_diff_key($this->arguments($input), ['command' => true])),
+            array_values($this->arguments($input)),
             fn (mixed $value): bool => is_scalar($value),
         ))));
 
@@ -197,11 +239,17 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     }
 
     /**
+     * The arguments without the command name, which Artisan::call() passes
+     * as the first one.
+     *
      * @return array<string, mixed>
      */
     private function arguments(InputInterface $input): array
     {
-        return array_filter($input->getArguments(), fn (mixed $value): bool => $value !== null);
+        return array_filter(
+            array_diff_key($input->getArguments(), ['command' => true, 0 => true]),
+            fn (mixed $value): bool => $value !== null,
+        );
     }
 
     /**
@@ -214,6 +262,16 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.command');
+        return Presentation::table()
+            ->tab('monocle::tabs.command')
+            ->includes([
+                'commands' => Presentation::table()
+                    ->label('Commands')
+                    ->columns(['name', 'class', 'exit_code' => 'Exit', 'failed', 'duration'])
+                    ->detailsOnly(['arguments', 'options'])
+                    ->format(['name' => 'code', 'exit_code' => 'status', 'failed' => ['flag', 'failed', null, 'muted', 'bad']])
+                    ->highlight(['failed' => 'bad'])
+                    ->groupBy(['name' => 'by command']),
+            ]);
     }
 }
