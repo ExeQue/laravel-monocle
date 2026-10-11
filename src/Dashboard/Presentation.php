@@ -33,6 +33,8 @@ final readonly class Presentation
         public array $formats = [],
         /** @var array<string, string> field => tone of rows where it is set */
         public array $highlights = [],
+        public bool $showsTotals = true,
+        public bool $showsProblems = true,
     ) {
     }
 
@@ -172,7 +174,24 @@ final readonly class Presentation
     }
 
     /**
-     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool, includes: list<string>, formats: array<string, list<mixed>>, highlights: array<string, string>}
+     * Leaves the section's totals off the top of its tab (they stay on the overview).
+     */
+    public function withoutTotals(): self
+    {
+        return $this->with(['showsTotals' => false]);
+    }
+
+    /**
+     * Leaves the section's warnings and errors off the top of its tab, for a tab whose
+     * rows already are those problems (they stay on the overview).
+     */
+    public function withoutProblems(): self
+    {
+        return $this->with(['showsProblems' => false]);
+    }
+
+    /**
+     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool, includes: list<string>, formats: array<string, list<mixed>>, highlights: array<string, string>, shows_totals: bool, shows_problems: bool}
      */
     public function toArray(): array
     {
@@ -186,6 +205,8 @@ final readonly class Presentation
             'includes' => $this->includes,
             'formats' => $this->formats,
             'highlights' => $this->highlights,
+            'shows_totals' => $this->showsTotals,
+            'shows_problems' => $this->showsProblems,
         ];
     }
 }

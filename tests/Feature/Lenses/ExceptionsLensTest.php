@@ -206,6 +206,7 @@ describe(ExceptionsLens::class, function (): void {
             ->and($presentation->tabView)->toBe('monocle::tabs.exceptions')
             ->and($presentation->detailsView)->toBe('monocle::details.exception')
             ->and($presentation->groupings)->toBe(['class' => 'by exception', 'source' => 'by source'])
-            ->and($presentation->formats)->toBe(['message' => ['truncate', 80]]);
+            ->and($presentation->formats)->toBe(['message' => ['truncate', 80]])
+            ->and($presentation->toArray())->toMatchArray(['shows_totals' => true, 'shows_problems' => false]);
     });
 });

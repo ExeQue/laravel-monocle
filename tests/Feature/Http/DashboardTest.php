@@ -162,6 +162,13 @@ describe('dashboard', function (): void {
                 ->and(array_slice($keys, 0, count($listed)))->toBe($listed);
         });
 
+        it('lets a lens leave its totals and problems off its tab', function (): void {
+            $presentation = \ExeQue\Monocle\Dashboard\Presentation::table()->withoutTotals()->withoutProblems();
+
+            expect($presentation->toArray())->toMatchArray(['shows_totals' => false, 'shows_problems' => false])
+                ->and(\ExeQue\Monocle\Dashboard\Presentation::table()->toArray())->toMatchArray(['shows_totals' => true, 'shows_problems' => true]);
+        });
+
         it('sends how the section is shown with the capture', function (): void {
             expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('presentations.payments'))->toBe([
                 'label' => 'Payments',
@@ -173,6 +180,8 @@ describe('dashboard', function (): void {
                 'includes' => [],
                 'formats' => [],
                 'highlights' => [],
+                'shows_totals' => true,
+                'shows_problems' => true,
             ]);
         });
 

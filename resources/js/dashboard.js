@@ -472,6 +472,22 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       ...warnings.map((text, i) => ({ text, links: this.capture.warning_links?.[i], error: false })),
     ];
   },
+  /**
+   * The warnings and errors of the open tab's section and the sections it includes, errors first,
+   * unless its lens leaves them out (Presentation::withoutProblems()).
+   */
+  get tabProblems() {
+    if (this.presentationOf(this.tab)?.shows_problems === false) return [];
+    const sections = [this.tab, ...(this.presentationOf(this.tab)?.includes ?? [])];
+    const linksOf = (list, links, message) => links?.[(list ?? []).indexOf(message)];
+    return (this.summary.flags ?? [])
+      .filter((flag) => sections.includes(flag.section))
+      .map((flag) => ({
+        text: flag.message,
+        error: flag.level === 'error',
+        links: flag.level === 'error' ? linksOf(this.summary.errors, this.capture.error_links, flag.message) : linksOf(this.summary.warnings, this.capture.warning_links, flag.message),
+      }));
+  },
   get categories() { return this.summary.breakdown?.categories ?? []; },
   get maxCategory() { return Math.max(1, ...this.categories.map((c) => c.ms)); },
 
@@ -507,6 +523,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   /** The open tab's own totals, shown above its rows. */
   get tabTotals() {
+    if (this.presentationOf(this.tab)?.shows_totals === false) return [];
     return this.totalGroups.find((g) => g.key === this.tab)?.items ?? [];
   },
 

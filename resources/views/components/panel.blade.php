@@ -21,5 +21,26 @@
         </dl>
     </div>
 
+    {{-- The warnings and errors of the lens, as on the overview. --}}
+    <div class="mb-4 grid gap-2" x-data="{ all: false }" x-show="tabProblems.length">
+        <h3 :class="cls.sectionTitle" class="uppercase">Warnings / Errors</h3>
+        <template x-for="p in tabProblems.slice(0, all ? undefined : 3)" :key="p.text">
+            <div
+                class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 rounded-md px-3 py-2.5"
+                :class="p.error ? 'bg-bad-soft' : 'bg-warn-soft'"
+            >
+                <span class="pt-0.5 font-mono text-[11px]" :class="p.error ? 'text-bad' : 'text-warn'">!</span>
+                <span class="[overflow-wrap:anywhere]" x-html="linkText(p.text, p.links)"></span>
+            </div>
+        </template>
+        <button
+            type="button"
+            class="text-brass cursor-pointer justify-self-start text-xs hover:underline"
+            x-show="tabProblems.length > 3"
+            @click="all = ! all"
+            x-text="all ? 'Show less' : 'Show ' + (tabProblems.length - 3) + ' more'"
+        ></button>
+    </div>
+
     {{ $slot }}
 </section>

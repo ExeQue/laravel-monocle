@@ -308,6 +308,7 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
             ->tab('monocle::tabs.exceptions')
             ->groupBy(['class' => 'by exception', 'source' => 'by source'])
             ->format(['message' => ['truncate', 80]])
+            ->withoutProblems()
             ->details('monocle::details.exception');
     }
 }
