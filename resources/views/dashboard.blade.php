@@ -1137,10 +1137,17 @@
                                         :class="statusClass(x.status)"
                                         x-text="x.status ?? ''"
                                     ></span>
-                                    <span
-                                        class="text-muted font-mono text-xs tabular-nums"
-                                        x-text="ms(x.duration)"
-                                    ></span>
+                                    <span class="text-right tabular-nums">
+                                        <span
+                                            class="block font-mono text-xs whitespace-nowrap"
+                                            x-text="ms(x.duration)"
+                                        ></span>
+                                        <span
+                                            class="text-muted block text-[11px] whitespace-nowrap"
+                                            x-show="x.offset_ms != null && x.depth > 0"
+                                            x-text="'at ' + ms(x.offset_ms)"
+                                        ></span>
+                                    </span>
                                 </div>
                             </template>
                         </div>
