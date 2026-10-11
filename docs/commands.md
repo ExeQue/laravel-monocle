@@ -43,6 +43,7 @@ The commands work even when recording is turned off, so earlier captures can alw
 |---|---|---|
 | `j` / `k` or arrows | next / previous capture | scroll |
 | `enter` | open the capture | |
+| `/` | filter by name, type, status, route, label or tag; `esc` clears it | |
 | `u` / `i`, left / right or tab | | previous / next tab |
 | `J` / `K` | | next / previous capture, same tab |
 | `g` / `G`, Home / End | first / last capture | top / bottom |
