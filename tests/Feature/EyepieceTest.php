@@ -189,8 +189,23 @@ describe(Eyepiece::class, function (): void {
             expect($stored->id)->toBe($capture->id)
                 ->and($stored->duration())->toBeGreaterThan(0)
                 ->and($stored->health['overhead_ms'])->toBeGreaterThanOrEqual(0)
+                ->and($stored->health['finalize_ms'])->toBeGreaterThanOrEqual(0)
                 ->and($stored->endedBy)->toBe('normal')
                 ->and($this->eyepiece->active())->toBeNull();
+        });
+
+        it('counts the time spent in its listeners as overhead, once', function (): void {
+            $this->eyepiece->listen('monocle.test', function (): void {
+                usleep(20_000);
+                $this->eyepiece->push('things', ['n' => 1]);
+            });
+
+            event('monocle.test');
+
+            $overhead = $this->eyepiece->finalize()->health['overhead_ms'];
+
+            expect($overhead)->toBeGreaterThanOrEqual(20.0)
+                ->and($overhead)->toBeLessThan(40.0);
         });
     });
 

@@ -21,7 +21,7 @@ A tab's count turns red when its section reported errors and yellow when it repo
 
 ## The overview
 
-The overview shows where the time went (each phase of the request), what it was spent on (queries, cache, HTTP calls and so on), the warnings and errors, and the totals. The duration, peak memory, response size, middleware time and middleware count are at the top; the other totals are grouped by the section that reported them. Click a group's name to open its tab. **Totals** folds the grouped totals away; the ones at the top stay.
+The overview shows where the time went (each phase of the request), what it was spent on (queries, cache, HTTP calls and so on), the warnings and errors, and the totals. The duration, peak memory, response size, middleware time, middleware count and the time Monocle itself took (and its share of the duration) are at the top; the other totals are grouped by the section that reported them. Click a group's name to open its tab. **Totals** folds the grouped totals away; the ones at the top stay.
 
 For a GET request, the capture's title opens the URL in a new window, so you can run the request again.
 

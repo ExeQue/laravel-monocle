@@ -66,7 +66,7 @@ The summary, also returned by `monocle:show`, has these keys:
 | `flags` | every error and warning as `{level, section, message}`, errors first |
 | `problems` | section => `{warnings, errors}` counts |
 | `tags` | short labels for the whole capture as `{label, tone}`, such as "impersonated by #1 (web guard)" |
-| `meta`, `health` | metadata added to the capture, and memory, overhead, lens failures and the sections recorded |
+| `meta`, `health` | metadata added to the capture, and memory, overhead, lens failures and the sections recorded. `overhead_ms` is the time Monocle spent while the capture ran (also the `monocle_ms` and `monocle_percent` totals); `finalize_ms` is the time spent closing it afterwards, outside the request |
 
 Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`). `limit` sets the rows per section (default 25); `verbose: true` adds the full call chain behind each `origin`.
 

@@ -90,7 +90,9 @@ describe(Viewfinder::class, function (): void {
 
         expect($summary['errors'])->toContain('Response status 500.')
             ->and($summary['status'])->toBe('500')
-            ->and($summary['headlines'])->toContain('duration_ms', 'memory_peak_mb', 'response_bytes')
+            ->and($summary['headlines'])->toContain('duration_ms', 'memory_peak_mb', 'response_bytes', 'monocle_ms', 'monocle_percent')
+            ->and($summary['totals']['monocle_percent'])->toBe(round($summary['totals']['monocle_ms'] / $summary['totals']['duration_ms'] * 100, 1))
+            ->and($summary['labels']['monocle_ms'])->toBe('monocle')
             ->and($summary['groups'])->toMatchArray(['queries' => 'queries'])
             ->and($summary['groups'])->not->toHaveKey('response_bytes')
             ->and($summary['flags'])->toContain(['level' => 'error', 'section' => 'request', 'message' => 'Response status 500.'])

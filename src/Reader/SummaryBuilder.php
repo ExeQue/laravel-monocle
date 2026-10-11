@@ -76,6 +76,17 @@ final class SummaryBuilder
             $flags = [...$flags, ...$this->flags('error', $section, $contribution->errors), ...$this->flags('warning', $section, $contribution->warnings)];
         }
 
+        // Monocle's own time during the capture, last among the headlines.
+        if (isset($capture->health['overhead_ms'])) {
+            $overhead = (float) $capture->health['overhead_ms'];
+            $duration = (float) $capture->duration();
+            $totals['monocle_ms'] = $overhead;
+            $totals['monocle_percent'] = $duration > 0 ? round($overhead / $duration * 100, 1) : null;
+            $labels += ['monocle_ms' => 'monocle', 'monocle_percent' => 'monocle share'];
+            $units += ['monocle_ms' => Unit::Milliseconds->value, 'monocle_percent' => Unit::Percent->value];
+            $headlines = [...$headlines, 'monocle_ms', 'monocle_percent'];
+        }
+
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {
             $errors[] = "Response status {$capture->status}.";
             $problems = $this->flag($problems, 'request', 'errors', 1);

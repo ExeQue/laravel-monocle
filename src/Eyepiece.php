@@ -42,6 +42,9 @@ final class Eyepiece
 
     private int $overheadNs = 0;
 
+    /** How deep measure() calls are nested; only the outermost one is timed. */
+    private int $measuring = 0;
+
     private bool $discarded = false;
 
     private bool $finalizing = false;
@@ -265,11 +268,7 @@ final class Eyepiece
     public function listen(string $event, Closure $handler): static
     {
         $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler): void {
-            try {
-                $handler(...$arguments);
-            } catch (Throwable $e) {
-                $this->failed($e);
-            }
+            $this->measure(fn () => $handler(...$arguments));
         });
 
         return $this;
@@ -468,6 +467,7 @@ final class Eyepiece
 
             $capture->endedAt = microtime(true);
             $capture->endedBy = $endedBy;
+            $finalizeStarted = hrtime(true);
 
             // Lenses close their own spans first; whatever is still open was forgotten.
             $this->app->make(LensRegistry::class)->finalize($capture);
@@ -488,6 +488,8 @@ final class Eyepiece
             $capture->health['warnings'] = count($summary['warnings']);
             $capture->health['errors'] = count($summary['errors']);
             $capture->health['tags'] = $summary['tags'];
+            // ponytail: writing the capture to the store is not included; it can't be measured into what it writes.
+            $capture->health['finalize_ms'] = round((hrtime(true) - $finalizeStarted) / 1_000_000, 3);
 
             $this->stores->store()->put($capture);
 
@@ -540,16 +542,27 @@ final class Eyepiece
         return $this->app->make('config')->get('monocle.'.$key, $default);
     }
 
+    /**
+     * Run Monocle's own work and count its time as overhead. A listener that
+     * pushes a row is measured once, not once for the listener and once
+     * for the push.
+     */
     private function measure(Closure $work): void
     {
+        $outermost = $this->measuring === 0;
         $started = hrtime(true);
+        $this->measuring++;
 
         try {
             $work();
         } catch (Throwable $e) {
             $this->failed($e);
         } finally {
-            $this->overheadNs += hrtime(true) - $started;
+            $this->measuring--;
+
+            if ($outermost) {
+                $this->overheadNs += hrtime(true) - $started;
+            }
         }
     }
 
