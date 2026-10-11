@@ -46,7 +46,14 @@
                         @mousemove="palette.index = i"
                         @click="runPalette(item)"
                     >
-                        <span class="min-w-0 flex-1 truncate" x-text="item.label"></span>
+                        <span class="flex min-w-0 flex-1 items-center gap-2">
+                            <span class="truncate" x-text="item.label"></span>
+                            <span
+                                class="border-line text-muted shrink-0 rounded-full border px-2 font-mono text-[11px]"
+                                x-show="item.route"
+                                x-text="item.route"
+                            ></span>
+                        </span>
                         <span
                             class="shrink-0 font-mono text-xs"
                             :class="statusClass(item.status)"
