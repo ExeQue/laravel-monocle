@@ -80,13 +80,13 @@
                         </template>
                     </div>
                 </template>
-                <dl
-                    class="border-line m-0 grid gap-x-1.5 border-t pt-3 text-[13px]"
-                    :style="`grid-template-columns: auto repeat(${Math.max(1, ...totalGroups.filter((g) => g.label !== 'Overall').map((g) => g.items.length))}, auto auto) minmax(0, 1fr)`"
-                >
+                <dl class="border-line m-0 grid grid-cols-[auto_repeat(3,auto_minmax(0,1fr))] gap-x-1.5 border-t pt-3 text-[13px]">
                     <template x-for="g in totalGroups.filter((g) => g.label !== 'Overall')" :key="g.label">
                         <div class="border-line col-span-full grid grid-cols-subgrid items-baseline border-b border-dashed py-1.5 last:border-b-0">
-                            <dt class="text-brass pr-4 text-xs font-semibold">
+                            <dt
+                                class="text-brass pr-4 text-xs font-semibold"
+                                :style="`grid-row: span ${Math.ceil(g.items.length / 3)}`"
+                            >
                                 <button
                                     type="button"
                                     class="cursor-pointer hover:underline"
