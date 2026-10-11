@@ -35,6 +35,14 @@ describe(Format::class, function (): void {
             ->and(Format::value(new stdClass()))->toBe('{}');
     });
 
+    it('pretty prints arrays and JSON text and keeps other text as it is', function (): void {
+        expect(Format::pretty(['city' => 'Aarhus']))->toBe("{\n    \"city\": \"Aarhus\"\n}")
+            ->and(Format::pretty('{"ok":true}'))->toBe("{\n    \"ok\": true\n}")
+            ->and(Format::pretty('sunny'))->toBe('sunny')
+            ->and(Format::pretty('42'))->toBe('42')
+            ->and(Format::pretty(null))->toBe('');
+    });
+
     it('colours a dump by the pieces VarDumper styled, with the classes it names as names', function (): void {
         $row = ['value' => 'ignored', 'tokens' => [
             ['note', 'Tests\\Fixtures\\Models\\Writer'], ['', ' {'], ['ref', '#12'], ['', "\n  #"], ['protected', 'connection'], ['', ': "'], ['str', 'sqlite'],

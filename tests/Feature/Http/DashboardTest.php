@@ -9,10 +9,12 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Editor\EditorSettings;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Http\Controllers\AssetController;
 use ExeQue\Monocle\Http\Controllers\CapturesController;
 use ExeQue\Monocle\Http\Controllers\DashboardController;
 use ExeQue\Monocle\Http\Middleware\Authorize;
+use ExeQue\Monocle\Lenses\Packages\Prism\TracedProvider;
 use ExeQue\Monocle\MonocleServiceProvider;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Cache;
@@ -22,8 +24,33 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\View;
+use Laravel\Ai\Contracts\Providers\TextProvider;
+use Laravel\Ai\Events\AgentFailed;
+use Laravel\Ai\Events\AgentPrompted;
+use Laravel\Ai\Events\InvokingTool;
+use Laravel\Ai\Events\PromptingAgent;
+use Laravel\Ai\Events\ToolFailed;
+use Laravel\Ai\Events\ToolInvoked;
+use Laravel\Ai\Prompts\AgentPrompt;
+use Laravel\Ai\Responses\AgentResponse;
+use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Tools\AgentTool;
 use LogicException;
+use Mockery;
+use Prism\Prism\Facades\Prism;
+use Prism\Prism\Providers\Provider as PrismProvider;
+use Prism\Prism\Schema\ObjectSchema;
+use Prism\Prism\Schema\StringSchema;
+use Prism\Prism\Testing\StructuredResponseFake;
+use Prism\Prism\Testing\TextResponseFake;
+use Prism\Prism\Text\Request as TextRequest;
+use Prism\Prism\Text\Response as TextResponse;
+use Prism\Prism\Tool;
+use Prism\Prism\ValueObjects\Usage;
 use RuntimeException;
+use Tests\Fixtures\Ai\Greeter;
+use Tests\Fixtures\Ai\WeatherTool;
 use Tests\Fixtures\PaymentsLens;
 use Tests\TestCase;
 
@@ -134,6 +161,80 @@ describe('dashboard', function (): void {
             $object = $this->getJson("/_monocle/api/captures/{$id}/rows/dumps/2/details")->assertOk()->json('html');
 
             expect($object)->toContain('<span data-monocle-name data-full>Tests\\Fixtures\\Models\\Writer</span>');
+        });
+
+        it('renders agent runs with their tool calls and sub-agents, and each tool call, on the server', function (): void {
+            Route::get('/agent', function () {
+                $provider = Mockery::mock(TextProvider::class)->shouldIgnoreMissing();
+                $provider->shouldReceive('name')->andReturn('openai');
+                $prompt = fn (string $id, ?string $parent = null, ?string $tool = null): AgentPrompt => new AgentPrompt(new Greeter(), 'Weather in Aarhus?', [], $provider, 'gpt-test', null, $id, null, $parent, $tool);
+                $agent = new Greeter();
+                $subAgent = new AgentTool(new Greeter());
+
+                event(new PromptingAgent('inv-1', $prompt('inv-1')));
+                event(new InvokingTool('inv-1', 'tool-1', $agent, new WeatherTool(), ['city' => 'Aarhus']));
+                event(new ToolInvoked('inv-1', 'tool-1', $agent, new WeatherTool(), ['city' => 'Aarhus'], '{"sky":"sunny"}', 42.0));
+                event(new InvokingTool('inv-1', 'tool-2', $agent, $subAgent, ['task' => 'Say hi']));
+                event(new PromptingAgent('inv-2', $prompt('inv-2', 'inv-1', 'tool-2')));
+                event(new AgentPrompted('inv-2', $prompt('inv-2', 'inv-1', 'tool-2'), new AgentResponse('inv-2', 'Hi!', new TextUsage(7, 3), new Meta('openai', 'gpt-test'))));
+                event(new ToolFailed('inv-1', 'tool-2', $agent, $subAgent, ['task' => 'Say hi'], new RuntimeException('no greeting'), 1.5));
+                event(new AgentPrompted('inv-1', $prompt('inv-1'), new AgentResponse('inv-1', 'It is sunny.', new TextUsage(100, 20, 5, 2, 4), new Meta('openai', 'gpt-test'))));
+                event(new PromptingAgent('inv-3', $prompt('inv-3')));
+                event(new AgentFailed('inv-3', $prompt('inv-3'), new RuntimeException('gave up')));
+
+                return 'ok';
+            });
+
+            $this->get('/agent')->assertOk();
+            $id = latestCapture()->id;
+            $details = fn (string $section, int $n): string => $this->getJson("/_monocle/api/captures/{$id}/rows/{$section}/{$n}/details")->assertOk()->json('html');
+
+            $nested = $details('ai', 1);
+            $outer = $details('ai', 2);
+            $failed = $details('ai', 3);
+            $tool = $details('ai_tools', 1);
+            $broken = $details('ai_tools', 2);
+
+            expect($outer)->toContain(Greeter::class, 'Weather in Aarhus?', 'It is sunny.', 'Cache read', 'Reasoning', 'Tool calls (2)', 'weather', 'sub-agent', '{&quot;city&quot;:&quot;Aarhus&quot;}')
+                ->and($nested)->toContain('Hi!', 'Called by', 'Greeter')->not->toContain('Tool calls (')
+                ->and($failed)->toContain('RuntimeException', 'gave up', 'none')
+                ->and($tool)->toContain(WeatherTool::class, '&quot;city&quot;: &quot;Aarhus&quot;', '&quot;sky&quot;: &quot;sunny&quot;')
+                ->and($broken)->toContain('Sub-agent', 'no greeting', 'Result');
+        });
+
+        it('renders Prism calls and their tool calls on the server', function (): void {
+            $weather = new Tool()->as('weather')->for('Weather')->withStringParameter('city', 'City')
+                ->using(fn (string $city): string => "sunny in {$city}");
+            $provider = new class () extends PrismProvider {
+                public function text(TextRequest $request): TextResponse
+                {
+                    foreach ($request->tools() as $tool) {
+                        $tool->handle(city: 'Aarhus');
+                    }
+
+                    return TextResponseFake::make()->withText('done')->withUsage(new Usage(10, 5));
+                }
+            };
+
+            Route::get('/prism', function () use ($weather, $provider) {
+                Prism::fake([StructuredResponseFake::make()->withStructured(['name' => 'Ada'])->withUsage(new Usage(10, 5))]);
+                Prism::structured()->using('anthropic', 'claude-test')
+                    ->withSchema(new ObjectSchema('person', 'A person', [new StringSchema('name', 'The name')], ['name']))
+                    ->withPrompt('Who wrote the first program?')
+                    ->asStructured();
+                new TracedProvider($provider, app(Eyepiece::class), null)
+                    ->text(new TextRequest('m', 'scripted', [], 'Weather?', [], 3, null, null, null, [$weather], [], [], null));
+
+                return 'ok';
+            });
+
+            $this->get('/prism')->assertOk();
+            $id = latestCapture()->id;
+            $details = fn (string $section, int $n): string => $this->getJson("/_monocle/api/captures/{$id}/rows/{$section}/{$n}/details")->assertOk()->json('html');
+
+            expect($details('prism', 1))->toContain('structured', 'anthropic/', 'Who wrote the first program?', 'Structured output', '&quot;name&quot;: &quot;Ada&quot;')
+                ->and($details('prism', 2))->toContain('Weather?', 'done', 'Tools offered', 'weather')
+                ->and($details('prism_tools', 1))->toContain('weather', '&quot;city&quot;: &quot;Aarhus&quot;', 'sunny in Aarhus');
         });
     });
 

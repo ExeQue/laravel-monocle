@@ -63,6 +63,21 @@ final class Format
     }
 
     /**
+     * A value to read in a block: arrays and JSON text pretty printed, other
+     * text as it is.
+     */
+    public static function pretty(mixed $value): string
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+
+        if (! is_array($decoded)) {
+            return self::value($value);
+        }
+
+        return (string) json_encode($decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * @phpstan-assert-if-true list<scalar> $value
      */
     private static function isScalarList(mixed $value): bool

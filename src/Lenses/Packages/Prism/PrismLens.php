@@ -148,12 +148,14 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
     {
         return Presentation::table()
             ->tab('monocle::tabs.prism')
+            ->details('monocle::details.prism')
             ->format(['status' => 'status'])
             ->includes([
                 'prism_tools' => Presentation::table()
                     ->label('Tool calls')
                     ->columns(['tool', 'status', 'duration'])
                     ->detailsOnly(['arguments', 'result', 'exception'])
+                    ->details('monocle::details.prism-tool')
                     ->format(['tool' => 'code', 'status' => 'status'])
                     ->groupBy(['tool' => 'by tool']),
             ]);

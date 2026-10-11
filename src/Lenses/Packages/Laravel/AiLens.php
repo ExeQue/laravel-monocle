@@ -568,12 +568,14 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Requires
     {
         return Presentation::table()
             ->tab('monocle::tabs.ai')
+            ->details('monocle::details.ai')
             ->format(['status' => 'status'])
             ->includes([
                 'ai_tools' => Presentation::table()
                     ->label('Tool calls')
                     ->columns(['tool', 'sub_agent' => 'Sub-agent', 'agent', 'status', 'duration'])
                     ->detailsOnly(['arguments', 'result', 'exception'])
+                    ->details('monocle::details.ai-tool')
                     ->format(['tool' => 'code', 'sub_agent' => ['flag', 'agent', null, 'muted', 'muted'], 'status' => 'status'])
                     ->groupBy(['tool' => 'by tool', 'agent' => 'by agent']),
             ]);

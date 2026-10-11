@@ -740,7 +740,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   /** An expanded row: rendered by the lens's own view when it has one, fetched once. */
   details(row, section) {
     if (!this.presentationOf(section)?.details_view) return details.details(row, section);
-    const n = row.n ?? (this.tabData?.rows ?? []).indexOf(row) + 1;
+    // A section the tab includes (tool calls on the AI tab) numbers its rows among its own.
+    const rows = section === this.tab ? this.tabData?.rows : this.tabData?.included?.[section];
+    const n = row.n ?? (rows ?? []).indexOf(row) + 1;
     const key = `${this.selectedId}:${section}:${n}`;
     if (!(key in this.customDetails)) {
       this.customDetails[key] = '<p class="text-xs text-muted">Loading...</p>';
