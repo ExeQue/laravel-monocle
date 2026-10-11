@@ -70,16 +70,22 @@ final class PaymentsLens implements Lens, Presentable, Summarizable
             return Summary::make();
         }
 
-        $declined = array_filter($payments, fn (array $payment): bool => $payment['status'] !== 'paid');
+        $declined = array_filter($payments, fn (array $payment): bool => $payment['status'] === 'declined');
+        $failed = array_filter($payments, fn (array $payment): bool => $payment['status'] === 'failed');
         $charged = array_sum(array_map(fn (array $payment): int => $payment['status'] === 'paid' ? $payment['amount'] : 0, $payments));
 
         return Summary::make()
             ->total('payments', count($payments), 'payments')
             ->total('payments_charged', number_format($charged / 100, 2), 'charged', $payments[0]['currency'])
             ->total('payments_declined', count($declined), 'declined')
+            ->total('payments_failed', count($failed), 'failed')
             ->warnings(array_map(
                 fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
                 array_values($declined),
+            ))
+            ->errors(array_map(
+                fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} failed: {$payment['decline_reason']}.",
+                array_values($failed),
             ));
     }
 }

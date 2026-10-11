@@ -138,6 +138,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         PaymentCharged::dispatch(4900, 'DKK', $author->name, 'visa •••• 4242', 'paid');
         PaymentCharged::dispatch(1900, 'DKK', 'Grace Hopper', 'mastercard •••• 4444', 'declined', 'insufficient funds');
+        PaymentCharged::dispatch(2500, 'DKK', 'Alan Turing', 'amex •••• 0005', 'failed', 'gateway timeout');
 
         Monocle::mark('post ready', ['post' => $post->id]);
 
