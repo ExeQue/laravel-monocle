@@ -1,5 +1,8 @@
 @php
     $groups = [
+        'Everything at once' => [
+            ['GET', '/demo/showcase', 'Publish a post', 'One request that touches every lens it can: middleware, cache, validation, a gate, a feature flag, a transaction, model changes, an event, a job, mail, a notification, an HTTP call, an agent, the filesystem, the session, a log entry, a reported exception, an Artisan command, custom spans and nested views.'],
+        ],
         'Database' => [
             ['GET', '/demo/database/n-plus-one', 'N+1', 'Loads posts, then each post\'s comments lazily in a loop.'],
             ['GET', '/demo/database/slow', 'Slow query', 'A recursive query that takes long enough to be flagged as slow.'],

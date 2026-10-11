@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Laravel\Pennant\Feature;
@@ -37,6 +38,67 @@ $result = fn (string $title, mixed $output = null): View => view('result', ['tit
 Route::view('/', 'index');
 
 Route::prefix('demo')->group(function () use ($result): void {
+    Route::get('showcase', function (Request $request): View {
+        $author = Monocle::measure('load author', fn (): User => Cache::remember(
+            'demo:author',
+            60,
+            fn (): User => User::query()->where('email', 'ada@example.com')->firstOrFail(),
+        ));
+
+        Monocle::measure('validate draft', fn (): array => Validator::make(
+            ['title' => 'Monocle 1.0', 'body' => 'Profiling for agents.'],
+            ['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string']],
+        )->validate());
+
+        Gate::authorize('read-docs');
+        Feature::active('new-dashboard');
+
+        $publish = Monocle::span('publish post')->start();
+
+        $post = DB::transaction(function () use ($author): Post {
+            $post = Post::query()->create(['user_id' => $author->id, 'title' => 'Monocle 1.0', 'body' => 'Draft.']);
+            $post->update(['body' => 'Profiling for agents.']);
+            $post->comments()->create(['body' => 'First!']);
+
+            return $post;
+        });
+
+        PostPublished::dispatch($post);
+        ProcessReport::dispatch('post-'.$post->id);
+        Mail::to($author)->send(new OrderShipped());
+        $author->notify(new WelcomeNotification());
+
+        $publish->stop(['post' => $post->id]);
+
+        $enrich = Monocle::span('enrich post')->start();
+
+        Http::fake(['api.example.test/*' => Http::response(['views' => 1204], 200)]);
+        $stats = Http::get('https://api.example.test/posts/'.$post->id.'/stats')->json();
+
+        Greeter::fake(['A short, friendly summary.']);
+        $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);
+
+        Storage::disk('demo')->put('posts/'.$post->id.'.txt', $summary);
+
+        $enrich->stop(['views' => $stats['views']]);
+
+        Monocle::mark('post ready', ['post' => $post->id]);
+
+        $request->session()->put('demo.last_post', $post->id);
+        Log::info('Post published.', ['post' => $post->id]);
+        report(new RuntimeException('Search index unavailable, retrying later.'));
+        Artisan::call('demo:greet', ['name' => $author->name]);
+
+        $post->comments()->delete();
+        $post->delete();
+        Storage::disk('demo')->delete('posts/'.$post->id.'.txt');
+
+        return view('views-demo', [
+            'tags' => array_map(fn (int $i): string => 'tag '.$i, range(1, 15)),
+            'posts' => Post::query()->withCount('comments')->limit(5)->get(),
+        ]);
+    });
+
     Route::get('database/n-plus-one', function () use ($result): View {
         $counts = Post::query()->get()->mapWithKeys(fn (Post $post): array => [$post->title => $post->comments->count()]);
 

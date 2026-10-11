@@ -181,13 +181,16 @@ export function renderTimeline(model, kinds) {
 
   const fold = (id, def, html) => (html ? `<div x-show="${open(id, def)}" x-collapse${def ? '' : ' x-cloak'}>${html}</div>` : '');
 
-  /** Consecutive same-lens siblings (and their same-lens descendants) fold into one group row. */
+  /**
+   * Consecutive same-lens siblings (and their same-lens descendants) fold into one group row.
+   * User spans are named by the developer and always keep a row of their own.
+   */
   const nodes = (children, depth, plain = null) => {
     let html = '';
     for (let i = 0; i < children.length; i++) {
       const n = children[i];
       const lens = lensOf(n);
-      if (lens === 'phase' || lens === plain) {
+      if (lens === 'phase' || lens === 'user' || lens === plain) {
         html += spanRow(n, depth) + nodes(n.children, depth + 1, plain === lens ? plain : null);
         continue;
       }

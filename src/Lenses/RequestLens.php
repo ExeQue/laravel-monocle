@@ -623,6 +623,29 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         $controller->meta = ['action' => $capture->section('request')['route']['action'] ?? null];
 
         $capture->spans[$controller->id] = $controller;
+
+        // Spans opened inside the controller were started before it existed; move them under it.
+        foreach ($capture->spans as $span) {
+            if ($span === $controller) {
+                continue;
+            }
+
+            if ($span->parentId !== $controller->parentId) {
+                continue;
+            }
+
+            if (str_starts_with($span->kind, 'middleware')) {
+                continue;
+            }
+
+            if ($span->start === null || $span->start < $start) {
+                continue;
+            }
+
+            if (($span->end ?? $end) <= $end + 0.001) {
+                $span->parentId = $controller->id;
+            }
+        }
     }
 
     private function handlePhaseId(Capture $capture): ?string

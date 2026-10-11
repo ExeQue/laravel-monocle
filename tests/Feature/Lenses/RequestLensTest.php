@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Lenses;
 
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
@@ -251,6 +252,21 @@ describe(RequestLens::class, function (): void {
         expect($controller)->not->toBeNull()
             ->and($controller->kind)->toBe('controller')
             ->and($controller->duration())->toBeGreaterThanOrEqual(0);
+    });
+
+    it('places spans opened in the controller under the controller span', function (): void {
+        Route::get('/spans', function () {
+            Monocle::measure('load author', fn () => usleep(1000));
+
+            return 'ok';
+        });
+
+        $this->get('/spans');
+
+        $capture = latestCapture();
+        $span = collect($capture->spans)->firstWhere('name', 'load author');
+
+        expect($span->parentId)->toBe('controller');
     });
 
     it('does not record excepted paths', function (): void {
