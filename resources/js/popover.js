@@ -1,5 +1,6 @@
 import { esc, ms, fmtValue, maybeLink, copyButton, isThrowable, exceptionHtml, humanize } from './format.js';
 import { cls } from './classes.js';
+import { changesTable, dot, dottedKey } from './render/values.js';
 
 const SEC = 'grid gap-1 border-t border-line pt-2';
 const K = 'text-[11px] uppercase tracking-wider text-muted';
@@ -34,8 +35,17 @@ function metaRows(meta) {
       const label = esc(k === 'time' ? 'Started at' : humanize(k.replace(/_(bytes|ms)$/, '')));
       // Details show values in full (class names included), each with a copy button.
       // A plain map (rules per field, parameters, context) as a small nested table.
-      if (v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v) && Object.keys(v).length && Object.values(v).every((x) => x === null || typeof x !== 'object' || Array.isArray(x))) {
+      if (v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v) && Object.keys(v).length && Object.values(v).every((x) => x === null || typeof x !== 'object' || (Array.isArray(x) && x.every((y) => y === null || typeof y !== 'object')))) {
         return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted"><span class="inline-flex items-center gap-1">${label} ${copyButton(JSON.stringify(v), k, { hover: true })}</span></th><td class="py-0.5 text-xs"><table class="border-collapse">${Object.entries(v).map(([field, x]) => `<tr class="group/copy"><td class="pr-3 align-top font-mono text-muted">${esc(field)}</td><td class="font-mono [overflow-wrap:anywhere]">${esc(Array.isArray(x) ? x.map(fmtValue).join(' | ') : k === 'rules' ? String(x).split('|').join(' | ') : fmtValue(x))}</td><td class="pl-2">${copyButton(Array.isArray(x) ? x.map(fmtValue).join('|') : fmtValue(x), `${k} ${field}`, { hover: true })}</td></tr>`).join('')}</table></td></tr>`;
+      }
+      // Field changes keep their from/to table.
+      if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) {
+        return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted">${label}</th><td class="py-0.5 text-xs">${changesTable(v)}</td></tr>`;
+      }
+      // Nested data reads best flattened to dotted keys, one value per line.
+      const nested = v && typeof v === 'object' && !isThrowable(v) && Object.values(v).some((x) => x !== null && typeof x === 'object');
+      if (nested) {
+        return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted"><span class="inline-flex items-center gap-1">${label} ${copyButton(JSON.stringify(v, null, 2), k + ' as JSON', { hover: true })}</span></th><td class="py-0.5 text-xs"><table class="border-collapse">${dot(v).map(([path, x]) => `<tr class="group/copy"><td class="pr-3 align-top font-mono">${dottedKey(path)}</td><td class="font-mono [overflow-wrap:anywhere]">${x === null ? '<span class="text-muted">null</span>' : esc(fmtValue(x))}</td><td class="pl-2">${x === null ? '' : copyButton(fmtValue(x), path, { hover: true })}</td></tr>`).join('')}</table></td></tr>`;
       }
       if (isThrowable(v)) return `<tr class="group/copy"><th class="w-0 whitespace-nowrap py-0.5 pr-4 text-left align-top text-xs font-medium text-muted"><span class="inline-flex items-center gap-1">${label} ${copyButton(`${v.class}: ${v.message}`, k, { hover: true })}</span></th><td class="py-0.5 text-xs">${exceptionHtml(v, { full: true })}</td></tr>`;
       const value = links[k] ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline" href="${esc(links[k])}">${esc(text)}</a>` : esc(text);

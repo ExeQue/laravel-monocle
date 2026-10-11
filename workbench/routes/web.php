@@ -429,6 +429,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         'user' => ['name' => 'Ada'],
         'posts' => Post::query()->limit(3)->pluck('title'),
         'greeting' => fn () => '',
+        'account' => ['plan' => 'pro', 'owner' => ['name' => 'Ada', 'roles' => ['admin', 'editor']], 'limits' => ['posts' => 100, 'storage_mb' => 512]],
         'stats' => Inertia::defer(fn (): array => ['posts' => Post::query()->count()]),
         'activity' => Inertia::defer(fn (): array => ['today' => 3], 'sidebar'),
         'filters' => Inertia::optional(fn (): array => ['status' => 'open']),
