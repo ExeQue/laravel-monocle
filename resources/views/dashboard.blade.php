@@ -1513,7 +1513,7 @@
                                                 <th scope="col" :class="cls.th" class="w-8">
                                                     <span class="sr-only">Details</span>
                                                 </th>
-                                                <template x-for="col in columnsOf(t.rows)" :key="col"
+                                                <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                     ><th
                                                         scope="col"
                                                         :class="[cls.th, numeric(col) && '!text-right']"
@@ -1558,7 +1558,7 @@
                                                             <span x-text="row.n ?? i + 1"></span>
                                                         </button>
                                                     </td>
-                                                    <template x-for="col in columnsOf(t.rows)" :key="col"
+                                                    <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                         ><td
                                                             :class="[
                                                                 cls.td,
@@ -1574,7 +1574,7 @@
                                                 </tr>
                                                 <tr x-show="openRows.includes(t.key + ':' + i)" x-cloak>
                                                     <td
-                                                        :colspan="columnsOf(t.rows).length + 1"
+                                                        :colspan="columnsOf(t.rows, t.key).length + 1"
                                                         class="border-line bg-sunk/50 border-b px-3 py-0"
                                                     >
                                                         <div x-show="openRows.includes(t.key + ':' + i)" x-collapse>
