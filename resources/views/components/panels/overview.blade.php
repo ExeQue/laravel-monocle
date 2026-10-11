@@ -66,23 +66,42 @@
         <div>
             <h3 :class="cls.sectionTitle">Totals</h3>
             <div class="grid gap-4">
-                <template x-for="g in totalGroups" :key="g.label">
-                    <div class="border-line grid gap-2 border-t pt-3 first:border-t-0 first:pt-0">
-                        <h4 class="text-brass m-0 text-xs font-semibold" x-text="g.label"></h4>
-                        <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
-                            <template x-for="t in g.items" :key="t[0]">
-                                <div>
-                                    <div class="text-muted text-xs" x-text="totalLabel(t[0], g.label)"></div>
-                                    <div
-                                        class="text-xl font-bold tabular-nums"
-                                        :class="totalTone(t)"
-                                        x-text="totalValue(t)"
-                                    ></div>
-                                </div>
-                            </template>
-                        </div>
+                <template x-for="g in totalGroups.filter((g) => g.label === 'Overall')" :key="g.label">
+                    <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
+                        <template x-for="t in g.items" :key="t[0]">
+                            <div>
+                                <div class="text-muted text-xs" x-text="totalLabel(t[0], g.label)"></div>
+                                <div
+                                    class="text-xl font-bold tabular-nums"
+                                    :class="totalTone(t)"
+                                    x-text="totalValue(t)"
+                                ></div>
+                            </div>
+                        </template>
                     </div>
                 </template>
+                <dl class="border-line m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 border-t pt-3 text-[13px]">
+                    <template x-for="g in totalGroups.filter((g) => g.label !== 'Overall')" :key="g.label">
+                        <div class="border-line col-span-2 grid grid-cols-subgrid border-b border-dashed py-1.5 last:border-b-0">
+                            <dt class="text-brass text-xs font-semibold" x-text="g.label"></dt>
+                            <dd class="m-0 flex flex-wrap gap-x-3 gap-y-0.5">
+                                <template x-for="t in g.items" :key="t[0]">
+                                    <span>
+                                        <span
+                                            class="font-semibold tabular-nums"
+                                            :class="totalTone(t)"
+                                            x-text="totalValue(t)"
+                                        ></span>
+                                        <span
+                                            class="text-muted text-xs"
+                                            x-text="totalLabel(t[0], g.label).toLowerCase()"
+                                        ></span>
+                                    </span>
+                                </template>
+                            </dd>
+                        </div>
+                    </template>
+                </dl>
             </div>
         </div>
     </div>
