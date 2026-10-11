@@ -4,26 +4,29 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Dashboard;
 
+use ExeQue\Monocle\Support\Concerns\Immutable;
+
 /**
  * How a lens's section shows in the dashboard. Everything is optional; what
- * is left out is worked out from the rows, as for any section.
+ * is left out is worked out from the rows, as for any section. Every fluent
+ * method returns a new presentation.
  */
-final class Presentation
+final readonly class Presentation
 {
-    private ?string $label = null;
+    use Immutable;
 
-    /** @var array<string, string|null> column => label (null: from the column name) */
-    private array $columns = [];
-
-    /** @var list<string> */
-    private array $detailsOnly = [];
-
-    /** @var array<string, string> field => chip label */
-    private array $groupings = [];
-
-    private ?string $detailsView = null;
-
-    private ?string $tabView = null;
+    public function __construct(
+        public ?string $label = null,
+        /** @var array<string, string|null> column => label (null: from the column name) */
+        public array $columns = [],
+        /** @var list<string> */
+        public array $detailsOnly = [],
+        /** @var array<string, string> field => chip label */
+        public array $groupings = [],
+        public ?string $detailsView = null,
+        public ?string $tabView = null,
+    ) {
+    }
 
     public static function table(): self
     {
@@ -35,9 +38,7 @@ final class Presentation
      */
     public function label(string $label): self
     {
-        $this->label = $label;
-
-        return $this;
+        return $this->with(['label' => $label]);
     }
 
     /**
@@ -47,13 +48,13 @@ final class Presentation
      */
     public function columns(array $columns): self
     {
-        $this->columns = [];
+        $normalized = [];
 
         foreach ($columns as $field => $label) {
-            is_int($field) ? $this->columns[$label] = null : $this->columns[$field] = $label;
+            is_int($field) ? $normalized[$label] = null : $normalized[$field] = $label;
         }
 
-        return $this;
+        return $this->with(['columns' => $normalized]);
     }
 
     /**
@@ -63,9 +64,7 @@ final class Presentation
      */
     public function detailsOnly(array $fields): self
     {
-        $this->detailsOnly = $fields;
-
-        return $this;
+        return $this->with(['detailsOnly' => $fields]);
     }
 
     /**
@@ -75,9 +74,7 @@ final class Presentation
      */
     public function groupBy(array $groupings): self
     {
-        $this->groupings = $groupings;
-
-        return $this;
+        return $this->with(['groupings' => $groupings]);
     }
 
     /**
@@ -86,9 +83,7 @@ final class Presentation
      */
     public function details(string $view): self
     {
-        $this->detailsView = $view;
-
-        return $this;
+        return $this->with(['detailsView' => $view]);
     }
 
     /**
@@ -99,19 +94,7 @@ final class Presentation
      */
     public function tab(string $view): self
     {
-        $this->tabView = $view;
-
-        return $this;
-    }
-
-    public function tabView(): ?string
-    {
-        return $this->tabView;
-    }
-
-    public function detailsView(): ?string
-    {
-        return $this->detailsView;
+        return $this->with(['tabView' => $view]);
     }
 
     /**

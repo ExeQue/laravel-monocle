@@ -80,8 +80,9 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
         }
 
         return Summary::make()
-            ->total(['log_captures' => count($rows), 'log_by_level' => $byLevel])
-            ->warning($warnings);
+            ->total('log_captures', count($rows), 'entries')
+            ->totals(['log_by_level' => $byLevel])
+            ->warnings($warnings);
     }
 
     /**

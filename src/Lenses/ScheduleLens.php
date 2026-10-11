@@ -68,12 +68,10 @@ final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
         $failed = array_filter($rows, fn (array $row): bool => $row['outcome'] === 'failed');
 
         return Summary::make()
-            ->total([
-                'scheduled_tasks_run' => count(array_filter($rows, fn (array $row): bool => str_starts_with($row['outcome'], 'finished'))),
-                'scheduled_tasks_skipped' => count(array_filter($rows, fn (array $row): bool => $row['outcome'] === 'skipped')),
-                'scheduled_tasks_failed' => count($failed),
-            ])
-            ->warning(array_map(fn (array $row): string => "Scheduled task failed: {$row['command']}", array_values($failed)));
+            ->total('scheduled_tasks_run', count(array_filter($rows, fn (array $row): bool => str_starts_with($row['outcome'], 'finished'))), 'run')
+            ->total('scheduled_tasks_skipped', count(array_filter($rows, fn (array $row): bool => $row['outcome'] === 'skipped')), 'skipped')
+            ->total('scheduled_tasks_failed', count($failed), 'failed')
+            ->warnings(array_map(fn (array $row): string => "Scheduled task failed: {$row['command']}", array_values($failed)));
     }
 
     /**

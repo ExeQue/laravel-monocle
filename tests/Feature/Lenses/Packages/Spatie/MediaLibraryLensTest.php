@@ -60,7 +60,7 @@ describe(MediaLibraryLens::class, function (): void {
             ->and($conversion)->toMatchArray(['conversion' => 'thumb', 'queued' => false])
             ->and($conversion['duration'])->toBeNumeric()
             ->and($capture->spansOfKind('media.conversion')[0]->name)->toBe('conversion thumb')
-            ->and($summary->totals())->toMatchArray(['media_added' => 1, 'media_conversions' => 1])
-            ->and($summary->warnings()[0])->toStartWith('1 media conversion(s) ran during the request');
+            ->and($summary->totals)->toMatchArray(['media_added' => 1, 'media_conversions' => 1])
+            ->and($summary->warnings[0])->toStartWith('1 media conversion(s) ran during the request');
     });
 });

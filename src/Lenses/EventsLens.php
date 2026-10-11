@@ -100,10 +100,8 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
         )));
 
         return Summary::make()
-            ->total([
-                'events' => count($rows),
-                'events_without_listeners' => count($unhandled),
-            ]);
+            ->total('events', count($rows), 'events')
+            ->total('events_without_listeners', count($unhandled), 'without listeners');
     }
 
     private function ignored(string $event): bool

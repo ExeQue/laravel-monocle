@@ -73,8 +73,8 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Summarizable
         }
 
         return Summary::make()
-            ->total(['exceptions' => count($rows)])
-            ->warning(array_map(
+            ->total('exceptions', count($rows), 'exceptions')
+            ->warnings(array_map(
                 fn (array $row): string => sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']),
                 array_slice($rows, 0, 3),
             ));

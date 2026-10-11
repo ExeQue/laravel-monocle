@@ -4,21 +4,32 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Data;
 
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Exceptions\InvalidSummaryTotalException;
+use ExeQue\Monocle\Support\Concerns\Immutable;
+use Illuminate\Support\Traits\Conditionable;
 
 /**
  * What a lens adds to a capture's summary: named totals for the overview
  * (and monocle-show), and warnings that flag the capture and its tab.
+ * Every fluent method returns a new summary.
  */
-final class Summary
+final readonly class Summary
 {
+    use Conditionable;
+    use Immutable;
+
     /**
      * @param  array<string, mixed>  $totals  name => value; names starting with the lens key group under its tab
+     * @param  array<string, string>  $labels  name => what the value counts, e.g. "failed"
+     * @param  array<string, string>  $units  name => unit: a Unit value, or a suffix such as a currency
      * @param  list<string>  $warnings
      */
     public function __construct(
-        private array $totals = [],
-        private array $warnings = [],
+        public array $totals = [],
+        public array $labels = [],
+        public array $units = [],
+        public array $warnings = [],
     ) {
     }
 
@@ -28,48 +39,61 @@ final class Summary
     }
 
     /**
-     * One total, or several as name => value.
-     *
-     * @param  string|array<string, mixed>  $name
+     * One total. The label says what the value counts ("failed", "time"); the
+     * name is used when it is left out. A Unit formats the value; a string is
+     * shown after it.
      */
-    public function total(string|array $name, mixed $value = null): self
+    public function total(string $name, mixed $value, ?string $label = null, Unit|string|null $unit = null): self
     {
-        if (is_string($name) && $value === null) {
+        if ($value === null) {
             throw InvalidSummaryTotalException::withoutValue($name);
         }
 
-        foreach (is_array($name) ? $name : [$name => $value] as $total => $amount) {
-            $this->totals[$total] = $amount;
+        $labels = $this->labels;
+
+        if ($label === null) {
+            unset($labels[$name]);
+        } else {
+            $labels[$name] = $label;
         }
 
-        return $this;
+        return $this->with(['labels' => $labels])->totals([$name => $value], $unit);
     }
 
     /**
-     * @param  string|list<string>  $warning  one warning, or several
+     * Several totals as name => value, all in the same unit. Null values are
+     * kept and left out of the overview.
+     *
+     * @param  array<string, mixed>  $totals
      */
-    public function warning(string|array $warning): self
+    public function totals(array $totals, Unit|string|null $unit = null): self
     {
-        foreach ((array) $warning as $text) {
-            $this->warnings[] = $text;
+        $units = $this->units;
+
+        foreach (array_keys($totals) as $name) {
+            if ($unit === null) {
+                unset($units[$name]);
+            } else {
+                $units[$name] = $unit instanceof Unit ? $unit->value : $unit;
+            }
         }
 
-        return $this;
+        return $this->with([
+            'totals' => [...$this->totals, ...$totals],
+            'units' => $units,
+        ]);
+    }
+
+    public function warning(string $warning): self
+    {
+        return $this->warnings([$warning]);
     }
 
     /**
-     * @return array<string, mixed>
+     * @param  list<string>  $warnings
      */
-    public function totals(): array
+    public function warnings(array $warnings): self
     {
-        return $this->totals;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function warnings(): array
-    {
-        return array_values($this->warnings);
+        return $this->with(['warnings' => [...$this->warnings, ...array_values($warnings)]]);
     }
 }

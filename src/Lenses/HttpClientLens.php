@@ -14,6 +14,7 @@ use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -162,13 +163,13 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
-            ->total([
-                'http_calls' => count($rows),
-                'http_ms' => round($ms, 3),
-                'http_failed' => count($failed),
+            ->totals([
                 'http_by_host' => $byHost,
             ])
-            ->warning(array_map(
+            ->total('http_calls', count($rows), 'calls')
+            ->total('http_failed', count($failed), 'failed')
+            ->total('http_ms', round($ms, 3), 'time', Unit::Milliseconds)
+            ->warnings(array_map(
                 fn (array $row): string => sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $row['status'] ?? $row['exception']['message'] ?? 'no response'),
                 array_slice(array_values($failed), 0, 3),
             ));

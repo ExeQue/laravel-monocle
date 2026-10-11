@@ -9,38 +9,26 @@ export function totalTone([k, v]) {
         : "";
 }
 
-export function totalValue([k, v]) {
-    if (k.endsWith("_ms")) return ms(v);
-    if (k.endsWith("_rate")) return v + " %";
-    if (/_bytes(_|$)/.test(k))
+/** Formats a total by the unit its lens gave it; any other unit is shown after the value. */
+export function totalValue([, v, unit]) {
+    if (unit === "ms") return ms(v);
+    if (unit === "percent") return v + " %";
+    if (unit === "bytes")
         return v >= 1048576
             ? (v / 1048576).toFixed(1) + " MB"
             : v >= 1024
               ? Math.round(v / 1024) + " KB"
               : v + " B";
-    if (k.endsWith("_mb")) return v + " MB";
-    return String(v);
+    if (unit === "mb") return v + " MB";
+    return unit ? `${v} ${unit}` : String(v);
 }
 
-export function totalLabel(k, group = null) {
-    const labels = {
-        duration_ms: "Duration",
-        query_ms: "Query time",
-        cache_ms: "Cache time",
-        redis_ms: "Redis time",
-        views_ms: "View time",
-        middleware_self_ms: "Middleware time",
-        memory_peak_mb: "Peak memory",
-        response_bytes: "Response size",
-        cache_hit_rate: "Cache hit rate",
-    };
-    if (group && group !== "Overall" && k.endsWith("_ms")) return "Time";
-    const label =
-        labels[k] ??
-        humanize(k.replace(/_(ms|mb)$/, "").replace(/_bytes(?=_|$)/, ""));
-    const [first, ...rest] = label.split(" ");
-    const singular = group?.toLowerCase().replace(/s$/, "");
-    return group && rest.length && first.toLowerCase().startsWith(singular)
-        ? humanize(rest.join(" "))
-        : label;
+/** The label its lens gave the total, or its name without the unit. */
+export function totalLabel([k, , , label]) {
+    return (
+        label ??
+        humanize(
+            k.replace(/_(ms|mb|rate)$/, "").replace(/_bytes(?=_|$)/, ""),
+        ).toLowerCase()
+    );
 }

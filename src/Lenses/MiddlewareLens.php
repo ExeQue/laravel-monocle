@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use Illuminate\Contracts\Foundation\Application;
@@ -118,11 +119,9 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
-            ->total([
-                'middleware_count' => count($requests),
-                'middleware_self_ms' => round(array_sum($own), 3),
-            ])
-            ->warning($warnings);
+            ->total('middleware_count', count($requests), 'middleware')
+            ->total('middleware_self_ms', round(array_sum($own), 3), 'middleware time', Unit::Milliseconds)
+            ->warnings($warnings);
     }
 
     /**

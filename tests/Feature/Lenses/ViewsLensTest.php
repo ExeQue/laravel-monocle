@@ -51,15 +51,15 @@ describe(ViewsLens::class, function (): void {
         $summary = $lens->summarize($capture);
         $parent = collect($capture->spansOfKind('view'))->first(fn (Span $span): bool => $span->name === 'parent');
 
-        expect($summary->totals()['views_rendered'])->toBe(4)
-            ->and($summary->totals()['views_ms'])->toBe(round($parent->duration(), 3))
-            ->and($summary->totals()['views_most_rendered'])->toBe(['partial' => 3, 'parent' => 1])
-            ->and($summary->warnings())->toHaveCount(1)
-            ->and($summary->warnings()[0])->toMatch('/^View partial rendered 3 times, [\d.]+ ms in all\.$/');
+        expect($summary->totals['views_rendered'])->toBe(4)
+            ->and($summary->totals['views_ms'])->toBe(round($parent->duration(), 3))
+            ->and($summary->totals['views_most_rendered'])->toBe(['partial' => 3, 'parent' => 1])
+            ->and($summary->warnings)->toHaveCount(1)
+            ->and($summary->warnings[0])->toMatch('/^View partial rendered 3 times, [\d.]+ ms in all\.$/');
 
         $lens->configure(['repeat_ms' => 10_000]);
 
-        expect($lens->summarize($capture)->warnings())->toBe([]);
+        expect($lens->summarize($capture)->warnings)->toBe([]);
     });
 
     it('names inline templates after the component that rendered them', function (): void {

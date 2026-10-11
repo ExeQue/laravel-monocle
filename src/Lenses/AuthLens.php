@@ -126,13 +126,16 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
         }
 
         return Summary::make()
-            ->total(array_filter([
-                'auth_user' => $user,
-                'auth_failed' => $counts['failed'] ?? null,
-                'auth_lockouts' => $counts['lockout'] ?? null,
-                'auth_2fa_failed' => $counts['2fa_failed'] ?? null,
-            ], fn (mixed $value): bool => $value !== null))
-            ->warning(isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : []);
+            ->when($user !== null)
+            ->total('auth_user', $user, 'user')
+            ->when(isset($counts['failed']))
+            ->total('auth_failed', $counts['failed'] ?? 0, 'failed logins')
+            ->when(isset($counts['lockout']))
+            ->total('auth_lockouts', $counts['lockout'] ?? 0, 'lockouts')
+            ->when(isset($counts['2fa_failed']))
+            ->total('auth_2fa_failed', $counts['2fa_failed'] ?? 0, 'failed 2FA challenges')
+            ->when(isset($counts['lockout']))
+            ->warning('A login was locked out after too many attempts.');
     }
 
     /**

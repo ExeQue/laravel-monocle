@@ -11,6 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Laravel\Mcp\Server\Contracts\Method;
@@ -96,12 +97,10 @@ final class McpLens implements Advises, Lens, Presentable, Summarizable
         $errors = array_filter($calls, fn (array $row): bool => (bool) ($row['is_error'] ?? false));
 
         return Summary::make()
-            ->total([
-                'mcp_calls' => count($calls),
-                'mcp_errors' => count($errors),
-                'mcp_ms' => round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3),
-            ])
-            ->warning(array_map(
+            ->total('mcp_calls', count($calls), 'calls')
+            ->total('mcp_errors', count($errors), 'errors')
+            ->total('mcp_ms', round(array_sum(array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $calls)), 3), 'time', Unit::Milliseconds)
+            ->warnings(array_map(
                 fn (array $row): string => sprintf('MCP %s %s returned an error.', $row['method'] ?? '?', $row['primitive'] ?? ''),
                 array_slice(array_values($errors), 0, 3),
             ));

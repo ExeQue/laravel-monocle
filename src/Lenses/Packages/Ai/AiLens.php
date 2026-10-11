@@ -14,6 +14,7 @@ use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -135,13 +136,13 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
         }
 
         return Summary::make()
-            ->total([
-                'ai_calls' => count($rows),
-                'ai_ms' => round($ms, 3),
+            ->totals([
                 'ai_tokens' => $tokens,
                 'ai_by_model' => $byModel,
             ])
-            ->warning(array_slice($warnings, 0, 5));
+            ->total('ai_calls', count($rows), 'calls')
+            ->total('ai_ms', round($ms, 3), 'time', Unit::Milliseconds)
+            ->warnings(array_slice($warnings, 0, 5));
     }
 
     private function onPrompting(PromptingAgent $event): void

@@ -53,9 +53,9 @@ describe(CacheLens::class, function (): void {
 
         $summary = app(CacheLens::class)->summarize(app(Eyepiece::class)->finalize());
 
-        expect($summary->totals())->toMatchArray(['cache_hits' => 2, 'cache_misses' => 1, 'cache_writes' => 1])
-            ->and($summary->totals()['cache_hit_rate'])->toBe(66.7)
-            ->and(array_key_first($summary->totals()['cache_hottest_keys']))->toBe('a');
+        expect($summary->totals)->toMatchArray(['cache_hits' => 2, 'cache_misses' => 1, 'cache_writes' => 1])
+            ->and($summary->totals['cache_hit_rate'])->toBe(66.7)
+            ->and(array_key_first($summary->totals['cache_hottest_keys']))->toBe('a');
     });
 
     it('numbers reads, points repeats at the first read and warns about keys read often', function (): void {
@@ -72,16 +72,16 @@ describe(CacheLens::class, function (): void {
 
         expect(array_column($rows, 'n'))->toBe([1, 2, 3, 4, 5])
             ->and(array_column($rows, 'repeat_of', 'n'))->toBe([2 => null, 3 => 2, 4 => null, 5 => 2])
-            ->and($lens->summarize($capture)->warnings())->toHaveCount(1)
-            ->and($lens->summarize($capture)->warnings()[0])->toMatch('/^Cache key a read 3 times \([\d.]+ ms\) from /')->toContain('CacheLensTest.php:')
-            ->and($lens->summarize($capture)->warnings()[0])->toEndWith('Cache::memo() or once().');
+            ->and($lens->summarize($capture)->warnings)->toHaveCount(1)
+            ->and($lens->summarize($capture)->warnings[0])->toMatch('/^Cache key a read 3 times \([\d.]+ ms\) from /')->toContain('CacheLensTest.php:')
+            ->and($lens->summarize($capture)->warnings[0])->toEndWith('Cache::memo() or once().');
 
         $lens->configure(['repeat_threshold' => 4]);
 
-        expect($lens->summarize($capture)->warnings())->toBe([]);
+        expect($lens->summarize($capture)->warnings)->toBe([]);
 
         $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 10_000]);
 
-        expect($lens->summarize($capture)->warnings())->toBe([]);
+        expect($lens->summarize($capture)->warnings)->toBe([]);
     });
 });

@@ -18,6 +18,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -150,9 +151,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $request = $capture->section('request');
 
         return Summary::make()
-            ->total([
-                'response_bytes' => $request['response_bytes'] ?? null,
-            ]);
+            ->when(isset($request['response_bytes']))
+            ->total('response_bytes', $request['response_bytes'] ?? 0, 'response size', Unit::Bytes);
     }
 
     private function onRouting(Routing $event): void

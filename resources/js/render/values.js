@@ -64,7 +64,7 @@ export function levelClass(level) {
 /** One item of a response capture card. */
 export function cardValue(value, key) {
   if (Array.isArray(value) && value.length && value.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(value);
-  if (key.endsWith('_bytes') && typeof value === 'number') return esc(totalValue([key, value]));
+  if (key.endsWith('_bytes') && typeof value === 'number') return esc(totalValue([key, value, 'bytes']));
   if (Array.isArray(value) && value.length && value.every((v) => v && typeof v === 'object' && !Array.isArray(v))) {
     const cols = [...new Set(value.flatMap((v) => Object.keys(v)))];
     const cell = (v) => (v === null || v === undefined ? '<span class="text-muted">-</span>' : esc(typeof v === 'object' ? JSON.stringify(v) : String(v)));

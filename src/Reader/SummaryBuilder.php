@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\LensRegistry;
 
 /**
@@ -47,13 +48,17 @@ final class SummaryBuilder
             'duration_ms' => $capture->duration(),
             'memory_peak_mb' => isset($capture->health['memory_peak_bytes']) ? round($capture->health['memory_peak_bytes'] / 1048576, 1) : null,
         ];
+        $labels = ['duration_ms' => 'duration', 'memory_peak_mb' => 'peak memory'];
+        $units = ['duration_ms' => Unit::Milliseconds->value, 'memory_peak_mb' => Unit::Megabytes->value];
         $warnings = [];
         $problems = [];
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
-            $totals = [...$totals, ...$contribution->totals()];
-            $flagged = $contribution->warnings();
+            $totals = [...$totals, ...$contribution->totals];
+            $labels = [...$labels, ...$contribution->labels];
+            $units = [...$units, ...$contribution->units];
+            $flagged = $contribution->warnings;
             $warnings = [...$warnings, ...$flagged];
 
             if ($flagged !== []) {
@@ -97,6 +102,8 @@ final class SummaryBuilder
             'children' => $children ? array_column($this->captures->children($capture->id), 'id') : [],
             'breakdown' => $this->breakdown($capture),
             'totals' => $totals,
+            'labels' => $labels,
+            'units' => $units,
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
             'problems' => $problems,

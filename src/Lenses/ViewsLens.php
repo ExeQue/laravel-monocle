@@ -13,6 +13,7 @@ use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use Illuminate\Contracts\Foundation\Application;
@@ -125,12 +126,12 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
         }
 
         return Summary::make()
-            ->total([
-                'views_rendered' => count($rows),
-                'views_ms' => round($topLevel, 3),
+            ->totals([
                 'views_most_rendered' => array_slice($repeats, 0, 3, true),
             ])
-            ->warning($warnings);
+            ->total('views_rendered', count($rows), 'rendered')
+            ->total('views_ms', round($topLevel, 3), 'time', Unit::Milliseconds)
+            ->warnings($warnings);
     }
 
     public function presentation(): Presentation

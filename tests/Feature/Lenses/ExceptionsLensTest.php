@@ -36,8 +36,8 @@ describe(ExceptionsLens::class, function (): void {
 
         $summary = app(ExceptionsLens::class)->summarize($capture);
 
-        expect($summary->totals())->toBe(['exceptions' => 1])
-            ->and($summary->warnings()[0])->toStartWith('RuntimeException: kaboom (');
+        expect($summary->totals)->toBe(['exceptions' => 1])
+            ->and($summary->warnings[0])->toStartWith('RuntimeException: kaboom (');
     });
 
     it('does not record exceptions the handler ignores', function (): void {

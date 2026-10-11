@@ -37,9 +37,9 @@ describe(RedisLens::class, function (): void {
 
         $summary = app(RedisLens::class)->summarize($capture);
 
-        expect($summary->totals()['redis_commands'])->toBe(3)
-            ->and($summary->totals()['redis_ms'])->toBe(2.22)
-            ->and($summary->totals()['redis_by_command'])->toBe(['GET' => 2, 'SET' => 1]);
+        expect($summary->totals['redis_commands'])->toBe(3)
+            ->and($summary->totals['redis_ms'])->toBe(2.22)
+            ->and($summary->totals['redis_by_command'])->toBe(['GET' => 2, 'SET' => 1]);
     });
 
     it('ignores commands outside a capture and summarizes nothing for none', function () use ($connection): void {

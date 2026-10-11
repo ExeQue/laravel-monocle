@@ -12,6 +12,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Filesystem\MonocleFilesystemManager;
 use Illuminate\Contracts\Foundation\Application;
@@ -103,14 +104,14 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
-            ->total([
-                'filesystem_ops' => count($rows),
-                'filesystem_ms' => round($ms, 3),
-                'filesystem_bytes_read' => $read,
-                'filesystem_bytes_written' => $written,
+            ->totals([
                 'filesystem_by_disk' => $byDisk,
             ])
-            ->warning(array_slice($failed, 0, 3));
+            ->total('filesystem_ops', count($rows), 'operations')
+            ->total('filesystem_ms', round($ms, 3), 'time', Unit::Milliseconds)
+            ->total('filesystem_bytes_read', $read, 'read', Unit::Bytes)
+            ->total('filesystem_bytes_written', $written, 'written', Unit::Bytes)
+            ->warnings(array_slice($failed, 0, 3));
     }
 
     public function presentation(): Presentation

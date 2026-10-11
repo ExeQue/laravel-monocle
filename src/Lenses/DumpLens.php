@@ -71,8 +71,10 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
         $dd = count(array_filter($rows, fn (array $row): bool => (bool) $row['is_dd']));
 
         return Summary::make()
-            ->total(['dumps' => count($rows), 'dd_calls' => $dd])
-            ->warning($dd > 0 ? ['dd() ended the process before the response was sent.'] : []);
+            ->total('dumps', count($rows), 'dumps')
+            ->total('dd_calls', $dd, 'dd() calls')
+            ->when($dd > 0)
+            ->warning('dd() ended the process before the response was sent.');
     }
 
     private function record(mixed $value, ?string $label): void

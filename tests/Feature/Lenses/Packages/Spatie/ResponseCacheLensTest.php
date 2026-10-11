@@ -27,11 +27,11 @@ describe(ResponseCacheLens::class, function (): void {
         $summary = app(ResponseCacheLens::class)->summarize($hit);
 
         expect(array_column($miss->rows('response_cache'), 'event'))->toBe(['miss'])
-            ->and(app(ResponseCacheLens::class)->summarize($miss)->warnings())->toBe([])
+            ->and(app(ResponseCacheLens::class)->summarize($miss)->warnings)->toBe([])
             ->and($hit->rows('response_cache')[0]['event'])->toBe('hit')
             ->and($hit->rows('response_cache')[0]['age_seconds'])->toBeInt()
-            ->and($summary->totals())->toBe(['response_cache' => 'hit'])
-            ->and($summary->warnings()[0])->toStartWith('Served from the response cache');
+            ->and($summary->totals)->toBe(['response_cache' => 'hit'])
+            ->and($summary->warnings[0])->toStartWith('Served from the response cache');
     });
 
     it('records clearing the cache', function (): void {

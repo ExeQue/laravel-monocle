@@ -83,7 +83,7 @@ final readonly class CapturesController
      */
     public function details(string $id, string $section, int $n, CaptureReader $captures): JsonResponse
     {
-        $view = ($this->registry->presentations()[$section] ?? null)?->detailsView();
+        $view = ($this->registry->presentations()[$section] ?? null)?->detailsView;
 
         abort_if($view === null, 404);
 

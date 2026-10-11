@@ -109,10 +109,10 @@ describe(AiLens::class, function (): void {
 
         $summary = app(AiLens::class)->summarize($capture);
 
-        expect($summary->totals()['ai_calls'])->toBe(2)
-            ->and($summary->totals()['ai_tokens']['input'])->toBe(107)
-            ->and($summary->totals()['ai_by_model'])->toBe(['openai/gpt-test' => 2])
-            ->and(implode(' ', $summary->warnings()))->toContain('gave up')->toContain('Tool weather failed');
+        expect($summary->totals['ai_calls'])->toBe(2)
+            ->and($summary->totals['ai_tokens']['input'])->toBe(107)
+            ->and($summary->totals['ai_by_model'])->toBe(['openai/gpt-test' => 2])
+            ->and(implode(' ', $summary->warnings))->toContain('gave up')->toContain('Tool weather failed');
     });
 
     it('truncates text when configured and ignores events outside a capture', function (): void {

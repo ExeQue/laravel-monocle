@@ -11,6 +11,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Redis\Events\CommandExecuted;
@@ -88,11 +89,11 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
         arsort($byCommand);
 
         return Summary::make()
-            ->total([
-                'redis_commands' => count($rows),
-                'redis_ms' => round($ms, 3),
+            ->totals([
                 'redis_by_command' => $byCommand,
-            ]);
+            ])
+            ->total('redis_commands', count($rows), 'commands')
+            ->total('redis_ms', round($ms, 3), 'time', Unit::Milliseconds);
     }
 
     public function presentation(): Presentation

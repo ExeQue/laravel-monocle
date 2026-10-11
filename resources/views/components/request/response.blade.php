@@ -7,7 +7,7 @@
         <span
             class="text-muted tabular-nums"
             x-show="request.response_bytes != null"
-            x-text="totalValue(['response_bytes', request.response_bytes])"
+            x-text="totalValue(['response_bytes', request.response_bytes, 'bytes'])"
         ></span>
         <span x-show="request.redirect">Redirects to <span class="font-mono" x-text="request.redirect"></span></span>
     </p>

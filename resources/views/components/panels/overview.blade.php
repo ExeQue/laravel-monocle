@@ -70,7 +70,7 @@
                     <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
                         <template x-for="t in g.items" :key="t[0]">
                             <div>
-                                <div class="text-muted text-xs" x-text="totalLabel(t[0], g.label)"></div>
+                                <div class="text-muted text-xs first-letter:uppercase" x-text="totalLabel(t)"></div>
                                 <div
                                     class="text-xl font-bold tabular-nums"
                                     :class="totalTone(t)"
@@ -92,10 +92,7 @@
                                             :class="totalTone(t)"
                                             x-text="totalValue(t)"
                                         ></span>
-                                        <span
-                                            class="text-muted text-xs"
-                                            x-text="totalLabel(t[0], g.label).toLowerCase()"
-                                        ></span>
+                                        <span class="text-muted text-xs" x-text="totalLabel(t)"></span>
                                     </span>
                                 </template>
                             </dd>

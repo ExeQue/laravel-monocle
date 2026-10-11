@@ -100,21 +100,32 @@ Implement `Summarizable` to add to the summary in `monocle-show` and on the dash
 ```php
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 
 public function summarize(Capture $capture): Summary
 {
     $rows = $capture->rows('stripe');
     $failed = array_filter($rows, fn (array $row): bool => $row['error'] !== null);
 
-    $summary = Summary::make()->total('stripe_calls', count($rows));
-
-    if ($failed !== []) {
-        $summary->warning(count($failed).' Stripe call(s) failed.');
-    }
-
-    return $summary;
+    return Summary::make()
+        ->total('stripe_calls', count($rows), 'calls')
+        ->total('stripe_ms', array_sum(array_column($rows, 'duration')), 'time', Unit::Milliseconds)
+        ->when($failed !== [])
+        ->warning(count($failed).' Stripe call(s) failed.');
 }
 ```
+
+Every method returns a new summary, so chain the calls or assign the result. `total()` takes the name, the value, a label saying what the value counts and a unit:
+
+| Unit | Shown as |
+| --- | --- |
+| `Unit::Milliseconds` | `8.7 ms` |
+| `Unit::Bytes` | `26 B`, `11 KB`, `1.2 MB` |
+| `Unit::Megabytes` | `4 MB` |
+| `Unit::Percent` | `66.7 %` |
+| any string, e.g. `'DKK'` | `49.00 DKK` |
+
+Without a label the name is shown. `totals()` takes several as name => value in one unit, `warnings()` several warnings. Totals whose name starts with the lens key are grouped under its tab on the overview.
 
 ## Advice for agents
 
@@ -336,13 +347,10 @@ final class MissingTranslationsLens implements Finalizable, Lens, Resettable, Su
     public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('missing_translations');
-        $summary = Summary::make()->total('missing_translations', count($rows));
-
-        if ($rows !== []) {
-            $summary->warning(count($rows).' translation key(s) have no translation, e.g. '.$rows[0]['key'].'.');
-        }
-
-        return $summary;
+        return Summary::make()
+            ->total('missing_translations', count($rows), 'missing')
+            ->when($rows !== [])
+            ->warning(count($rows).' translation key(s) have no translation, e.g. '.($rows[0]['key'] ?? '').'.');
     }
 }
 ```

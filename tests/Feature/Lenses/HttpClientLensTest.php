@@ -157,8 +157,8 @@ describe(HttpClientLens::class, function (): void {
 
         $summary = app(HttpClientLens::class)->summarize($capture);
 
-        expect($summary->totals())->toMatchArray(['http_calls' => 2, 'http_failed' => 1, 'http_by_host' => ['api.example.com' => 1, 'down.example.com' => 1]])
-            ->and($summary->warnings())->toBe(['HTTP call failed: GET https://down.example.com/health (503)']);
+        expect($summary->totals)->toMatchArray(['http_calls' => 2, 'http_failed' => 1, 'http_by_host' => ['api.example.com' => 1, 'down.example.com' => 1]])
+            ->and($summary->warnings)->toBe(['HTTP call failed: GET https://down.example.com/health (503)']);
     });
 
     it('records connection failures', function (): void {

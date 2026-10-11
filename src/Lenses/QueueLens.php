@@ -93,24 +93,21 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
     public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('jobs');
-        $totals = [
-            'jobs_dispatched' => count($rows),
-            'jobs_inline' => count(array_filter($rows, fn (array $row): bool => (bool) ($row['sync'] ?? false))),
-        ];
-        $warnings = [];
+        $summary = Summary::make()
+            ->total('jobs_dispatched', count($rows), 'dispatched')
+            ->total('jobs_inline', count(array_filter($rows, fn (array $row): bool => (bool) ($row['sync'] ?? false))), 'inline');
 
-        if ($capture->type === CaptureType::Job) {
-            $job = $capture->section('job');
-            $totals['job_attempt'] = $job['attempts'] ?? null;
-
-            if (isset($job['exception'])) {
-                $warnings[] = sprintf('Job failed: %s - %s', $job['exception']['class'] ?? 'Throwable', $job['exception']['message'] ?? '');
-            }
+        if ($capture->type !== CaptureType::Job) {
+            return $summary;
         }
 
-        return Summary::make()
-            ->total($totals)
-            ->warning($warnings);
+        $job = $capture->section('job');
+
+        return $summary
+            ->when(isset($job['attempts']))
+            ->total('job_attempt', $job['attempts'] ?? 0, 'attempt')
+            ->when(isset($job['exception']))
+            ->warning(sprintf('Job failed: %s - %s', $job['exception']['class'] ?? 'Throwable', $job['exception']['message'] ?? ''));
     }
 
     private function registerPayloadHook(): void

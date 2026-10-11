@@ -78,8 +78,8 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, Summarizabl
         }
 
         return Summary::make()
-            ->total(['response_cache' => $hit !== null ? 'hit' : (in_array('miss', array_column($rows, 'event'), true) ? 'miss' : 'cleared')])
-            ->warning($hit === null ? [] : [sprintf(
+            ->total('response_cache', $hit !== null ? 'hit' : (in_array('miss', array_column($rows, 'event'), true) ? 'miss' : 'cleared'), 'response cache')
+            ->warnings($hit === null ? [] : [sprintf(
                 'Served from the response cache%s; the controller did not run. Clear it (php artisan responsecache:clear) to see a change.',
                 $hit['age_seconds'] === null ? '' : " ({$hit['age_seconds']} s old)",
             )]);

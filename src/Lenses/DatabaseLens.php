@@ -15,6 +15,7 @@ use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
 use Illuminate\Database\Events\QueryExecuted;
@@ -150,14 +151,14 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         }
 
         return Summary::make()
-            ->total([
-                'queries' => count($rows),
-                'query_ms' => round($total, 3),
+            ->totals([
                 'queries_by_type' => $byType,
-                'slow_queries' => count($slow),
-                'duplicate_queries' => $duplicates,
             ])
-            ->warning($warnings);
+            ->total('queries', count($rows), 'queries')
+            ->total('slow_queries', count($slow), 'slow')
+            ->total('duplicate_queries', $duplicates, 'duplicates')
+            ->total('query_ms', round($total, 3), 'time', Unit::Milliseconds)
+            ->warnings($warnings);
     }
 
     private function onQuery(QueryExecuted $event): void

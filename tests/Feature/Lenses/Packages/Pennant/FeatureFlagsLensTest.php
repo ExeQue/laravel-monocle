@@ -39,7 +39,7 @@ describe(FeatureFlagsLens::class, function (): void {
             ['new-checkout', 'deleted'],
         )
             ->and(collect($rows)->firstWhere('source', 'resolved')['value'])->toBeTrue()
-            ->and($summary->warnings())->toBe(['Feature new-chekout is not defined; it resolved to false.']);
+            ->and($summary->warnings)->toBe(['Feature new-chekout is not defined; it resolved to false.']);
     });
 
     it('summarizes nothing without flag checks', function (): void {

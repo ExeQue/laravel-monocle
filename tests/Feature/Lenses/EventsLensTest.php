@@ -43,7 +43,7 @@ describe(EventsLens::class, function (): void {
 
         $summary = app(EventsLens::class)->summarize($capture);
 
-        expect($summary->totals())->toBe(['events' => 3, 'events_without_listeners' => 1]);
+        expect($summary->totals)->toBe(['events' => 3, 'events_without_listeners' => 1]);
     });
 
     it('honours a configured ignore list', function (): void {

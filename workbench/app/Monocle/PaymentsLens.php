@@ -66,24 +66,20 @@ final class PaymentsLens implements Lens, Presentable, Summarizable
     {
         $payments = $capture->rows('payments');
 
-        $summary = Summary::make();
-
         if ($payments === []) {
-            return $summary;
+            return Summary::make();
         }
 
         $declined = array_filter($payments, fn (array $payment): bool => $payment['status'] !== 'paid');
         $charged = array_sum(array_map(fn (array $payment): int => $payment['status'] === 'paid' ? $payment['amount'] : 0, $payments));
 
-        $summary->total([
-            'payments' => count($payments),
-            'payments_charged' => number_format($charged / 100, 2).' '.$payments[0]['currency'],
-            'payments_declined' => count($declined),
-        ]);
-
-        return $summary->warning(array_map(
-            fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
-            array_values($declined),
-        ));
+        return Summary::make()
+            ->total('payments', count($payments), 'payments')
+            ->total('payments_charged', number_format($charged / 100, 2), 'charged', $payments[0]['currency'])
+            ->total('payments_declined', count($declined), 'declined')
+            ->warnings(array_map(
+                fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
+                array_values($declined),
+            ));
     }
 }

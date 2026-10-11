@@ -13,6 +13,7 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
+use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
 use Illuminate\Cache\Events\CacheEvent;
@@ -124,16 +125,17 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $reads = $counts['hit'] + $counts['miss'];
 
         return Summary::make()
-            ->warning($this->repeatWarnings($rows))
-            ->total([
-                'cache_hits' => $counts['hit'],
-                'cache_misses' => $counts['miss'],
-                'cache_hit_rate' => $reads === 0 ? null : round($counts['hit'] / $reads * 100, 1),
-                'cache_writes' => $counts['write'],
-                'cache_forgets' => $counts['forget'],
-                'cache_ms' => round($ms, 3),
+            ->warnings($this->repeatWarnings($rows))
+            ->totals([
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
-            ]);
+            ])
+            ->total('cache_hits', $counts['hit'], 'hits')
+            ->total('cache_misses', $counts['miss'], 'misses')
+            ->total('cache_writes', $counts['write'], 'writes')
+            ->total('cache_forgets', $counts['forget'], 'forgets')
+            ->when($reads > 0)
+            ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent)
+            ->total('cache_ms', round($ms, 3), 'time', Unit::Milliseconds);
     }
 
     /**

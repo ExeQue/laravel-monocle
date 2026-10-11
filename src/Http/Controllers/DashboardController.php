@@ -16,7 +16,7 @@ final class DashboardController
         $tabs = [];
 
         foreach ($registry->booted() as $lens) {
-            $tabs[$lens->key()] = ($lens instanceof Presentable ? $lens->presentation()->tabView() : null) ?? 'monocle::tabs.table';
+            $tabs[$lens->key()] = ($lens instanceof Presentable ? $lens->presentation()->tabView : null) ?? 'monocle::tabs.table';
         }
 
         return view('monocle::dashboard', [

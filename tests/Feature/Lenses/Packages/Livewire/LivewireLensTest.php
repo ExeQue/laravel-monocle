@@ -57,8 +57,8 @@ describe(LivewireLens::class, function (): void {
 
         $summary = app(LivewireLens::class)->summarize($exploded);
 
-        expect($summary->totals()['livewire_components'])->toBeGreaterThanOrEqual(1)
-            ->and(implode(' ', $summary->warnings()))->toContain('component exploded');
+        expect($summary->totals['livewire_components'])->toBeGreaterThanOrEqual(1)
+            ->and(implode(' ', $summary->warnings))->toContain('component exploded');
     });
 
     it('summarizes nothing without components', function (): void {

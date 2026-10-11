@@ -87,11 +87,9 @@ final class FeatureFlagsLens implements Advises, Lens, Presentable, Summarizable
         $unknown = array_values(array_unique(array_column(array_filter($rows, fn (array $row): bool => $row['source'] === 'unknown'), 'feature')));
 
         return Summary::make()
-            ->total([
-                'features_checked' => count(array_unique(array_column($rows, 'feature'))),
-                'features_resolved' => count(array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved')),
-            ])
-            ->warning(array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown));
+            ->total('features_checked', count(array_unique(array_column($rows, 'feature'))), 'checked')
+            ->total('features_resolved', count(array_filter($rows, fn (array $row): bool => $row['source'] === 'resolved')), 'resolved')
+            ->warnings(array_map(fn (string $feature): string => "Feature {$feature} is not defined; it resolved to false.", $unknown));
     }
 
     public function presentation(): Presentation

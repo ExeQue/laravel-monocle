@@ -120,11 +120,8 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         }
 
         return Summary::make()
-            ->total([
-                'validations' => count($rows),
-                'validation_failed' => count(array_filter($rows, fn (array $row): bool => ! $row['passed'])),
-            ])
-            ->warning([]);
+            ->total('validations', count($rows), 'validations')
+            ->total('validation_failed', count(array_filter($rows, fn (array $row): bool => ! $row['passed'])), 'failed');
     }
 
     private function watch(Validator $validator): void
