@@ -126,11 +126,11 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
         }
 
         return Summary::make()
+            ->total('views_ms', round($topLevel, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'views_most_rendered' => array_slice($repeats, 0, 3, true),
             ])
             ->total('views_rendered', count($rows), 'rendered')
-            ->total('views_ms', round($topLevel, 3), 'spent', Unit::Milliseconds)
             ->warnings($warnings);
     }
 

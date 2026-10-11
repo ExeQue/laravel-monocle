@@ -163,12 +163,12 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
+            ->total('http_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'http_by_host' => $byHost,
             ])
             ->total('http_calls', count($rows), 'calls')
             ->total('http_failed', count($failed), 'failed')
-            ->total('http_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->warnings(array_map(
                 fn (array $row): string => sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $row['status'] ?? $row['exception']['message'] ?? 'no response'),
                 array_slice(array_values($failed), 0, 3),

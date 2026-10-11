@@ -125,6 +125,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         $reads = $counts['hit'] + $counts['miss'];
 
         return Summary::make()
+            ->total('cache_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->warnings($this->repeatWarnings($rows))
             ->totals([
                 'cache_hottest_keys' => array_slice($keys, 0, 5, true),
@@ -134,8 +135,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             ->total('cache_writes', $counts['write'], 'writes')
             ->total('cache_forgets', $counts['forget'], 'forgets')
             ->when($reads > 0)
-            ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent)
-            ->total('cache_ms', round($ms, 3), 'spent', Unit::Milliseconds);
+            ->total('cache_hit_rate', round($counts['hit'] / max($reads, 1) * 100, 1), 'hit rate', Unit::Percent);
     }
 
     /**

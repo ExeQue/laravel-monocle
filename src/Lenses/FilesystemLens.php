@@ -104,11 +104,11 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
+            ->total('filesystem_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'filesystem_by_disk' => $byDisk,
             ])
             ->total('filesystem_ops', count($rows), 'operations')
-            ->total('filesystem_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->total('filesystem_bytes_read', $read, 'read', Unit::Bytes)
             ->total('filesystem_bytes_written', $written, 'written', Unit::Bytes)
             ->warnings(array_slice($failed, 0, 3));

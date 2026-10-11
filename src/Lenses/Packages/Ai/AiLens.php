@@ -136,12 +136,12 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
         }
 
         return Summary::make()
+            ->total('ai_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'ai_tokens' => $tokens,
                 'ai_by_model' => $byModel,
             ])
             ->total('ai_calls', count($rows), 'calls')
-            ->total('ai_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->warnings(array_slice($warnings, 0, 5));
     }
 

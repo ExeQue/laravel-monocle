@@ -98,12 +98,12 @@ final class MediaLibraryLens implements Advises, Lens, Presentable, Summarizable
         $ms = round(array_sum(array_column($conversions, 'duration')), 1);
 
         return Summary::make()
+            ->when($conversions !== [])
+            ->total('media_conversion_ms', $ms, 'spent', Unit::Milliseconds)
             ->when(count($rows) > count($conversions))
             ->total('media_added', count($rows) - count($conversions), 'added')
             ->when($conversions !== [])
             ->total('media_conversions', count($conversions), 'conversions')
-            ->when($conversions !== [])
-            ->total('media_conversion_ms', $ms, 'spent', Unit::Milliseconds)
             ->when($capture->type === CaptureType::Request && $conversions !== [])
             ->warning(sprintf('%d media conversion(s) ran during the request (%s ms); queued conversions keep the response fast.', count($conversions), $ms));
     }

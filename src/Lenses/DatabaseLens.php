@@ -151,13 +151,13 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         }
 
         return Summary::make()
+            ->total('query_ms', round($total, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'queries_by_type' => $byType,
             ])
             ->total('queries', count($rows), 'queries')
             ->total('slow_queries', count($slow), 'slow')
             ->total('duplicate_queries', $duplicates, 'duplicates')
-            ->total('query_ms', round($total, 3), 'spent', Unit::Milliseconds)
             ->warnings($warnings);
     }
 
