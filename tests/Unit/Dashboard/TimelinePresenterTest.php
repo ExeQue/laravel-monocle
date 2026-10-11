@@ -77,7 +77,7 @@ describe(TimelinePresenter::class, function (): void {
         $pool = $handle['children'][0];
 
         expect(array_column($handle['children'], 'kind'))->toBe(['http.pool', 'http'])
-            ->and($pool['name'])->toBe('pool of 2 requests')
+            ->and($pool['name'])->toBe('pool #1, 2 requests')
             ->and([$pool['s'], $pool['e']])->toBe([10.0, 41.0])
             ->and($pool['d']['meta'])->toBe(['requests' => 2, 'failed' => 1])
             ->and(array_column($pool['children'], 'name'))->toBe(['GET https://a.test/1', 'GET https://a.test/2']);

@@ -193,7 +193,7 @@ Section `scheduled_tasks` on the `schedule:run` capture: each task with its sche
 
 ### HTTP client
 
-Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. A JSON or form body sent is kept as fields, masked like request input. Responses are read with the same captures the request lens uses, chosen by content type under `capture.response_types` (JSON by default), and kept with their raw body; set `bodies` to `true` to also keep bodies no capture handles. Secrets in headers and query strings are masked.
+Section `http`: outgoing requests made with Laravel's `Http` client - method, URL, status, sizes, duration and failures. Requests sent together with `Http::pool()` or `Http::batch()` share a `pool` number, and the timeline shows them under one pool row. Real calls also record where the time went: DNS lookup, connecting, the TLS handshake, waiting for the first byte, downloading and redirects, with the address connected to and the protocol. A JSON or form body sent is kept as fields, masked like request input. Responses are read with the same captures the request lens uses, chosen by content type under `capture.response_types` (JSON by default), and kept with their raw body; set `bodies` to `true` to also keep bodies no capture handles. Secrets in headers and query strings are masked.
 
 Option: `bodies` (false) - also record request and response bodies.
 

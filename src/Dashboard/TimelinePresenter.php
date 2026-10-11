@@ -189,7 +189,7 @@ final readonly class TimelinePresenter
                 'id' => "http.pool:{$pool}",
                 'parent' => $rows[0]['parent'],
                 'kind' => 'http.pool',
-                'name' => sprintf('pool of %d %s', count($ids), count($ids) === 1 ? 'request' : 'requests'),
+                'name' => sprintf('pool #%d, %d %s', $pool, count($ids), count($ids) === 1 ? 'request' : 'requests'),
                 's' => min(array_column($rows, 's')),
                 'e' => max(array_column($rows, 'e')),
                 'd' => [

@@ -255,7 +255,7 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
     private function fail(Job $job, Throwable $exception, string $status, bool $finish = false): void
     {
         $key = $this->jobKey($job);
-        $info = ThrowableChain::describe($exception, fn (string $file): string => $file);
+        $info = ThrowableChain::describe($exception);
 
         if (isset($this->spans[$key])) {
             $span = $this->spans[$key];

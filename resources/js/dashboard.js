@@ -442,12 +442,14 @@ Alpine.data('monocle', (config) => ({
 
   columnsOf(rows, section = null) {
     const keys = [];
-    const detailOnly = ['n', '_links', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception'] : [])];
+    const detailOnly = ['n', '_links', 'request_headers', 'response_headers', 'request_body', 'response_body', 'request_payload', 'response_capture', ...(section === 'http' ? ['exception', 'failed', 'timing'] : [])];
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     let used = keys.filter((k) => rows.some((row) => !blank(row[k])));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
     used = used.filter((k) => k !== 'rolled_back');
+    // HTTP calls read as "GET 200 https://...".
+    if (section === 'http' && used.includes('status')) used = ['method', 'status', ...used.filter((k) => k !== 'method' && k !== 'status')].filter((k) => used.includes(k));
     return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
@@ -523,7 +525,7 @@ Alpine.data('monocle', (config) => ({
     const keyOf = {
       endpoint,
       host: (row) => host(row.url),
-      pool: (row) => (row.pool == null ? 'not pooled' : `pool ${row.pool}`),
+      pool: (row) => (row.pool == null ? 'not pooled' : `pool #${row.pool}`),
       status: (row) => (row.status == null ? 'no response' : String(row.status)),
     }[this.httpGroup];
     const groups = new Map();
@@ -561,7 +563,7 @@ Alpine.data('monocle', (config) => ({
       ['Started at', row.time != null ? ms(row.time) : null],
       ['Sent', size(row.request_bytes)],
       ['Received', size(row.response_bytes)],
-      ['Pool', row.pool],
+      ['Pool', row.pool == null ? null : `#${row.pool}`],
     ].filter(([, v]) => v !== null && v !== undefined && v !== '');
     const capture = row.response_capture;
     const cards = (capture?.cards ?? []).map((card) => `<div class="grid gap-1 rounded-md border border-line bg-panel p-2.5"><div><b class="text-[13px]">${esc(card.title)}</b>${card.subtitle ? ` <span class="text-xs text-muted">${esc(card.subtitle)}</span>` : ''}</div><dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">${Object.entries(card.items ?? {}).map(([k, v]) => `<dt class="text-muted">${esc(humanize(k))}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${this.cardValue(v, k)}</dd>`).join('')}</dl></div>`).join('');
@@ -575,6 +577,7 @@ Alpine.data('monocle', (config) => ({
     return `<div class="grid gap-4">
       <div class="flex flex-wrap items-start gap-1.5 font-mono text-xs"><b>${esc(row.method ?? '')}</b><span class="[overflow-wrap:anywhere]">${esc(row.url ?? '')}</span>${copyButton(row.url ?? '', 'url')}</div>
       <dl class="m-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">${facts.map(([k, v, tone]) => `<div class="grid gap-0.5"><dt class="${label}">${k}</dt><dd class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere] ${tone ?? ''}">${esc(String(v))}</dd></div>`).join('')}</dl>
+      ${row.timing ? block('Timing', this.httpTiming(row.timing)) : ''}
       ${row.exception ? block('Exception', `<div class="rounded-md border border-line bg-panel p-2.5 text-xs">${exceptionHtml(row.exception, { full: true })}</div>`, [row.exception, ...(row.exception.previous ?? [])].map((x) => `${x.class}: ${x.message}`).join('\n')) : ''}
       <div class="grid gap-4 lg:grid-cols-2">
         ${block('Request headers', kvTable(this.headers(row.request_headers), 'request header'))}
@@ -585,6 +588,19 @@ Alpine.data('monocle', (config) => ({
         ${block('Response', response, raw)}
       </div>
       ${originBlock(row.origin)}
+    </div>`;
+  },
+
+  /** Where the time of an HTTP call went: one bar split into its phases, then the connection facts. */
+  httpTiming(timing) {
+    const phases = [['dns', 'DNS', 'var(--c-cache)'], ['connect', 'Connect', 'var(--c-db)'], ['tls', 'TLS', 'var(--c-view)'], ['wait', 'Waiting', 'var(--c-http)'], ['download', 'Download', 'var(--c-ctrl)'], ['redirect', 'Redirects', 'var(--c-phase)']]
+      .filter(([k]) => typeof timing[k] === 'number');
+    const total = phases.reduce((sum, [k]) => sum + timing[k], 0) || 1;
+    const facts = [['Remote', timing.remote], ['Protocol', timing.protocol], ['Redirects followed', timing.redirects]].filter(([, v]) => v);
+    return `<div class="grid gap-2 text-xs">
+      <div class="flex h-2.5 overflow-hidden rounded-sm bg-sunk" role="img" aria-label="${esc(phases.map(([k, l]) => `${l} ${ms(timing[k])}`).join(', '))}">${phases.map(([k, , c]) => `<span style="width:${(timing[k] / total) * 100}%;background:${c}"></span>`).join('')}</div>
+      <div class="flex flex-wrap gap-x-4 gap-y-1">${phases.map(([k, l, c]) => `<span class="inline-flex items-center gap-1.5"><i class="size-2 rounded-sm" style="background:${c}"></i><span class="text-muted">${l}</span><span class="tabular-nums">${ms(timing[k])}</span></span>`).join('')}</div>
+      ${facts.length ? `<div class="flex flex-wrap gap-x-4 gap-y-1">${facts.map(([l, v]) => `<span><span class="text-muted">${l}</span> <span class="font-mono">${esc(String(v))}</span></span>`).join('')}</div>` : ''}
     </div>`;
   },
 
@@ -601,6 +617,11 @@ Alpine.data('monocle', (config) => ({
     return name.length > 32 ? name.slice(0, 32) + '…' : name;
   },
 
+  /** Columns that only hold a short word or code and take as little width as they can. */
+  narrow(key) {
+    return ['method', 'status'].includes(key);
+  },
+
   numeric(key) {
     return ['count', 'duration', 'time', 'size', 'bytes', 'n', 'attempts', 'status', 'ttl'].includes(key) || /_(ms|bytes|count)$/.test(key);
   },
@@ -612,6 +633,7 @@ Alpine.data('monocle', (config) => ({
     if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
     if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
     if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
+    if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
     if (key === 'previous' && Array.isArray(v) && v.length && v.every(isThrowable)) return previousHtml(v, 140);
     if (key === 'type' && (v === 'miss' || v === 'failed')) return `<span class="font-medium text-warn">${esc(v)}</span>`;

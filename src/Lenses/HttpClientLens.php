@@ -61,7 +61,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
 
     public function description(): string
     {
-        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
+        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and timing (cURL transfer stats: dns, connect, tls, wait (time to first byte), download and redirect in ms, the remote address, protocol and redirects followed; absent for faked calls and failed connections), pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
     }
 
     public function advice(): string
@@ -100,6 +100,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'response_body' => $this->bodies && $capture === null ? $this->eyepiece->masker(self::class)->body($body, $event->response->header('Content-Type')) : null,
                 'response_capture' => $capture,
                 'duration' => $this->duration($pending['at'] ?? null, $event->response->handlerStats()),
+                'timing' => $this->timing($event->response->handlerStats()),
                 'failed' => $status >= 400,
                 'exception' => null,
                 'pool' => $pending['pool'] ?? null,
@@ -121,7 +122,9 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'response_bytes' => null,
                 'response_body' => null,
                 'response_capture' => null,
+                // Guzzle keeps no transfer stats on a failed connection; the wall clock is all there is.
                 'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
+                'timing' => null,
                 'failed' => true,
                 'exception' => ThrowableChain::describe($event->exception),
                 // A connection that fails before the request is sent never fired RequestSending.
@@ -305,6 +308,49 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     private function call(Request $request): string
     {
         return $request->method().' '.$request->url();
+    }
+
+    /**
+     * Where the time of a call went, from the transfer stats of the handler
+     * (cURL): each phase in ms, the address connected to, the protocol and
+     * the number of redirects followed. Null for faked calls.
+     *
+     * @param  array<string, mixed>  $stats
+     * @return array<string, mixed>|null
+     */
+    private function timing(array $stats): ?array
+    {
+        if (! isset($stats['total_time'])) {
+            return null;
+        }
+
+        $at = fn (string $key): float => (float) ($stats[$key] ?? 0.0);
+        $phase = fn (float $from, float $to): ?float => $to > 0.0 && $to >= $from ? round(($to - $from) * 1000, 3) : null;
+
+        $timing = [
+            'dns' => $phase(0.0, $at('namelookup_time')),
+            'connect' => $phase($at('namelookup_time'), $at('connect_time')),
+            'tls' => $phase($at('connect_time'), $at('appconnect_time')),
+            'wait' => $phase(max($at('pretransfer_time'), $at('appconnect_time'), $at('connect_time')), $at('starttransfer_time')),
+            'download' => $phase($at('starttransfer_time'), $at('total_time')),
+            'redirect' => $at('redirect_time') > 0.0 ? round($at('redirect_time') * 1000, 3) : null,
+            'remote' => isset($stats['primary_ip']) && $stats['primary_ip'] !== '' ? $stats['primary_ip'].(isset($stats['primary_port']) ? ':'.$stats['primary_port'] : '') : null,
+            'protocol' => $this->protocol($stats['http_version'] ?? null),
+            'redirects' => (int) ($stats['redirect_count'] ?? 0) ?: null,
+        ];
+
+        return array_filter($timing, fn (mixed $value): bool => $value !== null);
+    }
+
+    private function protocol(mixed $version): ?string
+    {
+        return match ((int) $version) {
+            CURL_HTTP_VERSION_1_0 => 'HTTP/1.0',
+            CURL_HTTP_VERSION_1_1 => 'HTTP/1.1',
+            CURL_HTTP_VERSION_2_0 => 'HTTP/2',
+            30 => 'HTTP/3',
+            default => null,
+        };
     }
 
     /**

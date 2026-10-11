@@ -15,14 +15,12 @@ describe(ThrowableChain::class, function (): void {
         $root = new LogicException('root cause');
         $exception = new RuntimeException('outer', 0, new RuntimeException('middle', 0, $root));
 
-        expect(ThrowableChain::describe($exception))->toBe([
-            'class' => RuntimeException::class,
-            'message' => 'outer',
-            'previous' => [
-                ['class' => RuntimeException::class, 'message' => 'middle'],
-                ['class' => LogicException::class, 'message' => 'root cause'],
-            ],
-        ]);
+        $described = ThrowableChain::describe($exception);
+
+        expect($described['class'])->toBe(RuntimeException::class)
+            ->and($described['message'])->toBe('outer')
+            ->and(array_column($described['previous'], 'message', 'class'))->toBe([RuntimeException::class => 'middle', LogicException::class => 'root cause'])
+            ->and($described['file'])->toEndWith('tests/Unit/Support/ThrowableChainTest.php:16');
     });
 
     it('adds the file when asked and stops after ten previous exceptions', function (): void {

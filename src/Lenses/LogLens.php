@@ -90,7 +90,7 @@ final class LogLens implements Advises, Lens, Summarizable
     {
         foreach ($context as $key => $value) {
             if ($value instanceof Throwable) {
-                $context[$key] = ThrowableChain::describe($value, fn (string $file): string => $file);
+                $context[$key] = ThrowableChain::describe($value);
             }
         }
 

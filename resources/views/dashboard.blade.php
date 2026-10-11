@@ -1516,7 +1516,11 @@
                                                 <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                     ><th
                                                         scope="col"
-                                                        :class="[cls.th, numeric(col) && '!text-right']"
+                                                        :class="[
+                                                            cls.th,
+                                                            numeric(col) && '!text-right',
+                                                            narrow(col) && 'w-0 whitespace-nowrap',
+                                                        ]"
                                                         x-text="humanize(col.replace(/_(bytes|ms)$/, ''))"
                                                     ></th
                                                 ></template>
@@ -1567,6 +1571,7 @@
                                                                 col === 'origin' && 'min-w-56',
                                                                 ['model', 'action', 'key', 'type'].includes(col) &&
                                                                     'whitespace-nowrap',
+                                                                narrow(col) && 'w-0 whitespace-nowrap',
                                                             ]"
                                                             x-html="cell(row, col)"
                                                         ></td
