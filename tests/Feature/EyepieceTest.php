@@ -8,6 +8,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\SpanColor;
+use ExeQue\Monocle\Exceptions\InvalidMaskException;
 use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
@@ -239,11 +240,15 @@ describe(Eyepiece::class, function (): void {
                 ->and($this->eyepiece->active()->sections['rows'])->toBe(['replaced' => true]);
         });
 
-        it('builds the masker from config with a callable mask', function (): void {
-            config(['monocle.mask.using' => fn (mixed $value, string $key): string => "masked:{$key}"]);
+        it('refuses masks that are not class names', function (string $key, mixed $mask): void {
+            config(["monocle.{$key}" => $mask]);
 
-            expect($this->eyepiece->masker()->inputs(['password' => 'x'])['password'])->toBe('masked:password');
-        });
+            expect(fn () => $this->eyepiece->masker())->toThrow(InvalidMaskException::class);
+        })->with([
+            'closure as using' => ['mask.using', fn (): string => 'x'],
+            'unknown class for a header' => ['mask.headers', ['authorization' => 'NoSuchMask']],
+            'array without a class' => ['mask.cookies', ['remember_*' => ['visible' => 8]]],
+        ]);
 
         it('builds masks with constructor arguments', function (): void {
             config([

@@ -122,7 +122,7 @@ final class HashMask
 'x-api-key' => HashMask::class,
 ```
 
-A mask without arguments is resolved from the container, so its constructor can ask for dependencies. `using` also accepts a closure.
+A mask without arguments is resolved from the container, so its constructor can ask for dependencies.
 
 ## `origin`
 

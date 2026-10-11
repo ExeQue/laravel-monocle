@@ -8,6 +8,7 @@ use Closure;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
+use ExeQue\Monocle\Exceptions\InvalidMaskException;
 use ExeQue\Monocle\Reader\SummaryBuilder;
 use ExeQue\Monocle\Storage\StoreManager;
 use ExeQue\Monocle\Support\Masker;
@@ -91,29 +92,50 @@ final class Eyepiece
 
     public function masker(): Masker
     {
-        $resolve = function (mixed $mask): mixed {
-            if (is_string($mask) && class_exists($mask)) {
-                return $this->app->make($mask);
-            }
-
-            // [Mask::class, ...arguments]: positional or named constructor arguments.
-            if (is_array($mask) && is_string($mask[0] ?? null) && class_exists($mask[0])) {
-                $class = array_shift($mask);
-
-                return new $class(...$mask);
-            }
-
-            return $mask;
-        };
-        $resolveAll = fn (array $list): array => array_map($resolve, $list);
-
         return new Masker(
-            headers: $resolveAll((array) $this->config('mask.headers', [])),
+            headers: $this->masks((array) $this->config('mask.headers', []), 'mask.headers'),
             pattern: $this->config('mask.inputs'),
-            mask: $resolve($this->config('mask.using', PartialMask::class)),
+            mask: $this->resolveMask($this->config('mask.using', PartialMask::class), 'mask.using'),
             // The session cookie is always masked; a mask configured for it wins because it is matched first.
-            cookies: [...$resolveAll((array) $this->config('mask.cookies', [])), (string) $this->app->make('config')->get('session.cookie')],
+            cookies: [
+                ...$this->masks((array) $this->config('mask.cookies', []), 'mask.cookies'),
+                (string) $this->app->make('config')->get('session.cookie'),
+            ],
         );
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $list  name => mask, or a plain name
+     * @return array<array-key, mixed>
+     */
+    private function masks(array $list, string $path): array
+    {
+        foreach ($list as $name => $mask) {
+            if (is_string($name)) {
+                $list[$name] = $this->resolveMask($mask, "{$path}.{$name}");
+            }
+        }
+
+        return $list;
+    }
+
+    /**
+     * Masks come from config, so they are class names or [class, ...arguments]
+     * arrays; closures would not survive config:cache.
+     */
+    private function resolveMask(mixed $mask, string $key): object
+    {
+        if (is_string($mask) && class_exists($mask)) {
+            return $this->app->make($mask);
+        }
+
+        if (is_array($mask) && is_string($mask[0] ?? null) && class_exists($mask[0])) {
+            $class = array_shift($mask);
+
+            return new $class(...$mask);
+        }
+
+        throw InvalidMaskException::forKey($key);
     }
 
     public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Capture
