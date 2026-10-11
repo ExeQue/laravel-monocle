@@ -24,6 +24,9 @@ final class Masker
     /** @var array<string, Closure> */
     private readonly array $cookies;
 
+    /** @var array<string, array<string, Closure>> class or interface => property => mask */
+    private readonly array $objects;
+
     /**
      * Header and cookie lists map a name (wildcards allowed) to the mask used
      * for it; a plain list entry uses the default mask.
@@ -31,12 +34,14 @@ final class Masker
      * @param  array<array-key, mixed>  $headers  header name => mask, or header name
      * @param  string|list<string>|null  $pattern  regular expressions matched against input keys
      * @param  array<array-key, mixed>  $cookies  cookie name => mask, or cookie name
+     * @param  array<string, array<string, mixed>>  $objects  class or interface => property => mask (null for the default)
      */
     public function __construct(
         array $headers,
         string|array|null $pattern,
         callable $mask,
         array $cookies = [],
+        array $objects = [],
     ) {
         $patterns = array_filter((array) $pattern, fn (mixed $value): bool => is_string($value) && $value !== '');
 
@@ -44,6 +49,36 @@ final class Masker
         $this->mask = $mask(...);
         $this->headers = $this->masks($headers, lowercase: true);
         $this->cookies = $this->masks($cookies, lowercase: false);
+        $this->objects = array_map(fn (array $properties): array => $this->masks($properties, lowercase: false), $objects);
+    }
+
+    /**
+     * The masks for an object's properties: those listed for every class
+     * and interface it is an instance of.
+     *
+     * @return array<string, Closure> property => mask
+     */
+    public function objectMasks(object $object): array
+    {
+        $masks = [];
+
+        foreach ($this->objects as $class => $properties) {
+            if ($object instanceof $class) {
+                $masks = [...$masks, ...$properties];
+            }
+        }
+
+        return $masks;
+    }
+
+    /**
+     * The classes and interfaces that have properties to mask.
+     *
+     * @return list<string>
+     */
+    public function maskedClasses(): array
+    {
+        return array_keys($this->objects);
     }
 
     public function mask(mixed $value, string $key): mixed

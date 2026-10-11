@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Closure;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -494,6 +495,19 @@ describe(Eyepiece::class, function (): void {
                 ->and($this->eyepiece->masker(RequestLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcdefghijklmnop'])
                 ->and($this->eyepiece->masker(HttpClientLens::class)->headers($headers))->toBe(['Authorization' => 'Be****', 'X-Api-Key' => '********'])
                 ->and($this->eyepiece->masker(HttpClientLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcd****']);
+        });
+
+        it('adds a lens\'s object masks to the shared ones per property', function (): void {
+            config(['monocle.mask.objects' => [
+                \Tests\Fixtures\Secrets::class => ['token', 'pin' => FullMask::class],
+                \ExeQue\Monocle\Lenses\DumpLens::class => [\Tests\Fixtures\Secrets::class => ['note', 'pin' => [PartialMask::class, 1]]],
+            ]]);
+
+            $secrets = new \Tests\Fixtures\Secrets();
+            $mask = fn (?string $lens): array => array_map(fn (Closure $mask): mixed => $mask('abcdefgh', 'x'), $this->eyepiece->masker($lens)->objectMasks($secrets));
+
+            expect($mask(null))->toBe(['token' => 'ab****', 'pin' => '********'])
+                ->and($mask(\ExeQue\Monocle\Lenses\DumpLens::class))->toBe(['token' => 'ab****', 'pin' => 'a****', 'note' => 'ab****']);
         });
 
         it('refuses masks that are not class names', function (string $key, mixed $mask): void {

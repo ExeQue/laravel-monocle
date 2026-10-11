@@ -118,4 +118,29 @@ describe(DumpLens::class, function (): void {
             ->and($lens->presentation()->tabView)->toBe('monocle::tabs.dumps')
             ->and($lens->presentation()->detailsView)->toBe('monocle::details.dump');
     });
+    describe('masking', function (): void {
+        $value = fn (): string => app(Eyepiece::class)->finalize()->rows('dumps')[0]['value'];
+
+        it('masks the password of a user in its attributes and leaves empty ones alone', function () use ($value): void {
+            $user = new \Tests\Fixtures\Models\User(['name' => 'Ada', 'password' => 'hunter22hunter22', 'remember_token' => null]);
+            $user->syncOriginal();
+
+            dump($user);
+
+            expect($value())->toContain('"name" => "Ada"', '"remember_token" => null')
+                ->not->toContain('hunter22hunter22');
+        });
+
+        it('masks listed properties of any visibility, with a mask of their own and per lens', function () use ($value): void {
+            config(['monocle.mask.objects' => [
+                \Tests\Fixtures\Secrets::class => ['token', 'pin' => \ExeQue\Monocle\Support\Masks\FullMask::class],
+                DumpLens::class => [\Tests\Fixtures\Secrets::class => ['note']],
+            ]]);
+
+            dump(new \Tests\Fixtures\Secrets());
+
+            expect($value())->toContain('+open: "visible"', '+note: "not****"', '#token: "toke****"', '-pin: "********"')
+                ->not->toContain('note to self', 'token-1234567890', '1234"');
+        });
+    });
 });

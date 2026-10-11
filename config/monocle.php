@@ -46,6 +46,7 @@ use ExeQue\Monocle\Lenses\ViewsLens;
 use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
+use Illuminate\Contracts\Auth\Authenticatable;
 
 return [
 
@@ -282,6 +283,11 @@ return [
     | Input keys matching the `inputs` expression are masked with `using`,
     | as are list entries given without a mask.
     |
+    | Objects in dumps have their listed properties masked, by class or
+    | interface; on Eloquent models the keys are attributes:
+    |
+    |     'objects' => [Authenticatable::class => ['password'], Card::class => ['number' => FullMask::class]],
+    |
     | Entries apply to every lens. Key them by a lens class to apply them to
     | that lens only; a mask set for one lens wins over the shared one:
     |
@@ -315,6 +321,9 @@ return [
             'remember_*' => PartialMask::class,
         ],
         'inputs' => '/pass|token|secret|authorization/i',
+        'objects' => [
+            Authenticatable::class => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
+        ],
         'using' => PartialMask::class,
     ],
 

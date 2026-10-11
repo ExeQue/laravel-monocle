@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Support;
 
+use ArrayObject;
+use Countable;
 use ExeQue\Monocle\Support\Masker;
 use ExeQue\Monocle\Support\Masks\AuthorizationMask;
 use ExeQue\Monocle\Support\Masks\FullMask;
 use ExeQue\Monocle\Support\Masks\PartialMask;
+use Stringable;
 
 covers(Masker::class, PartialMask::class, FullMask::class, AuthorizationMask::class);
 
@@ -53,6 +56,20 @@ describe(Masker::class, function (): void {
 
         expect($masker->headers(['Authorization' => ['Bearer secret'], 'Accept' => ['text/html']]))
             ->toBe(['Authorization' => '********', 'Accept' => 'text/html']);
+    });
+
+    it('collects the property masks of every class and interface an object is', function (): void {
+        $masker = new Masker([], null, new PartialMask(), objects: [
+            Countable::class => ['count'],
+            ArrayObject::class => ['storage' => new FullMask()],
+            Stringable::class => ['text'],
+        ]);
+
+        $masks = $masker->objectMasks(new ArrayObject());
+
+        expect(array_keys($masks))->toBe(['count', 'storage'])
+            ->and($masks['storage']('x', 'storage'))->toBe('********')
+            ->and($masker->maskedClasses())->toBe([Countable::class, ArrayObject::class, Stringable::class]);
     });
 
     it('masks input keys matching the pattern recursively', function (): void {

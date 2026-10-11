@@ -42,7 +42,7 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
 
     public function description(): string
     {
-        return 'Values passed to dump() and dd(): the dumped value as text, the same text as [style, text] pairs VarDumper styled (tokens, for the dashboard), its type, the label and whether it came from dd() (which ended the process - the capture is stored at shutdown with ended_by=shutdown).';
+        return 'Values passed to dump() and dd(): the dumped value as text (properties listed under monocle.mask.objects masked, such as the password of a user), the same text as [style, text] pairs VarDumper styled (tokens, for the dashboard), its type, the label and whether it came from dd() (which ended the process - the capture is stored at shutdown with ended_by=shutdown).';
     }
 
     public function advice(): string
@@ -85,7 +85,7 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
             return;
         }
 
-        [$text, $tokens] = new TokenDumper()->tokenize(new VarCloner()->cloneVar($value));
+        [$text, $tokens] = new TokenDumper()->tokenize($this->cloner()->cloneVar($value));
 
         $this->eyepiece->push('dumps', [
             'value' => $text,
@@ -94,6 +94,63 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
             'label' => $label,
             'is_dd' => $this->calledFromDd(),
         ]);
+    }
+
+    /**
+     * A cloner that masks the properties monocle.mask.objects lists, by the class or interface they belong to.
+     */
+    private function cloner(): VarCloner
+    {
+        $masker = $this->eyepiece->masker(self::class);
+        $cloner = new VarCloner();
+        $mask = fn (object $object, array $properties): array => $this->maskProperties($masker->objectMasks($object), $properties);
+
+        foreach ($masker->maskedClasses() as $class) {
+            $cloner->addCasters([$class => $mask]);
+        }
+
+        return $cloner;
+    }
+
+    /**
+     * @param  array<string, Closure>  $masks  property => mask
+     * @param  array<string, mixed>  $properties  as VarDumper names them: "\0*\0name" for protected, "\0Class\0name" for private
+     * @return array<string, mixed>
+     */
+    private function maskProperties(array $masks, array $properties): array
+    {
+        foreach ($properties as $name => $value) {
+            $property = str_contains($name, "\0") ? substr($name, strrpos($name, "\0") + 1) : $name;
+
+            if (isset($masks[$property])) {
+                $properties[$name] = $this->masked($masks[$property], $value, $property);
+            }
+        }
+
+        // An Eloquent model keeps its columns in arrays, not in properties.
+        foreach (["\0*\0attributes", "\0*\0original"] as $bag) {
+            if (! is_array($properties[$bag] ?? null)) {
+                continue;
+            }
+
+            foreach (array_intersect_key($masks, $properties[$bag]) as $key => $mask) {
+                $properties[$bag][$key] = $this->masked($mask, $properties[$bag][$key], $key);
+            }
+        }
+
+        return $properties;
+    }
+
+    /**
+     * An empty value has nothing to hide; it is left as it is so the dump stays true.
+     */
+    private function masked(Closure $mask, mixed $value, string $key): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return $mask($value, $key);
     }
 
     private function forward(mixed $value, ?string $label): void

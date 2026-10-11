@@ -95,7 +95,8 @@ describe(Viewfinder::class, function (): void {
             ->and($summary['labels']['monocle_ms'])->toBe('monocle')
             ->and($summary['details']['monocle_ms'])->toBe(latestCapture()->health['overhead_by'])->not->toBeEmpty()
             ->and($summary['monocle_by_section'])->toHaveKey('queries')
-            ->and(round(array_sum($summary['monocle_by_section']), 2))->toBe(round(array_sum($summary['details']['monocle_ms']), 2))
+            // Each section is rounded on its own, so the sums can differ in the last decimal.
+            ->and(array_sum($summary['monocle_by_section']))->toEqualWithDelta(array_sum($summary['details']['monocle_ms']), 0.05)
             ->and($summary['groups'])->toMatchArray(['queries' => 'queries'])
             ->and($summary['groups'])->not->toHaveKey('response_bytes')
             ->and($summary['flags'])->toContain(['level' => 'error', 'section' => 'request', 'message' => 'Response status 500.'])

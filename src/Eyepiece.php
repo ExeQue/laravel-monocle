@@ -148,6 +148,7 @@ final class Eyepiece
             mask: $this->resolveMask($this->config('mask.using', PartialMask::class), 'mask.using'),
             // The session cookie is always masked; a mask configured for it wins because it is matched first.
             cookies: [...$this->masksForLens('mask.cookies', $lens), $sessionCookie],
+            objects: $this->objectMasksForLens($lens),
         );
     }
 
@@ -214,6 +215,42 @@ final class Eyepiece
         }
 
         return $list;
+    }
+
+    /**
+     * The object masks for a lens: class => its properties, each named entry's
+     * mask resolved. A lens's own list adds to the shared one for the same
+     * class, and its mask wins for the same property.
+     *
+     * @return array<string, array<string, object|null>> class => property => mask, null for the default
+     */
+    private function objectMasksForLens(?string $lens): array
+    {
+        $config = (array) $this->config('mask.objects', []);
+        $own = $lens !== null ? (array) ($config[$lens] ?? []) : [];
+        $objects = [];
+
+        foreach ([$config, $own] as $lists) {
+            foreach ($lists as $class => $properties) {
+                // Lists keyed by a lens class belong to that lens; its own are in $own.
+                if (is_a($class, Lens::class, true)) {
+                    continue;
+                }
+
+                foreach ((array) $properties as $property => $mask) {
+                    // A plain entry gets the default mask.
+                    if (is_int($property)) {
+                        $objects[$class][$mask] = null;
+
+                        continue;
+                    }
+
+                    $objects[$class][$property] = $this->resolveMask($mask, "mask.objects.{$class}.{$property}");
+                }
+            }
+        }
+
+        return $objects;
     }
 
     /**
