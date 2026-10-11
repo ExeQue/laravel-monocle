@@ -562,7 +562,9 @@ Alpine.data('monocle', (config) => ({
 
   /** The details of an expanded row: HTTP calls get their own layout, other rows list every field. */
   details(row, section) {
-    return section === 'http' ? this.httpDetails(row) : rowBody(row);
+    if (section === 'http') return this.httpDetails(row);
+    if (section === 'validation') return this.validationDetails(row);
+    return rowBody(row);
   },
 
   /** An outgoing HTTP call: facts, both header sets, the payload sent and the response received. */
@@ -605,6 +607,36 @@ Alpine.data('monocle', (config) => ({
         ${block('Response', response, raw)}
       </div>
       ${originBlock(row.origin)}
+    </div>`;
+  },
+
+  /** One validation: a row per field with its rules, the input and what failed, then the rest. */
+  validationDetails(row) {
+    const td = 'border-t border-line px-2 py-1.5 align-top';
+    const failed = {};
+    (row.failed ?? []).forEach((f) => { (failed[f.field] ??= []).push(f); });
+    const fields = [...new Set([...Object.keys(row.rules ?? {}), ...Object.keys(failed)])];
+    const size = (v) => (v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B');
+    const input = (field) => {
+      const v = this.dot(row.input ?? {}).find(([k]) => k === field)?.[1] ?? (row.input ?? {})[field.split('.')[0]];
+      if (v === undefined) return '<span class="text-muted">-</span>';
+      if (v === null) return '<span class="text-muted">null</span>';
+      if (typeof v === 'object' && 'file' in v && 'size' in v) return `<span class="font-mono">${esc(v.file)}</span> <span class="text-muted">${size(v.size)}${v.mime ? ', ' + esc(v.mime) : ''}</span>`;
+      const text = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `<span class="group/copy"><span class="font-mono" ${text.length > 120 ? `data-tip="${esc(text.slice(0, 1000))}"` : ''}>${esc(text.length > 120 ? text.slice(0, 120) + '…' : text)}</span> ${copyButton(text, `${field} input`, { hover: true })}</span>`;
+    };
+    const rules = (r) => (Array.isArray(r) ? r : String(r ?? '').split('|')).filter(Boolean).map((x) => `<span class="mr-1 inline-block rounded border border-line px-1 font-mono text-[11px]">${classes(x)}</span>`).join('');
+    const result = (field) => failed[field]
+      ? failed[field].map((f) => `<div class="text-bad"><span class="font-mono text-[11px]">${esc(f.rule)}${f.parameters?.length ? esc('(' + f.parameters.join(', ') + ')') : ''}</span> ${esc(f.message ?? '')}</div>`).join('')
+      : '<span class="text-ok">passed</span>';
+    const rest = Object.fromEntries(Object.entries(row).filter(([k]) => !['rules', 'input', 'failed', 'fields', 'passed'].includes(k)));
+
+    return `<div class="grid gap-3">
+      <table class="w-full border-collapse text-xs">
+        <thead><tr class="text-left text-[11px] uppercase tracking-wider text-muted"><th class="px-2 py-1 font-medium">Field</th><th class="px-2 py-1 font-medium">Rules</th><th class="px-2 py-1 font-medium">Input</th><th class="px-2 py-1 font-medium">Result</th></tr></thead>
+        <tbody>${fields.map((field) => `<tr><td class="${td} w-0 whitespace-nowrap font-mono">${esc(field)}</td><td class="${td}">${rules(row.rules?.[field])}</td><td class="${td} [overflow-wrap:anywhere]">${input(field)}</td><td class="${td}">${result(field)}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="grid gap-2.5">${rowBody(rest)}</div>
     </div>`;
   },
 
@@ -652,7 +684,7 @@ Alpine.data('monocle', (config) => ({
     if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
     // File paths look like origins everywhere.
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
-    if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${esc(Array.isArray(rules) ? rules.map(fmtValue).join(' | ') : String(rules).split('|').join(' | '))}</span></div>`).join('');
+    if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => classes(r)).join(' | ')}</span></div>`).join('');
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });

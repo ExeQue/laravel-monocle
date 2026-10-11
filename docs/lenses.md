@@ -131,7 +131,7 @@ Section `auth`: who the request was authenticated as and how - the guard that re
 
 ### Validation
 
-Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. The input of the validated fields is kept too, with secrets masked like request input.
+Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. The input of the validated fields is kept too, with secrets masked like request input, uploaded files described by name, size and type, and long values cut short. Rule objects and closures are recorded as the class you wrote (with its public properties) or the file and line of the closure.
 
 A resolver you set with `Validator::resolver()` keeps working.
 

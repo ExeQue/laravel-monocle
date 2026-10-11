@@ -15,12 +15,16 @@ use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ClosureValidationRule;
 use Illuminate\Validation\Factory;
+use Illuminate\Validation\InvokableValidationRule;
 use Illuminate\Validation\Validator;
+use ReflectionFunction;
 use ReflectionProperty;
 use SplObjectStorage;
 use Stringable;
@@ -38,7 +42,8 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
     private SplObjectStorage $validators;
 
     public function __construct(
-        private readonly Eyepiece $eyepiece
+        private readonly Eyepiece $eyepiece,
+        private readonly Application $app,
     ) {
         $this->validators = new SplObjectStorage();
     }
@@ -168,7 +173,8 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
 
     /**
      * The validated input, limited to the fields with rules and masked like
-     * request input.
+     * request input. Uploaded files are described, not stored, and long
+     * strings are cut at 1000 characters.
      *
      * @return array<array-key, mixed>
      */
@@ -176,7 +182,17 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
     {
         $fields = array_unique(array_map(fn (string $field): string => Str::before($field, '.'), array_keys($validator->getRules())));
 
-        return Normalizer::normalize($this->eyepiece->masker(self::class)->inputs(Arr::only($validator->getData(), $fields)));
+        $input = $this->eyepiece->masker(self::class)->inputs(Arr::only($validator->getData(), $fields));
+
+        array_walk_recursive($input, function (mixed &$value): void {
+            if ($value instanceof UploadedFile) {
+                $value = ['file' => $value->getClientOriginalName(), 'size' => $value->getSize(), 'mime' => $value->getClientMimeType()];
+            } elseif (is_string($value)) {
+                $value = Str::limit($value, 1000);
+            }
+        });
+
+        return Normalizer::normalize($input);
     }
 
     /**
@@ -201,8 +217,27 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
      */
     private function ruleName(mixed $rule): string
     {
+        if ($rule === ClosureValidationRule::class) {
+            return 'Closure';
+        }
+
         if (is_string($rule)) {
             return $rule;
+        }
+
+        // Rule objects are wrapped by the validator; record the rule the application wrote.
+        if ($rule instanceof InvokableValidationRule) {
+            return $this->ruleName($rule->invokable());
+        }
+
+        if ($rule instanceof ClosureValidationRule) {
+            return $this->ruleName($rule->callback);
+        }
+
+        if ($rule instanceof Closure) {
+            $function = new ReflectionFunction($rule);
+
+            return 'Closure ('.Str::after((string) $function->getFileName(), $this->app->basePath().DIRECTORY_SEPARATOR).':'.$function->getStartLine().')';
         }
 
         if ($rule instanceof Stringable) {

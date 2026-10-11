@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use Closure;
 use ExeQue\Monocle\Lenses\ValidationLens;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Tests\Fixtures\RecordingValidator;
 use Tests\Fixtures\Requests\StoreOrderRequest;
+use Tests\Fixtures\Rules\Uppercase;
 
 covers(ValidationLens::class);
 
@@ -38,6 +41,38 @@ describe(ValidationLens::class, function (): void {
             ->and($row['fields'])->toBe(4)
             ->and($row['input'])->toBe(['name' => 'Rumpelstiltskin', 'plan' => 'gold', 'password' => 'hunt****'])
             ->and(app(ValidationLens::class)->summarize($capture)['totals'])->toBe(['validations' => 1, 'validation_failed' => 1]);
+    });
+
+    it('records custom rule classes, closures and rules given as arrays', function (): void {
+        Route::post('/code', fn (Request $request) => $request->validate([
+            'code' => ['required', 'string', new Uppercase(3)],
+            'note' => ['nullable', function (string $attribute, mixed $value, Closure $fail): void {
+                $fail('No notes.');
+            }],
+        ]));
+
+        $this->postJson('/code', ['code' => 'abc', 'note' => 'hi'])->assertStatus(422);
+
+        $row = latestCapture()->rows('validation')[0];
+        $failed = collect($row['failed'])->keyBy('field');
+
+        expect($row['rules']['code'])->toBe('required|string|'.Uppercase::class.' {"minimum":3}')
+            ->and($row['rules']['note'])->toStartWith('nullable|Closure (')->toContain('ValidationLensTest.php:')
+            ->and($failed['code']['rule'])->toBe(Uppercase::class)
+            ->and($failed['code']['message'])->toBe('The code must be uppercase.')
+            ->and($failed['note']['rule'])->toBe('Closure')
+            ->and($failed['note']['message'])->toBe('No notes.');
+    });
+
+    it('describes uploaded files and cuts long input', function (): void {
+        Route::post('/upload', fn (Request $request) => count($request->validate(['avatar' => 'file', 'bio' => 'string'])));
+
+        $this->post('/upload', ['avatar' => UploadedFile::fake()->create('me.png', 3, 'image/png'), 'bio' => str_repeat('a', 1500)], ['Accept' => 'application/json'])->assertOk();
+
+        $input = latestCapture()->rows('validation')[0]['input'];
+
+        expect($input['avatar'])->toBe(['file' => 'me.png', 'size' => 3072, 'mime' => 'image/png'])
+            ->and(mb_strlen($input['bio']))->toBe(1003);
     });
 
     it('names the FormRequest that validated and records passing validation', function (): void {

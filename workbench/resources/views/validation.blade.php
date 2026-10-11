@@ -14,6 +14,7 @@
         @csrf
         <input name="name" value="{{ old('name', 'Al') }}" />
         <input name="email" value="{{ old('email', 'not-an-email') }}" />
+        <input name="handle" value="{{ old('handle', 'Not A Slug') }}" />
         <textarea name="message">{{ old('message', 'Too short') }}</textarea>
         <button type="submit">Submit</button>
     </form>

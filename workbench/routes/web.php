@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Closure;
 use ExeQue\Monocle\Facades\Monocle;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
@@ -34,6 +35,7 @@ use Workbench\App\Models\Gallery;
 use Workbench\App\Models\Post;
 use Workbench\App\Models\User;
 use Workbench\App\Notifications\WelcomeNotification;
+use Workbench\App\Rules\Slug;
 
 $result = fn (string $title, mixed $output = null): View => view('result', ['title' => $title, 'output' => $output]);
 
@@ -48,8 +50,17 @@ Route::prefix('demo')->group(function () use ($result): void {
         ));
 
         Monocle::measure('validate draft', fn (): array => Validator::make(
-            ['title' => 'Monocle 1.0', 'body' => 'Profiling for agents.', 'api_token' => 'tok_4c8e1a7f9b2d'],
-            ['title' => ['required', 'string', 'max:120'], 'body' => ['required', 'string'], 'api_token' => ['nullable', 'string']],
+            ['title' => 'Monocle 1.0', 'slug' => 'monocle-1-0', 'body' => 'Profiling for agents.', 'api_token' => 'tok_4c8e1a7f9b2d'],
+            [
+                'title' => ['required', 'string', 'max:120'],
+                'slug' => ['required', new Slug(max: 40)],
+                'body' => ['required', 'string', function (string $attribute, mixed $value, Closure $fail): void {
+                    if (str_contains((string) $value, 'lorem ipsum')) {
+                        $fail('The :attribute still has placeholder text.');
+                    }
+                }],
+                'api_token' => ['nullable', 'string'],
+            ],
         )->validate());
 
         Gate::authorize('read-docs');
