@@ -105,16 +105,32 @@ export function setupPopover(root, getModel) {
 
     Object.assign(pop.style, { right: '', bottom: '', width: '', maxHeight: '', borderRadius: '' });
     const r = el.getBoundingClientRect();
+    offsetX = (clientX ?? r.left + Math.min(r.width, 40) / 2) - r.left;
+    side = null;
+    place();
+    pop.querySelector('[data-pop-close]')?.focus({ preventScroll: true });
+  };
+
+  let offsetX = 0;
+  let side = null;
+
+  /** Position next to the target; the side is picked once and kept while scrolling. */
+  const place = () => {
+    const r = target.getBoundingClientRect();
     const w = pop.offsetWidth;
     const h = pop.offsetHeight;
-    const x = clientX ?? r.left + Math.min(r.width, 40) / 2;
+    const x = r.left + offsetX;
     const left = Math.max(16, Math.min(x - 28, innerWidth - w - 16));
-    const below = r.bottom + 10 + h <= innerHeight - 8 || r.top - 10 - h < 8;
+    const fitsBelow = r.bottom + 10 + h <= innerHeight - 8;
+    const fitsAbove = r.top - 10 - h >= 8;
+    if (side === null || (side === 'below' && !fitsBelow && fitsAbove) || (side === 'above' && !fitsAbove && fitsBelow)) {
+      side = fitsBelow || !fitsAbove ? 'below' : 'above';
+    }
+    const top = side === 'below' ? r.bottom + 10 : r.top - h - 10;
     pop.style.left = left + 'px';
-    pop.style.top = (below ? r.bottom + 10 : r.top - h - 10) + 'px';
-    pop.dataset.side = below ? 'below' : 'above';
+    pop.style.top = Math.max(8, Math.min(top, innerHeight - h - 8)) + 'px';
+    pop.dataset.side = side;
     pop.style.setProperty('--arrow', Math.max(14, Math.min(x - left, w - 14)) + 'px');
-    pop.querySelector('[data-pop-close]')?.focus({ preventScroll: true });
   };
 
   const close = () => {
@@ -157,7 +173,12 @@ export function setupPopover(root, getModel) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('.wf-click')) { e.preventDefault(); show(e.target); }
   });
   addEventListener('resize', close);
-  document.addEventListener('scroll', (e) => { if (!pop.contains(e.target)) close(); }, true);
+  document.addEventListener('scroll', (e) => {
+    if (pop.hidden || pop.contains(e.target) || pop.dataset.side === 'sheet') return;
+    const r = target?.getBoundingClientRect();
+    if (!r || !target.isConnected || r.bottom < 0 || r.top > innerHeight) return close();
+    place();
+  }, true);
 
   return { close, openDetails: open };
 }
