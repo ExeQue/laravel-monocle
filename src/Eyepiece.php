@@ -139,9 +139,9 @@ final class Eyepiece
 
     private function buildMasker(?string $lens): Masker
     {
-        $headers = $this->forLens((array) $this->config('mask.headers', []), $lens);
-        $inputs = $this->forLens((array) $this->config('mask.inputs', []), $lens);
-        $cookies = $this->forLens((array) $this->config('mask.cookies', []), $lens);
+        $headers = $this->configForLens('mask.headers', $lens);
+        $inputs = $this->configForLens('mask.inputs', $lens);
+        $cookies = $this->configForLens('mask.cookies', $lens);
         $sessionCookie = (string) $this->app->make('config')->get('session.cookie');
 
         return new Masker(
@@ -154,14 +154,14 @@ final class Eyepiece
     }
 
     /**
-     * The entries of a mask list that apply to a lens: its own (under its
-     * class name) first, then the shared ones.
+     * The entries of a mask list in the config that apply to a lens: its own
+     * (under its class name) first, then the shared ones.
      *
-     * @param  array<array-key, mixed>  $list
      * @return array<array-key, mixed>
      */
-    private function forLens(array $list, ?string $lens): array
+    private function configForLens(string $key, ?string $lens): array
     {
+        $list = (array) $this->config($key, []);
         $shared = [];
         $own = [];
 
