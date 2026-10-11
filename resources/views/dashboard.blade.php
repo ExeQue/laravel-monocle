@@ -963,7 +963,7 @@
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>
                                     <tr>
-                                        <th scope="col" :class="cls.th" class="text-right">#</th>
+                                        <th scope="col" :class="cls.th" class="w-0 whitespace-nowrap">#</th>
                                         <th scope="col" :class="cls.th">Query</th>
                                         <th scope="col" :class="cls.th">Connection</th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Duration</th>
@@ -978,7 +978,7 @@
                                         >
                                             <td
                                                 :class="cls.td"
-                                                class="text-muted text-right font-mono text-xs tabular-nums"
+                                                class="text-muted w-0 font-mono text-xs whitespace-nowrap tabular-nums"
                                             >
                                                 <button
                                                     type="button"
@@ -1510,9 +1510,7 @@
                                     <table class="w-full border-collapse text-[13px]">
                                         <thead>
                                             <tr>
-                                                <th scope="col" :class="cls.th" class="w-8">
-                                                    <span class="sr-only">Details</span>
-                                                </th>
+                                                <th scope="col" :class="cls.th" class="w-0 whitespace-nowrap">#</th>
                                                 <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                     ><th
                                                         scope="col"
@@ -1533,7 +1531,7 @@
                                                     :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
                                                     @click="toggleRow(t.key + ':' + i)"
                                                 >
-                                                    <td :class="cls.td" class="w-8 !pr-0 whitespace-nowrap">
+                                                    <td :class="cls.td" class="w-0 whitespace-nowrap">
                                                         <button
                                                             type="button"
                                                             class="text-muted inline-flex cursor-pointer items-center gap-1 font-mono text-xs tabular-nums"
