@@ -37,7 +37,12 @@
                         role="presentation"
                         x-show="i === 0 || paletteItems[i - 1].group !== item.group"
                     >
-                        <span x-text="item.group"></span>
+                        <span
+                            x-text="
+                                item.groupIsName && item.group.length > 20 ? item.group.slice(0, 19) + '…' : item.group
+                            "
+                            :data-tip="item.groupIsName && item.group.length > 20 ? item.group : null"
+                        ></span>
                         <span
                             class="ml-1.5"
                             :class="statusClass(item.groupStatus)"
