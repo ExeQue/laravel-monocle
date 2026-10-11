@@ -23,10 +23,12 @@ const shortened = (full, short) => `<span class="cursor-help" data-tip="${full}"
 
 /**
  * Escaped text with every namespaced class name shortened to its basename,
- * and every path to a class file (app/Models/User.php:12) to the class and
- * line (User:12); the full name shows in a tooltip.
+ * every path to a class file (app/Models/User.php:12) to the class and line
+ * (User:12) and view paths to the part after resources/views; the full name
+ * shows in a tooltip.
  */
 export const classes = (text) => esc(text)
+  .replace(/(?<![\w/])resources\/views\/([\w./-]+)/g, (full, rest) => shortened(full, rest))
   .replace(/(?<![\w/])(?:[\w.-]+\/)+([A-Z]\w*)\.php(:\d+)?(?![\w/])/g, (full, base, line = '') => shortened(full, base + line))
   .replace(/\\?(?:[A-Za-z_]\w*\\)+([A-Za-z_]\w*)/g, (full, base) => shortened(full.replace(/^\\/, ''), base));
 
