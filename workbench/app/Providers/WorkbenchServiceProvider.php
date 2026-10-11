@@ -15,6 +15,7 @@ use Inertia\Inertia;
 use Laravel\Folio\Folio;
 use Laravel\Pennant\Feature;
 use Livewire\Livewire;
+use Prism\Prism\PrismManager;
 use Workbench\App\Cache\SlowStore;
 use Workbench\App\Console\Commands\GreetCommand;
 use Workbench\App\Events\PostPublished;
@@ -22,6 +23,7 @@ use Workbench\App\Listeners\NotifyFollowers;
 use Workbench\App\Livewire\Counter;
 use Workbench\App\Models\User;
 use Workbench\App\Monocle\PaymentsLens;
+use Workbench\App\Prism\DemoProvider;
 
 final class WorkbenchServiceProvider extends ServiceProvider
 {
@@ -63,6 +65,9 @@ final class WorkbenchServiceProvider extends ServiceProvider
         Cache::extend('slow', fn (): \Illuminate\Contracts\Cache\Repository => Cache::repository(new SlowStore(), ['store' => 'slow']));
 
         Event::listen(PostPublished::class, NotifyFollowers::class);
+
+        // A Prism provider that runs the tools it is offered, so the demo shows Prism tool calls.
+        $this->app->make(PrismManager::class)->extend('workbench', fn (): DemoProvider => new DemoProvider());
 
         Gate::define('read-docs', fn (?User $user): bool => true);
         Gate::define('delete-everything', fn (?User $user): bool => false);

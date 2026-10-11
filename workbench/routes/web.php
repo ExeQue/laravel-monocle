@@ -21,13 +21,16 @@ use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Lab404\Impersonate\Services\ImpersonateManager;
+use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Pennant\Feature;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Testing\TextResponseFake;
+use Prism\Prism\Tool as PrismTool;
 use Prism\Prism\ValueObjects\Usage;
 use Spatie\ResponseCache\Facades\ResponseCache;
 use Spatie\ResponseCache\Middlewares\CacheResponse;
 use Workbench\App\Ai\Greeter;
+use Workbench\App\Ai\TripPlanner;
 use Workbench\App\Events\PaymentCharged;
 use Workbench\App\Events\PostPublished;
 use Workbench\App\Http\Middleware\SlowMiddleware;
@@ -149,6 +152,28 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         Greeter::fake(['A short, friendly summary.']);
         $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);
+
+        // The model asks for two tools before it answers; laravel/ai runs them (the second fails).
+        TripPlanner::fake([
+            new ToolCall('call_weather', 'weather', ['city' => 'Aarhus']),
+            new ToolCall('call_nok', 'exchange_rate', ['currency' => 'NOK']),
+            'Pack an umbrella; 100 DKK is about 13.40 EUR.',
+        ]);
+        try {
+            (new TripPlanner())->prompt('Plan a weekend in Aarhus.');
+        } catch (RuntimeException) {
+            // laravel/ai lets a failing tool end the run; the failed call and agent are recorded.
+        }
+
+        // Prism, with a tool the workbench provider runs.
+        $packingList = (new PrismTool())->as('packing_list')->for('What to pack for a city')
+            ->withStringParameter('city', 'The city')
+            ->using(function (string $city): string {
+                usleep(25_000);
+
+                return "Raincoat for {$city}.";
+            });
+        Prism::text()->using('workbench', 'demo-model')->withPrompt('What should I pack?')->withTools([$packingList])->asText();
 
         Storage::disk('demo')->put('posts/'.$post->id.'.txt', $summary);
 
