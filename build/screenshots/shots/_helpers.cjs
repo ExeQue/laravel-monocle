@@ -82,8 +82,17 @@ async function openPalette(page, search = '') {
     await page.keyboard.up('Control');
     await page.waitForSelector('#monocle-palette-input', { visible: true });
 
+    // The palette fades in; the picture waits until it is fully there.
+    await page.waitForFunction(() => {
+        const overlay = document.getElementById('monocle-palette-input')?.closest('.fixed');
+
+        return overlay !== null && getComputedStyle(overlay).opacity === '1';
+    });
+
     if (search !== '') {
         await page.type('#monocle-palette-input', search);
+        // The list follows the search on the next render.
+        await new Promise((resolve) => setTimeout(resolve, 300));
     }
 }
 
