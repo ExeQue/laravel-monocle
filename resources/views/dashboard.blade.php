@@ -963,7 +963,9 @@
                             <table class="w-full border-collapse text-[13px]">
                                 <thead>
                                     <tr>
-                                        <th scope="col" :class="cls.th" class="w-0 whitespace-nowrap">#</th>
+                                        <th scope="col" :class="cls.th" class="w-0 !text-center whitespace-nowrap">
+                                            #
+                                        </th>
                                         <th scope="col" :class="cls.th">Query</th>
                                         <th scope="col" :class="cls.th">Connection</th>
                                         <th scope="col" :class="[cls.th, '!text-right']">Duration</th>
@@ -1510,7 +1512,13 @@
                                     <table class="w-full border-collapse text-[13px]">
                                         <thead>
                                             <tr>
-                                                <th scope="col" :class="cls.th" class="w-0 whitespace-nowrap">#</th>
+                                                <th
+                                                    scope="col"
+                                                    :class="cls.th"
+                                                    class="w-0 !text-center whitespace-nowrap"
+                                                >
+                                                    #
+                                                </th>
                                                 <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                                                     ><th
                                                         scope="col"
