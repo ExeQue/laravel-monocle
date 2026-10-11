@@ -71,7 +71,7 @@ final class ShowCommand extends Command
             info(Str::headline((string) $key));
 
             if ($key === 'timeline') {
-                $this->timeline((array) $section);
+                $this->timeline((array) $section, (string) $data['id']);
 
                 continue;
             }
@@ -207,7 +207,7 @@ final class ShowCommand extends Command
     /**
      * @param  list<array{depth?: int, kind?: string, name?: string, start?: float, duration?: float}>  $spans
      */
-    private function timeline(array $spans): void
+    private function timeline(array $spans, string $id): void
     {
         if ($spans === []) {
             note('No spans.');
@@ -215,12 +215,22 @@ final class ShowCommand extends Command
             return;
         }
 
+        // The JSON keeps every span; people get the first --limit of them.
+        $limit = max(1, (int) ($this->option('limit') ?? 25));
+        $total = count($spans);
+        $spans = array_slice($spans, 0, $limit);
+
         table(['Start', 'Duration', 'Kind', 'Name'], array_map(fn (array $span): array => [
             $this->ms($span['start'] ?? 0),
             $this->ms($span['duration'] ?? 0),
             (string) ($span['kind'] ?? ''),
             str_repeat('  ', (int) ($span['depth'] ?? 0)).$this->cell($span['name'] ?? '', 80),
         ], $spans));
+
+        $this->paging(
+            ['offset' => 0, 'returned' => count($spans), 'total' => $total, 'next_offset' => $total > $limit ? $limit : null],
+            'php artisan monocle:rows timeline '.$id,
+        );
     }
 
     /**

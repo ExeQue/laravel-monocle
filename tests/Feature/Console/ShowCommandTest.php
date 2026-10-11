@@ -32,6 +32,13 @@ describe(ShowCommand::class, function (): void {
             ->toContain('Sections (--section=...): summary, timeline');
     });
 
+    it('shows the first --limit spans of the timeline and where to find the rest', function (): void {
+        Artisan::call('monocle:show', ['--section' => ['timeline'], '--limit' => 2]);
+
+        expect(Artisan::output())->toContain('Showing 1-2 of')
+            ->and(Artisan::output())->toContain('Next page: php artisan monocle:rows timeline');
+    });
+
     it('renders the timeline as an indented tree', function (): void {
         Artisan::call('monocle:show', ['--section' => ['timeline']]);
         $output = Artisan::output();
