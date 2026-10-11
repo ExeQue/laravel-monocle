@@ -25,9 +25,16 @@ final class Summary
         return new self();
     }
 
-    public function total(string $name, mixed $value): self
+    /**
+     * One total, or several as name => value.
+     *
+     * @param  string|array<string, mixed>  $name
+     */
+    public function total(string|array $name, mixed $value = null): self
     {
-        $this->totals[$name] = $value;
+        foreach (is_array($name) ? $name : [$name => $value] as $total => $amount) {
+            $this->totals[$total] = $amount;
+        }
 
         return $this;
     }
