@@ -283,6 +283,9 @@ return [
     | Input keys matching the `inputs` expression are masked with `using`,
     | as are list entries given without a mask.
     |
+    | Log context keys matching the `log` expression are masked with `using`;
+    | it is a list of its own, so log context can be masked apart from input.
+    |
     | Objects in dumps have their listed properties masked, by class or
     | interface; on Eloquent models the keys are attributes:
     |
@@ -321,6 +324,7 @@ return [
             'remember_*' => PartialMask::class,
         ],
         'inputs' => '/pass|token|secret|authorization/i',
+        'log' => '/pass|token|secret|authorization/i',
         'objects' => [
             Authenticatable::class => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
         ],

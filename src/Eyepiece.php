@@ -127,19 +127,20 @@ final class Eyepiece
      * The masker for a lens. Entries in mask.headers, mask.cookies and
      * mask.inputs keyed by a lens class apply to that lens only, on top of
      * the entries that apply to every lens; a lens-specific mask for a name
-     * wins over the shared one.
+     * wins over the shared one. `$keys` names the list of key patterns to
+     * use: mask.inputs, or one of its own such as mask.log.
      *
      * @param  class-string<Lens>|null  $lens
      */
-    public function masker(?string $lens = null): Masker
+    public function masker(?string $lens = null, string $keys = 'mask.inputs'): Masker
     {
         // Built once per lens and capture: lenses ask for it on every row they mask.
-        return $this->maskers[$lens ?? ''] ??= $this->buildMasker($lens);
+        return $this->maskers[($lens ?? '').'|'.$keys] ??= $this->buildMasker($lens, $keys);
     }
 
-    private function buildMasker(?string $lens): Masker
+    private function buildMasker(?string $lens, string $keys): Masker
     {
-        $inputs = $this->configForLens('mask.inputs', $lens);
+        $inputs = $this->configForLens($keys, $lens);
         $sessionCookie = (string) $this->app->make('config')->get('session.cookie');
 
         return new Masker(

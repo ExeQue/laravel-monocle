@@ -79,6 +79,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
         'remember_*' => PartialMask::class,
     ],
     'inputs' => '/pass|token|secret|authorization/i',
+    'log' => '/pass|token|secret|authorization/i',
     'objects' => [
         Authenticatable::class => ['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'],
     ],
@@ -89,6 +90,8 @@ use Illuminate\Contracts\Auth\Authenticatable;
 Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
 
 Request input, session data, command options, HTTP client payloads, validated input, Inertia prop values and response capture cards whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
+
+Log context keys that match `log` are masked with `using`. It is an expression of its own, so log context can be masked differently from input; set it to `''` to keep log context as written. A config without a `log` entry masks log context like input.
 
 Objects in dumps have the properties listed under `objects` masked, by class or interface, so `Authenticatable::class` covers every user model. On Eloquent models the names are attributes. A name without a class uses `using`; give one a mask of its own with `'number' => FullMask::class`. An empty value (`null`) is left as it is.
 

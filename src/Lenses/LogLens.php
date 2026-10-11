@@ -38,7 +38,7 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
 
     public function description(): string
     {
-        return 'Log captures written while handling the capture: level, message and context (keys that look like secrets masked like request input). Exceptions in the context are reduced to class, message and file:line.';
+        return 'Log captures written while handling the capture: level, message and context (keys matching mask.log masked). Exceptions in the context are reduced to class, message and file:line.';
     }
 
     public function advice(): string
@@ -108,8 +108,11 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
             }
         }
 
-        // Keys that look like secrets (password, token ...) are masked like request input.
-        return $this->eyepiece->masker(self::class)->inputs(Normalizer::normalize($context));
+        // Keys matching mask.log (password, token ...) are masked; it is its own list, apart from request input.
+        // A config published before mask.log existed has no such key, and keeps masking like input.
+        $keys = $this->eyepiece->config('mask.log') === null ? 'mask.inputs' : 'mask.log';
+
+        return $this->eyepiece->masker(self::class, $keys)->inputs(Normalizer::normalize($context));
     }
 
     public function presentation(): Presentation

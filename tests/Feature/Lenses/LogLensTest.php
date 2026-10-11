@@ -49,6 +49,27 @@ describe(LogLens::class, function (): void {
             ->and(json_encode($context))->not->toContain('secret-token-123')->not->toContain('hunter2hunter2');
     });
 
+    it('masks log context by mask.log, apart from mask.inputs', function (?string $log, array $masked, array $kept): void {
+        config(['logging.default' => 'null', 'monocle.mask.inputs' => '/password/i', 'monocle.mask.log' => $log]);
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        Log::info('Context.', ['password' => 'hunter2hunter2', 'pin' => '12345678']);
+
+        $context = json_encode(app(Eyepiece::class)->finalize()->rows('log')[0]['context']);
+
+        foreach ($masked as $value) {
+            expect($context)->not->toContain($value);
+        }
+
+        foreach ($kept as $value) {
+            expect($context)->toContain($value);
+        }
+    })->with([
+        'its own expression' => ['/pin/i', ['12345678'], ['hunter2hunter2']],
+        'off when empty' => ['', [], ['hunter2hunter2', '12345678']],
+        'like input when the key is missing' => [null, ['hunter2hunter2'], ['12345678']],
+    ]);
+
     it('summarizes nothing without log rows', function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
 
