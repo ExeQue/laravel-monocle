@@ -683,6 +683,6 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.request');
+        return Presentation::table()->tab('monocle::tabs.request')->includes(['auth']);
     }
 }

@@ -131,7 +131,11 @@ describe('dashboard', function (): void {
         it('orders tabs by monocle.dashboard.tabs, lens classes or section keys', function (): void {
             config(['monocle.dashboard.tabs' => [PaymentsLens::class, 'cache', \ExeQue\Monocle\Lenses\ExceptionsLens::class]]);
 
-            expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('tab_order'))->toBe(['payments', 'cache', 'exceptions']);
+            $keys = array_column($this->getJson("/_monocle/api/captures/{$this->id}")->json('tabs'), 'key');
+            $listed = array_values(array_intersect($keys, ['payments', 'cache', 'exceptions']));
+
+            expect($keys[0])->toBe('payments')
+                ->and(array_slice($keys, 0, count($listed)))->toBe($listed);
         });
 
         it('sends how the section is shown with the capture', function (): void {

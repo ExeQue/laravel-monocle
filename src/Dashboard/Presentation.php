@@ -25,6 +25,8 @@ final readonly class Presentation
         public array $groupings = [],
         public ?string $detailsView = null,
         public ?string $tabView = null,
+        /** @var list<string> */
+        public array $includes = [],
     ) {
     }
 
@@ -95,6 +97,17 @@ final readonly class Presentation
     public function tab(string $view): self
     {
         return $this->with(['tabView' => $view]);
+    }
+
+    /**
+     * Other sections this tab shows, such as auth events on the request tab.
+     * They get no tab of their own while this one is shown.
+     *
+     * @param  list<string>  $sections
+     */
+    public function includes(array $sections): self
+    {
+        return $this->with(['includes' => array_values($sections)]);
     }
 
     /**

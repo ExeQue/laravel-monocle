@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Http\Controllers;
 
 use ExeQue\Monocle\Dashboard\Presentation;
+use ExeQue\Monocle\Dashboard\TabList;
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\LensRegistry;
@@ -31,7 +32,7 @@ final readonly class CapturesController
         return response()->json($this->viewfinder->list($request->query()));
     }
 
-    public function show(string $id, CaptureReader $captures, TimelinePresenter $timeline, EditorLinks $links): JsonResponse
+    public function show(string $id, CaptureReader $captures, TimelinePresenter $timeline, EditorLinks $links, TabList $tabs): JsonResponse
     {
         $capture = $captures->find($id);
 
@@ -48,7 +49,7 @@ final readonly class CapturesController
             'error_links' => array_map($timeline->textLinks(...), $result['summary']['errors'] ?? []),
             'editor' => $links->enabled(),
             'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
-            'tab_order' => $this->tabOrder(),
+            'tabs' => $tabs->for($capture, $this->tabOrder(), $result['summary']['problems'] ?? []),
             'context' => [
                 'route' => $route['name'] ?? null,
                 'action' => $route['action'] ?? null,

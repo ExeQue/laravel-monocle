@@ -355,6 +355,9 @@ return [
         'domain' => env('MONOCLE_DOMAIN'),
         'middleware' => ['web'],
         'tabs' => [
+            RequestLens::class,
+            SessionLens::class,
+            DatabaseLens::class,
             ExceptionsLens::class,
             ValidationLens::class,
             ResponseCacheLens::class,

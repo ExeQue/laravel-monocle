@@ -18,7 +18,6 @@ const PHASE_COLORS = {
 const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', filesystem: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
 
 /** Totals grouped by subject: [heading, which keys belong]. Keys no group claims land under "Other". */
-const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 
 const theme = {
@@ -277,28 +276,11 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   get tabs() {
     if (!this.capture) return [];
-    const counts = this.capture.summary?.counts ?? {};
-    const problems = this.capture.summary?.problems ?? {};
-    const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }];
-    const has = (key) => (this.capture.available_sections ?? []).some((s) => s.key === key && s.rows !== 0);
-    const isRequest = this.summary.type === 'request';
-    if (isRequest && has('request')) tabs.push({ key: 'request', label: 'Request', problems: problems.request?.warnings ?? 0, errors: problems.request?.errors ?? 0 });
-    if (isRequest && has('session')) tabs.push({ key: 'session', label: 'Session' });
-    const skip = isRequest ? [...SKIP_SECTIONS, 'auth'] : SKIP_SECTIONS;
-    if (counts.queries) tabs.push({ key: 'queries', label: 'Queries', count: counts.queries, problems: problems.queries?.warnings ?? 0, errors: problems.queries?.errors ?? 0 });
-    const sections = (this.capture.available_sections ?? []).filter((s) => !skip.includes(s.key) && s.rows);
-    // Model changes are shown in the Models tab, under the counts.
-    const changes = (this.capture.available_sections ?? []).find((s) => s.key === 'model_changes' && s.rows);
-    if (changes && !sections.some((s) => s.key === 'models')) sections.push({ ...changes, key: 'models', rows: 0 });
-    // Section tabs follow monocle.dashboard.tabs; sections not listed follow in their own order.
-    const order = this.capture.tab_order ?? [];
-    const rank = (key) => { const i = order.indexOf(key); return i === -1 ? order.length : i; };
-    for (const s of sections.sort((a, b) => rank(a.key) - rank(b.key))) {
-      tabs.push({ key: s.key, label: this.capture.presentations?.[s.key]?.label ?? humanize(s.key), count: s.rows || changes?.rows, description: s.description, problems: problems[s.key]?.warnings ?? 0, errors: problems[s.key]?.errors ?? 0 });
-    }
+    const tabs = [{ key: 'overview', label: 'Overview' }, { key: 'timeline', label: 'Timeline' }, ...(this.capture.tabs ?? []).map((t) => ({ ...t, label: t.label ?? humanize(t.key) }))];
     if (this.summary.parent_id || this.summary.children?.length) tabs.push({ key: 'trace', label: 'Trace', count: this.summary.children?.length || undefined });
     return tabs;
   },
+
 
   get summary() { return this.capture?.summary ?? {}; },
   get phases() { return (this.summary.breakdown?.phases ?? []).filter((p) => p.name !== 'other' || p.ms >= 0.05); },
@@ -404,7 +386,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const totals = [line('Overall', this.headlineTotals), ...this.totalGroups.map((g) => line(g.label, g.items))];
     if (totals.length) lines.push('', 'Totals:', ...totals);
     if (s.errors?.length) lines.push('', 'Errors:', ...s.errors.map((e) => `- ${e}`));
-    if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));
+    if (s.warnings?.length) lines.push('', 'Warnings:', ...s.warnings.map((w) => `- ${w}`));
     lines.push('', 'Explain what is slow or wrong, point at the file:line to change (every row has an origin), make the change, reproduce the request and compare the new capture with monocle-compare.');
     return lines.join('\n');
   },
