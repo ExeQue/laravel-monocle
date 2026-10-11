@@ -81,7 +81,7 @@ export function cell(row, key, presentation = null) {
   if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
   if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
   // File paths look like origins everywhere.
-  if (typeof v === 'string' && /^[\w./-]+\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.[key], 'font-mono text-[11.5px] text-brass')} ${copyButton(v, humanize(key).toLowerCase(), { hover: true })}</span>`;
+  if (typeof v === 'string' && /^[\w./-]+\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0">${maybeLink(v, row._links?.[key], 'font-mono text-[11.5px] text-brass')}</span>${copyButton(v, humanize(key).toLowerCase(), { hover: true })}</span>`;
   if (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) return '';
   if (Array.isArray(v) && !v.length) return '';
   // Long or multi-line text: the first line in the table, all of it in the details.
@@ -96,5 +96,5 @@ export function cell(row, key, presentation = null) {
   const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
   const html = row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);
   // Words and names are worth copying; flags, counts and single characters are not.
-  return typeof v === 'string' && text.length >= 4 ? `<span class="group/copy">${html} ${copyButton(text, humanize(key).toLowerCase(), { hover: true })}</span>` : html;
+  return typeof v === 'string' && text.length >= 4 ? `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="${longValue(v) ? 'min-w-0 [overflow-wrap:break-word]' : 'whitespace-nowrap'}">${html}</span>${copyButton(text, humanize(key).toLowerCase(), { hover: true })}</span>` : html;
 }
