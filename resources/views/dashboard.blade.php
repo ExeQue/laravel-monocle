@@ -1430,29 +1430,66 @@
                                             <td colspan="6" class="border-line bg-sunk/50 border-b p-0">
                                                 <div x-show="openGroups.includes(g.key)" x-collapse>
                                                     <template x-for="i in g.rows" :key="i">
-                                                        <div
-                                                            class="border-line hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 border-b px-3 py-1.5 text-xs last:border-b-0"
-                                                            @click="rowPopover($event, tabData.rows[i], 'http')"
-                                                        >
-                                                            <span
-                                                                class="font-mono tabular-nums"
-                                                                x-html="cell(tabData.rows[i], 'status')"
-                                                            ></span>
-                                                            <div class="min-w-0">
-                                                                <code
-                                                                    class="block font-mono [overflow-wrap:anywhere]"
-                                                                    x-text="
-                                                                        tabData.rows[i].method +
-                                                                        ' ' +
-                                                                        tabData.rows[i].url
-                                                                    "
-                                                                ></code>
-                                                                <span x-html="cell(tabData.rows[i], 'origin')"></span>
+                                                        <div class="border-line border-b last:border-b-0">
+                                                            <div
+                                                                class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
+                                                                @click="toggleRow('http:' + i)"
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    class="inline-flex cursor-pointer items-start gap-1 font-mono tabular-nums"
+                                                                    :aria-expanded="openRows.includes('http:' + i)"
+                                                                    :aria-label="(openRows.includes('http:' + i)
+                                                                        ? 'Hide'
+                                                                        : 'Show') + ' the details of this call'"
+                                                                    @click.stop="toggleRow('http:' + i)"
+                                                                >
+                                                                    <svg
+                                                                        class="text-brass size-3 transition-transform duration-200"
+                                                                        :class="openRows.includes('http:' + i) &&
+                                                                        'rotate-90'"
+                                                                        viewBox="0 0 16 16"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        stroke-width="2"
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        aria-hidden="true"
+                                                                    >
+                                                                        <path d="M6 3.5 10.5 8 6 12.5" />
+                                                                    </svg>
+                                                                    <span x-html="cell(tabData.rows[i], 'status')"></span>
+                                                                </button>
+                                                                <div class="min-w-0">
+                                                                    <code
+                                                                        class="block font-mono [overflow-wrap:anywhere]"
+                                                                        x-text="
+                                                                            tabData.rows[i].method +
+                                                                            ' ' +
+                                                                            tabData.rows[i].url
+                                                                        "
+                                                                    ></code>
+                                                                    <span x-html="cell(tabData.rows[i], 'origin')"></span>
+                                                                </div>
+                                                                <span
+                                                                    class="text-right whitespace-nowrap tabular-nums"
+                                                                    x-html="cell(tabData.rows[i], 'duration')"
+                                                                ></span>
                                                             </div>
-                                                            <span
-                                                                class="text-right whitespace-nowrap tabular-nums"
-                                                                x-html="cell(tabData.rows[i], 'duration')"
-                                                            ></span>
+                                                            <div
+                                                                x-show="openRows.includes('http:' + i)"
+                                                                x-collapse
+                                                                x-cloak
+                                                            >
+                                                                <div
+                                                                    class="grid max-w-[900px] gap-2.5 pr-3 pb-3 pl-[5rem] text-[13px]"
+                                                                    x-html="
+                                                                        openRows.includes('http:' + i)
+                                                                            ? rowBody(tabData.rows[i])
+                                                                            : ''
+                                                                    "
+                                                                ></div>
+                                                            </div>
                                                         </div>
                                                     </template>
                                                 </div>
@@ -1473,6 +1510,9 @@
                                     <table class="w-full border-collapse text-[13px]">
                                         <thead>
                                             <tr>
+                                                <th scope="col" :class="cls.th" class="w-8">
+                                                    <span class="sr-only">Details</span>
+                                                </th>
                                                 <template x-for="col in columnsOf(t.rows)" :key="col"
                                                     ><th
                                                         scope="col"
@@ -1482,13 +1522,41 @@
                                                 ></template>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            <template x-for="(row, i) in t.rows" :key="i">
+                                        <template x-for="(row, i) in t.rows" :key="i">
+                                            <tbody>
                                                 <tr
-                                                    class="hover:bg-sunk cursor-pointer"
+                                                    class="hover:bg-sunk group/copy cursor-pointer"
                                                     :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
-                                                    @click="rowPopover($event, row, t.key)"
+                                                    @click="toggleRow(t.key + ':' + i)"
                                                 >
+                                                    <td :class="cls.td" class="w-8 !pr-0">
+                                                        <button
+                                                            type="button"
+                                                            class="inline-flex cursor-pointer"
+                                                            :aria-expanded="openRows.includes(t.key + ':' + i)"
+                                                            :aria-label="(openRows.includes(t.key + ':' + i)
+                                                                ? 'Hide'
+                                                                : 'Show') +
+                                                            ' the details of row ' +
+                                                            (i + 1)"
+                                                            @click.stop="toggleRow(t.key + ':' + i)"
+                                                        >
+                                                            <svg
+                                                                class="text-brass size-3 transition-transform duration-200"
+                                                                :class="openRows.includes(t.key + ':' + i) &&
+                                                                'rotate-90'"
+                                                                viewBox="0 0 16 16"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                stroke-width="2"
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                aria-hidden="true"
+                                                            >
+                                                                <path d="M6 3.5 10.5 8 6 12.5" />
+                                                            </svg>
+                                                        </button>
+                                                    </td>
                                                     <template x-for="col in columnsOf(t.rows)" :key="col"
                                                         ><td
                                                             :class="[
@@ -1503,8 +1571,25 @@
                                                         ></td
                                                     ></template>
                                                 </tr>
-                                            </template>
-                                        </tbody>
+                                                <tr x-show="openRows.includes(t.key + ':' + i)" x-cloak>
+                                                    <td
+                                                        :colspan="columnsOf(t.rows).length + 1"
+                                                        class="border-line bg-sunk/50 border-b px-3 py-0"
+                                                    >
+                                                        <div x-show="openRows.includes(t.key + ':' + i)" x-collapse>
+                                                            <div
+                                                                class="grid max-w-[900px] gap-2.5 py-3 pl-5 text-[13px]"
+                                                                x-html="
+                                                                    openRows.includes(t.key + ':' + i)
+                                                                        ? rowBody(row)
+                                                                        : ''
+                                                                "
+                                                            ></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </template>
                                     </table>
                                 </div>
                             </div>

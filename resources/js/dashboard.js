@@ -4,7 +4,7 @@ import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton } from './format.js';
 import { cls, statusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
-import { setupPopover, rowDetails } from './popover.js';
+import { setupPopover, rowDetails, rowBody } from './popover.js';
 import { setupTooltip } from './tooltip.js';
 
 const PHASE_COLORS = {
@@ -80,6 +80,7 @@ Alpine.data('monocle', (config) => ({
   groupBy: 'order',
   httpGroup: 'order',
   modelChanges: [],
+  openRows: [],
   timelineState: { open: new Set(), shut: new Set(), kinds: new Set() },
   timelineHtml: '',
   foldable: [],
@@ -180,6 +181,7 @@ Alpine.data('monocle', (config) => ({
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
       this.openGroups = [];
       this.openQueries = [];
+      this.openRows = [];
       this.queryRows = tab === 'queries' && this.groupBy !== 'order'
         ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
         : {};
@@ -538,6 +540,10 @@ Alpine.data('monocle', (config) => ({
     return [...groups.values()].map((g) => ({ ...g, avg_ms: g.total_ms / g.count })).sort((a, b) => b.total_ms - a.total_ms);
   },
 
+  toggleRow(key) {
+    this.openRows = this.openRows.includes(key) ? this.openRows.filter((k) => k !== key) : [...this.openRows, key];
+  },
+
   toggleGroup(key) {
     this.openGroups = this.openGroups.includes(key) ? this.openGroups.filter((k) => k !== key) : [...this.openGroups, key];
   },
@@ -572,7 +578,7 @@ Alpine.data('monocle', (config) => ({
   },
 
   // Template helpers
-  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton,
+  cls, ms, ago, statusClass, humanize, esc, maybeLink, copyButton, rowBody,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
   totalValue([k, v]) {

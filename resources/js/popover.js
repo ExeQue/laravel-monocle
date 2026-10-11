@@ -57,19 +57,26 @@ function nodeDetails(model, n) {
     ${originHtml(d.origin)}`;
 }
 
-/** Details of one row from a section table (a query, a cache call, a view ...). */
-export function rowDetails(row, section) {
-  const title = row.sql_with_bindings ?? row.sql ?? row.key ?? row.view ?? row.url ?? row.name ?? row.message ?? row.ability ?? section;
+/** Everything about one row from a section table: every field in full, the query, the origin. */
+export function rowBody(row) {
   const meta = Object.fromEntries(Object.entries(row).filter(([k]) => !['origin', 'sql_with_bindings', 'sql', 'shape', 'shape_hash'].includes(k)));
   const rows = metaRows(meta);
   const sql = row.sql_with_bindings ?? row.sql;
   return `
-    <div class="flex items-center gap-2"><span class="${cls.type}">${esc(section)}</span>${row.n ? `<span class="font-mono text-[11px] text-muted">#${esc(row.n)}</span>` : ''}<button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
-    ${sql ? '' : `<div class="font-semibold [overflow-wrap:anywhere]">${esc(String(title))}</div>`}
     ${sql ? `<div class="${SEC} border-t-0 pt-0">${codeBlock('Query', sql)}</div>` : ''}
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
-    ${rows ? `<div class="${SEC}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
+    ${rows ? `<div class="${SEC} ${sql ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${originHtml(row.origin)}`;
+}
+
+/** Details of one row from a section table (a query, a cache call, a view ...) in the popover. */
+export function rowDetails(row, section) {
+  const title = row.sql_with_bindings ?? row.sql ?? row.key ?? row.view ?? row.url ?? row.name ?? row.message ?? row.ability ?? section;
+  const sql = row.sql_with_bindings ?? row.sql;
+  return `
+    <div class="flex items-center gap-2"><span class="${cls.type}">${esc(section)}</span>${row.n ? `<span class="font-mono text-[11px] text-muted">#${esc(row.n)}</span>` : ''}<button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
+    ${sql ? '' : `<div class="font-semibold [overflow-wrap:anywhere]">${esc(String(title))}</div>`}
+    ${rowBody(row)}`;
 }
 
 function phaseDetails(model, p) {
