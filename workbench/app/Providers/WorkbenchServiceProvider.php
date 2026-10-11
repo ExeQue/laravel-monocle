@@ -73,6 +73,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
         Livewire::component('counter', Counter::class);
 
         Inertia::setRootView('inertia');
+        Inertia::share('app', ['name' => 'Monocle workbench']);
+        Inertia::share('flash', Inertia::always(['status' => null]));
 
         Folio::path(dirname(__DIR__, 2).'/resources/views/pages')->uri('/folio');
     }

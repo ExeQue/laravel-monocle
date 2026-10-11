@@ -429,6 +429,10 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         'user' => ['name' => 'Ada'],
         'posts' => Post::query()->limit(3)->pluck('title'),
         'stats' => Inertia::defer(fn (): array => ['posts' => Post::query()->count()]),
+        'activity' => Inertia::defer(fn (): array => ['today' => 3], 'sidebar'),
+        'filters' => Inertia::optional(fn (): array => ['status' => 'open']),
+        'feed' => Inertia::merge(['first', 'second']),
+        'report' => array_fill(0, 2000, ['id' => 1, 'title' => 'A row in a large report']),
     ]))->name('inertia');
 
     Route::get('pennant', fn (): View => $result('Feature flags', [

@@ -17,6 +17,7 @@ use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens;
 use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\FortifyLens;
@@ -156,6 +157,12 @@ return [
 
         // Livewire
         LivewireLens::class => true,
+
+        // inertiajs/inertia-laravel
+        InertiaLens::class => [
+            'large_prop_bytes' => 50000,            // warn when one prop is bigger than this
+            'large_page_bytes' => 200000,           // warn when the whole page is bigger than this
+        ],
 
         // laravel/mcp
         McpLens::class => true,
@@ -398,6 +405,7 @@ return [
             MediaLibraryLens::class,
             QueueLens::class,
             LivewireLens::class,
+            InertiaLens::class,
             EloquentLens::class,
             MailLens::class,
             LogLens::class,
