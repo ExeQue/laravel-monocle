@@ -319,6 +319,13 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
         return $result('Work the queue', trim($run->output().$run->errorOutput()) ?: 'The queue was empty.');
     })->name('queue.work');
 
+    Route::get('process', function () use ($result): View {
+        $version = Process::run([PHP_BINARY, '-v']);
+        $failing = Process::run([PHP_BINARY, '-r', 'fwrite(STDERR, "broken"); exit(3);']);
+
+        return $result('Run processes', strtok($version->output(), "\n").' - and one that exited with '.$failing->exitCode().'.');
+    })->name('process');
+
     Route::get('queue/chain', function () use ($result): View {
         ImportBatch::dispatch();
 

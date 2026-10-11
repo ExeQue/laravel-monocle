@@ -60,6 +60,7 @@ const FORMATS = {
   status: (v) => `<span class="${statusClass(v)}">${esc(v)}</span>`,
   level: (v) => `<span class="font-medium ${levelClass(v)}">${esc(v)}</span>`,
   flag: (v, row, yes = 'yes', no = 'no', tone = 'bad', yesTone = 'ok') => (typeof v !== 'boolean' ? esc(fmtValue(v)) : v ? (yes ? `<span class="${TONES[yesTone] ?? ''}">${esc(yes)}</span>` : '') : no ? `<span class="font-medium ${TONES[tone] ?? ''}">${esc(no)}</span>` : ''),
+  code: (v) => (v === null || v === undefined ? '' : `<code class="font-mono text-xs [overflow-wrap:anywhere]">${esc(fmtValue(v))}</code>`),
   bool: (v) => `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${esc(String(v))}</span>`,
   prefix: (v, row, prefix = '') => (v === null || v === undefined || v === '' ? '' : `<span class="font-mono">${esc(prefix)}${esc(v)}</span>`),
   reference: (v, row, text = '#') => (v ? `<span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">${esc(text)}${esc(v)}</span>` : ''),

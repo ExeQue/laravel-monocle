@@ -25,6 +25,7 @@ use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
 use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
+use ExeQue\Monocle\Lenses\ProcessLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -125,6 +126,9 @@ return [
         ],
         QueueLens::class => true,
         CommandLens::class => true,
+        ProcessLens::class => [
+            'slow_ms' => 1000,
+        ],
         ScheduleLens::class => true,
         HttpClientLens::class => [
             'bodies' => false,
@@ -387,6 +391,7 @@ return [
             AuthorizationLens::class,
             McpLens::class,
             ScheduleLens::class,
+            ProcessLens::class,
         ],
     ],
 

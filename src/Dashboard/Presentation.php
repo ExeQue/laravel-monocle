@@ -138,6 +138,7 @@ final readonly class Presentation
      *     ['flag', 'yes', 'no']      true or false as a word; false in red, true in green
      *                                (['flag', 'yes', 'no', 'warn', 'muted'] picks both colours; null leaves a word out)
      *     'bool'                     true or false, true in green
+     *     'code'                     the value in full in a monospace font, such as a command
      *     ['prefix', '#']            the value after a prefix
      *     ['reference', 'repeat of #'] a badge pointing at another row
      *     ['highlight', ['miss'], 'warn'] the listed values coloured

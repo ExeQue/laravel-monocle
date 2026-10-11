@@ -53,6 +53,9 @@
             ['GET', '/demo/http', 'Faked remote API', 'Calls a faked API, including a call that fails with a 500.'],
             ['GET', '/demo/http/failures', 'Failed connections', 'Real calls that never get a response: expired and self-signed certificates (badssl.com), an unknown host and an address that does not answer. Needs network access.'],
         ],
+        'Processes' => [
+            ['GET', '/demo/process', 'Run processes', 'Runs php -v and a command that exits with 3.'],
+        ],
         'Filesystem' => [
             ['GET', '/demo/filesystem', 'Put, get and delete', 'Writes, reads and deletes files on the demo disk.'],
         ],
