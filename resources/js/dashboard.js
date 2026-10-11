@@ -337,13 +337,13 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   /**
    * Entries in groups, in this order: quick actions (the latest capture of each type, then
    * clearing), tabs, then captures by type. With a query, each group keeps the entries where
-   * every word's letters appear in order in the name, status or kind, closest first.
+   * every word's letters appear in order in the name, route name, status or kind, closest first.
    */
   get paletteItems() {
     const types = ['request', 'command', 'job', 'mcp'];
     const typeName = (type) => (type === 'mcp' ? 'MCP call' : type);
     const groupOf = { request: 'Requests', command: 'Commands', job: 'Jobs', mcp: 'MCP' };
-    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, sections: Object.keys(c.counts ?? {}).flatMap((key) => [key, config.labels?.[key] ?? humanize(key)]), run: () => this.select(c.id, this.tab) });
+    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, route: c.route, sections: Object.keys(c.counts ?? {}).flatMap((key) => [key, config.labels?.[key] ?? humanize(key)]), run: () => this.select(c.id, this.tab) });
 
     const quick = types
       .map((type) => this.captures.find((c) => c.type === type))
@@ -381,7 +381,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       .map((haystack) => fuzzyScore(needle, haystack.toLowerCase()))
       .reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
     const allOf = (item, words) => {
-      const text = `${item.label} ${item.status ?? ''} ${item.kind}`;
+      const text = `${item.label} ${item.route ?? ''} ${item.status ?? ''} ${item.kind}`;
       let total = 0;
       for (const word of words) {
         const needle = word.replace(/^[#$]/, '');
