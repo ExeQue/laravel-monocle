@@ -135,11 +135,27 @@ Alpine.data('monocle', (config) => ({
       this.captures = result.rows;
       this.total = result.total;
       this.error = null;
+      // A filtered list hides captures on purpose; only an unfiltered or empty one means it may be gone.
+      const filtered = this.filters.type || this.filters.q || this.filters.errors || this.hidden.length;
+      if (this.selectedId && (!filtered || !this.captures.length) && !this.captures.some((c) => c.id === this.selectedId)) await this.dropIfGone();
       if (!this.selectedId && this.captures[0]) this.select(this.captures[0].id);
       else if (!quiet && this.selectedId && !this.capture) this.select(this.selectedId, this.tab);
     } catch (e) {
       this.error = e.message;
     }
+  },
+
+  /** Close the open capture once it is no longer stored (cleared, or pushed out of the ring buffer). */
+  async dropIfGone() {
+    const response = await fetch(`${this.api}/${encodeURIComponent(this.selectedId)}`, { method: 'GET', headers: { Accept: 'application/json' } });
+    if (response.status !== 404) return;
+    this.popover.close();
+    this.selectedId = null;
+    this.capture = null;
+    this.model = null;
+    this.tabData = null;
+    this.status = 'The open capture is no longer stored';
+    history.replaceState(null, '', location.pathname + location.search);
   },
 
   async select(id, tab = 'overview') {
