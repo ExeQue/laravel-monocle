@@ -152,7 +152,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
         return Summary::make()
             ->when(isset($request['response_bytes']))
-            ->total('response_bytes', $request['response_bytes'] ?? 0, 'response size', Unit::Bytes);
+            ->headline('response_bytes', $request['response_bytes'] ?? 0, 'response size', Unit::Bytes);
     }
 
     private function onRouting(Routing $event): void

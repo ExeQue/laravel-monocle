@@ -50,6 +50,8 @@ final class SummaryBuilder
         ];
         $labels = ['duration_ms' => 'duration', 'memory_peak_mb' => 'peak memory'];
         $units = ['duration_ms' => Unit::Milliseconds->value, 'memory_peak_mb' => Unit::Megabytes->value];
+        $headlines = ['duration_ms', 'memory_peak_mb'];
+        $groups = [];
         $warnings = [];
         $errors = [];
         $problems = [];
@@ -57,6 +59,8 @@ final class SummaryBuilder
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
             $totals = [...$totals, ...$contribution->totals];
+            $headlines = [...$headlines, ...$contribution->headlines];
+            $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $summarizer->key())];
             $labels = [...$labels, ...$contribution->labels];
             $units = [...$units, ...$contribution->units];
             $warnings = [...$warnings, ...$contribution->warnings];
@@ -103,6 +107,8 @@ final class SummaryBuilder
             'totals' => $totals,
             'labels' => $labels,
             'units' => $units,
+            'headlines' => array_values(array_unique($headlines)),
+            'groups' => array_diff_key($groups, array_flip($headlines)),
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
             'errors' => array_values(array_unique($errors)),

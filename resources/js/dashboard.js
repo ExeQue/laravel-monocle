@@ -18,26 +18,6 @@ const PHASE_COLORS = {
 const CATEGORY_COLORS = { db: 'var(--c-db)', cache: 'var(--c-cache)', redis: 'var(--c-io)', views: 'var(--c-view)', http: 'var(--c-io)', filesystem: 'var(--c-io)', ai: 'var(--c-ctrl)', jobs_sync: 'var(--c-mw)' };
 
 /** Totals grouped by subject: [heading, which keys belong]. Keys no group claims land under "Other". */
-const TOTAL_GROUPS = [
-  ['Overall', (k) => ['duration_ms', 'memory_peak_mb', 'response_bytes'].includes(k) || k.startsWith('middleware_')],
-  ['Database', (k) => k === 'queries' || k.startsWith('query') || k.startsWith('queries_') || ['slow_queries', 'duplicate_queries', 'transactions'].includes(k), 'queries'],
-  ['Cache', (k) => k.startsWith('cache_') || k === 'response_cache', 'cache'],
-  ['Redis', (k) => k.startsWith('redis_'), 'redis'],
-  ['Views', (k) => k.startsWith('views_'), 'views'],
-  ['Models', (k) => k.startsWith('models_'), 'models'],
-  ['Livewire', (k) => k.startsWith('livewire_'), 'livewire'],
-  ['Jobs', (k) => k.startsWith('jobs_'), 'jobs'],
-  ['AI', (k) => k.startsWith('ai_') || k.startsWith('tokens'), 'ai'],
-  ['HTTP', (k) => k.startsWith('http_'), 'http'],
-  ['Files', (k) => k.startsWith('filesystem_') || k.startsWith('media_'), ['filesystem', 'media']],
-  ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification'), 'mail'],
-  ['Auth', (k) => k.startsWith('auth_'), ['auth', 'request']],
-  ['Validation', (k) => k.startsWith('validation'), 'validation'],
-  ['Features', (k) => k.startsWith('features_'), 'features'],
-  ['Authorization', (k) => k.startsWith('authorization_'), 'authorization'],
-];
-
-
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries', 'model_changes'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
 
@@ -340,26 +320,35 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   get maxCategory() { return Math.max(1, ...this.categories.map((c) => c.ms)); },
 
   /** Totals grouped by what they are about, each group in a fixed order. */
-  get totalGroups() {
-    const { units = {}, labels = {} } = this.summary;
-    const totals = Object.fromEntries(Object.entries(this.summary.totals ?? {}).map(([k, v]) => [k, [v, units[k], labels[k]]]));
-    const shown = (k, [v]) => v !== null && v !== undefined && typeof v !== 'object' && (v !== 0 || k === 'queries');
-    const taken = new Set();
-    const tabKeys = this.tabs.map((t) => t.key);
-    const groups = TOTAL_GROUPS.map(([label, test, tab]) => {
-      const items = Object.entries(totals).filter(([k, v]) => !taken.has(k) && test(k) && shown(k, v));
-      items.forEach(([k]) => taken.add(k));
-      return { label, items, tab: [tab ?? []].flat().find((key) => tabKeys.includes(key)) };
-    });
-    // Totals of other lenses group under their section's tab when they start with its key (payments_charged).
-    for (const tab of this.tabs) {
-      const items = Object.entries(totals).filter(([k, v]) => !taken.has(k) && (k === tab.key || k.startsWith(tab.key + '_')) && shown(k, v));
-      items.forEach(([k]) => taken.add(k));
-      if (items.length) groups.push({ label: tab.label, items, tab: tab.key });
-    }
-    groups.push({ label: 'Other', items: Object.entries(totals).filter(([k, v]) => !taken.has(k) && shown(k, v)) });
-    return groups.filter((g) => g.items.length).map((g) => ({ ...g, items: g.items.map(([k, [v, unit, label]]) => [k, v, unit, label]) }));
+  /** A total as [name, value, unit, label], or null when the overview leaves it out (empty, zero or a list). */
+  totalItem(name) {
+    const value = this.summary.totals?.[name];
+    if (value === null || value === undefined || value === 0 || typeof value === 'object') return null;
+    return [name, value, this.summary.units?.[name], this.summary.labels?.[name]];
   },
+
+  /** Totals about the whole capture, shown at the top of the overview. */
+  get headlineTotals() {
+    return (this.summary.headlines ?? []).map((name) => this.totalItem(name)).filter(Boolean);
+  },
+
+  /** The other totals under the lens that reported them, in tab order. */
+  get totalGroups() {
+    const groups = new Map();
+    for (const [name, key] of Object.entries(this.summary.groups ?? {})) {
+      const item = this.totalItem(name);
+      if (!item) continue;
+      if (!groups.has(key)) {
+        const tab = this.tabs.find((t) => t.key === key);
+        groups.set(key, { key, label: tab?.label ?? this.capture.presentations?.[key]?.label ?? humanize(key), tab: tab?.key, items: [] });
+      }
+      groups.get(key).items.push(item);
+    }
+    const order = this.tabs.map((t) => t.key);
+    const rank = (key) => (order.includes(key) ? order.indexOf(key) : order.length);
+    return [...groups.values()].sort((a, b) => rank(a.key) - rank(b.key));
+  },
+
 
 
   /** Original query row number => how many later queries repeat it. */
@@ -411,7 +400,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const ctx = this.capture.context ?? {};
     const handledBy = [ctx.route && `route ${ctx.route}`, ctx.action ?? ctx.command_class].filter(Boolean).join(', ');
     if (handledBy) lines.splice(1, 0, `Handled by ${handledBy}.`);
-    const totals = this.totalGroups.map((g) => `- ${g.label}: ${g.items.map((t) => `${this.totalLabel(t)} ${this.totalValue(t)}`).join(', ')}`);
+    const line = (label, items) => `- ${label}: ${items.map((t) => `${this.totalLabel(t)} ${this.totalValue(t)}`).join(', ')}`;
+    const totals = [line('Overall', this.headlineTotals), ...this.totalGroups.map((g) => line(g.label, g.items))];
     if (totals.length) lines.push('', 'Totals:', ...totals);
     if (s.errors?.length) lines.push('', 'Errors:', ...s.errors.map((e) => `- ${e}`));
     if (s.warnings?.length) lines.push('', 'Monocle flagged:', ...s.warnings.map((w) => `- ${w}`));

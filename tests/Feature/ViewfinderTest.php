@@ -89,7 +89,10 @@ describe(Viewfinder::class, function (): void {
         $summary = app(SummaryBuilder::class)->build(latestCapture());
 
         expect($summary['errors'])->toContain('Response status 500.')
-            ->and($summary['status'])->toBe('500');
+            ->and($summary['status'])->toBe('500')
+            ->and($summary['headlines'])->toContain('duration_ms', 'memory_peak_mb', 'response_bytes')
+            ->and($summary['groups'])->toMatchArray(['queries' => 'queries'])
+            ->and($summary['groups'])->not->toHaveKey('response_bytes');
 
         app(Eyepiece::class)->start(CaptureType::Request);
         app(Eyepiece::class)->span('forgotten')->start();

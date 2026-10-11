@@ -21,11 +21,12 @@ final readonly class Summary
     use Immutable;
 
     /**
-     * @param  array<string, mixed>  $totals  name => value; names starting with the lens key group under its tab
+     * @param  array<string, mixed>  $totals  name => value; grouped under the lens's tab on the overview
      * @param  array<string, string>  $labels  name => what the value counts, e.g. "failed"
      * @param  array<string, string>  $units  name => unit: a Unit value, or a suffix such as a currency
      * @param  list<string>  $warnings  things worth a look
      * @param  list<string>  $errors  things that failed
+     * @param  list<string>  $headlines  totals shown at the top of the overview
      */
     private function __construct(
         public array $totals = [],
@@ -33,6 +34,7 @@ final readonly class Summary
         public array $units = [],
         public array $warnings = [],
         public array $errors = [],
+        public array $headlines = [],
     ) {
     }
 
@@ -56,6 +58,16 @@ final readonly class Summary
         }
 
         return $this->with(['labels' => $labels])->totals([$name => $value], $unit);
+    }
+
+    /**
+     * A total that says something about the whole capture, shown at the top
+     * of the overview with the duration instead of under the lens's tab.
+     */
+    public function headline(string $name, mixed $value, ?string $label = null, Unit|string|null $unit = null): self
+    {
+        return $this->total($name, $value, $label, $unit)
+            ->with(['headlines' => [...array_diff($this->headlines, [$name]), $name]]);
     }
 
     /**

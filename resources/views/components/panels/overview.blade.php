@@ -83,26 +83,24 @@
         <div x-data="{ open: true }">
             <x-monocle::fold-heading open="open">Totals</x-monocle::fold-heading>
             <div class="grid gap-4">
-                <template x-for="g in totalGroups.filter((g) => g.label === 'Overall')" :key="g.label">
-                    <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
-                        <template x-for="t in g.items" :key="t[0]">
-                            <div>
-                                <div class="text-muted text-xs first-letter:uppercase" x-text="totalLabel(t)"></div>
-                                <div
-                                    class="text-xl font-bold tabular-nums"
-                                    :class="totalTone(t)"
-                                    x-text="totalValue(t)"
-                                ></div>
-                            </div>
-                        </template>
-                    </div>
-                </template>
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-x-4 gap-y-3">
+                    <template x-for="t in headlineTotals" :key="t[0]">
+                        <div>
+                            <div class="text-muted text-xs first-letter:uppercase" x-text="totalLabel(t)"></div>
+                            <div
+                                class="text-xl font-bold tabular-nums"
+                                :class="totalTone(t)"
+                                x-text="totalValue(t)"
+                            ></div>
+                        </div>
+                    </template>
+                </div>
                 <dl
                     x-show="open"
                     x-collapse
                     class="border-line m-0 grid grid-cols-[auto_repeat(3,auto_minmax(0,1fr))] gap-x-1.5 border-t pt-3 text-[13px]"
                 >
-                    <template x-for="g in totalGroups.filter((g) => g.label !== 'Overall')" :key="g.label">
+                    <template x-for="g in totalGroups" :key="g.key">
                         <div class="border-line col-span-full grid grid-cols-subgrid items-baseline border-b border-dashed py-1.5 last:border-b-0">
                             <dt
                                 class="text-brass pr-4 text-xs font-semibold"

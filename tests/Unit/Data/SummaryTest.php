@@ -65,6 +65,14 @@ describe(Summary::class, function (): void {
         expect(Summary::make()->warnings(['a', 'b'])->warning('c')->warnings)->toBe(['a', 'b', 'c']);
     });
 
+    it('marks headline totals for the top of the overview', function (): void {
+        $summary = Summary::make()->headline('response_bytes', 1024, 'response size', Unit::Bytes)->total('other', 1);
+
+        expect($summary->headlines)->toBe(['response_bytes'])
+            ->and($summary->totals)->toBe(['response_bytes' => 1024, 'other' => 1])
+            ->and($summary->units)->toBe(['response_bytes' => 'bytes']);
+    });
+
     it('keeps errors apart from warnings', function (): void {
         $summary = Summary::make()->warning('slow')->error('failed')->errors(['also failed']);
 

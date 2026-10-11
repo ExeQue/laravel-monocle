@@ -119,8 +119,8 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, 
         }
 
         return Summary::make()
-            ->total('middleware_self_ms', round(array_sum($own), 3), 'middleware time', Unit::Milliseconds)
-            ->total('middleware_count', count($requests), 'middleware')
+            ->headline('middleware_self_ms', round(array_sum($own), 3), 'middleware time', Unit::Milliseconds)
+            ->headline('middleware_count', count($requests), 'middleware')
             ->warnings($warnings);
     }
 
