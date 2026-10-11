@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\ThrowableChain;
@@ -21,7 +23,7 @@ use Illuminate\Console\Scheduling\Event;
  * Scheduled tasks run by schedule:run, recorded on that command's capture.
  * Tasks run as subprocesses, so their own output lands in separate captures.
  */
-final class ScheduleLens implements Advises, Lens, Summarizable
+final class ScheduleLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -91,5 +93,10 @@ final class ScheduleLens implements Advises, Lens, Summarizable
             'runtime_ms' => $extra['runtime_ms'] ?? null,
             'exception' => $extra['exception'] ?? null,
         ], origin: false);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.scheduled_tasks');
     }
 }

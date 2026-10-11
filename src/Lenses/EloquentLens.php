@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Database\Eloquent\Model;
@@ -16,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Counts model events per class and records every write with its changes.
  */
-final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summarizable
+final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     private const array ACTIONS = ['retrieved', 'created', 'updated', 'deleted', 'restored', 'forceDeleted'];
 
@@ -187,5 +189,10 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
         }
 
         return $fields;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.models');
     }
 }

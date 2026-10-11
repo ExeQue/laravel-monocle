@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses\Packages\Spatie;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Spatie\ResponseCache\Events\CacheMissedEvent;
@@ -20,7 +22,7 @@ use Spatie\ResponseCache\Events\ResponseCacheHitEvent;
  * cache. On a hit the controller never ran, so a change to it shows nothing
  * until the cache entry expires or is cleared.
  */
-final class ResponseCacheLens implements Advises, Lens, Summarizable
+final class ResponseCacheLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -81,5 +83,10 @@ final class ResponseCacheLens implements Advises, Lens, Summarizable
                 $hit['age_seconds'] === null ? '' : " ({$hit['age_seconds']} s old)",
             )],
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.response_cache');
     }
 }

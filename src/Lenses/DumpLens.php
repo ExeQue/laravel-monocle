@@ -7,7 +7,9 @@ namespace ExeQue\Monocle\Lenses;
 use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
@@ -20,7 +22,7 @@ use Symfony\Component\VarDumper\VarDumper;
  * still sees it. dd() exits the process; the shutdown handler stores the
  * capture anyway.
  */
-final class DumpLens implements Advises, Lens, Summarizable
+final class DumpLens implements Advises, Lens, Presentable, Summarizable
 {
     /** @var callable|null */
     private $previous;
@@ -114,5 +116,10 @@ final class DumpLens implements Advises, Lens, Summarizable
         }
 
         return false;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.dumps');
     }
 }

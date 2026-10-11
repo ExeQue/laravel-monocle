@@ -23,6 +23,8 @@ final class Presentation
 
     private ?string $detailsView = null;
 
+    private ?string $tabView = null;
+
     public static function table(): self
     {
         return new self();
@@ -87,6 +89,24 @@ final class Presentation
         $this->detailsView = $view;
 
         return $this;
+    }
+
+    /**
+     * A Blade view for the whole tab, instead of the table. It is part of the
+     * dashboard page, so it can use the dashboard's Alpine state (the open
+     * tab's rows are in tabData) and its components, such as
+     * <x-monocle::kv-table> and <x-monocle::section>.
+     */
+    public function tab(string $view): self
+    {
+        $this->tabView = $view;
+
+        return $this;
+    }
+
+    public function tabView(): ?string
+    {
+        return $this->tabView;
     }
 
     public function detailsView(): ?string

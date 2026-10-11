@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses\Packages\Mcp;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Foundation\Application;
@@ -28,7 +30,7 @@ use Laravel\Mcp\Server\Methods\ReadResource;
  * users. laravel/mcp resolves method handlers through the container, so the
  * handlers are decorated there. Monocle's own server and Boost's are skipped.
  */
-final class McpLens implements Advises, Lens, Summarizable
+final class McpLens implements Advises, Lens, Presentable, Summarizable
 {
     public function key(): string
     {
@@ -103,5 +105,10 @@ final class McpLens implements Advises, Lens, Summarizable
                 array_slice(array_values($errors), 0, 3),
             ),
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.mcp');
     }
 }

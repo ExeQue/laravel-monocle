@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses\Packages\Spatie;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
@@ -19,7 +21,7 @@ use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
  * that ran, each conversion as a span. Conversions that run during a
  * request instead of on the queue are a common cause of slow uploads.
  */
-final class MediaLibraryLens implements Advises, Lens, Summarizable
+final class MediaLibraryLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -128,5 +130,10 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
             'file' => $media->file_name ?? null,
             'size' => $media->size ?? null,
         ];
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.media');
     }
 }

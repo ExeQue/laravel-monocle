@@ -9,9 +9,11 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -37,7 +39,7 @@ use Throwable;
  * Owns the HTTP capture lifecycle: starts it, records request/response facts,
  * lays down the phase spans and persists at terminate.
  */
-final class RequestLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
+final class RequestLens implements Advises, Configurable, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
@@ -677,5 +679,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         }
 
         return null;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.request');
     }
 }

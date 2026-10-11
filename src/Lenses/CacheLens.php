@@ -228,6 +228,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.cache')
             ->groupBy(['key' => 'by key', 'type' => 'by operation', 'store' => 'by store']);
     }
 }

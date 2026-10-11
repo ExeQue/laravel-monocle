@@ -146,6 +146,7 @@ final class MailLens implements Advises, Lens, Presentable, Resettable, Summariz
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.mail')
             ->groupBy(['type' => 'by type']);
     }
 }

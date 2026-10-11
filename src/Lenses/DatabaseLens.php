@@ -8,8 +8,10 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
@@ -25,7 +27,7 @@ use Throwable;
  * Records every executed query with its shape, duplicates and transaction,
  * and wraps transactions in spans.
  */
-final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
+final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     private float $slowMs = 70.0;
 
@@ -319,5 +321,10 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
         $sql = preg_replace('/\s+/', ' ', $sql) ?? $sql;
 
         return strlen($sql) > $length ? substr($sql, 0, $length).'...' : $sql;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.queries');
     }
 }

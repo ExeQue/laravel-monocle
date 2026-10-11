@@ -160,6 +160,7 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.events')
             ->groupBy(['event' => 'by event']);
     }
 }

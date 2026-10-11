@@ -328,6 +328,12 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       items.forEach(([k]) => taken.add(k));
       return { label, items };
     });
+    // Totals of other lenses group under their section's tab when they start with its key (payments_charged).
+    for (const tab of this.tabs) {
+      const items = Object.entries(totals).filter(([k, v]) => !taken.has(k) && (k === tab.key || k.startsWith(tab.key + '_')) && shown(k, v));
+      items.forEach(([k]) => taken.add(k));
+      if (items.length) groups.push({ label: tab.label, items });
+    }
     groups.push({ label: 'Other', items: Object.entries(totals).filter(([k, v]) => !taken.has(k) && shown(k, v)) });
     return groups.filter((g) => g.items.length);
   },
@@ -397,7 +403,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   },
 
   panelId(key) {
-    return 'monocle-panel-' + (['overview', 'timeline', 'request', 'session', 'queries', 'trace'].includes(key) ? key : 'rows');
+    return 'monocle-panel-' + (['overview', 'timeline', 'trace', ...config.tabs].includes(key) ? key : 'rows');
   },
 
   /** Arrow keys move between tabs, as in any tab list. */

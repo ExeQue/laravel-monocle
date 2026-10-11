@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
@@ -23,7 +25,7 @@ use Throwable;
  * methods called on them, property updates, render time and exceptions. A
  * Livewire request otherwise looks like a bare `POST /livewire/update`.
  */
-final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summarizable
+final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
 {
     /** @var array<string, array<string, mixed>> */
     private array $components = [];
@@ -201,5 +203,10 @@ final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summ
     private function track(Component $component): bool
     {
         return isset($this->components[$component->getId()]);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.livewire');
     }
 }

@@ -98,6 +98,7 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.redis')
             ->groupBy(['command' => 'by command']);
     }
 }

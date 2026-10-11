@@ -2,7 +2,7 @@ import { ms, humanize } from '../format.js';
 
 /** A total that counts failures, errors or misses and is above 0 shows in red. */
 export function totalTone([k, v]) {
-  return typeof v === 'number' && v > 0 && /(failed|errors|exceptions|denied|warnings)$/.test(k) ? 'text-bad' : '';
+  return typeof v === 'number' && v > 0 && /(failed|errors|exceptions|denied|declined|warnings)$/.test(k) ? 'text-bad' : '';
 }
 
 export function totalValue([k, v]) {

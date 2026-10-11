@@ -322,6 +322,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.jobs')
             ->groupBy(['job' => 'by job', 'queue' => 'by queue']);
     }
 }

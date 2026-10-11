@@ -12,7 +12,7 @@
 <body class="min-[861px]:h-dvh min-[861px]:overflow-hidden">
     <div
         class="flex min-h-dvh flex-col min-[861px]:grid min-[861px]:h-dvh min-[861px]:grid-cols-[minmax(280px,340px)_minmax(0,1fr)]"
-        x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token(), 'paths' => $paths]))"
+        x-data="monocle(@js(['api' => $api, 'csrf' => csrf_token(), 'paths' => $paths, 'tabs' => array_keys($tabs)]))"
         x-cloak
     >
         <x-monocle::sidebar :icon="$assets['icon']" />
@@ -30,17 +30,16 @@
 
                     <x-monocle::panels.overview />
 
-                    <x-monocle::panel name="timeline" @click="timelineClick($event)" x-html="timelineHtml" />
+                    @include('monocle::tabs.timeline')
 
-                    <x-monocle::panels.request />
+                    {{-- One tab per lens: its own view, or the table. --}}
+                    @foreach ($tabs as $section => $view)
+                        @include($view, ['section' => $section])
+                    @endforeach
 
-                    <x-monocle::panels.session />
+                    @include('monocle::tabs.trace')
 
-                    <x-monocle::panels.queries />
-
-                    <x-monocle::panels.trace />
-
-                    <x-monocle::panels.rows />
+                    @include('monocle::tabs.table', ['section' => null, 'known' => ['overview', 'timeline', 'trace', ...array_keys($tabs)]])
                     <p class="text-muted text-xs" x-show="tabLoading">Loading...</p>
                 </div>
             </template>

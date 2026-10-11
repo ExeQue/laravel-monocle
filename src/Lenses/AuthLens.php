@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Auth\Events\Attempting;
@@ -37,7 +39,7 @@ use Laravel\Sanctum\Events\TokenAuthenticated;
  * user, logins, logouts, failed attempts and lockouts, and the Sanctum token
  * when one was used. Credentials are recorded as keys only.
  */
-final class AuthLens implements Advises, Lens, Summarizable
+final class AuthLens implements Advises, Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -148,5 +150,10 @@ final class AuthLens implements Advises, Lens, Summarizable
             'user' => $user === null ? null : $user::class.'#'.$user->getAuthIdentifier(),
             ...$extra,
         ], origin: $event !== 'authenticated');
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.auth');
     }
 }

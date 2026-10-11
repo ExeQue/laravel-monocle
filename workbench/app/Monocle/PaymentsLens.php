@@ -6,7 +6,9 @@ namespace Workbench\App\Monocle;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Contracts\Events\Dispatcher;
 use Workbench\App\Events\PaymentCharged;
@@ -14,7 +16,7 @@ use Workbench\App\Events\PaymentCharged;
 /**
  * An application's own lens, with its own tab in the dashboard.
  */
-final class PaymentsLens implements Lens, Presentable
+final class PaymentsLens implements Lens, Presentable, Summarizable
 {
     public function __construct(
         private readonly Eyepiece $eyepiece,
@@ -53,5 +55,33 @@ final class PaymentsLens implements Lens, Presentable
             ->detailsOnly(['card', 'decline_reason'])
             ->groupBy(['customer' => 'by customer', 'status' => 'by outcome'])
             ->details('monocle.payment');
+    }
+
+    /**
+     * Totals for the overview: how many payments, how much was charged and
+     * how many were declined; each decline is also a warning.
+     */
+    public function summarize(Capture $capture): array
+    {
+        $payments = $capture->rows('payments');
+
+        if ($payments === []) {
+            return [];
+        }
+
+        $declined = array_values(array_filter($payments, fn (array $payment): bool => $payment['status'] !== 'paid'));
+        $charged = array_sum(array_map(fn (array $payment): int => $payment['status'] === 'paid' ? $payment['amount'] : 0, $payments));
+
+        return [
+            'totals' => [
+                'payments' => count($payments),
+                'payments_charged' => number_format($charged / 100, 2).' '.($payments[0]['currency'] ?? ''),
+                'payments_declined' => count($declined),
+            ],
+            'warnings' => array_map(
+                fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
+                $declined,
+            ),
+        ];
     }
 }

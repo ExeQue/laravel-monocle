@@ -136,6 +136,7 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.views')
             ->groupBy(['view' => 'by view', 'engine' => 'by engine']);
     }
 }

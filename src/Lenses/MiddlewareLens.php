@@ -8,7 +8,9 @@ use Closure;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
@@ -28,7 +30,7 @@ use Throwable;
  * ponytail: closure middleware and instances created outside the container
  * are not timed.
  */
-final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
+final class MiddlewareLens implements Advises, Configurable, Lens, Presentable, Summarizable
 {
     private Application $app;
 
@@ -202,5 +204,10 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
         } catch (Throwable) {
             return null;
         }
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.middleware');
     }
 }

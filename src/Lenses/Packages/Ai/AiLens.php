@@ -7,8 +7,10 @@ namespace ExeQue\Monocle\Lenses\Packages\Ai;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
@@ -34,7 +36,7 @@ use Throwable;
  * tokens, prompt and response, nested agents linked through their parent
  * invocation.
  */
-final class AiLens implements Advises, Configurable, Lens, Resettable, Summarizable
+final class AiLens implements Advises, Configurable, Lens, Presentable, Resettable, Summarizable
 {
     private ?int $maxText = null;
 
@@ -402,5 +404,10 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
         } catch (Throwable) {
             return $provider::class;
         }
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.ai');
     }
 }

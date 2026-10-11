@@ -6,7 +6,9 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Session\SnapshotsSession;
 use ExeQue\Monocle\Support\Normalizer;
@@ -21,7 +23,7 @@ use Throwable;
  * changed in it. Values under keys that match the input masking pattern (the
  * CSRF token among them) are masked.
  */
-final class SessionLens implements Advises, Lens, Resettable
+final class SessionLens implements Advises, Lens, Presentable, Resettable
 {
     /** @var array<string, mixed>|null The session right after it started. */
     private ?array $before = null;
@@ -108,5 +110,10 @@ final class SessionLens implements Advises, Lens, Resettable
         }
 
         return $changes;
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.session');
     }
 }

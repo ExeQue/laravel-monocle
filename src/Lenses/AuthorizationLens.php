@@ -86,6 +86,7 @@ final class AuthorizationLens implements Advises, Lens, Presentable, Summarizabl
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.authorization')
             ->groupBy(['ability' => 'by ability', 'allowed' => 'by outcome']);
     }
 }

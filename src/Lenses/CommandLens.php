@@ -7,7 +7,9 @@ namespace ExeQue\Monocle\Lenses;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
+use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -26,7 +28,7 @@ use Throwable;
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead.
  */
-final class CommandLens implements Advises, Finalizable, Lens, Resettable
+final class CommandLens implements Advises, Finalizable, Lens, Presentable, Resettable
 {
     private bool $usedLaravelStart = false;
 
@@ -206,5 +208,10 @@ final class CommandLens implements Advises, Finalizable, Lens, Resettable
     private function options(InputInterface $input): array
     {
         return array_filter($input->getOptions(), fn (mixed $value): bool => $value !== null && $value !== false && $value !== []);
+    }
+
+    public function presentation(): Presentation
+    {
+        return Presentation::table()->tab('monocle::tabs.command');
     }
 }

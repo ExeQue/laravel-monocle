@@ -102,6 +102,7 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
     public function presentation(): Presentation
     {
         return Presentation::table()
+            ->tab('monocle::tabs.log')
             ->groupBy(['message' => 'by message']);
     }
 }

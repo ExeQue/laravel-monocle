@@ -355,6 +355,8 @@ $capture = app(Eyepiece::class)->finalize();
 expect($capture->rows('stripe'))->toHaveCount(1);
 ```
 
+Totals your lens returns from `summarize()` whose names start with its key (`payments_charged`) are listed under your tab's label on the overview, and its warnings mark the tab with a yellow !.
+
 ## Sharing your lens
 
 Publish the lens as its own package and open an issue to have it listed under [Third-party lenses](third-party-lenses.md).
@@ -388,8 +390,11 @@ final class PaymentsLens implements Lens, Presentable
 | `detailsOnly()` | fields only shown when a row is expanded |
 | `groupBy()` | fields the rows can be grouped by, with the label of their chip |
 | `details()` | a Blade view rendering an expanded row, instead of the list of its fields |
+| `tab()` | a Blade view for the whole tab, instead of the table |
 
-The view receives `$row`, the row as your lens recorded it, and `$capture`. It is rendered inside the dashboard, so the dashboard's colours apply: `text-muted`, `text-ok`, `text-bad`, `text-warn` and `font-mono` read like the rest of it.
+A tab view is part of the dashboard page: wrap it in `<x-monocle::panel name="payments">`, read the open tab's rows from `tabData.rows`, and reuse the dashboard's components, such as `<x-monocle::section-table />` for the usual table, `<x-monocle::kv-table>` and `<x-monocle::section>`.
+
+The details view receives `$row`, the row as your lens recorded it, and `$capture`. It is rendered inside the dashboard, so the dashboard's colours apply: `text-muted`, `text-ok`, `text-bad`, `text-warn` and `font-mono` read like the rest of it.
 
 ```blade
 <div class="grid gap-2">
