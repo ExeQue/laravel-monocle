@@ -132,7 +132,7 @@ final class Catalog
                 self::demo('GET', '/demo/log', 'Log entries', 'Writes info, warning and error entries.', 'log', [['Error logged', 'bad']]),
             ]),
             self::lens('dumps', 'Dumps', 'Debugging', 'dump() and dd()', [
-                self::demo('GET', '/demo/dump', 'dump()', 'Dumps a value.', 'dumps'),
+                self::demo('GET', '/demo/dump', 'dump()', 'Dumps an array, a model and a date.', 'dumps'),
                 self::demo('GET', '/demo/alarms/dd', 'dd()', 'Calls dd(), which ends the process before the response is sent.', 'dumps', [['dd() ended the process', 'warn'], ['Spans never stopped', 'warn']]),
             ]),
             self::lens('timeline', 'Custom spans', 'Debugging', 'your own timings', [

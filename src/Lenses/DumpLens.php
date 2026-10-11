@@ -13,8 +13,8 @@ use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Lenses\Dumps\TokenDumper;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
-use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\VarDumper;
 
 /**
@@ -42,7 +42,7 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
 
     public function description(): string
     {
-        return 'Values passed to dump() and dd(): the dumped value as text, its type, the label and whether it came from dd() (which ended the process - the capture is stored at shutdown with ended_by=shutdown).';
+        return 'Values passed to dump() and dd(): the dumped value as text, the same text as [style, text] pairs VarDumper styled (tokens, for the dashboard), its type, the label and whether it came from dd() (which ended the process - the capture is stored at shutdown with ended_by=shutdown).';
     }
 
     public function advice(): string
@@ -85,14 +85,11 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
             return;
         }
 
-        $dumper = new CliDumper();
-        $dumper->setColors(false);
-
-        $cloned = new VarCloner()->cloneVar($value);
-        $text = (string) $dumper->dump($cloned, true);
+        [$text, $tokens] = new TokenDumper()->tokenize(new VarCloner()->cloneVar($value));
 
         $this->eyepiece->push('dumps', [
             'value' => $text,
+            'tokens' => $tokens,
             'type' => get_debug_type($value),
             'label' => $label,
             'is_dd' => $this->calledFromDd(),
@@ -132,6 +129,9 @@ final class DumpLens implements Advises, Lens, Presentable, Summarizable
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.dumps');
+        return Presentation::table()
+            ->tab('monocle::tabs.dumps')
+            ->detailsOnly(['tokens'])
+            ->details('monocle::details.dump');
     }
 }

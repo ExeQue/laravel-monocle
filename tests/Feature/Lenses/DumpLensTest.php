@@ -38,6 +38,7 @@ describe(DumpLens::class, function (): void {
 
         expect($rows)->toHaveCount(2)
             ->and($rows[0]['value'])->toContain('"album" => 7')
+            ->and(implode('', array_column($rows[0]['tokens'], 1)))->toBe($rows[0]['value'])
             ->and($rows[0]['type'])->toBe('array')
             ->and($rows[0]['label'])->toBe('first')
             ->and($rows[0]['is_dd'])->toBeFalse()
@@ -114,6 +115,7 @@ describe(DumpLens::class, function (): void {
         $lens = app(DumpLens::class);
 
         expect($lens->advice())->toContain('dump() and dd()')
-            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.dumps');
+            ->and($lens->presentation()->tabView)->toBe('monocle::tabs.dumps')
+            ->and($lens->presentation()->detailsView)->toBe('monocle::details.dump');
     });
 });

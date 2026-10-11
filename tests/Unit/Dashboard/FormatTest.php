@@ -35,6 +35,24 @@ describe(Format::class, function (): void {
             ->and(Format::value(new stdClass()))->toBe('{}');
     });
 
+    it('colours a dump by the pieces VarDumper styled, with the classes it names as names', function (): void {
+        $row = ['value' => 'ignored', 'tokens' => [
+            ['note', 'Tests\\Fixtures\\Models\\Writer'], ['', ' {'], ['ref', '#12'], ['', "\n  #"], ['protected', 'connection'], ['', ': "'], ['str', 'sqlite'],
+            ['', '" '], ['num', '7'], ['', ' '], ['const', 'null'], ['', ' '], ['note', 'array:2'], ['', ' '], ['key', '<b>'],
+        ]];
+
+        expect(Format::dump($row))->toBe(
+            '<span data-monocle-name data-full>Tests\\Fixtures\\Models\\Writer</span> {<span class="text-muted">#12</span>'
+            ."\n  #<span class=\"text-muted\">connection</span>: &quot;<span class=\"text-ok\">sqlite</span>"
+            .'&quot; <span class="text-brass">7</span> <span class="text-brass">null</span> <span class="text-muted">array:2</span> &lt;b&gt;'
+        );
+    });
+
+    it('shows a dump without tokens as plain text', function (): void {
+        expect(Format::dump(['value' => '"<b>"']))->toBe('&quot;&lt;b&gt;&quot;')
+            ->and(Format::dump([]))->toBe('');
+    });
+
     it('flattens nested data into dot notated pairs', function (): void {
         expect(Format::dot('loose'))->toBe([])
             ->and(Format::dot([]))->toBe([])

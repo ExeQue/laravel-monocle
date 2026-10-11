@@ -127,4 +127,62 @@ final class Format
 
         return $pairs;
     }
+    /**
+     * A dump row's value as HTML, coloured by the pieces VarDumper styled:
+     * strings, numbers and constants, muted property names, references and
+     * meta, and every class it names as a full name the dashboard links and
+     * copies. A row without tokens (an older capture) is shown as plain text.
+     *
+     * @param  array<string, mixed>  $row
+     */
+    public static function dump(array $row): string
+    {
+        $tokens = $row['tokens'] ?? null;
+
+        if (! is_array($tokens)) {
+            return e((string) ($row['value'] ?? ''));
+        }
+
+        $html = '';
+
+        foreach ($tokens as [$style, $text]) {
+            $html .= self::dumpToken((string) $style, (string) $text);
+        }
+
+        return $html;
+    }
+
+    private static function dumpToken(string $style, string $text): string
+    {
+        $class = match ($style) {
+            'str' => 'text-ok',
+            'num', 'const' => 'text-brass',
+            'public', 'protected', 'private', 'ref', 'meta', 'index' => 'text-muted',
+            default => null,
+        };
+
+        if ($class !== null) {
+            return '<span class="'.$class.'">'.e($text).'</span>';
+        }
+
+        if ($style === 'note') {
+            return self::dumpNote($text);
+        }
+
+        return e($text);
+    }
+
+    /**
+     * A note names a class (Workbench\App\Models\Post) or a kind of value (Closure, resource).
+     */
+    private static function dumpNote(string $note): string
+    {
+        if (! class_exists($note) && ! interface_exists($note) && ! enum_exists($note)) {
+            return '<span class="text-muted">'.e($note).'</span>';
+        }
+
+        $link = app(TimelinePresenter::class)->link($note);
+
+        return '<span data-monocle-name data-full'.($link === null ? '' : ' data-link="'.e($link).'"').'>'.e($note).'</span>';
+    }
 }

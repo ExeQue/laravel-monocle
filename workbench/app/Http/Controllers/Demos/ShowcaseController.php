@@ -246,6 +246,10 @@ final class ShowcaseController
     private function recordSideEffects(Request $request, User $author, Post $post): void
     {
         $request->session()->put('demo.last_post', $post->id);
+        // Objects, so the dump shows a model's attributes and a date as VarDumper draws them; the output is kept off the page.
+        ob_start();
+        dump($post->withoutRelations(), $post->created_at);
+        ob_end_clean();
         Log::info('Post published.', ['post' => $post->id]);
         report(new RuntimeException('Search index unavailable, retrying later.', 0, new ConnectionException(
             'Could not connect to search.internal:9200',
