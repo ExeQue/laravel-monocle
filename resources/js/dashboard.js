@@ -462,12 +462,15 @@ Alpine.data('monocle', (config) => ({
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && !detailOnly.includes(k)) keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     // An exception code is nearly always 0; the column only shows when one is not.
-    let used = keys.filter((k) => rows.some((row) => !blank(row[k]) && !(k === 'code' && row[k] === 0)));
+    // A column that is false (or a code of 0) in every row says nothing; ids belong in the details.
+    let used = keys.filter((k) => !k.endsWith('_id') && rows.some((row) => !blank(row[k]) && row[k] !== false && !(k === 'code' && row[k] === 0)));
     if (used.includes('duration')) used = used.filter((k) => k !== 'time');
     used = used.filter((k) => k !== 'rolled_back');
     // HTTP calls read as "GET 200 https://...".
     if (section === 'http' && used.includes('status')) used = ['method', 'status', ...used.filter((k) => k !== 'method' && k !== 'status')].filter((k) => used.includes(k));
-    return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
+    // Duration and origin always make it in, at the end; the rest is capped to keep the table readable.
+    const tail = ['duration', 'origin'].filter((k) => used.includes(k));
+    return used.filter((k) => !tail.includes(k)).slice(0, 8 - (tail.includes('duration') ? 1 : 0)).concat(tail);
   },
 
   /** Text with the given substrings turned into editor links. */
@@ -685,6 +688,7 @@ Alpine.data('monocle', (config) => ({
     // File paths look like origins everywhere.
     if (key === 'file' && typeof v === 'string' && /\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy">${maybeLink(v, row._links?.file, 'font-mono text-[11.5px] text-brass')} ${copyButton(v, 'file', { hover: true })}</span>`;
     if (key === 'rules' && v && typeof v === 'object' && !Array.isArray(v)) return Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('');
+    if (key === 'status' && typeof v === 'string') return `<span class="${statusClass(v)}">${esc(v)}</span>`;
     if (key === 'value' && typeof v === 'boolean') return `<span class="font-mono ${v ? 'text-ok' : 'text-muted'}">${v}</span>`;
     if (key === 'pool' && typeof v === 'number') return `<span class="font-mono">#${v}</span>`;
     if (isThrowable(v)) return exceptionHtml(v, { limit: 140 });
