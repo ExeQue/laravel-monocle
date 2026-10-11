@@ -114,6 +114,6 @@ final class AuthLens implements Lens, Summarizable
             'guard' => $guard,
             'user' => $user === null ? null : $user::class.'#'.$user->getAuthIdentifier(),
             ...$extra,
-        ]);
+        ], origin: $event !== 'authenticated');
     }
 }

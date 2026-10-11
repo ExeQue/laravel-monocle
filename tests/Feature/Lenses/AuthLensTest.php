@@ -37,6 +37,8 @@ describe(AuthLens::class, function (): void {
             ->and(json_encode($rows))->not->toContain('hunter2')
             ->and($rows[2]['user'])->toBe(GenericUser::class.'#5')
             ->and($rows[3]['guard'])->toBe('web')
+            ->and($rows[3])->not->toHaveKey('origin')
+            ->and($rows[2])->toHaveKey('origin')
             ->and($summary['totals'])->toBe(['auth_user' => GenericUser::class.'#5', 'auth_failed' => 1])
             ->and($summary['warnings'])->toBe([]);
     });
