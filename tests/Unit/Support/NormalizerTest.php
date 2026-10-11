@@ -2,9 +2,15 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Support;
+
+use DateTimeImmutable;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
+use JsonSerializable;
+use stdClass;
+use Stringable;
 
 covers(Normalizer::class);
 
@@ -104,7 +110,7 @@ describe(Normalizer::class, function (): void {
     });
 
     it('marks objects that lead back to themselves as circular', function (): void {
-        $loop = new class () implements Illuminate\Contracts\Support\Arrayable {
+        $loop = new class () implements \Illuminate\Contracts\Support\Arrayable {
             public ?object $other = null;
 
             public function toArray(): array

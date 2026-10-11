@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses\Packages\Livewire;
+
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use Livewire\Livewire;
+use RuntimeException;
 use Tests\Fixtures\Livewire\Counter;
 
 covers(LivewireLens::class);

@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\RedisLens;
 use Illuminate\Redis\Connections\Connection;
 use Illuminate\Redis\Events\CommandExecuted;
+use Mockery;
 
 covers(RedisLens::class);
 

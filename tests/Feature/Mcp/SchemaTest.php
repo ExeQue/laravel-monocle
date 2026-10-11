@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Mcp;
+
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
 use ExeQue\Monocle\Mcp\Tools\CompareCaptures;

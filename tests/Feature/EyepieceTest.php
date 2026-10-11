@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature;
+
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -12,6 +14,7 @@ use ExeQue\Monocle\Facades\Monocle;
 use ExeQue\Monocle\MonocleManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 covers(Eyepiece::class, Span::class, MonocleManager::class, Capture::class);
 

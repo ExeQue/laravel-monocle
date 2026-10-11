@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Lenses\SessionLens;
 use Illuminate\Support\Facades\Route;
 
-covers(SessionLens::class, ExeQue\Monocle\Lenses\Session\SnapshotsSession::class);
+covers(SessionLens::class, \ExeQue\Monocle\Lenses\Session\SnapshotsSession::class);
 
 describe(SessionLens::class, function (): void {
     it('records the session contents with sensitive keys masked', function (): void {

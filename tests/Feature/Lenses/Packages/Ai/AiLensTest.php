@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses\Packages\Ai;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Packages\Ai\AiLens;
@@ -21,6 +23,8 @@ use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
+use Mockery;
+use RuntimeException;
 use Tests\Fixtures\Ai\Greeter;
 use Tests\Fixtures\Ai\WeatherTool;
 

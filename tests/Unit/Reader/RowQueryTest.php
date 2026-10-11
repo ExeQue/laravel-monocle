@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Reader;
+
 use ExeQue\Monocle\Reader\RowQuery;
 
 covers(RowQuery::class);

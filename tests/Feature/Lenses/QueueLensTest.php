@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Lenses\Queue\SyncDispatchPipe;
 use ExeQue\Monocle\Lenses\QueueLens;
@@ -10,6 +12,7 @@ use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use RuntimeException;
 use Tests\Fixtures\Jobs\FailingJob;
 use Tests\Fixtures\Jobs\PlainCommand;
 use Tests\Fixtures\Jobs\RecordingJob;

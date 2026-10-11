@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Storage;
+
 use ExeQue\Monocle\Contracts\Store;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
@@ -11,6 +13,7 @@ use ExeQue\Monocle\Storage\CacheStore;
 use ExeQue\Monocle\Storage\FileStore;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 covers(FileStore::class, CacheStore::class, StoreManager::class, InvalidStoreDriverException::class);
 

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Dashboard;
+
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Editor\EditorSettings;
@@ -43,7 +45,7 @@ describe(TimelinePresenter::class, function (): void {
 
     it('passes on only colours the dashboard can draw', function (): void {
         $presenter = new TimelinePresenter(new EditorLinks(null, '/app'));
-        $capture = ExeQue\Monocle\Data\Capture::fromArray([
+        $capture = \ExeQue\Monocle\Data\Capture::fromArray([
             'id' => 'c1', 'type' => 'request', 'started_at' => 0.0, 'ended_at' => 0.01,
             'spans' => [
                 ['id' => 'a', 'kind' => 'user', 'name' => 'a', 'start' => 0, 'end' => 1, 'color' => 'teal'],

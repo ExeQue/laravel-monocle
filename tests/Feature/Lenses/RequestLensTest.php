@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Reader\CaptureReader;
@@ -10,7 +12,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 
-covers(ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class, ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, RequestLens::class);
+covers(\ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class, \ExeQue\Monocle\Lenses\Request\JsonCapture::class, \ExeQue\Monocle\Lenses\Request\TextCapture::class, \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, RequestLens::class);
 
 describe(RequestLens::class, function (): void {
     beforeEach(function (): void {
@@ -51,7 +53,7 @@ describe(RequestLens::class, function (): void {
         $this->postJson('/json', ['name' => 'x', 'password' => 'secret-value'])->assertOk();
         $request = latestCapture()->section('request');
 
-        expect($request['response_capture'])->toBe(['capture' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'cards' => [['title' => 'JSON', 'subtitle' => null, 'items' => ['ok' => true]]], 'raw' => '{"ok":true}'])
+        expect($request['response_capture'])->toBe(['capture' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'cards' => [['title' => 'JSON', 'subtitle' => null, 'items' => ['ok' => true]]], 'raw' => '{"ok":true}'])
             ->and($request['content_type'])->toBe('application/json')
             ->and($request['input']['name'])->toBe('x')
             ->and($request['input']['password'])->not->toBe('secret-value');
@@ -68,7 +70,7 @@ describe(RequestLens::class, function (): void {
         $this->post('/upload-form', [
             'title' => 'Holiday',
             'meta' => ['tags' => ['sea', 'sun']],
-            'photo' => Illuminate\Http\UploadedFile::fake()->create('a.jpg', 3, 'image/jpeg'),
+            'photo' => \Illuminate\Http\UploadedFile::fake()->create('a.jpg', 3, 'image/jpeg'),
         ])->assertOk();
 
         $request = latestCapture()->section('request');
@@ -89,7 +91,7 @@ describe(RequestLens::class, function (): void {
     });
 
     it('keeps bodies only for the configured content types', function (): void {
-        $lens = collect(app(ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens);
+        $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens);
         Route::get('/html', fn () => '<p>hi</p>');
         Route::get('/problem', fn () => response('{"title":"x"}', 422, ['Content-Type' => 'application/problem+json; charset=utf-8']));
 
@@ -100,7 +102,7 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture()->section('request')['response_capture']['cards'][0]['items'])->toBe(['title' => 'x'])
             ->and(latestCapture()->section('request')['response_capture']['raw'])->toBe('{"title":"x"}');
 
-        $lens->configure(['capture' => ['response_types' => ['text/*' => ExeQue\Monocle\Lenses\Request\TextCapture::class]]]);
+        $lens->configure(['capture' => ['response_types' => ['text/*' => \ExeQue\Monocle\Lenses\Request\TextCapture::class]]]);
         $this->get('/html')->assertOk();
         expect(latestCapture()->section('request')['response_capture']['cards'][0]['items'])->toBe(['body' => '<p>hi</p>']);
 
@@ -125,7 +127,7 @@ describe(RequestLens::class, function (): void {
         $card = $request['response_capture']['cards'][0];
 
         expect($request['response_capture']['raw'])->toStartWith('{"components":')
-            ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class)
+            ->and($request['response_capture']['capture'])->toBe(\ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class)
             ->and($card['title'])->toBe('counter')
             ->and($card['subtitle'])->toBe('abc')
             ->and($card['items']['calls'])->toBe([['name' => 'increment', 'params' => [1]], ['name' => 'dispatch refresh', 'params' => ['id' => 7]]])
@@ -151,7 +153,7 @@ describe(RequestLens::class, function (): void {
             $capture = latestCapture()->section('request')['response_capture'];
             $card = $capture['cards'][0];
 
-            expect($capture['capture'])->toBe(ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class)
+            expect($capture['capture'])->toBe(\ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class)
                 ->and($card['title'])->toBe('Orders/Show')
                 ->and($card['subtitle'])->toBe('/orders/7')
                 ->and($card['items']['visit'])->toBe('inertia')
@@ -183,7 +185,7 @@ describe(RequestLens::class, function (): void {
 
     it('uses the matched Folio page as the action', function (): void {
         Route::get('/users/{id}', function () {
-            event(new Laravel\Folio\Events\ViewMatched(
+            event(new \Laravel\Folio\Events\ViewMatched(
                 new class (base_path('resources/views/pages/users/[id].blade.php'), ['id' => '4']) {
                     public function __construct(public string $path, public array $data)
                     {
@@ -215,14 +217,14 @@ describe(RequestLens::class, function (): void {
     });
 
     it('starts an Octane request before global middleware runs', function (): void {
-        app(ExeQue\Monocle\Eyepiece::class)->reset();
-        $request = Illuminate\Http\Request::create('/octane');
+        app(\ExeQue\Monocle\Eyepiece::class)->reset();
+        $request = \Illuminate\Http\Request::create('/octane');
 
-        event(new Laravel\Octane\Events\RequestReceived(app(), app(), $request));
+        event(new \Laravel\Octane\Events\RequestReceived(app(), app(), $request));
 
-        $capture = app(ExeQue\Monocle\Eyepiece::class)->active();
+        $capture = app(\ExeQue\Monocle\Eyepiece::class)->active();
 
-        expect($capture?->type)->toBe(ExeQue\Monocle\Enums\CaptureType::Request)
+        expect($capture?->type)->toBe(\ExeQue\Monocle\Enums\CaptureType::Request)
             ->and(array_column(array_map(fn ($span) => $span->toArray(), $capture->spans), 'name'))->toBe(['middleware (request)']);
     });
 

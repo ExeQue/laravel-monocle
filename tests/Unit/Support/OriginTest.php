@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Support;
+
 use ExeQue\Monocle\Support\Origin;
 
 covers(Origin::class);
@@ -80,7 +82,7 @@ describe(Origin::class, function (): void {
         mkdir($compiledDir, 0777, true);
 
         $compiled = $compiledDir.'/abc123.php';
-        file_put_contents($compiled, "<?php return ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1); /**PATH {$base}/resources/views/page.blade.php ENDPATH**/");
+        file_put_contents($compiled, "<?php return \ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1); /**PATH {$base}/resources/views/page.blade.php ENDPATH**/");
 
         $origin = include $compiled;
 
@@ -88,7 +90,7 @@ describe(Origin::class, function (): void {
             ->and($origin['line'])->toBeNull();
 
         $orphan = $compiledDir.'/orphan.php';
-        file_put_contents($orphan, "<?php return ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1);");
+        file_put_contents($orphan, "<?php return \ExeQue\\Monocle\\Support\\Origin::capture('{$base}', 1);");
 
         expect((include $orphan)['file'])->toEndWith('tests/Unit/Support/OriginTest.php');
 

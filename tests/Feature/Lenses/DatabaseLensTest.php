@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\DatabaseLens;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 covers(DatabaseLens::class);
 
@@ -89,6 +92,6 @@ describe(DatabaseLens::class, function (): void {
             ->and($summary['totals']['queries_by_type'])->toBe(['select' => 3])
             ->and($summary['totals']['query_ms'])->toBeGreaterThan(0)
             ->and(implode(' ', $summary['warnings']))->toContain('Possible N+1: 3 x')
-            ->and(ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
+            ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
     });
 });

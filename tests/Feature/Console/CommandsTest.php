@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Console;
+
 use ExeQue\Monocle\Console\ClearCommand;
 use ExeQue\Monocle\Console\InstallCommand;
 use ExeQue\Monocle\Console\ListCommand;
@@ -13,7 +15,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-covers(ExeQue\Monocle\Install\SkillInstaller::class, ListCommand::class, ShowCommand::class, RowsCommand::class, QueriesCommand::class, TraceCommand::class, ClearCommand::class, InstallCommand::class);
+covers(\ExeQue\Monocle\Install\SkillInstaller::class, ListCommand::class, ShowCommand::class, RowsCommand::class, QueriesCommand::class, TraceCommand::class, ClearCommand::class, InstallCommand::class);
 
 function commandJson(string $command, array $parameters = []): array
 {
@@ -88,7 +90,7 @@ describe(InstallCommand::class, function (): void {
             ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
             ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'yes')
-            ->expectsChoice('Install the Monocle skill for', ['claude', 'agents'], array_map(fn (array $agent): string => "{$agent[0]} ({$agent[1]})", ExeQue\Monocle\Install\SkillInstaller::AGENTS))
+            ->expectsChoice('Install the Monocle skill for', ['claude', 'agents'], array_map(fn (array $agent): string => "{$agent[0]} ({$agent[1]})", \ExeQue\Monocle\Install\SkillInstaller::AGENTS))
             ->expectsOutputToContain('herd php artisan mcp:start monocle')
             ->assertSuccessful();
 
@@ -102,8 +104,8 @@ describe(InstallCommand::class, function (): void {
             ->and(file_get_contents(base_path('.agents/skills/laravel-monocle/SKILL.md')))->toBe($skill)
             ->and(file_exists(base_path('.cursor/skills/laravel-monocle/SKILL.md')))->toBeFalse()
             ->and($config['storage']['limit'])->toBe(75)
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'headers' => ['X-Inertia' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'routes' => ['*livewire.update' => ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class]]])
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->not->toBeFalse()
+            ->and($config['lenses'][\ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => \ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'headers' => ['X-Inertia' => \ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'routes' => ['*livewire.update' => \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class]]])
+            ->and($config['lenses'][\ExeQue\Monocle\Lenses\CacheLens::class])->not->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
     });
 
@@ -159,7 +161,7 @@ describe(InstallCommand::class, function (): void {
             ->expectsOutputToContain('lerd artisan monocle:editor')
             ->assertSuccessful();
 
-        expect(file_get_contents($this->dir.'/.gitignore'))->toBe(ExeQue\Monocle\Install\GitignoreWriter::COMMENT."\n/storage/monocle/\n/.monocle.json\n");
+        expect(file_get_contents($this->dir.'/.gitignore'))->toBe(\ExeQue\Monocle\Install\GitignoreWriter::COMMENT."\n/storage/monocle/\n/.monocle.json\n");
 
         file_put_contents($this->dir.'/.monocle.json', '{"editor":"zed"}');
 

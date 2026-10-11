@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Lenses\Middleware\TimedMiddleware;
 use ExeQue\Monocle\Lenses\MiddlewareLens;

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Reader;
+
 use ExeQue\Monocle\Console\CompareCommand;
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Mcp\Tools\CompareCaptures;

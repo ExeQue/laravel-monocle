@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use ExeQue\Monocle\Eyepiece;

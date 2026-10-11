@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Lenses\CommandLens;
 use ExeQue\Monocle\Reader\CaptureReader;
@@ -47,7 +49,7 @@ describe(CommandLens::class, function (): void {
         Artisan::call('monocle-test:ping', ['name' => 'ada']);
 
         $capture = latestCapture();
-        $summary = app(ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture);
+        $summary = app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture);
 
         expect($capture->section('command')['class'])->toBeNull()
             ->and($capture->sections)->not->toHaveKey('request')
@@ -60,7 +62,7 @@ describe(CommandLens::class, function (): void {
     it('records the class behind a command', function (): void {
         Artisan::call('env');
 
-        expect(latestCapture()->section('command')['class'])->toBe(Illuminate\Foundation\Console\EnvironmentCommand::class);
+        expect(latestCapture()->section('command')['class'])->toBe(\Illuminate\Foundation\Console\EnvironmentCommand::class);
     });
 
     it('records nested commands as spans inside the active capture', function () use ($count): void {
@@ -77,17 +79,17 @@ describe(CommandLens::class, function (): void {
     });
 
     it('never records the Monocle MCP server process', function () use ($count): void {
-        $input = new Symfony\Component\Console\Input\ArrayInput(
+        $input = new \Symfony\Component\Console\Input\ArrayInput(
             ['handle' => 'monocle'],
-            new Symfony\Component\Console\Input\InputDefinition([new Symfony\Component\Console\Input\InputArgument('handle')]),
+            new \Symfony\Component\Console\Input\InputDefinition([new \Symfony\Component\Console\Input\InputArgument('handle')]),
         );
-        $output = new Symfony\Component\Console\Output\NullOutput();
+        $output = new \Symfony\Component\Console\Output\NullOutput();
 
-        event(new Illuminate\Console\Events\CommandStarting('mcp:start', $input, $output));
-        event(new Illuminate\Console\Events\CommandFinished('mcp:start', $input, $output, 0));
+        event(new \Illuminate\Console\Events\CommandStarting('mcp:start', $input, $output));
+        event(new \Illuminate\Console\Events\CommandFinished('mcp:start', $input, $output, 0));
 
         expect($count('command'))->toBe(0)
-            ->and(app(ExeQue\Monocle\Eyepiece::class)->active())->toBeNull();
+            ->and(app(\ExeQue\Monocle\Eyepiece::class)->active())->toBeNull();
     });
 
     it('ignores excepted commands', function () use ($count): void {

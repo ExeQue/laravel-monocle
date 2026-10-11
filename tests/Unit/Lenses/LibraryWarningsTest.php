@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Lenses;
+
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
@@ -60,7 +62,7 @@ describe('warnings for library code', function (): void {
         $span = fn (string $id, string $class): array => ['id' => $id, 'kind' => 'middleware.request', 'name' => class_basename($class), 'start' => 0, 'end' => 80, 'meta' => ['class' => $class]];
         $lens = new MiddlewareLens();
 
-        expect($lens->summarize($capture([], [$span('a', Illuminate\Session\Middleware\StartSession::class)]))['warnings'])->toBe([])
-            ->and($lens->summarize($capture([], [$span('b', ExeQue\Monocle\Http\Middleware\Authorize::class)]))['warnings'])->toHaveCount(1);
+        expect($lens->summarize($capture([], [$span('a', \Illuminate\Session\Middleware\StartSession::class)]))['warnings'])->toBe([])
+            ->and($lens->summarize($capture([], [$span('b', \ExeQue\Monocle\Http\Middleware\Authorize::class)]))['warnings'])->toHaveCount(1);
     });
 });

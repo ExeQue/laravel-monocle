@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Unit\Editor;
+
 use ExeQue\Monocle\Editor\Editor;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Editor\EditorSettings;

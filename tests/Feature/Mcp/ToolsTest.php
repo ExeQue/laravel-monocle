@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Mcp;
+
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
 use ExeQue\Monocle\Mcp\Tools\ListCaptures;
@@ -16,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 
-covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearCaptures::class, ExeQue\Monocle\Mcp\Tools\ListLenses::class, Viewfinder::class, SummaryBuilder::class, TimelineBuilder::class);
+covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearCaptures::class, \ExeQue\Monocle\Mcp\Tools\ListLenses::class, Viewfinder::class, SummaryBuilder::class, TimelineBuilder::class);
 
 /**
  * Run the tool through the MCP server (asserting success) and return the same
@@ -135,7 +137,7 @@ describe('MCP tools', function (): void {
     });
 
     it('lists the enabled lenses with their section keys', function (): void {
-        MonocleServer::tool(ExeQue\Monocle\Mcp\Tools\ListLenses::class)
+        MonocleServer::tool(\ExeQue\Monocle\Mcp\Tools\ListLenses::class)
             ->assertOk()
             ->assertSee(['section', 'queries', 'cache', 'Every executed query']);
     });

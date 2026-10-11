@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\LogLens;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 covers(LogLens::class);
 

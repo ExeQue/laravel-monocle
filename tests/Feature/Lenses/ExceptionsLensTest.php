@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Lenses\ExceptionsLens;
 use Illuminate\Support\Facades\Route;
+use LogicException;
+use RuntimeException;
 
 covers(ExceptionsLens::class);
 

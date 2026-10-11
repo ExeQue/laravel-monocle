@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Console;
+
 use ExeQue\Monocle\Console\EditorCommand;
 use ExeQue\Monocle\Install\Environment;
 

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Tests\Feature\Lenses;
+
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
@@ -61,7 +63,7 @@ describe(ViewsLens::class, function (): void {
     });
 
     it('names inline templates after the component that rendered them', function (): void {
-        Blade::component(Tests\Fixtures\Components\InlineGreeting::class, 'greeting');
+        Blade::component(\Tests\Fixtures\Components\InlineGreeting::class, 'greeting');
         Route::get('/inline', fn () => view('with-greeting')->render().Blade::render('{{ $n }}', ['n' => 1]));
 
         $this->get('/inline')->assertOk()->assertSee('Hi');
