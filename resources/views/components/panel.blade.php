@@ -14,7 +14,7 @@
         <dl class="m-0 flex flex-wrap gap-x-6 gap-y-2">
             <template x-for="t in tabTotals" :key="t[0]">
                 <div class="flex flex-col-reverse">
-                    <dt class="text-muted text-xs first-letter:uppercase" x-text="totalLabel(t)"></dt>
+                    <dt class="text-muted text-xs" x-text="totalTitle(t)"></dt>
                     <dd class="m-0 text-lg font-bold tabular-nums" :class="totalTone(t)" x-text="totalValue(t)"></dd>
                 </div>
             </template>

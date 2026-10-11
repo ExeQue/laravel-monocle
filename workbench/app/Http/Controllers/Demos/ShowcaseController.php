@@ -28,6 +28,7 @@ use Workbench\App\Ai\PackingAdvisor;
 use Workbench\App\Ai\TripPlanner;
 use Workbench\App\Events\PaymentCharged;
 use Workbench\App\Events\PostPublished;
+use Workbench\App\Exceptions\PaymentDeclinedException;
 use Workbench\App\Jobs\ProcessReport;
 use Workbench\App\Mail\OrderShipped;
 use Workbench\App\Models\Post;
@@ -164,7 +165,7 @@ final class ShowcaseController
         $stats = Http::withHeaders(['X-Api-Key' => 'live_8f2c41d09a7e4b3c'])
             ->get('https://api.example.test/posts/'.$post->id.'/stats', ['access_token' => 'tok_5d1e9c0b7a2f'])
             ->json();
-        Http::pool(fn ($pool) => [
+        $shared = Http::pool(fn ($pool) => [
             $pool->as('mastodon')->withToken('mastodon_3a9f7c2e1b8d4f60')->post('https://social.example.test/mastodon/share', ['post' => $post->id]),
             $pool->as('bluesky')->withToken('bsky_6e0d2b9a4c7f1e35')->post('https://social.example.test/bluesky/share', ['post' => $post->id]),
             $pool->as('linkedin')->withToken('li_9c4b1f7e2a0d6b83')->post('https://social.example.test/linkedin/share', [
@@ -175,6 +176,11 @@ final class ShowcaseController
             ]),
             $pool->as('webhook')->connectTimeout(2)->post('https://hooks.monocle-demo.invalid/published', ['post' => $post->id]),
         ]);
+
+        // The webhook host does not exist: the library's exception is reported and publishing carries on.
+        if ($shared['webhook'] instanceof ConnectionException) {
+            report($shared['webhook']);
+        }
 
         // A real call, so its transfer timing (dns, connect, tls, wait, download) is recorded.
         try {
@@ -233,6 +239,7 @@ final class ShowcaseController
     {
         PaymentCharged::dispatch(4900, 'DKK', $author->name, 'visa •••• 4242', 'paid');
         PaymentCharged::dispatch(1900, 'DKK', 'Grace Hopper', 'mastercard •••• 4444', 'declined', 'insufficient funds');
+        report(new PaymentDeclinedException('Card mastercard •••• 4444 was declined: insufficient funds.'));
         PaymentCharged::dispatch(2500, 'DKK', 'Alan Turing', 'amex •••• 0005', 'failed', 'gateway timeout');
     }
 

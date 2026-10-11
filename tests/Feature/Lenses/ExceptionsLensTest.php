@@ -34,12 +34,61 @@ describe(ExceptionsLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['class' => RuntimeException::class, 'message' => 'kaboom', 'code' => 42])
             ->and($rows[0]['file'])->toContain('ExceptionsLensTest.php:')
             ->and($rows[0]['frames'])->toBeArray()
-            ->and($rows[0]['previous'][0])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause']);
+            ->and($rows[0]['previous'][0])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause'])
+            ->and($rows[0])->toMatchArray(['source' => 'native', 'unhandled' => true]);
 
         $summary = app(ExceptionsLens::class)->summarize($capture);
 
-        expect($summary->totals)->toBe(['exceptions' => 1])
+        expect($summary->totals)->toBe(['exceptions' => 1, 'exceptions_unhandled' => 1, 'exceptions_distinct' => 0, 'exceptions_from_native' => 1])
             ->and($summary->errors[0])->toStartWith('RuntimeException: kaboom (');
+    });
+
+    it('counts exceptions the request carried on after by source and class', function (): void {
+        Route::get('/reported', function () {
+            report(new RuntimeException('first'));
+            report(new RuntimeException('second'));
+            report(new \Illuminate\Http\Client\ConnectionException('offline'));
+            report(new class ('ours') extends RuntimeException {});
+
+            return 'ok';
+        });
+
+        $this->get('/reported')->assertOk();
+
+        $capture = latestCapture();
+
+        expect(array_column($capture->rows('exceptions'), 'source'))->toBe(['native', 'native', 'laravel/framework', 'app'])
+            ->and(array_column($capture->rows('exceptions'), 'unhandled'))->toBe([false, false, false, false])
+            ->and(app(ExceptionsLens::class)->summarize($capture)->totals)->toBe([
+                'exceptions' => 4,
+                'exceptions_unhandled' => 0,
+                'exceptions_distinct' => 3,
+                'exceptions_from_native' => 2,
+                'exceptions_from_app' => 1,
+                'exceptions_from_laravel/framework' => 1,
+            ]);
+    });
+
+    it('marks nothing unhandled once the capture is gone or forgotten', function (): void {
+        $eyepiece = app(\ExeQue\Monocle\Eyepiece::class);
+        $lens = collect(app(\ExeQue\Monocle\LensRegistry::class)->booted())->first(fn ($lens): bool => $lens instanceof ExceptionsLens);
+        $exception = new RuntimeException('late');
+        $response = new \Illuminate\Http\Response()->withException($exception);
+
+        $eyepiece->start(\ExeQue\Monocle\Enums\CaptureType::Request);
+        report($exception);
+        $capture = $eyepiece->finalize();
+
+        event(new \Illuminate\Foundation\Http\Events\RequestHandled(request(), $response));
+
+        $eyepiece->start(\ExeQue\Monocle\Enums\CaptureType::Request);
+        report($exception);
+        $lens->reset();
+
+        event(new \Illuminate\Foundation\Http\Events\RequestHandled(request(), $response));
+
+        expect($capture->rows('exceptions')[0]['unhandled'])->toBeFalse()
+            ->and($eyepiece->finalize()->rows('exceptions')[0]['unhandled'])->toBeFalse();
     });
 
     it('does not record exceptions the handler ignores', function (): void {
@@ -94,6 +143,6 @@ describe(ExceptionsLens::class, function (): void {
             ->and($lens->advice())->toStartWith('Look here first when something went wrong')
             ->and($presentation->tabView)->toBe('monocle::tabs.exceptions')
             ->and($presentation->detailsView)->toBe('monocle::details.exception')
-            ->and($presentation->groupings)->toBe(['class' => 'by exception']);
+            ->and($presentation->groupings)->toBe(['class' => 'by exception', 'source' => 'by source']);
     });
 });

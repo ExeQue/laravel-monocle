@@ -22,3 +22,9 @@ export function totalValue([, v, unit]) {
 export function totalLabel([k, , , label]) {
   return label ?? humanize(k.replace(/_(ms|mb|rate)$/, '').replace(/_bytes(?=_|$)/, '')).toLowerCase();
 }
+
+/** The label as a caption: capitalised, except a package name such as laravel/framework. */
+export function totalTitle(total) {
+  const label = totalLabel(total);
+  return label.includes('/') ? label : label.charAt(0).toUpperCase() + label.slice(1);
+}
