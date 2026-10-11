@@ -321,6 +321,9 @@ final readonly class TimelinePresenter
             return [];
         }
 
+        // URLs are not paths; leave them out so their host and path are not mistaken for files.
+        $text = (string) preg_replace('#\b[a-z][\w+.-]*://\S+#i', ' ', $text);
+
         preg_match_all('#[\w.-]*(?:/[\w.-]+)+\.[a-z]{2,5}(?::\d+)?|\\\\?[A-Za-z_]\w*(?:\\\\[A-Za-z_]\w*)+(?:(?:->|::|@)\w+(?:\(\))?)?#', $text, $matches);
         $links = [];
 

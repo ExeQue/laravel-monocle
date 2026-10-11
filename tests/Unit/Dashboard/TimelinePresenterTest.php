@@ -44,7 +44,8 @@ describe(TimelinePresenter::class, function (): void {
             'app/Livewire/Gallery.php:44' => 'vscode://file/app/app/Livewire/Gallery.php:44',
             TimelinePresenter::class.'->present' => $presenter->link(TimelinePresenter::class.'->present'),
         ])
-            ->and((new TimelinePresenter(new EditorLinks(null, '/app')))->textLinks($warning))->toBe([]);
+            ->and((new TimelinePresenter(new EditorLinks(null, '/app')))->textLinks($warning))->toBe([])
+            ->and($presenter->textLinks('HTTP call failed: POST https://hooks.example.invalid/published (see https://curl.se/libcurl/c/libcurl-errors.html)'))->toBe([]);
     });
 
     it('passes on only colours the dashboard can draw', function (): void {
