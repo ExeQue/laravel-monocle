@@ -397,7 +397,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       });
     }
 
-    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: 'Tabs', kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
+    // The tabs are the open capture's, so their group carries its name (GET /demo/missing-page).
+    const tabGroup = this.summary.name ?? 'Tabs';
+    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: tabGroup, groupIsName: true, kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
     const byType = types.flatMap((type) => this.captures.filter((c) => c.type === type).map((c) => capture(c, groupOf[type])));
 
     const match = searchMatcher(this.palette.query);
@@ -406,7 +408,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       return [...quick, ...tabs, ...byType.filter((item) => (shown[item.group] = (shown[item.group] ?? 0) + 1) <= 5)];
     }
 
-    const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
+    const groups = ['Quick actions', tabGroup, ...types.map((type) => groupOf[type])];
     return [...quick, ...tabs, ...byType]
       .map((item) => ({ item, score: match(item) }))
       .filter((match) => match.score !== null)

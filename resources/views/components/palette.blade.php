@@ -32,7 +32,8 @@
             <template x-for="(item, i) in paletteItems" :key="item.id">
                 <li role="none">
                     <div
-                        class="text-muted px-3 pt-2.5 pb-1 text-[11px] tracking-wider uppercase"
+                        class="text-muted px-3 pt-2.5 pb-1 text-[11px]"
+                        :class="item.groupIsName ? 'font-mono' : 'tracking-wider uppercase'"
                         role="presentation"
                         x-show="i === 0 || paletteItems[i - 1].group !== item.group"
                         x-text="item.group"
