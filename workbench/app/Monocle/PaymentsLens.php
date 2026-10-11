@@ -80,10 +80,9 @@ final class PaymentsLens implements Lens, Presentable, Summarizable
             ->total('payments_charged', number_format($charged / 100, 2).' '.$payments[0]['currency'])
             ->total('payments_declined', count($declined));
 
-        foreach ($declined as $payment) {
-            $summary->warning("Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.");
-        }
-
-        return $summary;
+        return $summary->warning(array_map(
+            fn (array $payment): string => "Payment of {$payment['amount']} {$payment['currency']} from {$payment['customer']} declined: {$payment['decline_reason']}.",
+            array_values($declined),
+        ));
     }
 }

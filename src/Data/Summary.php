@@ -32,9 +32,14 @@ final class Summary
         return $this;
     }
 
-    public function warning(string $warning): self
+    /**
+     * @param  string|list<string>  $warning  one warning, or several
+     */
+    public function warning(string|array $warning): self
     {
-        $this->warnings[] = $warning;
+        foreach ((array) $warning as $text) {
+            $this->warnings[] = $text;
+        }
 
         return $this;
     }

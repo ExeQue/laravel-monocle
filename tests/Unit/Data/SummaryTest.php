@@ -19,6 +19,10 @@ describe(Summary::class, function (): void {
             ->and($summary->warnings())->toBe(['Payment declined.']);
     });
 
+    it('takes several warnings at once', function (): void {
+        expect(Summary::make()->warning(['a', 'b'])->warning('c')->warnings())->toBe(['a', 'b', 'c']);
+    });
+
     it('takes totals and warnings up front too', function (): void {
         $summary = (new Summary(totals: ['a' => 1], warnings: ['w']))->total('b', 2);
 
