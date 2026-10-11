@@ -18,7 +18,7 @@ describe(RecordingInvokedProcess::class, function (): void {
     });
 
     it('passes the process api through to the wrapped background process', function (): void {
-        $process = Process::start(['php', '-r', 'echo "out"; fwrite(STDERR, "err"); sleep(5);']);
+        $process = Process::start(['php', '-r', 'echo "out"; fwrite(STDERR, "err"); sleep(30);']);
         $seen = [];
 
         $process->waitUntil(function (string $type) use (&$seen): bool {
@@ -31,7 +31,7 @@ describe(RecordingInvokedProcess::class, function (): void {
 
         expect($process)->toBeInstanceOf(RecordingInvokedProcess::class)
             ->and($process->id())->toBeInt()->toBeGreaterThan(0)
-            ->and($process->command())->toBe("'php' '-r' 'echo \"out\"; fwrite(STDERR, \"err\"); sleep(5);'")
+            ->and($process->command())->toBe("'php' '-r' 'echo \"out\"; fwrite(STDERR, \"err\"); sleep(30);'")
             ->and($process->output())->toBe('out')
             ->and($process->errorOutput())->toBe('err')
             ->and($process->latestOutput())->toBe('out')
