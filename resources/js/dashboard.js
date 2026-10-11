@@ -392,7 +392,7 @@ Alpine.data('monocle', (config) => ({
     for (const row of rows.slice(0, 20)) for (const k of Object.keys(row)) if (!keys.includes(k) && k !== 'n' && k !== '_links') keys.push(k);
     const blank = (v) => v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
     let used = keys.filter((k) => rows.some((row) => !blank(row[k])));
-    if (used.includes('duration')) used = used.filter((k) => k !== 'time');
+    if (used.includes('duration')) used = used.filter((k) => k !== 'time' && k !== 'self_ms');
     return used.filter((k) => k !== 'origin').slice(0, 8).concat(used.includes('origin') ? ['origin'] : []);
   },
 
@@ -417,7 +417,13 @@ Alpine.data('monocle', (config) => ({
   cell(row, key) {
     const v = row[key];
     if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${maybeLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
-    if (key === 'duration' && typeof v === 'number' && typeof row.time === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span><span class="block whitespace-nowrap text-[11px] text-muted">at ${esc(ms(row.time))}</span>`;
+    if (key === 'duration' && typeof v === 'number') {
+      const sub = [
+        typeof row.self_ms === 'number' && Math.abs(v - row.self_ms) >= 0.05 ? `self ${ms(row.self_ms)}` : null,
+        typeof row.time === 'number' ? `at ${ms(row.time)}` : null,
+      ].filter(Boolean);
+      return `<span class="whitespace-nowrap">${esc(ms(v))}</span>${sub.map((t) => `<span class="block whitespace-nowrap text-[11px] text-muted">${esc(t)}</span>`).join('')}`;
+    }
     if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
     if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
     if (key === 'type' && (v === 'miss' || v === 'failed')) return `<span class="font-medium text-warn">${esc(v)}</span>`;
