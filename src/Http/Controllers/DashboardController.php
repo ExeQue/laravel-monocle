@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Http\Controllers;
 
 use Composer\InstalledVersions;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\View\View;
 
@@ -21,8 +22,12 @@ final class DashboardController
             $tabs[$lens->key()] = $tabView ?? 'monocle::tabs.table';
         }
 
+        $labels = array_filter(array_map(fn (Presentation $presentation): ?string => $presentation->label, $registry->presentations()));
+
         return view('monocle::dashboard', [
             'tabs' => $tabs,
+            // Section names as the tabs show them, where a lens gives one; the dashboard humanizes the rest.
+            'labels' => $labels,
             'api' => route('monocle.api.captures'),
             // The project's root, which holds the application even when base_path() lives deeper (Testbench).
             'paths' => ['base' => realpath(InstalledVersions::getRootPackage()['install_path']) ?: base_path()],

@@ -40,7 +40,7 @@ const hiddenNames = {
 
 
 /**
- * How well `query` matches `text` when its letters appear in order ("htc" in "HTTP client"):
+ * How well `query` matches `text` when its letters appear in order ("qrs" in "Queries"):
  * lower is closer (a tighter, earlier run of letters), null when they do not all appear.
  */
 const fuzzyScore = (query, text) => {
@@ -343,7 +343,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const types = ['request', 'command', 'job', 'mcp'];
     const typeName = (type) => (type === 'mcp' ? 'MCP call' : type);
     const groupOf = { request: 'Requests', command: 'Commands', job: 'Jobs', mcp: 'MCP' };
-    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, sections: Object.keys(c.counts ?? {}), run: () => this.select(c.id, this.tab) });
+    const capture = (c, group, label = c.name, hint = ago(c.started_at)) => ({ id: `${group}:${c.id}`, group, kind: shortType(c.type), label, hint, status: c.status, sections: Object.keys(c.counts ?? {}).flatMap((key) => [key, config.labels?.[key] ?? humanize(key)]), run: () => this.select(c.id, this.tab) });
 
     const quick = types
       .map((type) => this.captures.find((c) => c.type === type))
@@ -362,34 +362,38 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       });
     }
 
-    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: 'Tabs', kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key], run: () => this.openTab(t.key) }));
+    const tabs = this.tabs.map((t) => ({ id: `tab:${t.key}`, group: 'Tabs', kind: 'tab', label: t.label, hint: t.count ? String(t.count) : '', sections: [t.key, t.label], run: () => this.openTab(t.key) }));
     const byType = types.flatMap((type) => this.captures.filter((c) => c.type === type).map((c) => capture(c, groupOf[type])));
 
-    const query = this.palette.query.trim().toLowerCase();
-    if (!query) {
+    // "|" splits the search into alternatives; the words on each side must all match.
+    const alternatives = this.palette.query.toLowerCase().split('|')
+      .map((side) => side.split(/\s+/).filter((word) => word.replace(/^[#$]/, '')))
+      .filter((words) => words.length);
+    if (!alternatives.length) {
       const shown = {};
       return [...quick, ...tabs, ...byType.filter((item) => (shown[item.group] = (shown[item.group] ?? 0) + 1) <= 5)];
     }
 
     const groups = ['Quick actions', 'Tabs', ...types.map((type) => groupOf[type])];
     // Every word has to match: "404 demo" finds 404s under /demo. "#req" matches the kind only,
-    // "$live" a section the capture has (livewire), each section on its own.
-    const words = query.split(/\s+/);
+    // "$live" a section the capture has, by its key or the name its tab shows (livewire, "Model changes").
     const best = (needle, haystacks) => haystacks
       .map((haystack) => fuzzyScore(needle, haystack.toLowerCase()))
       .reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
-    const scoreOf = (item) => {
+    const allOf = (item, words) => {
       const text = `${item.label} ${item.status ?? ''} ${item.kind}`;
       let total = 0;
       for (const word of words) {
-        const needle = /^[#$]/.test(word) ? word.slice(1) : word;
-        if (!needle) continue;
+        const needle = word.replace(/^[#$]/, '');
         const score = word.startsWith('#') ? best(needle, [item.kind]) : word.startsWith('$') ? best(needle, item.sections ?? []) : best(needle, [text]);
         if (score === null) return null;
         total += score;
       }
       return total;
     };
+    const scoreOf = (item) => alternatives
+      .map((words) => allOf(item, words))
+      .reduce((low, score) => (score === null || (low !== null && low <= score) ? low : score), null);
     return [...quick, ...tabs, ...byType]
       .map((item) => ({ item, score: scoreOf(item) }))
       .filter((match) => match.score !== null)

@@ -58,6 +58,11 @@ describe('dashboard', function (): void {
             $this->get('/_monocle/assets/secret.php')->assertNotFound();
         });
 
+        it('sends the names the tabs show for sections that have one', function (): void {
+            $this->get('/_monocle')->assertViewHas('labels', fn (array $labels): bool => ($labels['model_changes'] ?? null) === 'Changes'
+                && ! in_array(null, $labels, true));
+        });
+
         it('shows paths relative to the project root, not to the deeper Testbench base path', function (): void {
             $this->get('/_monocle')->assertViewHas('paths', ['base' => dirname(__DIR__, 3)]);
         });
