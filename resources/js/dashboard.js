@@ -50,11 +50,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   model: null,
   tab: 'overview',
   openGroups: [],
-  openQueries: [],
-  queryRows: {},
   tabData: null,
   tabLoading: false,
-  groupBy: 'order',
   rowGroups: {},
   logLevels: [],
   customDetails: {},
@@ -191,22 +188,14 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     try {
       const base = `${this.api}/${encodeURIComponent(this.selectedId)}`;
       this.openGroups = [];
-      this.openQueries = [];
       this.openRows = [];
       this.logLevels = [];
-      this.queryRows = tab === 'queries' && this.groupBy !== 'order'
-        ? Object.fromEntries(((await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)).rows ?? []).map((row) => [row.n, row]))
-        : {};
       // Sections the tab includes (auth on the request tab) come along under tabData.included.
       const included = {};
       for (const key of this.presentationOf(tab)?.includes ?? []) {
         if (this.summary.counts?.[key]) included[key] = (await this.fetchJson(`${base}/rows/${encodeURIComponent(key)}?limit=500&verbose=1`)).rows ?? [];
       }
-      const data = tab === 'queries' && this.groupBy === 'order'
-        ? await this.fetchJson(`${base}/rows/queries?limit=500&verbose=1`)
-        : tab === 'queries'
-        ? await this.fetchJson(`${base}/queries?group_by=${this.groupBy}&limit=200`)
-        : tab === 'trace'
+      const data = tab === 'trace'
           ? await this.fetchJson(`${base}/trace`)
           : await this.fetchJson(`${base}/rows/${encodeURIComponent(tab)}?limit=${this.presentationOf(tab)?.groupings?.length ? 500 : 100}&verbose=1`);
       this.tabData = { ...data, included };
@@ -341,12 +330,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
 
-  /** Original query row number => how many later queries repeat it. */
-  get duplicates() {
-    const counts = {};
-    for (const q of this.tabData?.rows ?? []) if (q.duplicate_of) counts[q.duplicate_of] = (counts[q.duplicate_of] ?? 0) + 1;
-    return counts;
-  },
+
 
 
 
@@ -454,9 +438,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
 
 
-  toggleQuery(n) {
-    this.openQueries = this.openQueries.includes(n) ? this.openQueries.filter((k) => k !== n) : [...this.openQueries, n];
-  },
+
 
 
   /** The groupings the open section offers, and the one picked. */

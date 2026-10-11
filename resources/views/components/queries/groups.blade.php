@@ -1,5 +1,5 @@
 {{-- Queries grouped by query, caller, table or transaction; a group folds out to its queries, a query to its details. --}}
-<div :class="cls.tableWrap" x-show="groupBy !== 'order' && tabData?.rows?.length">
+<div :class="cls.tableWrap" x-show="groupBy !== 'order' && groups.length">
     <table class="w-full border-collapse text-[13px]">
         <thead>
             <tr>
@@ -21,7 +21,7 @@
                 <th scope="col" :class="[cls.th, '!text-right']">Max</th>
             </tr>
         </thead>
-        <template x-for="q in groupBy === 'order' ? [] : (tabData?.rows ?? [])" :key="q.key">
+        <template x-for="q in groupBy === 'order' ? [] : groups" :key="q.key">
             <tbody>
                 <tr class="hover:bg-sunk group/copy cursor-pointer" @click="toggleGroup(q.key)">
                     <td :class="cls.td">
@@ -68,11 +68,11 @@
                                 <div class="border-line border-b last:border-b-0">
                                     <div
                                         class="hover:bg-sunk group/copy grid cursor-pointer grid-cols-[3.5rem_minmax(0,1fr)_auto] gap-x-3 px-3 py-1.5 text-xs"
-                                        @click="toggleQuery(n)"
+                                        @click="toggle(n)"
                                     >
                                         <x-monocle::expand-button
-                                            open="openQueries.includes(n)"
-                                            toggle="toggleQuery(n)"
+                                            open="open.includes(n)"
+                                            toggle="toggle(n)"
                                             label="'the details of query ' + n"
                                             chevron="size-3"
                                             class="text-muted"
@@ -83,30 +83,28 @@
                                             <span class="flex items-start gap-1.5">
                                                 <code
                                                     class="block font-mono [overflow-wrap:anywhere] whitespace-pre-wrap"
-                                                    x-text="
-                                                        queryRows[n]?.sql_with_bindings ?? queryRows[n]?.sql ?? '...'
-                                                    "
+                                                    x-text="rows[n]?.sql_with_bindings ?? rows[n]?.sql ?? '...'"
                                                 ></code>
                                                 <x-monocle::copy
-                                                    bind="queryRows[n]?.sql_with_bindings ?? queryRows[n]?.sql ?? ''"
+                                                    bind="rows[n]?.sql_with_bindings ?? rows[n]?.sql ?? ''"
                                                     what="query"
                                                     hover
                                                 />
                                             </span>
-                                            <span x-html="cell(queryRows[n] ?? {}, 'origin')"></span>
+                                            <span x-html="cell(rows[n] ?? {}, 'origin')"></span>
                                             <span
                                                 class="text-muted font-mono text-[11px]"
-                                                x-text="queryRows[n]?.connection ?? ''"
+                                                x-text="rows[n]?.connection ?? ''"
                                             ></span>
                                         </div>
                                         <span
                                             class="text-right whitespace-nowrap tabular-nums"
-                                            x-html="queryRows[n] ? cell(queryRows[n], 'duration') : ''"
+                                            x-html="rows[n] ? cell(rows[n], 'duration') : ''"
                                         ></span>
                                     </div>
                                     <x-monocle::collapse
-                                        open="openQueries.includes(n)"
-                                        html="queryRows[n] ? details(queryRows[n], 'queries') : ''"
+                                        open="open.includes(n)"
+                                        html="rows[n] ? details(rows[n], 'queries') : ''"
                                         class="pr-3 pb-3 pl-[5rem]"
                                     />
                                 </div>

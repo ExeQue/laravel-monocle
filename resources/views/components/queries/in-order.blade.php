@@ -14,12 +14,12 @@
                 <tr
                     class="hover:bg-sunk cursor-pointer"
                     :class="q.duplicate_of ? 'bg-warn-soft/60' : ''"
-                    @click="toggleQuery(q.n)"
+                    @click="toggle(q.n)"
                 >
                     <td :class="cls.td" class="text-muted w-0 font-mono text-xs whitespace-nowrap tabular-nums">
                         <x-monocle::expand-button
-                            open="openQueries.includes(q.n)"
-                            toggle="toggleQuery(q.n)"
+                            open="open.includes(q.n)"
+                            toggle="toggle(q.n)"
                             label="'the details of query ' + q.n"
                             chevron="size-3"
                             class=""
@@ -44,8 +44,8 @@
                             ></span>
                             <span
                                 class="bg-warn-soft text-warn rounded px-1.5 font-mono text-[10.5px]"
-                                x-show="duplicates[q.n]"
-                                x-text="'repeated ' + duplicates[q.n] + '×'"
+                                x-show="q.repeated"
+                                x-text="'repeated ' + q.repeated + '×'"
                             ></span>
                             <span
                                 class="bg-warn-soft text-warn rounded px-1.5 font-mono text-[10.5px]"
@@ -71,13 +71,9 @@
                         "
                     ></td>
                 </tr>
-                <tr x-show="openQueries.includes(q.n)" x-cloak>
+                <tr x-show="open.includes(q.n)" x-cloak>
                     <td colspan="4" class="border-line bg-sunk/50 border-b px-3 py-0">
-                        <x-monocle::collapse
-                            open="openQueries.includes(q.n)"
-                            html="details(q, 'queries')"
-                            class="py-3"
-                        />
+                        <x-monocle::collapse open="open.includes(q.n)" html="details(q, 'queries')" class="py-3" />
                     </td>
                 </tr>
             </tbody>

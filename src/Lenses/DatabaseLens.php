@@ -60,7 +60,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     public function description(): string
     {
-        return 'Every executed query, plus transaction statements (BEGIN TRANSACTION, COMMIT, ROLLBACK and savepoints, type transaction, no duration): sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query), n_plus_one (how often its shape ran, on selects that look like an N+1). Transactions are db.transaction spans in the timeline.';
+        return 'Every executed query, plus transaction statements (BEGIN TRANSACTION, COMMIT, ROLLBACK and savepoints, type transaction, no duration): sql, bindings, sql_with_bindings, connection, duration, type, tables, shape (normalized SQL for grouping), transaction_id, slow flag, duplicate_of (row number of the identical earlier query), n_plus_one (how often its shape ran, on selects that look like an N+1), repeated (on the first of identical queries: how many later ones repeated it). Transactions are db.transaction spans in the timeline.';
     }
 
     public function advice(): string
@@ -93,6 +93,22 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         }
 
         $this->markNPlusOne($capture);
+        $this->markRepeats($capture);
+    }
+
+    /**
+     * Gives the first of identical queries a `repeated` count: how many later
+     * queries ran it again.
+     */
+    private function markRepeats(Capture $capture): void
+    {
+        $repeats = array_count_values(array_filter(array_column($capture->sections['queries'] ?? [], 'duplicate_of')));
+
+        foreach ($capture->sections['queries'] ?? [] as $index => $row) {
+            if (isset($repeats[$row['n'] ?? 0])) {
+                $capture->sections['queries'][$index]['repeated'] = $repeats[$row['n']];
+            }
+        }
     }
 
     /**

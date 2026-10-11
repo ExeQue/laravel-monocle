@@ -122,6 +122,7 @@ describe(DatabaseLens::class, function (): void {
             ->and(implode(' ', $summary->warnings))->toContain('Possible N+1: 3 x')
             ->and(implode(' ', $summary->warnings))->not->toContain('"name"')
             ->and(array_column($capture->rows('queries'), 'n_plus_one', 'n'))->toBe([1 => 3, 2 => 3, 3 => 3])
+            ->and(array_column($capture->rows('queries'), 'repeated', 'n'))->toBe([4 => 2])
             ->and(app(\ExeQue\Monocle\Reader\SummaryBuilder::class)->build($capture, children: false)['problems']['queries']['warnings'] ?? 0)->toBeGreaterThan(0)
             ->and(\ExeQue\Monocle\Storage\Index::summarize($capture)['warnings'])->toBeGreaterThan(0);
     });
