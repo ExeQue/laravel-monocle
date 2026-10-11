@@ -169,7 +169,7 @@ export function renderTimeline(model, kinds) {
     };
   };
 
-  const spanRow = (n, depth) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" aria-haspopup="dialog">
+  const spanRow = (n, depth) => `<div class="${ROW} wf-click cursor-pointer focus-visible:outline-offset-[-2px]" data-node="${n.id}" tabindex="0" role="button" aria-haspopup="dialog">
       <span class="${NAME}" style="padding-left:${10 + depth * 12}px"><span class="${KIND}">${n.kind}</span></span>
       <div class="${TRACK}"><span class="absolute top-[7px] h-3 min-w-0.5 rounded-sm shadow-[0_0_0_1px_var(--panel)]" title="${esc(describe(n))} · ${ms(n.e - n.s)}" style="left:${pct(n.s)}%;width:${pct(n.e) - pct(n.s)}%;background:${colorOf(n)}"></span>${label(describe(n), n.s, n.e)}</div>
       <span class="${DUR}">${ms(n.e - n.s)}</span>
