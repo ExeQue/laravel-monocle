@@ -14,7 +14,7 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Request\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;

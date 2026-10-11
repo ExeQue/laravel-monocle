@@ -3,10 +3,6 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Install\ConfigPublisher;
-use ExeQue\Monocle\Lenses\CacheLens;
-use ExeQue\Monocle\Lenses\DatabaseLens;
-use ExeQue\Monocle\Lenses\EventsLens;
-use ExeQue\Monocle\Lenses\RequestLens;
 
 covers(ConfigPublisher::class);
 
@@ -37,38 +33,13 @@ describe(ConfigPublisher::class, function (): void {
         exec('rm -rf '.escapeshellarg(dirname($this->target, 2)));
     });
 
-    it('lists every lens in the shipped config', function (): void {
-        $lenses = $this->publisher->lensesIn();
-
-        expect($lenses)->toContain(RequestLens::class, DatabaseLens::class, CacheLens::class)
-            ->and(count($lenses))->toBe(26);
-    });
-
-    it('turns unchosen lenses off whether they are booleans or option arrays, keeping comments', function (): void {
-        $rendered = $this->publisher->render(['lenses' => [RequestLens::class, CacheLens::class]]);
-
-        expect($rendered)->toContain("        RequestLens::class => [\n            'capture' => [\n                'response_types' => [\n                    'application/json' => JsonCapture::class,\n                    'application/*+json' => JsonCapture::class,\n                    'text/html' => InertiaCapture::class,\n                ],\n                'headers' => [\n                    'X-Inertia' => InertiaCapture::class,\n                ],\n                'routes' => [\n                    '*livewire.update' => LivewireUpdateCapture::class,\n                ],\n            ],\n        ],")
-            ->and($rendered)->toContain('        DatabaseLens::class => false,')
-            ->and($rendered)->toContain('        EventsLens::class => false,')
-            ->and($rendered)->not->toContain("'n_plus_one_threshold'")
-            ->and($rendered)->toContain("        CacheLens::class => [\n            'values' => false,\n            'repeat_threshold' => 5,\n            'repeat_ms' => 5,\n        ],")
-            ->and($rendered)->toContain('| Lenses');
-
+    it('writes the storage driver and limit, keeping comments', function (): void {
+        $rendered = $this->publisher->render(['driver' => 'cache', 'limit' => 50]);
         $config = loadRenderedConfig($rendered);
 
-        expect($config['lenses'][DatabaseLens::class])->toBeFalse()
-            ->and($config['lenses'][EventsLens::class])->toBeFalse()
-            ->and($config['lenses'][CacheLens::class])->toBe(['values' => false, 'repeat_threshold' => 5, 'repeat_ms' => 5]);
-    });
-
-    it('writes disks, driver and limit', function (): void {
-        $rendered = $this->publisher->render(['disks' => ['media', 'uploads-*'], 'driver' => 'cache', 'limit' => 50]);
-        $config = loadRenderedConfig($rendered);
-
-        expect($rendered)->toContain("'disks' => ['media', 'uploads-*'],")
-            ->and($rendered)->toContain("env('MONOCLE_STORAGE', 'cache')")
-            ->and($config['storage']['limit'])->toBe(50)
-            ->and($this->publisher->render(['disks' => []]))->toContain("'disks' => [],");
+        expect($rendered)->toContain("env('MONOCLE_STORAGE', 'cache')")
+            ->and($rendered)->toContain('| Lenses')
+            ->and($config['storage']['limit'])->toBe(50);
     });
 
     it('publishes, reports updates and leaves identical files alone', function (): void {

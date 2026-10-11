@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\AiLens;
+use ExeQue\Monocle\Lenses\Packages\Ai\AiLens;
 use Laravel\Ai\Contracts\Providers\TextProvider;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses;
+namespace ExeQue\Monocle\Lenses\Packages\Ai;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;

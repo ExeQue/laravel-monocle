@@ -10,7 +10,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
 
-covers(ExeQue\Monocle\Lenses\Request\InertiaCapture::class, ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class, RequestLens::class);
+covers(ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class, ExeQue\Monocle\Lenses\Request\JsonCapture::class, ExeQue\Monocle\Lenses\Request\TextCapture::class, ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, RequestLens::class);
 
 describe(RequestLens::class, function (): void {
     beforeEach(function (): void {
@@ -125,7 +125,7 @@ describe(RequestLens::class, function (): void {
         $card = $request['response_capture']['cards'][0];
 
         expect($request['response_capture']['raw'])->toStartWith('{"components":')
-            ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class)
+            ->and($request['response_capture']['capture'])->toBe(ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class)
             ->and($card['title'])->toBe('counter')
             ->and($card['subtitle'])->toBe('abc')
             ->and($card['items']['calls'])->toBe([['name' => 'increment', 'params' => [1]], ['name' => 'dispatch refresh', 'params' => ['id' => 7]]])
@@ -151,7 +151,7 @@ describe(RequestLens::class, function (): void {
             $capture = latestCapture()->section('request')['response_capture'];
             $card = $capture['cards'][0];
 
-            expect($capture['capture'])->toBe(ExeQue\Monocle\Lenses\Request\InertiaCapture::class)
+            expect($capture['capture'])->toBe(ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class)
                 ->and($card['title'])->toBe('Orders/Show')
                 ->and($card['subtitle'])->toBe('/orders/7')
                 ->and($card['items']['visit'])->toBe('inertia')

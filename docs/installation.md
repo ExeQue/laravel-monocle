@@ -13,13 +13,13 @@ php artisan monocle:install
 
 `monocle:install` walks you through the setup:
 
-1. **Lenses** - what to record. Everything is selected; untick what you do not need.
-2. **Disks** - which `Storage` disks to record operations on.
-3. **Storage** - keep captures as files in `storage/monocle` (recommended) or in your cache.
-4. **How many captures to keep** - older ones are removed automatically.
-5. **Platform** - how your MCP client starts PHP. Detected for you.
-6. **MCP clients** - where to add the `monocle` server. If your project uses [Laravel Boost](https://laravel.com/docs/boost), this defaults to every agent Boost is set up for, in the files and format each agent uses.
-7. **Publish** - write `config/monocle.php` with your answers.
+1. **Storage** - keep captures as files in `storage/monocle` (recommended) or in your cache.
+2. **How many captures to keep** - older ones are removed automatically.
+3. **Platform** - how your MCP client starts PHP. Detected for you.
+4. **MCP clients** - where to add the `monocle` server. If your project uses [Laravel Boost](https://laravel.com/docs/boost), this defaults to every agent Boost is set up for, in the files and format each agent uses.
+5. **Publish** - write `config/monocle.php` with your answers.
+
+Every lens is on by default. Turn lenses off or change their options in `config/monocle.php` - see [Lenses](lenses.md).
 
 | Platform | Command written to the MCP config |
 |---|---|
@@ -49,7 +49,7 @@ Every answer has a flag:
 php artisan monocle:install --no-interaction \
     --platform=sail \
     --file=boost \
-    --publish --disk=media --driver=file --limit=200
+    --publish --driver=file --limit=200
 ```
 
 `--file=boost` adds the server to every Laravel Boost agent; any other value is a config file path, e.g. `--file=.mcp.json`. Without `--file`, Boost's agents are used when the project has a `boost.json`, otherwise `.mcp.json`.

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\ResponseCacheLens;
+use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
 use Illuminate\Http\Request;
 use Spatie\ResponseCache\Events\CacheMissedEvent;
 use Spatie\ResponseCache\Events\ClearedResponseCacheEvent;

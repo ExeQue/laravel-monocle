@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Mcp\TimedMethod;
-use ExeQue\Monocle\Lenses\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Mcp\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Mcp\TimedMethod;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
 use Illuminate\Testing\TestResponse;

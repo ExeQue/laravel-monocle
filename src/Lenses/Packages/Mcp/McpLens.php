@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses;
+namespace ExeQue\Monocle\Lenses\Packages\Mcp;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\Mcp\TimedMethod;
 use Illuminate\Contracts\Foundation\Application;
 use Laravel\Mcp\Server\Contracts\Method;
 use Laravel\Mcp\Server\Methods\CallTool;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\FeatureFlagsLens;
+use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
 use Laravel\Pennant\Events\FeatureDeleted;
 use Laravel\Pennant\Events\FeatureResolved;
 use Laravel\Pennant\Events\FeatureRetrieved;

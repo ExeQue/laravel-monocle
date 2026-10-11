@@ -6,7 +6,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\LensRegistry;
 
 covers(
-    ExeQue\Monocle\Lenses\AiLens::class,
+    ExeQue\Monocle\Lenses\Packages\Ai\AiLens::class,
     ExeQue\Monocle\Lenses\AuthorizationLens::class,
     ExeQue\Monocle\Lenses\CacheLens::class,
     ExeQue\Monocle\Lenses\CommandLens::class,
@@ -17,10 +17,10 @@ covers(
     ExeQue\Monocle\Lenses\ExceptionsLens::class,
     ExeQue\Monocle\Lenses\FilesystemLens::class,
     ExeQue\Monocle\Lenses\HttpClientLens::class,
-    ExeQue\Monocle\Lenses\LivewireLens::class,
+    ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens::class,
     ExeQue\Monocle\Lenses\LogLens::class,
     ExeQue\Monocle\Lenses\MailLens::class,
-    ExeQue\Monocle\Lenses\McpLens::class,
+    ExeQue\Monocle\Lenses\Packages\Mcp\McpLens::class,
     ExeQue\Monocle\Lenses\MiddlewareLens::class,
     ExeQue\Monocle\Lenses\QueueLens::class,
     ExeQue\Monocle\Lenses\RedisLens::class,

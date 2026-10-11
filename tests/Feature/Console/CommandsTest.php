@@ -71,27 +71,18 @@ describe(InstallCommand::class, function (): void {
     });
 
     it('publishes the config from flags when asked', function (): void {
-        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--publish' => true, '--disk' => ['media'], '--driver' => 'cache', '--limit' => '42', '--no-interaction' => true])
+        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--publish' => true, '--driver' => 'cache', '--limit' => '42', '--no-interaction' => true])
             ->expectsOutputToContain('config/monocle.php')
             ->assertSuccessful();
 
         $config = include config_path('monocle.php');
 
         expect($config['storage']['limit'])->toBe(42)
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class]['disks'])->toBe(['media']);
+            ->and($config['storage']['driver'])->toBe('cache');
     });
 
     it('asks for every choice interactively and publishes the result', function (): void {
-        $publisher = app(ExeQue\Monocle\Install\ConfigPublisher::class);
-        $lensOptions = [];
-
-        foreach ($publisher->lensesIn() as $class) {
-            $lensOptions[$class] = app($class)->key().' - '.substr($class, (int) strrpos($class, '\\') + 1);
-        }
-
         $this->artisan('monocle:install')
-            ->expectsChoice('Which lenses should record?', [ExeQue\Monocle\Lenses\RequestLens::class, ExeQue\Monocle\Lenses\DatabaseLens::class], $lensOptions)
-            ->expectsChoice('Record Storage operations on which disks?', ['*'], ['*' => 'All disks', ...array_combine(array_keys(config('filesystems.disks')), array_keys(config('filesystems.disks')))])
             ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
             ->expectsQuestion('How many captures should be kept?', '75')
             ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
@@ -103,9 +94,8 @@ describe(InstallCommand::class, function (): void {
         $config = include config_path('monocle.php');
 
         expect($config['storage']['limit'])->toBe(75)
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => ExeQue\Monocle\Lenses\Request\InertiaCapture::class], 'headers' => ['X-Inertia' => ExeQue\Monocle\Lenses\Request\InertiaCapture::class], 'routes' => ['*livewire.update' => ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture::class]]])
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->toBeFalse()
-            ->and($config['lenses'][ExeQue\Monocle\Lenses\FilesystemLens::class])->toBeFalse()
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'headers' => ['X-Inertia' => ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'routes' => ['*livewire.update' => ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class]]])
+            ->and($config['lenses'][ExeQue\Monocle\Lenses\CacheLens::class])->not->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
     });
 
@@ -131,16 +121,7 @@ describe(InstallCommand::class, function (): void {
     it('offers the Boost agents first and preselects them interactively', function (): void {
         file_put_contents($this->dir.'/boost.json', json_encode(['agents' => ['claude_code']]));
 
-        $publisher = app(ExeQue\Monocle\Install\ConfigPublisher::class);
-        $lensOptions = [];
-
-        foreach ($publisher->lensesIn() as $class) {
-            $lensOptions[$class] = app($class)->key().' - '.substr($class, (int) strrpos($class, '\\') + 1);
-        }
-
         $this->artisan('monocle:install')
-            ->expectsChoice('Which lenses should record?', array_keys($lensOptions), $lensOptions)
-            ->expectsChoice('Record Storage operations on which disks?', [], ['*' => 'All disks', ...array_combine(array_keys(config('filesystems.disks')), array_keys(config('filesystems.disks')))])
             ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
             ->expectsQuestion('How many captures should be kept?', '200')
             ->expectsChoice('How does your MCP client start PHP?', 'php', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])

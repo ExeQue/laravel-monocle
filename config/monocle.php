@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use ExeQue\Monocle\Lenses\AiLens;
 use ExeQue\Monocle\Lenses\AuthLens;
 use ExeQue\Monocle\Lenses\AuthorizationLens;
 use ExeQue\Monocle\Lenses\CacheLens;
@@ -12,22 +11,23 @@ use ExeQue\Monocle\Lenses\DumpLens;
 use ExeQue\Monocle\Lenses\EloquentLens;
 use ExeQue\Monocle\Lenses\EventsLens;
 use ExeQue\Monocle\Lenses\ExceptionsLens;
-use ExeQue\Monocle\Lenses\FeatureFlagsLens;
 use ExeQue\Monocle\Lenses\FilesystemLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
-use ExeQue\Monocle\Lenses\LivewireLens;
 use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
-use ExeQue\Monocle\Lenses\McpLens;
-use ExeQue\Monocle\Lenses\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
+use ExeQue\Monocle\Lenses\Packages\Ai\AiLens;
+use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
+use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
+use ExeQue\Monocle\Lenses\Packages\Mcp\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Pennant\FeatureFlagsLens;
+use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
+use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
-use ExeQue\Monocle\Lenses\Request\InertiaCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
-use ExeQue\Monocle\Lenses\Request\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\RequestLens;
-use ExeQue\Monocle\Lenses\ResponseCacheLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
@@ -142,17 +142,91 @@ return [
 
     'except' => [
         'paths' => [
-            '__clockwork*', 'clockwork', 'clockwork/*', '_debugbar*', '_ignition*', '_boost/browser-logs',
-            'broadcasting/auth', 'horizon', 'horizon/*', 'telescope', 'telescope/*', 'pulse', 'pulse/*',
-            'up', 'oh-dear-health-check-results', '.well-known/appspecific/*', 'flux/*',
-            'livewire-*/livewire*.js', 'livewire-*/*.map', 'livewire-*/js/*', 'livewire-*/css/*',
+            // Laravel
+            'up',
+            'broadcasting/auth',
+            '.well-known/appspecific/*',
+
+            // Livewire
+            'livewire-*/livewire*.js',
+            'livewire-*/*.map',
+            'livewire-*/js/*',
+            'livewire-*/css/*',
+
+            // Livewire Flux
+            'flux/*',
+
+            // Laravel Horizon
+            'horizon',
+            'horizon/*',
+
+            // Laravel Telescope
+            'telescope',
+            'telescope/*',
+
+            // Laravel Pulse
+            'pulse',
+            'pulse/*',
+
+            // Laravel Boost
+            '_boost/browser-logs',
+
+            // Clockwork
+            '__clockwork*',
+            'clockwork',
+            'clockwork/*',
+
+            // Laravel Debugbar
+            '_debugbar*',
+
+            // Ignition
+            '_ignition*',
+
+            // spatie/laravel-health (Oh Dear)
+            'oh-dear-health-check-results',
         ],
         'commands' => [
-            'monocle:*', 'mcp:start monocle', 'boost:*', 'queue:work', 'queue:listen', 'schedule:work', 'schedule:finish',
-            'package:discover', 'test', 'horizon*', 'pulse:check', 'pulse:work', 'reverb:start', 'reverb:restart',
-            'octane:start', 'octane:status', 'nightwatch:agent', 'health:schedule-check-heartbeat', 'health:queue-check-heartbeat',
+            // Monocle
+            'monocle:*',
+            'mcp:start monocle',
+
+            // Laravel
+            'queue:work',
+            'queue:listen',
+            'schedule:work',
+            'schedule:finish',
+            'package:discover',
+            'test',
+
+            // Laravel Boost
+            'boost:*',
+
+            // Laravel Horizon
+            'horizon*',
+
+            // Laravel Pulse
+            'pulse:check',
+            'pulse:work',
+
+            // Laravel Reverb
+            'reverb:start',
+            'reverb:restart',
+
+            // Laravel Octane
+            'octane:start',
+            'octane:status',
+
+            // Laravel Nightwatch
+            'nightwatch:agent',
+
+            // spatie/laravel-health
+            'health:schedule-check-heartbeat',
+            'health:queue-check-heartbeat',
         ],
-        'livewire' => ['pulse.*'],
+        'livewire' => [
+            // Laravel Pulse
+            'pulse.*',
+        ],
     ],
 
     /*

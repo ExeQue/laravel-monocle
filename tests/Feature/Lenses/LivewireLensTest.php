@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\LivewireLens;
+use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use Livewire\Livewire;
 use Tests\Fixtures\Livewire\Counter;
 

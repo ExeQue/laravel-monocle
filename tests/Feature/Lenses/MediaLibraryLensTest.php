@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use ExeQue\Monocle\Lenses\MediaLibraryLens;
+use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
 use Spatie\MediaLibrary\Conversions\Events\ConversionWillStartEvent;
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;

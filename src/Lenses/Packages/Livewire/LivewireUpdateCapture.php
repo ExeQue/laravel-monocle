@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses\Request;
+namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 
 use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Eyepiece;

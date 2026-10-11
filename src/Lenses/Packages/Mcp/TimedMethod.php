@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace ExeQue\Monocle\Lenses\Mcp;
+namespace ExeQue\Monocle\Lenses\Packages\Mcp;
 
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\CaptureType;
