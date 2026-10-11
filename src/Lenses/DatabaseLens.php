@@ -350,6 +350,6 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.queries');
+        return Presentation::table()->tab('monocle::tabs.queries')->details('monocle::details.query');
     }
 }

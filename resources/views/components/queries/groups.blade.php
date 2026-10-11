@@ -106,7 +106,7 @@
                                     </div>
                                     <x-monocle::collapse
                                         open="openQueries.includes(n)"
-                                        html="queryDetails(queryRows[n])"
+                                        html="queryRows[n] ? details(queryRows[n], 'queries') : ''"
                                         class="pr-3 pb-3 pl-[5rem]"
                                     />
                                 </div>

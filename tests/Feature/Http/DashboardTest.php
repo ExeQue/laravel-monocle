@@ -83,11 +83,12 @@ describe('dashboard', function (): void {
     });
 
     describe('built-in detail views', function (): void {
-        it('renders http calls, validations and exceptions on the server', function (): void {
+        it('renders http calls, queries, validations and exceptions on the server', function (): void {
             Http::fake(['api.example.test/*' => Http::response(['ok' => true], 201)]);
             Route::get('/busy', function () {
                 Http::withToken('secret-token-123')->post('https://api.example.test/orders', ['sku' => 'A1']);
                 Validator::make(['name' => 'Ada'], ['name' => 'required|string'])->validate();
+                DB::select('select ? as answer', [42]);
                 report(new RuntimeException('outer', 0, new LogicException('inner')));
 
                 return 'ok';
@@ -99,11 +100,13 @@ describe('dashboard', function (): void {
             $http = $this->getJson("/_monocle/api/captures/{$id}/rows/http/1/details")->assertOk()->json('html');
             $validation = $this->getJson("/_monocle/api/captures/{$id}/rows/validation/1/details")->assertOk()->json('html');
             $exception = $this->getJson("/_monocle/api/captures/{$id}/rows/exceptions/1/details")->assertOk()->json('html');
+            $query = $this->getJson("/_monocle/api/captures/{$id}/rows/queries/1/details")->assertOk()->json('html');
 
             expect($http)->toContain('https://api.example.test/orders', 'Request headers', 'data-monocle-cards', 'Bearer secr****')
                 ->not->toContain('secret-token-123')
                 ->and($validation)->toContain('name', 'required', 'Ada', 'passed')
-                ->and($exception)->toContain('RuntimeException', 'outer', 'LogicException', 'inner', 'data-full');
+                ->and($exception)->toContain('RuntimeException', 'outer', 'LogicException', 'inner', 'data-full')
+                ->and($query)->toContain('Query with placeholders', 'select ? as answer', '?1', '42', 'Connection');
         });
     });
 

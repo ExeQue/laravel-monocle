@@ -73,7 +73,11 @@
                 </tr>
                 <tr x-show="openQueries.includes(q.n)" x-cloak>
                     <td colspan="4" class="border-line bg-sunk/50 border-b px-3 py-0">
-                        <x-monocle::collapse open="openQueries.includes(q.n)" html="queryDetails(q)" class="py-3" />
+                        <x-monocle::collapse
+                            open="openQueries.includes(q.n)"
+                            html="details(q, 'queries')"
+                            class="py-3"
+                        />
                     </td>
                 </tr>
             </tbody>
