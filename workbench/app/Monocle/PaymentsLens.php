@@ -55,7 +55,8 @@ final class PaymentsLens implements Lens, Presentable, Summarizable
             ->columns(['customer', 'amount' => 'Amount', 'currency', 'status'])
             ->detailsOnly(['card', 'decline_reason'])
             ->groupBy(['customer' => 'by customer', 'status' => 'by outcome'])
-            ->details('monocle.payment');
+            ->details('monocle.payment')
+            ->format(['status' => 'status']);
     }
 
     /**

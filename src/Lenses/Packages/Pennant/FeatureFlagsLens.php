@@ -97,6 +97,6 @@ final class FeatureFlagsLens implements Advises, Lens, Presentable, Summarizable
         return Presentation::table()
             ->tab('monocle::tabs.features')
             ->groupBy(['feature' => 'by feature'])
-            ->format(['value' => 'bool']);
+            ->format(['value' => 'bool', 'source' => ['highlight', ['unknown'], 'warn']]);
     }
 }
