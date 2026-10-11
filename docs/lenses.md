@@ -19,6 +19,7 @@ Warnings point at your code. Slow or repeated work that comes from a package on 
 | [Request](#request) | `request` | method, URL, input, headers, cookies, route, response and phases |
 | [Session](#session) | `session` | session contents and what the request changed |
 | [Auth](#auth) | `auth` | the user, logins, failed attempts and lockouts |
+| [Validation](#validation) | `validation` | every validation, its rules and the rules that failed |
 | [Middleware](#middleware) | timeline | each middleware before and after the controller |
 | [Database](#database) | `queries` | every query, transactions, N+1 and slow queries |
 | [Eloquent](#eloquent) | `models`, `model_changes` | models loaded and every changed attribute |
@@ -124,6 +125,12 @@ Section `session`: what the session held once the request was handled - the data
 ### Auth
 
 Section `auth`: who the request was authenticated as and how - the guard that resolved the user, logins, logouts, failed attempts and lockouts, registrations, verifications and password resets. Credentials are recorded as the keys that were tried, never their values. The summary shows the user, failed attempts and lockouts.
+
+### Validation
+
+Section `validation`: every validation - form requests, `$request->validate()`, Livewire and your own `Validator::make()` - with where it came from (the form request or Livewire component), the rules per field and, when it failed, each failed rule with its parameters and message. Only field names are recorded, never the values.
+
+A resolver you set with `Validator::resolver()` keeps working.
 
 ### Middleware
 

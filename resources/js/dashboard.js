@@ -28,12 +28,13 @@ const TOTAL_GROUPS = [
   ['Files', (k) => k.startsWith('filesystem_') || k.startsWith('media_')],
   ['Mail', (k) => k.startsWith('mail') || k.startsWith('notification')],
   ['Auth', (k) => k.startsWith('auth_')],
+  ['Validation', (k) => k.startsWith('validation')],
   ['Features', (k) => k.startsWith('features_')],
   ['Authorization', (k) => k.startsWith('authorization_')],
 ];
 const SKIP_SECTIONS = ['summary', 'timeline', 'request', 'session', 'meta', 'queries'];
 /** Section tabs, most useful first; sections not listed follow in their own order. */
-const TAB_ORDER = ['exceptions', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
+const TAB_ORDER = ['exceptions', 'validation', 'response_cache', 'auth', 'features', 'cache', 'views', 'http', 'ai', 'filesystem', 'media', 'jobs', 'livewire', 'models', 'model_changes', 'mail', 'log', 'dumps', 'redis', 'events', 'authorization', 'middleware', 'mcp', 'scheduled_tasks'];
 const rank = (key) => { const i = TAB_ORDER.indexOf(key); return i === -1 ? TAB_ORDER.length : i; };
 
 const theme = {
@@ -458,6 +459,10 @@ Alpine.data('monocle', (config) => ({
     if (key === 'type' && (v === 'miss' || v === 'failed')) return `<span class="font-medium text-warn">${esc(v)}</span>`;
     if ((key === 'repeat_of' || key === 'duplicate_of') && v) return `<span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">${key === 'repeat_of' ? 'repeat' : 'duplicate'} of #${esc(v)}</span>`;
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);
+    if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'rule' in c)) {
+      return v.map((c) => `<div><span class="font-mono">${esc(c.field)}</span> <span class="text-warn">${esc(c.rule)}${c.parameters?.length ? esc('(' + c.parameters.join(', ') + ')') : ''}</span>${c.message ? ` <span class="text-muted">${esc(c.message)}</span>` : ''}</div>`).join('');
+    }
+    if (key === 'passed' && typeof v === 'boolean') return v ? '<span class="text-ok">passed</span>' : '<span class="font-medium text-warn">failed</span>';
     const text = fmtValue(v);
     const shown = text.length > 240 ? text.slice(0, 240) + '...' : text;
     return row._links?.[key] ? maybeLink(shown, row._links[key]) : classes(shown);

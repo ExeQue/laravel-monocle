@@ -37,7 +37,7 @@ describe('lens descriptions', function (): void {
         $lenses = app(LensRegistry::class)->booted();
         $keys = array_map(fn (Lens $lens): string => $lens->key(), $lenses);
 
-        expect($lenses)->toHaveCount(26)
+        expect($lenses)->toHaveCount(27)
             ->and($keys)->toBe(array_unique($keys));
 
         foreach ($lenses as $lens) {

@@ -30,6 +30,7 @@ use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\Lenses\ScheduleLens;
 use ExeQue\Monocle\Lenses\SessionLens;
+use ExeQue\Monocle\Lenses\ValidationLens;
 use ExeQue\Monocle\Lenses\ViewsLens;
 use ExeQue\Monocle\Support\Masks\PartialMask;
 
@@ -81,6 +82,7 @@ return [
         ],
         SessionLens::class => true,
         AuthLens::class => true,
+        ValidationLens::class => true,
         MiddlewareLens::class => true,
         DatabaseLens::class => [
             'slow_ms' => 70,
