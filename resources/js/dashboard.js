@@ -179,6 +179,8 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     this.tab = tab;
     this.tabData = null;
     history.replaceState(null, '', `#${this.selectedId}/${tab}`);
+    // A new tab starts at the top of the capture, not where the last one was scrolled to.
+    this.$refs.detail?.scrollTo({ top: 0 });
     this.$nextTick(() => this.$refs.tabs?.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' }));
     if (tab === 'timeline') return this.renderTimeline();
     if (tab === 'overview') return;
