@@ -1,4 +1,4 @@
-import { esc, ms, fmtValue, maybeLink, nameLink, copyable, copyButton, isThrowable, exceptionHtml, humanize, classes } from './format.js';
+import { esc, ms, fmtValue, maybeLink, nameLink, copyable, projectPath, copyButton, isThrowable, exceptionHtml, humanize, classes } from './format.js';
 import { cls } from './classes.js';
 import { changesTable, dot, dottedKey } from './render/values.js';
 
@@ -96,7 +96,7 @@ export function rowBody(row) {
     ${row.sql && row.sql_with_bindings && row.sql !== row.sql_with_bindings ? placeholdersHtml(row.sql) : ''}
     ${rows ? `<div class="${SEC} ${sql || thrown ? '' : 'border-t-0 pt-0'}"><table class="w-full border-collapse">${rows}</table></div>` : ''}
     ${prose.map((k) => `<div class="${SEC}">${codeBlock(humanize(k), row[k])}</div>`).join('')}
-    ${frames ? `<div class="${SEC}"><div class="flex items-center gap-1.5"><div class="${K}">Stack (${frames.length})</div>${copyButton(frames.map((f) => (typeof f === 'string' ? f : `${f.file} ${f.call ?? ''}`.trim())).join('\n'), 'stack')}</div><ol class="m-0 grid list-decimal gap-0.5 pl-6 text-[11.5px] [overflow-wrap:anywhere]">${frames.map((f) => (typeof f === 'string' ? `<li class="font-mono">${copyable(esc(f), f)}</li>` : `<li class="font-mono"><span class="text-brass">${nameLink(f.file, f.link)}</span> ${f.call ? `<span class="text-muted">${nameLink(f.call, f.call_link)}</span>` : ''}</li>`)).join('')}</ol></div>` : ''}
+    ${frames ? `<div class="${SEC}"><div class="flex items-center gap-1.5"><div class="${K}">Stack (${frames.length})</div>${copyButton(frames.map((f) => (typeof f === 'string' ? f : `${projectPath(f.file)} ${f.call ?? ''}`.trim())).join('\n'), 'stack')}</div><ol class="m-0 grid list-decimal gap-0.5 pl-6 text-[11.5px] [overflow-wrap:anywhere]">${frames.map((f) => (typeof f === 'string' ? `<li class="font-mono">${copyable(esc(f), f)}</li>` : `<li class="font-mono"><span class="text-brass">${nameLink(f.file, f.link)}</span> ${f.call ? `<span class="text-muted">${nameLink(f.call, f.call_link)}</span>` : ''}</li>`)).join('')}</ol></div>` : ''}
     ${originHtml(row.origin)}`;
 }
 

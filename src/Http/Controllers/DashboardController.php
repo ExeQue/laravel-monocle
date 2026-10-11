@@ -5,14 +5,13 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Http\Controllers;
 
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
-use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\LensRegistry;
 use Illuminate\Contracts\View\View;
 
 /** @internal */
 final class DashboardController
 {
-    public function __invoke(EditorLinks $links, LensRegistry $registry): View
+    public function __invoke(LensRegistry $registry): View
     {
         $tabs = [];
 
@@ -24,7 +23,7 @@ final class DashboardController
         return view('monocle::dashboard', [
             'tabs' => $tabs,
             'api' => route('monocle.api.captures'),
-            'paths' => ['base' => base_path(), 'mappings' => $links->mappings()],
+            'paths' => ['base' => base_path()],
             'assets' => [
                 'css' => $this->assetUrl('monocle.css'),
                 'js' => $this->assetUrl('monocle.js'),

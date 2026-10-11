@@ -22,21 +22,20 @@ export const shortType = (type) => ({ request: 'req', command: 'cmd', job: 'job'
 
 export const humanize = (key) => String(key).split('_').map((w) => (ACRONYMS.has(w.toLowerCase()) ? w.toUpperCase() : w)).join(' ').replace(/^./, (c) => c.toUpperCase());
 
-/** Server paths as the developer's machine sees them, from the path mappings in .monocle.json. */
-const paths = { base: '', mappings: {} };
+/** Where the application lives on the server, so paths can be shown relative to it. */
+const paths = { base: '' };
 
-export const usePathMappings = ({ base = '', mappings = {} } = {}) => Object.assign(paths, { base, mappings });
+export const usePathMappings = ({ base = '' } = {}) => Object.assign(paths, { base });
 
-/** A server path (absolute, or relative to the application) with the longest matching mapping applied. */
-export const hostPath = (path) => {
-  const absolute = path.startsWith('/') || !paths.base ? path : `${paths.base.replace(/\/$/, '')}/${path}`;
-  const prefix = Object.keys(paths.mappings).filter((p) => absolute === p || absolute.startsWith(p + '/')).sort((a, b) => b.length - a.length)[0];
-  return prefix === undefined ? path : paths.mappings[prefix] + absolute.slice(prefix.length);
+/** A server path relative to base_path() (app/Models/User.php:12); paths outside it stay as they are. */
+export const projectPath = (path) => {
+  const base = paths.base.replace(/\/$/, '');
+  return base && path.startsWith(base + '/') ? path.slice(base.length + 1) : path;
 };
 
 const looksLikePath = (text) => /^\/?(?:[\w.-]+\/)+[\w.-]+(?::\d+)?$/.test(text);
 
-const shortened = (full, short) => `<span class="cursor-help" data-tip="${looksLikePath(full) ? hostPath(full) : full}"><span aria-hidden="true">${short}</span><span class="sr-only select-none">${full}</span></span>`;
+const shortened = (full, short) => `<span class="cursor-help" data-tip="${looksLikePath(full) ? projectPath(full) : full}"><span aria-hidden="true">${short}</span><span class="sr-only select-none">${full}</span></span>`;
 
 /**
  * Escaped text with every namespaced class name shortened to its basename,
@@ -76,7 +75,7 @@ export const maybeLink = (text, link, extra = '') => (link
 
 /** Some HTML with a copy button that shows on hover; the button copies `text`, the full name or path. */
 export const copyable = (html, text, what = /(\.php|:\d+)$/.test(text) ? 'path' : 'name') => (text
-  ? `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0">${html}</span>${copyButton(text, what, { hover: true })}</span>`
+  ? `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0">${html}</span>${copyButton(projectPath(text), what, { hover: true })}</span>`
   : html);
 
 /** A class name or path, linked to the editor when there is a link, with a copy button. */

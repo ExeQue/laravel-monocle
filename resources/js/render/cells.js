@@ -1,4 +1,4 @@
-import { esc, ms, humanize, fmtValue, maybeLink, nameLink, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from '../format.js';
+import { esc, ms, humanize, fmtValue, maybeLink, nameLink, projectPath, classes, copyButton, isThrowable, exceptionHtml, previousHtml } from '../format.js';
 import { cls, statusClass, httpStatusClass } from '../classes.js';
 import { changesTable, levelClass } from './values.js';
 
@@ -95,7 +95,7 @@ export function cell(row, key, presentation = null, context = {}) {
   if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
   if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
   // File paths look like origins everywhere.
-  if (typeof v === 'string' && /^[\w./-]+\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0 whitespace-nowrap">${maybeLink(v, row._links?.[key], 'font-mono text-[11.5px] text-brass')}</span>${copyButton(v, humanize(key).toLowerCase(), { hover: true })}</span>`;
+  if (typeof v === 'string' && /^[\w./-]+\.(php|blade\.php)(:\d+)?$/.test(v)) return `<span class="group/copy inline-flex max-w-full items-start gap-1"><span class="min-w-0 whitespace-nowrap">${maybeLink(v, row._links?.[key], 'font-mono text-[11.5px] text-brass')}</span>${copyButton(projectPath(v), humanize(key).toLowerCase(), { hover: true })}</span>`;
   if (v && typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length) return '';
   if (Array.isArray(v) && !v.length) return '';
   // Long or multi-line text: the first line in the table, all of it in the details.
