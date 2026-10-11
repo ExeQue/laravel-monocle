@@ -89,6 +89,14 @@ monocle-compare a=before
 
 Deletes all captures, so the next `monocle-list` only shows what happens after.
 
+### `monocle-lenses`
+
+Lists the lenses enabled in the application: each section key you can pass to `monocle-show` and `monocle-rows`, with what it records.
+
+## Skill
+
+Monocle ships a skill that teaches your agent the workflow above and lists the sections your application records. With [Laravel Boost](https://laravel.com/docs/boost), `boost:install` and `boost:update` add it for every agent Boost is set up for. Without Boost, `monocle:install` offers to write it for the agents your project uses.
+
 ## Headers
 
 Each recorded response has:

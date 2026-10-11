@@ -18,6 +18,7 @@ php artisan monocle:install
 3. **Platform** - how your MCP client starts PHP. Detected for you.
 4. **MCP clients** - where to add the `monocle` server. If your project uses [Laravel Boost](https://laravel.com/docs/boost), this defaults to every agent Boost is set up for, in the files and format each agent uses.
 5. **Publish** - write `config/monocle.php` with your answers.
+6. **Skill** - without Laravel Boost, write the Monocle skill for your coding agents: Claude Code, Cursor, GitHub Copilot, Codex and other agents that read `.agents/skills`, Junie, Kiro, Factory, Grok and Pi. The agents your project already uses are selected. With Boost, run `boost:update` instead.
 
 Every lens is on by default. Turn lenses off or change their options in `config/monocle.php` - see [Lenses](lenses.md).
 
@@ -49,7 +50,7 @@ Every answer has a flag:
 php artisan monocle:install --no-interaction \
     --platform=sail \
     --file=boost \
-    --publish --driver=file --limit=200
+    --publish --driver=file --limit=200 --skill=claude --skill=agents
 ```
 
 `--file=boost` adds the server to every Laravel Boost agent; any other value is a config file path, e.g. `--file=.mcp.json`. Without `--file`, Boost's agents are used when the project has a `boost.json`, otherwise `.mcp.json`.

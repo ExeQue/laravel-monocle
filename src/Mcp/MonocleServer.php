@@ -8,6 +8,7 @@ use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
 use ExeQue\Monocle\Mcp\Tools\CompareCaptures;
 use ExeQue\Monocle\Mcp\Tools\ListCaptures;
+use ExeQue\Monocle\Mcp\Tools\ListLenses;
 use ExeQue\Monocle\Mcp\Tools\ShowCapture;
 use ExeQue\Monocle\Mcp\Tools\ShowQueries;
 use ExeQue\Monocle\Mcp\Tools\ShowRows;
@@ -45,6 +46,7 @@ MARKDOWN;
         ShowTrace::class,
         CompareCaptures::class,
         ClearCaptures::class,
+        ListLenses::class,
     ];
 
     /**

@@ -28,6 +28,7 @@ Monocle records only outside production and only with `APP_DEBUG=true`.
 | `monocle-trace` | A request and every job it dispatched |
 | `monocle-compare` | Two captures side by side - did the change help? |
 | `monocle-clear` | Start from a clean slate |
+| `monocle-lenses` | The sections this application records |
 
 Every recorded response carries an `X-Monocle-Id` header, and every recorded row points to the `file:line` in your code that caused it.
 

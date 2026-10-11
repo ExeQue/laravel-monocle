@@ -23,7 +23,7 @@ describe('MCP tool schemas', function (): void {
 
         $tools = $server->createContext()->tools()->map(fn ($tool): array => $tool->toArray())->keyBy('name');
 
-        expect($tools->keys()->all())->toBe(['monocle-list', 'monocle-show', 'monocle-rows', 'monocle-queries', 'monocle-trace', 'monocle-compare', 'monocle-clear']);
+        expect($tools->keys()->all())->toBe(['monocle-list', 'monocle-show', 'monocle-rows', 'monocle-queries', 'monocle-trace', 'monocle-compare', 'monocle-clear', 'monocle-lenses']);
 
         foreach ($tools as $name => $tool) {
             expect($tool['description'])->toBeString()->not->toBeEmpty("{$name} has no description");

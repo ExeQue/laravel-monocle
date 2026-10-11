@@ -16,6 +16,7 @@ use ExeQue\Monocle\Console\TraceCommand;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Http\Middleware\Authorize;
 use ExeQue\Monocle\Install\ConfigPublisher;
+use ExeQue\Monocle\Install\SkillInstaller;
 use ExeQue\Monocle\Mcp\MonocleServer;
 use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Contracts\Foundation\Application;
@@ -33,6 +34,7 @@ final class MonocleServiceProvider extends ServiceProvider
 
         $this->app->singleton(StoreManager::class);
         $this->app->bind(ConfigPublisher::class, fn (): ConfigPublisher => new ConfigPublisher(__DIR__.'/../config/monocle.php'));
+        $this->app->bind(SkillInstaller::class, fn (): SkillInstaller => new SkillInstaller(__DIR__.'/../resources/boost/skills/laravel-monocle/SKILL.blade.php'));
         $this->app->singleton(Eyepiece::class);
         $this->app->singleton(LensRegistry::class);
         $this->app->singleton(MonocleManager::class);

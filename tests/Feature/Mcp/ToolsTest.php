@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 
-covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearCaptures::class, Viewfinder::class, SummaryBuilder::class, TimelineBuilder::class);
+covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, ClearCaptures::class, ExeQue\Monocle\Mcp\Tools\ListLenses::class, Viewfinder::class, SummaryBuilder::class, TimelineBuilder::class);
 
 /**
  * Run the tool through the MCP server (asserting success) and return the same
@@ -132,5 +132,11 @@ describe('MCP tools', function (): void {
         toolJson(ClearCaptures::class, [], 'clear');
 
         MonocleServer::tool(ShowCapture::class, [])->assertHasErrors(['No captures recorded yet. Make a request to the application first.']);
+    });
+
+    it('lists the enabled lenses with their section keys', function (): void {
+        MonocleServer::tool(ExeQue\Monocle\Mcp\Tools\ListLenses::class)
+            ->assertOk()
+            ->assertSee(['section', 'queries', 'cache', 'Every executed query']);
     });
 });

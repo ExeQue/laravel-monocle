@@ -11,9 +11,11 @@ use ExeQue\Monocle\Install\GitignoreWriter;
 use ExeQue\Monocle\Install\IdeExclusions;
 use ExeQue\Monocle\Install\McpConfigWriter;
 use ExeQue\Monocle\Install\Platform;
+use ExeQue\Monocle\Install\SkillInstaller;
 use Illuminate\Console\Command;
 
 use function Laravel\Prompts\form;
+use function Laravel\Prompts\multiselect;
 
 use Symfony\Component\Console\Input\InputOption;
 
@@ -37,10 +39,10 @@ final class InstallCommand extends Command
 
     protected $description = 'Set up Monocle: choose storage, publish config/monocle.php and register the MCP server (Sail, Lerd, Herd or plain PHP detected)';
 
-    public function handle(McpConfigWriter $mcp, GitignoreWriter $gitignore, ConfigPublisher $publisher, BoostAgents $boost, IdeExclusions $ide): int
+    public function handle(McpConfigWriter $mcp, GitignoreWriter $gitignore, ConfigPublisher $publisher, BoostAgents $boost, IdeExclusions $ide, SkillInstaller $skill): int
     {
         $basePath = $this->laravel->basePath();
-        $choices = $this->input->isInteractive() ? $this->askChoices($boost) : $this->choicesFromOptions($boost);
+        $choices = $this->input->isInteractive() ? $this->askChoices($boost, $skill) : $this->choicesFromOptions($boost);
 
         $platform = Platform::from($choices['platform']);
         $server = (string) $this->laravel->make('config')->get('monocle.mcp.server', 'monocle');
@@ -70,10 +72,18 @@ final class InstallCommand extends Command
 
         $this->ignoreFiles($gitignore, $ide, $basePath, $choices['driver'] === 'file', $dryRun);
 
+        foreach ($skill->install($basePath, $choices['skill'], $dryRun) as $file => $result) {
+            $this->components->twoColumnDetail($file, $dryRun ? "would be {$result}" : $result);
+        }
+
         $next = [
             'Restart your MCP client so it picks up the new server.',
             "Claude Code: add \"{$server}\" to enabledMcpjsonServers in .claude/settings.local.json if you use that allow-list.",
         ];
+
+        if ($boost->detected()) {
+            $next[] = "Run `{$platform->artisan()} boost:update` to give your agents the Monocle skill.";
+        }
 
         if (! is_file($basePath.'/'.EditorSettings::FILE)) {
             $next[] = "Run `{$platform->artisan()} monocle:editor` to open file paths from Monocle in your editor.";
@@ -86,10 +96,11 @@ final class InstallCommand extends Command
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool}
+     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, skill: list<string>}
      */
-    private function askChoices(BoostAgents $boost): array
+    private function askChoices(BoostAgents $boost, SkillInstaller $skillInstaller): array
     {
+        $skills = array_map(fn (array $agent): string => "{$agent[0]} ({$agent[1]})", SkillInstaller::AGENTS);
         $targets = $this->targets($boost);
         $detected = Platform::detect($this->laravel->basePath());
         $platforms = [];
@@ -105,6 +116,7 @@ final class InstallCommand extends Command
             ->select('How does your MCP client start PHP?', $platforms, $this->option('platform') ?: $detected->value, name: 'platform')
             ->multiselect('Register the MCP server in', $targets, $this->option('file') ?: $this->defaultTargets($boost), required: true, name: 'files')
             ->confirm('Publish config/monocle.php with these choices?', true, name: 'publish')
+            ->addIf(! $boost->detected(), fn () => multiselect('Install the Monocle skill for', $skills, $skillInstaller->detect($this->laravel->basePath()), scroll: 9, hint: 'Laravel Boost installs it for you with boost:update.'), name: 'skill')
             ->submit();
 
         return [
@@ -113,11 +125,12 @@ final class InstallCommand extends Command
             'platform' => (string) $answers['platform'],
             'files' => array_values($answers['files']),
             'publish' => (bool) $answers['publish'],
+            'skill' => array_values($answers['skill'] ?? []),
         ];
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool}
+     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, skill: list<string>}
      */
     private function choicesFromOptions(BoostAgents $boost): array
     {
@@ -126,6 +139,7 @@ final class InstallCommand extends Command
             'platform' => (string) ($this->option('platform') ?: Platform::detect($this->laravel->basePath())->value),
             'files' => array_values((array) $this->option('file')) ?: $this->defaultTargets($boost),
             'publish' => (bool) $this->option('publish'),
+            'skill' => array_values((array) $this->option('skill')),
         ];
     }
 
@@ -192,6 +206,7 @@ final class InstallCommand extends Command
             new InputOption('platform', null, InputOption::VALUE_REQUIRED, 'Override detection: sail|lerd|herd|php'),
             new InputOption('file', 'f', InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Where to register the MCP server: "boost" for every Laravel Boost agent, or a config file relative to the project root. Default: boost when boost.json exists, otherwise .mcp.json'),
             new InputOption('publish', null, InputOption::VALUE_NONE, 'Publish config/monocle.php (non-interactive runs skip it unless this is set)'),
+            new InputOption('skill', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Install the Monocle skill for an agent (repeatable): '.implode('|', array_keys(SkillInstaller::AGENTS))),
             new InputOption('driver', null, InputOption::VALUE_REQUIRED, 'Storage driver for captures: file|cache'),
             new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'How many captures to keep'),
             new InputOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be written without touching files'),
