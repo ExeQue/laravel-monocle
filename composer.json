@@ -30,6 +30,7 @@
         "inertiajs/inertia-laravel": "^3.5",
         "laravel/ai": "^1.0",
         "laravel/folio": "^1.2",
+        "laravel/fortify": "^1.41",
         "laravel/octane": "^2.21",
         "laravel/pennant": "^1.26",
         "laravel/pint": "^1.21",

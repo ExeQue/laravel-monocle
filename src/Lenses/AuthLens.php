@@ -21,6 +21,15 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Laravel\Fortify\Events\PasswordUpdatedViaController;
+use Laravel\Fortify\Events\RecoveryCodeReplaced;
+use Laravel\Fortify\Events\RecoveryCodesGenerated;
+use Laravel\Fortify\Events\TwoFactorAuthenticationChallenged;
+use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
+use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
+use Laravel\Fortify\Events\ValidTwoFactorAuthenticationCodeProvided;
 use Laravel\Sanctum\Events\TokenAuthenticated;
 
 /**
@@ -42,7 +51,7 @@ final class AuthLens implements Advises, Lens, Summarizable
 
     public function description(): string
     {
-        return 'Authentication: event (authenticated, attempting, login, failed, lockout, logout, registered, verified, password_reset, token), guard, user (Class#id), remember, the credential keys tried (never values) and, for Sanctum, the token id, name and abilities.';
+        return 'Authentication: event (authenticated, attempting, login, failed, lockout, logout, registered, verified, password_reset, token, and with Fortify 2fa_challenged, 2fa_passed, 2fa_failed, 2fa_enabled, 2fa_confirmed, 2fa_disabled, recovery_codes_generated, recovery_code_used, password_updated), guard, user (Class#id), remember, the credential keys tried (never values) and, for Sanctum, the token id, name and abilities. Recovery codes are never recorded.';
     }
 
     public function advice(): string
@@ -76,6 +85,24 @@ final class AuthLens implements Advises, Lens, Summarizable
                 ]);
             });
         }
+
+        $fortify = [
+            TwoFactorAuthenticationChallenged::class => '2fa_challenged',
+            ValidTwoFactorAuthenticationCodeProvided::class => '2fa_passed',
+            TwoFactorAuthenticationFailed::class => '2fa_failed',
+            TwoFactorAuthenticationEnabled::class => '2fa_enabled',
+            TwoFactorAuthenticationConfirmed::class => '2fa_confirmed',
+            TwoFactorAuthenticationDisabled::class => '2fa_disabled',
+            RecoveryCodesGenerated::class => 'recovery_codes_generated',
+            RecoveryCodeReplaced::class => 'recovery_code_used',
+            PasswordUpdatedViaController::class => 'password_updated',
+        ];
+
+        foreach ($fortify as $class => $event) {
+            if (class_exists($class)) {
+                $this->eyepiece->listen($class, fn (object $fired) => $this->push($event, null, $fired->user instanceof Authenticatable ? $fired->user : null));
+            }
+        }
     }
 
     public function summarize(Capture $capture): array
@@ -100,6 +127,7 @@ final class AuthLens implements Advises, Lens, Summarizable
                 'auth_user' => $user,
                 'auth_failed' => $counts['failed'] ?? null,
                 'auth_lockouts' => $counts['lockout'] ?? null,
+                'auth_2fa_failed' => $counts['2fa_failed'] ?? null,
             ], fn (mixed $value): bool => $value !== null),
             'warnings' => isset($counts['lockout']) ? ['A login was locked out after too many attempts.'] : [],
         ];

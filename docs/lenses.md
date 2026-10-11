@@ -48,6 +48,7 @@ These record something only when the package is installed; otherwise they do not
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
 | [Laravel Folio](https://laravel.com/docs/folio) | [Folio](#folio) | `request` | the page file a request matched |
+| [Laravel Fortify](https://laravel.com/docs/fortify) | [Fortify](#fortify) | `auth` | two-factor challenges, failed and passed codes |
 | [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
 | [Laravel Octane](https://laravel.com/docs/octane) | [Octane](#octane) | - | a capture per request in a worker |
 | [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](#feature-flags) | `features` | every feature check and its value |
@@ -246,6 +247,10 @@ Option: `max_text` (no limit) - shorten long prompts and responses.
 #### Folio
 
 The page file a request matched is shown as the request's action, with the page name, mount path and parameters under `folio`. See [Request](#request).
+
+#### Fortify
+
+Section `auth` also records Fortify's two-factor login: when a user is asked for a code, wrong codes and the code that let them in, plus two-factor being turned on, confirmed or off, recovery codes being generated or used, and password changes. The summary counts failed codes. Recovery codes themselves are never recorded.
 
 #### MCP servers
 

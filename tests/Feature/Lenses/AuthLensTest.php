@@ -75,6 +75,45 @@ describe(AuthLens::class, function (): void {
         ]);
     });
 
+    it('records Fortify two-factor challenges, failed codes and passed codes', function (): void {
+        Schema::create('users', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->text('two_factor_secret')->nullable();
+            $table->text('two_factor_recovery_codes')->nullable();
+            $table->timestamp('two_factor_confirmed_at')->nullable();
+            $table->rememberToken();
+            $table->timestamps();
+        });
+        config(['auth.providers.users.model' => User::class]);
+
+        $google2fa = new \PragmaRX\Google2FA\Google2FA();
+        $secret = $google2fa->generateSecretKey();
+        User::query()->create([
+            'name' => 'Ada',
+            'email' => 'ada@example.com',
+            'password' => \Illuminate\Support\Facades\Hash::make('secret-password'),
+            'two_factor_secret' => encrypt($secret),
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $this->postJson('/login', ['email' => 'ada@example.com', 'password' => 'secret-password'])->assertOk()->assertJson(['two_factor' => true]);
+        $challenged = collect(latestCapture()->rows('auth'))->pluck('event');
+
+        $this->postJson('/two-factor-challenge', ['code' => '000000'])->assertStatus(422);
+        $failed = latestCapture();
+
+        $this->postJson('/two-factor-challenge', ['code' => $google2fa->getCurrentOtp($secret)])->assertNoContent();
+        $passed = collect(latestCapture()->rows('auth'))->pluck('event');
+
+        expect($challenged)->toContain('2fa_challenged')
+            ->and(collect($failed->rows('auth'))->pluck('event'))->toContain('2fa_failed')
+            ->and(app(AuthLens::class)->summarize($failed)['totals']['auth_2fa_failed'])->toBe(1)
+            ->and($passed)->toContain('2fa_passed', 'login');
+    });
+
     it('warns about lockouts', function (): void {
         event(new Lockout(Request::create('/login', 'POST', server: ['REMOTE_ADDR' => '10.0.0.1'])));
 

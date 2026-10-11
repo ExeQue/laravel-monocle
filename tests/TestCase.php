@@ -36,6 +36,7 @@ abstract class TestCase extends BaseTestCase
             \Spatie\ResponseCache\ResponseCacheServiceProvider::class,
             \Spatie\MediaLibrary\MediaLibraryServiceProvider::class,
             \Laravel\Sanctum\SanctumServiceProvider::class,
+            \Laravel\Fortify\FortifyServiceProvider::class,
             \Laravel\Folio\FolioServiceProvider::class,
             \Inertia\ServiceProvider::class,
             MonocleServiceProvider::class,
