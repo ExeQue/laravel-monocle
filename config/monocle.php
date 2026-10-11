@@ -17,14 +17,20 @@ use ExeQue\Monocle\Lenses\LogLens;
 use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
+use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\FortifyLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\NovaLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\PennantLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\SanctumLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
+use ExeQue\Monocle\Lenses\Packages\Mirror\MirrorLens;
 use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
+use ExeQue\Monocle\Lenses\Packages\STS\FilamentImpersonateLens;
 use ExeQue\Monocle\Lenses\ProcessLens;
 use ExeQue\Monocle\Lenses\QueueLens;
 use ExeQue\Monocle\Lenses\RedisLens;
@@ -172,6 +178,16 @@ return [
 
         // spatie/laravel-medialibrary
         MediaLibraryLens::class => true,
+
+        // Additions to the auth lens: laravel/fortify, laravel/sanctum and the
+        // impersonation packages lab404/laravel-impersonate,
+        // stechstudio/filament-impersonate, laravel/nova and franbarbalopez/mirror
+        FortifyLens::class => true,
+        SanctumLens::class => true,
+        ImpersonateLens::class => true,
+        FilamentImpersonateLens::class => true,
+        NovaLens::class => true,
+        MirrorLens::class => true,
     ],
 
     /*

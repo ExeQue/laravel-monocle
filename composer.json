@@ -27,6 +27,7 @@
     },
     "require-dev": {
         "brianium/paratest": "7.26.0",
+        "franbarbalopez/mirror": "^2.0",
         "inertiajs/inertia-laravel": "^3.5",
         "lab404/laravel-impersonate": "^1.7",
         "laravel/ai": "^1.0",
@@ -42,6 +43,7 @@
         "prism-php/prism": "^0.100",
         "spatie/laravel-medialibrary": "^11.23",
         "spatie/laravel-responsecache": "^8.4",
+        "stechstudio/filament-impersonate": "^5.0",
         "symfony/var-dumper": "^8.0"
     },
     "suggest": {

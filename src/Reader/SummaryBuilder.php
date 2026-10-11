@@ -61,16 +61,17 @@ final class SummaryBuilder
 
         foreach ($this->registry->summarizers() as $summarizer) {
             $contribution = $summarizer->summarize($capture);
+            $section = $this->registry->sectionOf($summarizer);
             $totals = [...$totals, ...$contribution->totals];
             $headlines = [...$headlines, ...$contribution->headlines];
-            $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $summarizer->key())];
+            $groups = [...$groups, ...array_fill_keys(array_keys($contribution->totals), $section)];
             $labels = [...$labels, ...$contribution->labels];
             $units = [...$units, ...$contribution->units];
             $warnings = [...$warnings, ...$contribution->warnings];
             $errors = [...$errors, ...$contribution->errors];
-            $problems = $this->flag($problems, $summarizer->key(), 'warnings', count($contribution->warnings));
-            $problems = $this->flag($problems, $summarizer->key(), 'errors', count($contribution->errors));
-            $flags = [...$flags, ...$this->flags('error', $summarizer->key(), $contribution->errors), ...$this->flags('warning', $summarizer->key(), $contribution->warnings)];
+            $problems = $this->flag($problems, $section, 'warnings', count($contribution->warnings));
+            $problems = $this->flag($problems, $section, 'errors', count($contribution->errors));
+            $flags = [...$flags, ...$this->flags('error', $section, $contribution->errors), ...$this->flags('warning', $section, $contribution->warnings)];
         }
 
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {

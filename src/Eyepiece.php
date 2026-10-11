@@ -32,6 +32,9 @@ final class Eyepiece
     /** @var list<string> Ids of open spans, innermost last. */
     private array $stack = [];
 
+    /** @var array<string, list<Closure(array<string, mixed>): array<string, mixed>>> section => row modifiers */
+    private array $modifiers = [];
+
     /** @var array<string, Span> Spans created with a key that have not been stopped. */
     private array $keyed = [];
 
@@ -344,6 +347,18 @@ final class Eyepiece
     }
 
     /**
+     * Changes every row pushed into a section before it is kept, so a lens
+     * can add to the rows of another (who is impersonating the user on an
+     * auth row). Return the row.
+     *
+     * @param  Closure(array<string, mixed>): array<string, mixed>  $modifier
+     */
+    public function modify(string $section, Closure $modifier): void
+    {
+        $this->modifiers[$section][] = $modifier;
+    }
+
+    /**
      * Append a row to a section. The user-land origin is attached unless the
      * lens supplied one or opted out. Rows are pushed once the operation has
      * finished, so a row with a duration gets the time it started.
@@ -361,6 +376,10 @@ final class Eyepiece
 
             if ($origin && ! array_key_exists('origin', $row)) {
                 $row['origin'] = $this->origin();
+            }
+
+            foreach ($this->modifiers[$section] ?? [] as $modifier) {
+                $row = $modifier($row);
             }
 
             $this->capture->sections[$section][] = Normalizer::normalize($row);

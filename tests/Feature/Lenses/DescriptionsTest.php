@@ -36,7 +36,8 @@ covers(
 
 describe('lens descriptions', function (): void {
     it('gives every built-in lens a unique key and a description the agent can use', function (): void {
-        $lenses = app(LensRegistry::class)->booted();
+        $all = app(LensRegistry::class)->booted();
+        $lenses = array_values(array_filter($all, fn (Lens $lens): bool => ! $lens instanceof \ExeQue\Monocle\Contracts\Lenses\ExtendsLens));
         $keys = array_map(fn (Lens $lens): string => $lens->key(), $lenses);
 
         expect($lenses)->toHaveCount(29)
@@ -52,6 +53,10 @@ describe('lens descriptions', function (): void {
 
     it('advises the agent on when to look at every built-in lens, in one sentence', function (): void {
         foreach (app(LensRegistry::class)->booted() as $lens) {
+            if ($lens instanceof \ExeQue\Monocle\Contracts\Lenses\ExtendsLens) {
+                continue;
+            }
+
             expect($lens)->toBeInstanceOf(\ExeQue\Monocle\Contracts\Lenses\Advises::class)
                 ->and($lens->advice())->toEndWith('.')
                 ->and(substr_count($lens->advice(), '. '))->toBe(0, $lens::class.' gives more than one sentence');

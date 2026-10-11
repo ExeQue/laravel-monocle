@@ -6,6 +6,7 @@ namespace Tests\Arch;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Exceptions\MonocleExceptionInterface;
 use ExeQue\Monocle\Lenses\ValidationLens;
@@ -79,7 +80,12 @@ test('every lens implements Lens and Advises', function (): void {
     foreach ($files as $file) {
         $class = 'ExeQue\Monocle\Lenses\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
-        expect($class)->toImplement(Lens::class)->toImplement(Advises::class);
+        expect($class)->toImplement(Lens::class);
+
+        // An extension adds to another lens, whose advice covers it.
+        if (! is_subclass_of($class, ExtendsLens::class)) {
+            expect($class)->toImplement(Advises::class);
+        }
     }
 });
 
@@ -103,7 +109,14 @@ test('package lenses live under the root namespace of the package they record', 
     foreach ($files as $file) {
         $author = explode('/', $file->getRelativePath())[0];
         $class = 'ExeQue\Monocle\Lenses\Packages\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
-        $composer = json_decode((string) file_get_contents($root.'/vendor/'.$class::packages()[0].'/composer.json'), true);
+        $manifest = $root.'/vendor/'.$class::packages()[0].'/composer.json';
+
+        // Packages that are not dev dependencies (Nova is not on Packagist) cannot be checked.
+        if (! is_file($manifest)) {
+            continue;
+        }
+
+        $composer = json_decode((string) file_get_contents($manifest), true);
         $namespaces = array_map(fn (string $namespace): string => explode('\\', $namespace)[0], array_keys($composer['autoload']['psr-4'] ?? []));
 
         expect(in_array($author, $namespaces, true))->toBeTrue("{$class} records {$class::packages()[0]}, whose root namespace is not {$author}");

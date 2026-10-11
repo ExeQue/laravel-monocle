@@ -8,8 +8,10 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Exceptions\LensAlreadyBootedException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
+use ExeQue\Monocle\Lenses\AuthLens;
 use ExeQue\Monocle\Lenses\CacheLens;
 use ExeQue\Monocle\Lenses\DatabaseLens;
+use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
 use ExeQue\Monocle\LensRegistry;
 use Tests\Fixtures\CounterEvent;
 use Tests\Fixtures\CounterLens;
@@ -36,6 +38,19 @@ describe(LensRegistry::class, function (): void {
             ->and(CounterLens::$options)->toBe(['threshold' => 2])
             ->and(array_map(fn ($lens): string => $lens::class, $registry->booted()))->toBe([CounterLens::class, CacheLens::class])
             ->and($registry->descriptions())->toHaveKey('counter', 'Counts CounterEvent dispatches.');
+    });
+
+    it('runs an extension only with the lens it extends, on that lens\'s section', function () use ($freshRegistry): void {
+        expect($freshRegistry([ImpersonateLens::class => true])->enabled())->toBe([]);
+
+        $registry = $freshRegistry([AuthLens::class => true, ImpersonateLens::class => true]);
+        $registry->boot(app(Eyepiece::class));
+
+        expect($registry->enabled())->toBe([AuthLens::class, ImpersonateLens::class])
+            ->and($registry->sectionOf(app(ImpersonateLens::class)))->toBe('auth')
+            ->and($registry->descriptions())->not->toHaveKey('auth_impersonate')
+            ->and($registry->descriptions()['auth'])->toContain('lab404/laravel-impersonate')
+            ->and($registry->advice())->toHaveKey('auth')->not->toHaveKey('auth_impersonate');
     });
 
     it('leaves out lenses whose packages are not installed', function () use ($freshRegistry): void {

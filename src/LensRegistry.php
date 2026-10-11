@@ -8,6 +8,7 @@ use Composer\InstalledVersions;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
+use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
@@ -87,11 +88,35 @@ final class LensRegistry
      */
     public function enabled(): array
     {
-        return array_keys(array_filter(
+        $enabled = array_keys(array_filter(
             $this->lenses(),
             fn (array|bool $options, string $class): bool => $options !== false && self::available($class),
             ARRAY_FILTER_USE_BOTH,
         ));
+
+        // An extension runs only while the lens it adds to does.
+        return array_values(array_filter(
+            $enabled,
+            fn (string $class): bool => ! is_subclass_of($class, ExtendsLens::class) || in_array($class::extends(), $enabled, true),
+        ));
+    }
+
+    /**
+     * The section a lens writes into: its own, or that of the lens it extends.
+     */
+    public function sectionOf(Lens $lens): string
+    {
+        if (! $lens instanceof ExtendsLens) {
+            return $lens->key();
+        }
+
+        foreach ($this->booted as $booted) {
+            if ($booted::class === $lens::extends()) {
+                return $booted->key();
+            }
+        }
+
+        return $this->app->make($lens::extends())->key();
     }
 
     /**
@@ -183,7 +208,17 @@ final class LensRegistry
         $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
 
         foreach ($lenses as $lens) {
-            $descriptions[$lens->key()] = $lens->description();
+            if (! $lens instanceof ExtendsLens) {
+                $descriptions[$lens->key()] = $lens->description();
+            }
+        }
+
+        // What extensions record is part of the section they write into.
+        foreach ($lenses as $lens) {
+            if ($lens instanceof ExtendsLens) {
+                $section = $this->sectionOf($lens);
+                $descriptions[$section] = trim(($descriptions[$section] ?? '').' '.$lens->description());
+            }
         }
 
         return $descriptions;
@@ -201,6 +236,10 @@ final class LensRegistry
         $lenses = $this->booted !== [] ? $this->booted : array_map($this->app->make(...), $this->enabled());
 
         foreach ($lenses as $lens) {
+            if ($lens instanceof ExtendsLens) {
+                continue;
+            }
+
             $advice[$lens->key()] = $lens instanceof Advises
                 ? $lens->advice()
                 : (preg_match('/^.+?[.!?](?=\s|$)/s', $lens->description(), $match) === 1 ? $match[0] : $lens->description());

@@ -45,7 +45,9 @@ These record something only when the package is installed; otherwise they do not
 
 | Package | Lens | Section | Records |
 |---|---|---|---|
+| [franbarbalopez/mirror](https://github.com/franbarbalopez/mirror) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Inertia](https://inertiajs.com) | [Inertia](#inertia) | `request` | the page component and its props |
+| [lab404/laravel-impersonate](https://github.com/404labfr/laravel-impersonate) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Prism](https://prismphp.com) | [Prism](#prism) | `prism` | text, structured, stream, embeddings, image and audio calls with tokens |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](#ai) | `ai` | agents, steps, tool calls and tokens |
@@ -53,12 +55,14 @@ These record something only when the package is installed; otherwise they do not
 | [Laravel Fortify](https://laravel.com/docs/fortify) | [Fortify](#fortify) | `auth` | two-factor challenges, failed and passed codes |
 | [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](#mcp-servers) | `mcp` | calls to your application's MCP servers |
 | [Laravel Octane](https://laravel.com/docs/octane) | [Octane](#octane) | - | a capture per request in a worker |
+| [Laravel Nova](https://nova.laravel.com) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 | [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](#feature-flags) | `features` | every feature check and its value |
 | [Laravel Sanctum](https://laravel.com/docs/sanctum) | [Sanctum](#sanctum) | `auth` | the token a request used |
 | [Livewire](https://livewire.laravel.com) | [Livewire](#livewire) | `livewire` | components, method calls, property changes and render time |
 | **Spatie** | | | |
 | [laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](#media-library) | `media` | media added and conversions run |
 | [laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](#response-cache) | `response_cache` | cache hits and misses for whole responses |
+| [stechstudio/filament-impersonate](https://github.com/stechstudio/filament-impersonate) | [Impersonation](#impersonation) | `auth` | who is impersonating the user |
 
 ## Laravel
 
@@ -139,7 +143,7 @@ Section `session`: what the session held once the request was handled - the data
 
 ### Auth
 
-Section `auth`: who the request was authenticated as and how - the guard that resolved the user, logins, logouts, failed attempts and lockouts, registrations, verifications and password resets. Credentials are recorded as the keys that were tried, never their values. The summary shows the user, failed attempts and lockouts.
+Section `auth`: who the request was authenticated as and how - the guard that resolved the user, logins, logouts, failed attempts and lockouts, registrations, verifications and password resets. Credentials are recorded as the keys that were tried, never their values. The summary shows the user, failed attempts and lockouts. With [Fortify](#fortify), [Sanctum](#sanctum) or an [impersonation](#impersonation) package installed, their rows are added to this section too.
 
 Warning: a login locked out after too many attempts.
 
@@ -316,6 +320,10 @@ The page file a request matched is shown as the request's action, with the page 
 #### Fortify
 
 Section `auth` also records Fortify's two-factor login: when a user is asked for a code, wrong codes and the code that let them in, plus two-factor being turned on, confirmed or off, recovery codes being generated or used, and password changes. The summary counts failed codes. Recovery codes themselves are never recorded.
+
+#### Impersonation
+
+With lab404/laravel-impersonate, stechstudio/filament-impersonate, Laravel Nova or franbarbalopez/mirror, section `auth` also records an impersonation starting and ending, with the impersonated user and who impersonated them. While an impersonation lasts, the authenticated user is marked with the id and guard of the user impersonating them, the summary shows it, and the Request tab shows it next to the user. No user is loaded from the database to find out.
 
 #### MCP servers
 

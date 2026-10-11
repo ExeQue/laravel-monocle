@@ -205,6 +205,44 @@ final class StripeLens implements Lens, RequiresPackages
 }
 ```
 
+## Adding to another lens
+
+A lens can add to another one instead of having a section of its own - the way the impersonation packages add to the auth section. Implement `ExtendsLens` and name the lens you add to. Your lens then runs only while that lens is enabled, its totals, warnings and errors count on that lens's tab, and its description is added to that lens's description for agents.
+
+Push rows into that lens's section, and use `modify()` to add to the rows it writes itself:
+
+```php
+use ExeQue\Monocle\Contracts\Lenses\ExtendsLens;
+use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
+use ExeQue\Monocle\Lenses\AuthLens;
+
+final class TeamsLens implements ExtendsLens, Lens, RequiresPackages
+{
+    public static function extends(): string
+    {
+        return AuthLens::class;
+    }
+
+    public static function packages(): array
+    {
+        return ['acme/teams'];
+    }
+
+    public function boot(): void
+    {
+        $this->eyepiece->listen(TeamSwitched::class, fn (TeamSwitched $event) => $this->eyepiece->push('auth', [
+            'event' => 'team_switched',
+            'team' => $event->team->name,
+        ]));
+
+        // Every row the auth lens writes for the authenticated user gets the current team.
+        $this->eyepiece->modify('auth', fn (array $row): array => ($row['event'] ?? null) === 'authenticated'
+            ? [...$row, 'team' => session('team')]
+            : $row);
+    }
+}
+```
+
 ## Extending the request lens
 
 The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. Write your own capture for responses that read better another way - an API error format, a GraphQL result, an export.
