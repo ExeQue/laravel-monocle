@@ -113,7 +113,7 @@ export const phaseIndex = {};
 /**
  * Render the timeline of a capture. model = { tree (from indexTree), duration }, state = { open, shut, kinds } (Sets).
  */
-const COLUMNS = 'grid grid-cols-[110px_minmax(0,1fr)_60px] items-center sm:grid-cols-[190px_minmax(0,1fr)_76px]';
+const COLUMNS = 'grid grid-cols-[130px_minmax(0,1fr)_60px] items-center sm:grid-cols-[190px_minmax(0,1fr)_76px]';
 const ROW = `wf-row ${COLUMNS} h-[26px] border-b border-line text-[12.5px] last:border-b-0 hover:bg-sunk`;
 const NAME = 'flex items-baseline gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap';
 const KIND = 'font-mono text-[10px] text-muted';
@@ -177,7 +177,7 @@ export function renderTimeline(model, kinds) {
 
   const open = (id, def) => `tlOpen('${id}', ${def})`;
 
-  const toggleCell = (id, def, depth, text) => `<button type="button" class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" @click="tlToggle('${id}', ${def})" :aria-expanded="${open(id, def)}" style="padding-left:${6 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform duration-200 ease-out" :class="${open(id, def)} && 'rotate-90'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>${text}</button>`;
+  const toggleCell = (id, def, depth, text) => `<button type="button" class="wf-toggle ${NAME} h-full items-center text-left text-[12.5px]" @click="tlToggle('${id}', ${def})" :aria-expanded="${open(id, def)}" style="padding-left:${6 + depth * 12}px"><svg class="size-3.5 shrink-0 self-center text-brass transition-transform duration-200 ease-out" :class="${open(id, def)} && 'rotate-90'" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg><span class="min-w-0 truncate" title="${text.replace(/<[^>]*>/g, '').replace(/"/g, '&quot;')}">${text}</span></button>`;
 
   const fold = (id, def, html) => (html ? `<div x-show="${open(id, def)}" x-collapse${def ? '' : ' x-cloak'}>${html}</div>` : '');
 
