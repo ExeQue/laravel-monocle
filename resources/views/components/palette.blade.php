@@ -46,10 +46,6 @@
                         @mousemove="palette.index = i"
                         @click="runPalette(item)"
                     >
-                        <span
-                            class="text-muted w-[3.4em] shrink-0 font-mono text-[11px] uppercase"
-                            x-text="item.kind"
-                        ></span>
                         <span class="min-w-0 flex-1 truncate" x-text="item.label"></span>
                         <span
                             class="shrink-0 font-mono text-xs"
@@ -59,6 +55,10 @@
                         <span
                             class="text-muted max-w-[45%] shrink-0 truncate text-xs tabular-nums"
                             x-text="item.hint"
+                        ></span>
+                        <span
+                            class="text-muted w-[3.4em] shrink-0 text-right font-mono text-[11px] uppercase"
+                            x-text="item.kind"
                         ></span>
                     </div>
                 </li>
