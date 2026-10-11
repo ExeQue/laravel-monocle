@@ -72,17 +72,17 @@
                                         >
                                             <span
                                                 x-html="
-                                                    tab === 'http'
-                                                        ? cell(tabData.rows[i], 'status')
+                                                    memberBadgeField
+                                                        ? cell(tabData.rows[i], memberBadgeField, presentationOf(tab))
                                                         : '#' + (tabData.rows[i].n ?? i + 1)
                                                 "
                                             ></span>
                                         </x-monocle::expand-button>
                                         <div class="min-w-0">
-                                            <code
-                                                class="block font-mono [overflow-wrap:anywhere]"
-                                                x-html="classes(memberLabel(tabData.rows[i]))"
-                                            ></code>
+                                            <div
+                                                class="flex flex-wrap items-baseline gap-x-1.5 [overflow-wrap:anywhere]"
+                                                x-html="memberLabel(tabData.rows[i])"
+                                            ></div>
                                             <span x-html="cell(tabData.rows[i], 'origin')"></span>
                                         </div>
                                         <span

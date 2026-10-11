@@ -14,7 +14,11 @@
                         <template x-for="col in columnsOf(t.rows, t.key)" :key="col"
                             ><th
                                 scope="col"
-                                :class="[cls.th, numeric(col) && '!text-right', narrow(col) && 'w-0 whitespace-nowrap']"
+                                :class="[
+                                    cls.th,
+                                    numeric(col, t.rows) && '!text-right',
+                                    narrow(col, t.rows) && 'w-0 whitespace-nowrap',
+                                ]"
                                 x-text="columnLabel(col, t.key)"
                             ></th
                         ></template>
@@ -24,7 +28,7 @@
                     <tbody>
                         <tr
                             class="hover:bg-sunk group/copy cursor-pointer"
-                            :class="row.repeat_of || row.duplicate_of ? 'bg-warn-soft/60' : ''"
+                            :class="rowTone(row, presentationOf(t.key))"
                             @click="toggleRow(t.key + ':' + i)"
                         >
                             <td :class="cls.td" class="w-0 whitespace-nowrap">
@@ -42,12 +46,11 @@
                                 ><td
                                     :class="[
                                         cls.td,
-                                        numeric(col) && '!text-right tabular-nums',
-                                        ! longValue(row[col]) && '![overflow-wrap:break-word]',
-                                        ['model', 'action', 'key', 'type'].includes(col) && 'whitespace-nowrap',
-                                        narrow(col) && 'w-0 whitespace-nowrap',
+                                        numeric(col, t.rows) && '!text-right tabular-nums',
+                                        ! longValue(row[col]) && '![overflow-wrap:break-word] whitespace-nowrap',
+                                        narrow(col, t.rows) && 'w-0 whitespace-nowrap',
                                     ]"
-                                    x-html="cell(row, col)"
+                                    x-html="cell(row, col, presentationOf(t.key))"
                                 ></td
                             ></template>
                         </tr>

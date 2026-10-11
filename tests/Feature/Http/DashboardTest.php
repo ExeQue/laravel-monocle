@@ -150,6 +150,8 @@ describe('dashboard', function (): void {
                 'groupings' => [['customer', 'by customer']],
                 'details_view' => true,
                 'includes' => [],
+                'formats' => [],
+                'highlights' => [],
             ]);
         });
 

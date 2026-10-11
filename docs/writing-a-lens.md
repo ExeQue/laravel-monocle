@@ -419,6 +419,8 @@ final class PaymentsLens implements Lens, Presentable
             ->columns(['customer', 'amount' => 'Amount', 'currency', 'status'])
             ->detailsOnly(['card', 'decline_reason'])
             ->groupBy(['customer' => 'by customer', 'status' => 'by outcome'])
+            ->format(['status' => 'status', 'refunded' => ['flag', 'refunded', null, 'bad', 'warn']])
+            ->highlight(['declined' => 'bad'])
             ->details('monocle.payment');
     }
 }
@@ -435,14 +437,37 @@ final class PaymentsLens implements Lens, Presentable
 | `details()` | a Blade view rendering an expanded row, instead of the list of its fields |
 | `tab()` | a Blade view for the whole tab, instead of the table |
 | `includes()` | other sections to show on this tab |
+| `format()` | how fields show in the table; see below |
+| `highlight()` | tints rows where a field is set: field => `'warn'` or `'bad'` |
 
 The presentation, the tab view, the tab's place and its count belong to the section named by your lens's `key()`. Rows you push to a section with another name get a plain table of their own.
 
 Tabs are ordered by `dashboard.tabs` in the configuration, which lists lens classes or section keys. Tabs not listed there, such as your own, follow the listed ones in the order their sections were recorded. Overview and Timeline always come first and Trace last. See [Dashboard](dashboard.md#configuration).
 
+### Formatting fields
+
+Durations (`duration`, `*_ms`), sizes (`*_bytes`), file paths, exceptions, `{field, from, to}` changes and long text are formatted wherever they appear. `format()` picks how other fields show, by name:
+
+| Format | Shows |
+|---|---|
+| `'http-status'` | an HTTP status code, coloured by class; empty means the call failed |
+| `'status'` | a status word, coloured: `processed` green, `failed` red, and so on |
+| `'level'` | a log level, coloured by severity |
+| `['flag', 'yes', 'no']` | `true` or `false` as a word: true in green, false in red. Add two tones (`'ok'`, `'warn'`, `'bad'`, `'muted'`) to pick the colours of false and true, and pass `null` to show nothing for one of them |
+| `'bool'` | `true` in green, `false` muted |
+| `['prefix', '#']` | the value after a prefix |
+| `['reference', 'repeat of #']` | a badge pointing at another row |
+| `['highlight', ['miss', 'failed'], 'warn']` | the listed values in a colour |
+| `'fields'` | a key/value map as a short list |
+| `'rules'` | validation rules per field |
+
+When rows are grouped, a group counts a row as failed when its `failed` field is `true`, a `flag` field is `false` or an `http-status` field is empty or 400 and up. A row inside a group leads with its first `http-status`, `status` or `level` field.
+
+A column that is empty, `false` or `0` in every row, or `true` in every row, is left out.
+
 ### Other sections on your tab
 
-`includes(['stripe_webhooks'])` shows other sections on your tab. Their rows are loaded with the tab into `tabData.included.stripe_webhooks`, and the default table (also `<x-monocle::section-table />` in a tab view) shows them as extra tables under yours. While your tab is shown they get no tab of their own, and their warnings and errors count on your tab.
+`includes(['stripe_webhooks'])` shows other sections on your tab; give one a presentation of its own to format its table, as in `includes(['stripe_webhooks' => Presentation::table()->label('Webhooks')->format([...])])`. Their rows are loaded with the tab into `tabData.included.stripe_webhooks`, and the default table (also `<x-monocle::section-table />` in a tab view) shows them as extra tables under yours. While your tab is shown they get no tab of their own, and their warnings and errors count on your tab.
 
 ### An expanded row
 

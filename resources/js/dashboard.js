@@ -435,12 +435,14 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     const by = this.rowGroup;
     if (by === 'order' || !this.groupings.length) return [];
     const keyOf = (row) => (row[by] == null || row[by] === '' ? '(none)' : typeof row[by] === 'object' ? JSON.stringify(row[by]) : String(row[by]));
-    const failed = (row) => row.failed === true || row.ok === false || row.passed === false || row.allowed === false || (typeof row.status === 'number' && row.status >= 400);
+    const formats = Object.entries(this.presentationOf(this.tab)?.formats ?? {});
+    // A row failed when it says so, or when a field its lens shows as a flag or an HTTP status says so.
+    const failed = (row) => row.failed === true || formats.some(([field, [format]]) => (format === 'flag' && row[field] === false) || (format === 'http-status' && (row[field] == null || row[field] >= 400)));
     const groups = new Map();
     (this.tabData?.rows ?? []).forEach((row, i) => {
       const key = keyOf(row);
       // The group shows its value the way the table cell would (a coloured status, #1 for a pool).
-      const g = groups.get(key) ?? { key, html: this.cell(row, by) || '<span class="text-muted">(none)</span>', count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
+      const g = groups.get(key) ?? { key, html: this.cell(row, by, this.presentationOf(this.tab)) || '<span class="text-muted">(none)</span>', count: 0, failed: 0, total_ms: 0, max_ms: 0, origin: row.origin, rows: [] };
       const ms = Number(row.duration ?? 0);
       g.count++;
       g.failed += failed(row) ? 1 : 0;
@@ -454,9 +456,19 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   /** A row inside a group, in one line: the columns that tell it apart from the rest of its group. */
   memberLabel(row) {
-    const skip = [this.rowGroup, 'duration', 'time', 'origin'];
-    const columns = this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c) && !this.narrow(c));
-    return [row.method, ...columns.slice(0, row.method ? 1 : 2).map((c) => fmtValue(row[c]))].filter(Boolean).join(' · ');
+    const skip = [this.rowGroup, 'duration', 'time', 'origin', this.memberBadgeField];
+    const presentation = this.presentationOf(this.tab);
+    const columns = this.columnsOf(this.tabData?.rows ?? [], this.tab).filter((c) => !skip.includes(c));
+    const rows = this.tabData?.rows ?? [];
+    // Numbers say little without their column, so they carry its name.
+    const labelled = (c, html) => (this.numeric(c, rows) ? `<span class="text-muted">${esc(this.columnLabel(c, this.tab).toLowerCase())}</span> ${html}` : html);
+    return columns.map((c) => [c, this.cell(row, c, presentation)]).filter(([, html]) => html).map(([c, html]) => labelled(c, html)).join(' <span class="text-muted">·</span> ');
+  },
+
+  /** The field a row inside a group leads with: the first status or level its lens formats. */
+  get memberBadgeField() {
+    const formats = this.presentationOf(this.tab)?.formats ?? {};
+    return Object.keys(formats).find((field) => ['http-status', 'status', 'level'].includes(formats[field][0])) ?? null;
   },
 
 

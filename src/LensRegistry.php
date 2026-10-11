@@ -147,7 +147,8 @@ final class LensRegistry
 
         foreach ($this->booted as $lens) {
             if ($lens instanceof Presentable) {
-                $presentations[$lens->key()] = $lens->presentation();
+                $presentation = $lens->presentation();
+                $presentations = [...$presentation->included, ...$presentations, $lens->key() => $presentation];
             }
         }
 

@@ -409,6 +409,6 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Resettab
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.ai');
+        return Presentation::table()->tab('monocle::tabs.ai')->format(['status' => 'status']);
     }
 }

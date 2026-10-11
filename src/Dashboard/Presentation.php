@@ -27,6 +27,12 @@ final readonly class Presentation
         public ?string $tabView = null,
         /** @var list<string> */
         public array $includes = [],
+        /** @var array<string, self> included section => how it is shown */
+        public array $included = [],
+        /** @var array<string, list<mixed>> field => [format, ...arguments] */
+        public array $formats = [],
+        /** @var array<string, string> field => tone of rows where it is set */
+        public array $highlights = [],
     ) {
     }
 
@@ -101,17 +107,62 @@ final readonly class Presentation
 
     /**
      * Other sections this tab shows, such as auth events on the request tab.
-     * They get no tab of their own while this one is shown.
+     * They get no tab of their own while this one is shown. Give a section a
+     * presentation of its own to format its table: ['changes' => Presentation::table()->format(...)].
      *
-     * @param  list<string>  $sections
+     * @param  array<int|string, string|self>  $sections
      */
     public function includes(array $sections): self
     {
-        return $this->with(['includes' => array_values($sections)]);
+        $keys = [];
+        $included = [];
+
+        foreach ($sections as $key => $section) {
+            if ($section instanceof self) {
+                $keys[] = (string) $key;
+                $included[(string) $key] = $section;
+            } else {
+                $keys[] = $section;
+            }
+        }
+
+        return $this->with(['includes' => $keys, 'included' => $included]);
     }
 
     /**
-     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool, includes: list<string>}
+     * How fields show in the table, by name:
+     *
+     *     'http-status'              a status code, coloured by class; empty means the call failed
+     *     'status'                   a status word, coloured: processed, failed, ...
+     *     'level'                    a log level, coloured by severity
+     *     ['flag', 'yes', 'no']      true or false as a word; false in red, true in green
+     *                                (['flag', 'yes', 'no', 'warn', 'muted'] picks both colours; null leaves a word out)
+     *     'bool'                     true or false, true in green
+     *     ['prefix', '#']            the value after a prefix
+     *     ['reference', 'repeat of #'] a badge pointing at another row
+     *     ['highlight', ['miss'], 'warn'] the listed values coloured
+     *     'fields'                   a key/value map as a short list
+     *     'rules'                    validation rules per field
+     *
+     * @param  array<string, string|list<mixed>>  $formats  field => format or [format, ...arguments]
+     */
+    public function format(array $formats): self
+    {
+        return $this->with(['formats' => [...$this->formats, ...array_map(fn (string|array $format): array => (array) $format, $formats)]]);
+    }
+
+    /**
+     * Tints rows where a field is set, such as repeated reads.
+     *
+     * @param  array<string, 'warn'|'bad'>  $fields  field => tone
+     */
+    public function highlight(array $fields): self
+    {
+        return $this->with(['highlights' => [...$this->highlights, ...$fields]]);
+    }
+
+    /**
+     * @return array{label: string|null, columns: list<string>, labels: array<string, string>, details_only: list<string>, groupings: list<array{0: string, 1: string}>, details_view: bool, includes: list<string>, formats: array<string, list<mixed>>, highlights: array<string, string>}
      */
     public function toArray(): array
     {
@@ -123,6 +174,8 @@ final readonly class Presentation
             'groupings' => array_map(fn (string $field, string $label): array => [$field, $label], array_keys($this->groupings), $this->groupings),
             'details_view' => $this->detailsView !== null,
             'includes' => $this->includes,
+            'formats' => $this->formats,
+            'highlights' => $this->highlights,
         ];
     }
 }

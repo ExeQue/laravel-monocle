@@ -238,6 +238,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             'key' => $event->key,
             'tags' => $event->tags,
             'duration' => $startedAt === null ? null : round($this->eyepiece->now() - $startedAt, 3),
+            'slow' => $startedAt !== null && $this->eyepiece->now() - $startedAt >= $this->slowMs,
             'ttl' => $extra['ttl'] ?? null,
         ];
 
@@ -275,6 +276,12 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
     {
         return Presentation::table()
             ->tab('monocle::tabs.cache')
-            ->groupBy(['key' => 'by key', 'type' => 'by operation', 'store' => 'by store']);
+            ->groupBy(['key' => 'by key', 'type' => 'by operation', 'store' => 'by store'])
+            ->detailsOnly(['slow'])
+            ->format([
+                'type' => ['highlight', ['miss', 'write_failed', 'forget_failed', 'flush_failed'], 'warn'],
+                'repeat_of' => ['reference', 'repeat of #'],
+            ])
+            ->highlight(['repeat_of' => 'warn', 'slow' => 'warn']);
     }
 }

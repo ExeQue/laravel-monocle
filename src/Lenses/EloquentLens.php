@@ -198,6 +198,13 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
 
     public function presentation(): Presentation
     {
-        return Presentation::table()->tab('monocle::tabs.models')->includes(['model_changes']);
+        return Presentation::table()
+            ->tab('monocle::tabs.models')
+            ->includes([
+                'model_changes' => Presentation::table()
+                    ->label('Changes')
+                    ->format(['rolled_back' => ['flag', 'rolled back', null, 'bad', 'warn']])
+                    ->highlight(['rolled_back' => 'warn']),
+            ]);
     }
 }

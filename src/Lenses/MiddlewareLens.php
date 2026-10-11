@@ -61,7 +61,7 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
 
     public function description(): string
     {
-        return 'One row per class-based middleware, in the order the request passed through them: middleware (class), parameters, group, request_ms (work before it called $next), response_ms (work once $next returned), own_ms, passed (false when it short-circuited) and short_circuited_with (the HTTP status). The same work is in the timeline as middleware.request and middleware.response spans.';
+        return 'One row per class-based middleware, in the order the request passed through them: middleware (class), parameters, group, request_ms (work before it called $next), response_ms (work once $next returned), duration (both together), time, passed (false when it short-circuited) short_circuited_with (the HTTP status) and slow (its own time is over slow_ms). The same work is in the timeline as middleware.request and middleware.response spans.';
     }
 
     public function advice(): string
@@ -122,9 +122,11 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
                 'group' => $request->meta['group'] ?? null,
                 'request_ms' => $before,
                 'response_ms' => $after,
-                'own_ms' => round($before + ($after ?? 0.0), 3),
+                'duration' => round($before + ($after ?? 0.0), 3),
+                'time' => round($request->start ?? 0.0, 3),
                 'passed' => $request->meta['passed'] ?? true,
                 'short_circuited_with' => $request->meta['short_circuited_with'] ?? null,
+                'slow' => $before + ($after ?? 0.0) >= $this->slowMs && ! $this->isLibrary($request->meta['class'] ?? null),
             ];
         }
 
@@ -249,8 +251,10 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
     {
         return Presentation::table()
             ->tab('monocle::tabs.middleware')
-            ->columns(['middleware', 'group', 'request_ms' => 'Before', 'response_ms' => 'After', 'own_ms' => 'Own time', 'passed'])
-            ->detailsOnly(['parameters', 'short_circuited_with'])
-            ->groupBy(['group' => 'by group']);
+            ->columns(['middleware', 'group', 'request_ms' => 'Before', 'response_ms' => 'After', 'passed', 'duration' => 'Own time'])
+            ->detailsOnly(['parameters', 'short_circuited_with', 'slow'])
+            ->groupBy(['group' => 'by group'])
+            ->format(['passed' => ['flag', 'passed', 'short-circuited', 'warn']])
+            ->highlight(['slow' => 'warn']);
     }
 }

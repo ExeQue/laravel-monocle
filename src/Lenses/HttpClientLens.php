@@ -392,6 +392,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             ->columns(['method', 'status', 'url', 'request_bytes', 'response_bytes', 'pool', 'duration'])
             ->detailsOnly(['exception', 'failed', 'timing', 'host', 'endpoint'])
             ->groupBy(['endpoint' => 'by endpoint', 'host' => 'by host', 'pool' => 'by pool', 'status' => 'by status'])
-            ->details('monocle::details.http');
+            ->details('monocle::details.http')
+            ->format(['status' => 'http-status', 'pool' => ['prefix', '#']]);
     }
 }

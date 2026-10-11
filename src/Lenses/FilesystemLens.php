@@ -118,6 +118,7 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
     {
         return Presentation::table()
             ->tab('monocle::tabs.filesystem')
-            ->groupBy(['path' => 'by path', 'op' => 'by operation', 'disk' => 'by disk']);
+            ->groupBy(['path' => 'by path', 'op' => 'by operation', 'disk' => 'by disk'])
+            ->format(['ok' => ['flag', 'ok', 'failed']]);
     }
 }

@@ -63,7 +63,7 @@ describe(MiddlewareLens::class, function (): void {
         expect($rows['SleepBefore'])->toMatchArray(['parameters' => ['5'], 'group' => 'route', 'passed' => true, 'short_circuited_with' => null])
             ->and($rows['SleepBefore']['request_ms'])->toBeGreaterThanOrEqual(4)
             ->and($rows['SleepAfter']['response_ms'])->toBeGreaterThanOrEqual(4)
-            ->and($rows['SleepAfter']['own_ms'])->toBe(round($rows['SleepAfter']['request_ms'] + $rows['SleepAfter']['response_ms'], 3))
+            ->and($rows['SleepAfter']['duration'])->toBe(round($rows['SleepAfter']['request_ms'] + $rows['SleepAfter']['response_ms'], 3))
             ->and($rows->keys()->search('SleepBefore'))->toBeLessThan($rows->keys()->search('SleepAfter'));
 
         $this->get('/aborted')->assertStatus(418);
