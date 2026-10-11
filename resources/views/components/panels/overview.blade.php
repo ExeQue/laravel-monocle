@@ -90,8 +90,18 @@
                             <div
                                 class="text-xl font-bold tabular-nums"
                                 :class="totalTone(t)"
+                                x-show="! totalDetails(t)"
                                 x-text="totalValue(t)"
                             ></div>
+                            <button
+                                type="button"
+                                class="cursor-pointer text-xl font-bold tabular-nums underline decoration-dotted decoration-1 underline-offset-4"
+                                :class="totalTone(t)"
+                                x-show="totalDetails(t)"
+                                @click="totalPopover($event, t)"
+                                data-tip="Show the parts"
+                                x-text="totalValue(t)"
+                            ></button>
                         </div>
                     </template>
                 </div>

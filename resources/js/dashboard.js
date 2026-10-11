@@ -379,6 +379,25 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
     return lines.join('\n');
   },
 
+  /** What a total is made of (name => value in the total's unit), when the summary splits it up. */
+  totalDetails(t) {
+    const details = this.summary.details?.[t[0]];
+    return details && Object.keys(details).length ? details : null;
+  },
+
+  /** Open the parts of a total next to it, largest first. */
+  totalPopover(event, t) {
+    const details = this.totalDetails(t);
+    if (!details) return;
+    event.stopPropagation();
+    const rows = Object.entries(details).sort((a, b) => b[1] - a[1])
+      .map(([name, value]) => `<tr><td class="py-0.5 pr-4 font-mono text-xs">${esc(name)}</td><td class="py-0.5 text-right tabular-nums">${esc(this.totalValue([name, value, t[2]]))}</td></tr>`)
+      .join('');
+    this.popover.openDetails(event.currentTarget, `
+      <div class="flex items-center gap-2"><span class="font-semibold first-letter:uppercase">${esc(this.totalLabel(t))}</span><span class="tabular-nums text-muted">${esc(this.totalValue(t))}</span><button class="ml-auto px-0.5 text-lg leading-none text-muted" data-pop-close aria-label="Close">×</button></div>
+      <table class="w-full border-collapse text-[13px]"><tbody>${rows}</tbody></table>`, event.clientX);
+  },
+
   /** Open the details of a table row next to the click. */
   rowPopover(event, row, section) {
     if (event.target.closest('a, button')) return;

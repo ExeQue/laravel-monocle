@@ -40,10 +40,23 @@ final class Eyepiece
 
     private int $spanCounter = 0;
 
-    private int $overheadNs = 0;
+    /** @var array<string, int> Monocle's own time per lens key (or section), in nanoseconds. */
+    private array $overhead = [];
 
     /** How deep measure() calls are nested; only the outermost one is timed. */
     private int $measuring = 0;
+
+    /** @var array<string, int> Time spent registering lenses before a capture started, added to the next capture. */
+    private array $registered = [];
+
+    /** The lens being registered, so the listeners it adds are credited to it. */
+    private ?string $registering = null;
+
+    /** Whose work the outermost measure() is timing. */
+    private ?string $owner = null;
+
+    /** Time spent in application code called from Monocle's own work, left out of the overhead. */
+    private int $outsideNs = 0;
 
     private bool $discarded = false;
 
@@ -205,6 +218,8 @@ final class Eyepiece
     public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Capture
     {
         $this->reset();
+        $this->overhead = $this->registered;
+        $this->registered = [];
 
         return $this->capture = new Capture(
             id: (string) Str::uuid7(),
@@ -267,8 +282,10 @@ final class Eyepiece
      */
     public function listen(string $event, Closure $handler): static
     {
-        $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler): void {
-            $this->measure(fn () => $handler(...$arguments));
+        $owner = $this->registering ?? $this->owner ?? 'monocle';
+
+        $this->app->make('events')->listen($event, function (mixed ...$arguments) use ($handler, $owner): void {
+            $this->measure(fn () => $handler(...$arguments), $owner);
         });
 
         return $this;
@@ -331,7 +348,7 @@ final class Eyepiece
 
             $this->capture->spans[$span->id] = $span;
             $this->stack[] = $span->id;
-        });
+        }, 'timeline');
 
         return $this;
     }
@@ -350,7 +367,7 @@ final class Eyepiece
             if ($span->key !== null) {
                 unset($this->keyed[$span->key]);
             }
-        });
+        }, 'timeline');
 
         return $this;
     }
@@ -394,7 +411,7 @@ final class Eyepiece
             }
 
             $this->capture->sections[$section][] = Normalizer::normalize($row);
-        });
+        }, $section);
 
         return $this;
     }
@@ -415,7 +432,7 @@ final class Eyepiece
             $existing = array_is_list($existing) ? [] : $existing;
 
             $this->capture->sections[$section] = array_merge($existing, Normalizer::normalize($data));
-        });
+        }, $section);
 
         return $this;
     }
@@ -480,7 +497,8 @@ final class Eyepiece
 
             $capture->health = [
                 'memory_peak_bytes' => memory_get_peak_usage(true),
-                'overhead_ms' => round($this->overheadNs / 1_000_000, 3),
+                'overhead_ms' => round(array_sum($this->overhead) / 1_000_000, 3),
+                'overhead_by' => $this->overheadBy(),
                 'open_spans_at_finalize' => count(array_filter($capture->spans, fn (Span $span): bool => $span->endedBy === 'finalize')),
                 'failures' => $this->failures,
             ];
@@ -510,7 +528,8 @@ final class Eyepiece
         $this->stack = [];
         $this->keyed = [];
         $this->spanCounter = 0;
-        $this->overheadNs = 0;
+        $this->overhead = [];
+        $this->outsideNs = 0;
         $this->discarded = false;
         $this->failures = [];
 
@@ -543,14 +562,77 @@ final class Eyepiece
     }
 
     /**
-     * Run Monocle's own work and count its time as overhead. A listener that
-     * pushes a row is measured once, not once for the listener and once
-     * for the push.
+     * Register a lens (its listeners, decorators and hooks) and credit the
+     * time to it: on the capture running now, or the next one.
+     *
+     * @internal Called by LensRegistry::boot().
      */
-    private function measure(Closure $work): void
+    public function registering(string $owner, Closure $register): void
+    {
+        $previous = $this->registering;
+        $this->registering = $owner;
+        $started = hrtime(true);
+
+        try {
+            $register();
+        } finally {
+            $elapsed = hrtime(true) - $started;
+            $this->registering = $previous;
+
+            if ($this->capture === null) {
+                $this->registered[$owner] = ($this->registered[$owner] ?? 0) + $elapsed;
+            } else {
+                $this->overhead[$owner] = ($this->overhead[$owner] ?? 0) + $elapsed;
+            }
+        }
+    }
+
+    /**
+     * Run application code from inside Monocle's own work, such as a user
+     * closure a lens resolves to time it. Its time is not Monocle's, so it
+     * is left out of the overhead; Monocle work it triggers still counts.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $work
+     * @return T
+     */
+    public function outside(Closure $work): mixed
+    {
+        if ($this->measuring === 0) {
+            return $work();
+        }
+
+        [$depth, $owner] = [$this->measuring, $this->owner];
+        $this->measuring = 0;
+        $started = hrtime(true);
+        $outsideBefore = $this->outsideNs;
+
+        try {
+            return $work();
+        } finally {
+            // Monocle work inside the application code is credited on its own, so the whole block (and nothing
+            // nested in it twice) leaves the caller's time.
+            $this->outsideNs = $outsideBefore + hrtime(true) - $started;
+            [$this->measuring, $this->owner] = [$depth, $owner];
+        }
+    }
+
+    /**
+     * Run Monocle's own work and credit its time to the lens doing it.
+     * Nested calls count towards the outermost one; application code run
+     * through outside() is left out.
+     */
+    private function measure(Closure $work, string $owner): void
     {
         $outermost = $this->measuring === 0;
+
+        if ($outermost) {
+            $this->owner = $owner;
+        }
+
         $started = hrtime(true);
+        $outsideBefore = $this->outsideNs;
         $this->measuring++;
 
         try {
@@ -561,9 +643,22 @@ final class Eyepiece
             $this->measuring--;
 
             if ($outermost) {
-                $this->overheadNs += hrtime(true) - $started;
+                $owner = (string) $this->owner;
+                $this->overhead[$owner] = ($this->overhead[$owner] ?? 0) + hrtime(true) - $started - ($this->outsideNs - $outsideBefore);
+                $this->owner = null;
             }
         }
+    }
+
+    /**
+     * @return array<string, float> ms per lens key, the most expensive first
+     */
+    private function overheadBy(): array
+    {
+        $by = array_map(fn (int $ns): float => round($ns / 1_000_000, 3), $this->overhead);
+        arsort($by);
+
+        return $by;
     }
 
     /**

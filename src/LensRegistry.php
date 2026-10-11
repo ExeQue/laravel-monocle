@@ -151,13 +151,15 @@ final class LensRegistry
             /** @var Lens $lens */
             $lens = $this->app->make($class);
 
-            if ($lens instanceof Configurable && is_array($options)) {
-                $lens->configure($options);
-            }
+            $eyepiece->registering($lens->key(), function () use ($lens, $options): void {
+                if ($lens instanceof Configurable && is_array($options)) {
+                    $lens->configure($options);
+                }
 
-            if (method_exists($lens, 'boot')) {
-                $this->app->call([$lens, 'boot']);
-            }
+                if (method_exists($lens, 'boot')) {
+                    $this->app->call([$lens, 'boot']);
+                }
+            });
 
             $this->booted[] = $lens;
         }

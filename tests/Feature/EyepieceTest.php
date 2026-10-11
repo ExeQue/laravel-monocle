@@ -194,18 +194,78 @@ describe(Eyepiece::class, function (): void {
                 ->and($this->eyepiece->active())->toBeNull();
         });
 
-        it('counts the time spent in its listeners as overhead, once', function (): void {
-            $this->eyepiece->listen('monocle.test', function (): void {
-                usleep(20_000);
-                $this->eyepiece->push('things', ['n' => 1]);
+        it('credits listener work to the lens that registered it, without the application code it calls', function (): void {
+            $this->eyepiece->registering('things', function (): void {
+                $this->eyepiece->listen('monocle.test', function (): void {
+                    usleep(5_000);
+                    $this->eyepiece->outside(fn () => usleep(30_000));
+                    $this->eyepiece->push('other', ['n' => 1]);
+                });
             });
 
             event('monocle.test');
+            $health = $this->eyepiece->finalize()->health;
 
-            $overhead = $this->eyepiece->finalize()->health['overhead_ms'];
+            expect($health['overhead_by'])->toHaveKey('things')->not->toHaveKey('other')
+                ->and($health['overhead_by']['things'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(30.0)
+                ->and($health['overhead_ms'])->toBeLessThan(30.0);
+        });
 
-            expect($overhead)->toBeGreaterThanOrEqual(20.0)
-                ->and($overhead)->toBeLessThan(40.0);
+        it('counts Monocle work inside application code run through outside()', function (): void {
+            $this->eyepiece->listen('monocle.inner', fn () => usleep(5_000));
+            $this->eyepiece->registering('outer', function (): void {
+                $this->eyepiece->listen('monocle.outer', function (): void {
+                    $this->eyepiece->outside(function (): void {
+                        usleep(20_000);
+                        event('monocle.inner');
+                    });
+                });
+            });
+
+            event('monocle.outer');
+            $by = $this->eyepiece->finalize()->health['overhead_by'];
+
+            expect($by['monocle'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(20.0)
+                ->and($by['outer'])->toBeLessThan(5.0)
+                ->and($this->eyepiece->outside(fn () => 'plain'))->toBe('plain');
+        });
+
+        it('leaves nested application code out once', function (): void {
+            $this->eyepiece->registering('outer', function (): void {
+                $this->eyepiece->listen('monocle.inner', function (): void {
+                    $this->eyepiece->outside(fn () => usleep(10_000));
+                });
+                $this->eyepiece->listen('monocle.outer', function (): void {
+                    usleep(5_000);
+                    $this->eyepiece->outside(fn () => event('monocle.inner'));
+                });
+            });
+
+            event('monocle.outer');
+
+            expect($this->eyepiece->finalize()->health['overhead_by']['outer'])->toBeGreaterThanOrEqual(5.0)->toBeLessThan(10.0);
+        });
+
+        it('credits rows written outside a listener to their section', function (): void {
+            $this->eyepiece->push('things', ['n' => 1]);
+            Monocle::span('a')->start()->stop();
+
+            expect(array_keys($this->eyepiece->finalize()->health['overhead_by']))->toContain('things', 'timeline');
+        });
+
+        it('counts registering lenses as overhead, on the running capture or the next one', function (): void {
+            $this->eyepiece->registering('slow', fn () => usleep(10_000));
+
+            expect($this->eyepiece->finalize()->health['overhead_by']['slow'])->toBeGreaterThanOrEqual(10.0);
+
+            $this->eyepiece->registering('slow', fn () => usleep(10_000));
+            $this->eyepiece->start(CaptureType::Command);
+
+            expect($this->eyepiece->finalize()->health['overhead_by']['slow'])->toBeGreaterThanOrEqual(10.0);
+
+            $this->eyepiece->start(CaptureType::Command);
+
+            expect($this->eyepiece->finalize()->health['overhead_by'])->not->toHaveKey('slow');
         });
     });
 

@@ -51,6 +51,7 @@ final class SummaryBuilder
             'memory_peak_mb' => isset($capture->health['memory_peak_bytes']) ? round($capture->health['memory_peak_bytes'] / 1048576, 1) : null,
         ];
         $labels = ['duration_ms' => 'duration', 'memory_peak_mb' => 'peak memory'];
+        $details = [];
         $units = ['duration_ms' => Unit::Milliseconds->value, 'memory_peak_mb' => Unit::Megabytes->value];
         $headlines = ['duration_ms', 'memory_peak_mb'];
         $groups = [];
@@ -85,6 +86,7 @@ final class SummaryBuilder
             $labels += ['monocle_ms' => 'monocle', 'monocle_percent' => 'monocle share'];
             $units += ['monocle_ms' => Unit::Milliseconds->value, 'monocle_percent' => Unit::Percent->value];
             $headlines = [...$headlines, 'monocle_ms', 'monocle_percent'];
+            $details['monocle_ms'] = (array) ($capture->health['overhead_by'] ?? []);
         }
 
         if (is_numeric($capture->status) && (int) $capture->status >= 500) {
@@ -129,6 +131,7 @@ final class SummaryBuilder
             'labels' => $labels,
             'units' => $units,
             'headlines' => array_values(array_unique($headlines)),
+            'details' => $details,
             'groups' => array_diff_key($groups, array_flip($headlines)),
             'counts' => $counts,
             'warnings' => array_values(array_unique($warnings)),
