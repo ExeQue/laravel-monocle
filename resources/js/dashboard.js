@@ -2,7 +2,7 @@ import '../css/dashboard.css';
 import Alpine from 'alpinejs';
 import collapse from '@alpinejs/collapse';
 import { esc, ms, ago, humanize, fmtValue, maybeLink, classes, copyButton } from './format.js';
-import { cls, statusClass } from './classes.js';
+import { cls, statusClass, httpStatusClass } from './classes.js';
 import { indexTree, renderTimeline, phasesOf, LENS_COLOR } from './timeline.js';
 import { setupPopover, rowDetails, rowBody, originHtml as originBlock } from './popover.js';
 import { setupTooltip } from './tooltip.js';
@@ -556,13 +556,12 @@ Alpine.data('monocle', (config) => ({
     const block = (title, html, copy = null) => `<div class="grid min-w-0 content-start gap-1.5"><div class="flex items-center gap-1.5"><div class="${label}">${title}</div>${copy ? copyButton(copy, title.toLowerCase()) : ''}</div>${html}</div>`;
     const size = (v) => (typeof v !== 'number' ? null : v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B');
     const facts = [
-      ['Status', row.status ?? 'no response'],
+      ['Status', row.status ?? 'no response', httpStatusClass(row.status)],
       ['Duration', row.duration != null ? ms(row.duration) : null],
       ['Started at', row.time != null ? ms(row.time) : null],
       ['Sent', size(row.request_bytes)],
       ['Received', size(row.response_bytes)],
       ['Pool', row.pool],
-      ['Exception', row.exception ? `${row.exception.class}: ${row.exception.message}` : null],
     ].filter(([, v]) => v !== null && v !== undefined && v !== '');
     const capture = row.response_capture;
     const cards = (capture?.cards ?? []).map((card) => `<div class="grid gap-1 rounded-md border border-line bg-panel p-2.5"><div><b class="text-[13px]">${esc(card.title)}</b>${card.subtitle ? ` <span class="text-xs text-muted">${esc(card.subtitle)}</span>` : ''}</div><dl class="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">${Object.entries(card.items ?? {}).map(([k, v]) => `<dt class="text-muted">${esc(humanize(k))}</dt><dd class="m-0 font-mono [overflow-wrap:anywhere]">${this.cardValue(v, k)}</dd>`).join('')}</dl></div>`).join('');
@@ -575,7 +574,8 @@ Alpine.data('monocle', (config) => ({
 
     return `<div class="grid gap-4">
       <div class="flex flex-wrap items-start gap-1.5 font-mono text-xs"><b>${esc(row.method ?? '')}</b><span class="[overflow-wrap:anywhere]">${esc(row.url ?? '')}</span>${copyButton(row.url ?? '', 'url')}</div>
-      <dl class="m-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">${facts.map(([k, v]) => `<div class="grid gap-0.5"><dt class="${label}">${k}</dt><dd class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere]">${esc(String(v))}</dd></div>`).join('')}</dl>
+      <dl class="m-0 grid grid-cols-[repeat(auto-fill,minmax(110px,1fr))] gap-3">${facts.map(([k, v, tone]) => `<div class="grid gap-0.5"><dt class="${label}">${k}</dt><dd class="m-0 text-[13px] tabular-nums [overflow-wrap:anywhere] ${tone ?? ''}">${esc(String(v))}</dd></div>`).join('')}</dl>
+      ${row.exception ? block('Exception', `<div class="grid gap-0.5 rounded-md border border-line bg-panel p-2.5 text-xs"><span class="font-mono text-bad">${esc(row.exception.class)}</span><span class="[overflow-wrap:anywhere]">${esc(row.exception.message)}</span></div>`, row.exception.message) : ''}
       <div class="grid gap-4 lg:grid-cols-2">
         ${block('Request headers', kvTable(this.headers(row.request_headers), 'request header'))}
         ${block('Response headers', kvTable(this.headers(row.response_headers), 'response header'))}
@@ -611,6 +611,8 @@ Alpine.data('monocle', (config) => ({
     if (key === 'duration' && typeof v === 'number' && typeof row.time === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span><span class="block whitespace-nowrap text-[11px] text-muted">at ${esc(ms(row.time))}</span>`;
     if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
     if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';
+    if (key === 'status' && 'url' in row) return `<span class="font-medium tabular-nums ${httpStatusClass(v)}">${v == null ? 'failed' : esc(v)}</span>`;
+    if (key === 'exception' && v && typeof v === 'object' && 'class' in v) return `<span class="font-mono text-bad">${esc(String(v.class).split('\\').pop())}</span> <span class="text-muted">${esc(String(v.message ?? '').slice(0, 140))}${String(v.message ?? '').length > 140 ? '…' : ''}</span>`;
     if (key === 'type' && (v === 'miss' || v === 'failed')) return `<span class="font-medium text-warn">${esc(v)}</span>`;
     if ((key === 'repeat_of' || key === 'duplicate_of') && v) return `<span class="rounded bg-warn-soft px-1.5 font-mono text-[10.5px] text-warn">${key === 'repeat_of' ? 'repeat' : 'duplicate'} of #${esc(v)}</span>`;
     if (Array.isArray(v) && v.length && v.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(v);

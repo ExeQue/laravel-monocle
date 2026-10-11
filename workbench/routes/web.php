@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Monocle\Facades\Monocle;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Inertia\Inertia;
 use Laravel\Pennant\Feature;
@@ -88,7 +90,14 @@ Route::prefix('demo')->group(function () use ($result): void {
                 'client_secret' => 'cs_2f8e0a6d4b9c1e7f',
                 'signature' => 'sig_7b3e9d1a5c0f2e84',
             ]),
+            $pool->as('webhook')->connectTimeout(2)->post('https://hooks.monocle-demo.invalid/published', ['post' => $post->id]),
         ]);
+
+        try {
+            Http::connectTimeout(2)->get('https://expired.badssl.com/');
+        } catch (ConnectionException) {
+            // The certificate check is expected to fail; the call is still recorded.
+        }
 
         Greeter::fake(['A short, friendly summary.']);
         $summary = (string) (new Greeter())->prompt('Summarize: '.$post->body);
@@ -271,6 +280,25 @@ Route::prefix('demo')->group(function () use ($result): void {
             'user' => Http::get('https://api.example.test/users/1')->json(),
             'broken' => Http::get('https://api.example.test/broken')->status(),
         ]);
+    });
+
+    Route::get('http/failures', function () use ($result): View {
+        $outcomes = [];
+
+        foreach ([
+            'expired certificate' => 'https://expired.badssl.com/',
+            'self-signed certificate' => 'https://self-signed.badssl.com/',
+            'unknown host' => 'https://monocle-demo.invalid/',
+            'no answer' => 'http://10.255.255.1/',
+        ] as $label => $url) {
+            try {
+                $outcomes[$label] = Http::connectTimeout(2)->timeout(3)->get($url)->status();
+            } catch (Throwable $exception) {
+                $outcomes[$label] = class_basename($exception).': '.Str::limit($exception->getMessage(), 90);
+            }
+        }
+
+        return $result('Failed connections', $outcomes);
     });
 
     Route::get('filesystem', function () use ($result): View {

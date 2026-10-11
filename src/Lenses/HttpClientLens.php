@@ -38,7 +38,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     /** @var array<string, class-string<ResponseCapture>> content type pattern => capture */
     private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class];
 
-    /** @var array<int, array{at: float, pool: int|null}> */
+    /** @var array<int, array{at: float, pool: int|null, call: string}> */
     private array $pending = [];
 
     /** @var WeakMap<object, int> The pool or batch each running Http::pool() / Http::batch() was given. */
@@ -77,7 +77,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     public function boot(): void
     {
         $this->eyepiece->listen(RequestSending::class, function (RequestSending $event): void {
-            $this->pending[spl_object_id($event->request)] = ['at' => $this->eyepiece->now(), 'pool' => $this->pool()];
+            $this->pending[spl_object_id($event->request)] = ['at' => $this->eyepiece->now(), 'pool' => $this->pool(), 'call' => $this->call($event->request)];
         });
 
         $this->eyepiece->listen(ResponseReceived::class, function (ResponseReceived $event): void {
@@ -123,7 +123,8 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
                 'duration' => $started === null ? null : round($this->eyepiece->now() - $started, 3),
                 'failed' => true,
                 'exception' => ['class' => $event->exception::class, 'message' => $event->exception->getMessage()],
-                'pool' => $pending['pool'] ?? null,
+                // A connection that fails before the request is sent never fired RequestSending.
+                'pool' => $pending === null ? $this->pool() : $pending['pool'],
             ]);
         });
     }
@@ -276,15 +277,33 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
     }
 
     /**
-     * @return array{at: float, pool: int|null}|null
+     * The pending start of a request. A failed connection is reported with a
+     * new request object, so it is matched by method and url instead.
+     *
+     * @return array{at: float, pool: int|null, call: string}|null
      */
     private function take(Request $request): ?array
     {
         $id = spl_object_id($request);
-        $started = $this->pending[$id] ?? null;
+
+        if (! isset($this->pending[$id])) {
+            $call = $this->call($request);
+            $id = array_find_key($this->pending, fn (array $pending): bool => $pending['call'] === $call);
+        }
+
+        if ($id === null) {
+            return null;
+        }
+
+        $pending = $this->pending[$id];
         unset($this->pending[$id]);
 
-        return $started;
+        return $pending;
+    }
+
+    private function call(Request $request): string
+    {
+        return $request->method().' '.$request->url();
     }
 
     /**

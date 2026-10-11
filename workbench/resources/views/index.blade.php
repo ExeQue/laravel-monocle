@@ -1,7 +1,7 @@
 @php
     $groups = [
         'Everything at once' => [
-            ['GET', '/demo/showcase', 'Publish a post', 'One request that touches every lens it can: middleware, cache, validation, a gate, a feature flag, a transaction, model changes, an event, a job, mail, a notification, an HTTP call, an agent, the filesystem, the session, a log entry, a reported exception, an Artisan command, custom spans and nested views.'],
+            ['GET', '/demo/showcase', 'Publish a post', 'One request that touches every lens it can: middleware, cache, validation, a gate, a feature flag, a transaction, model changes, an event, a job, mail, a notification, HTTP calls in a pool with masked secrets and failed connections, an agent, the filesystem, the session, a log entry, a reported exception, an Artisan command, custom spans and nested views.'],
         ],
         'Database' => [
             ['GET', '/demo/database/n-plus-one', 'N+1', 'Loads posts, then each post\'s comments lazily in a loop.'],
@@ -48,6 +48,7 @@
         ],
         'HTTP client' => [
             ['GET', '/demo/http', 'Faked remote API', 'Calls a faked API, including a call that fails with a 500.'],
+            ['GET', '/demo/http/failures', 'Failed connections', 'Real calls that never get a response: expired and self-signed certificates (badssl.com), an unknown host and an address that does not answer. Needs network access.'],
         ],
         'Filesystem' => [
             ['GET', '/demo/filesystem', 'Put, get and delete', 'Writes, reads and deletes files on the demo disk.'],

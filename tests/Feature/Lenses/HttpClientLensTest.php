@@ -49,6 +49,44 @@ describe(HttpClientLens::class, function (): void {
             ->and($capture['raw'])->toBe('{"access_token":"abcd****","expires_in":3600}');
     });
 
+    it('records calls whose connection fails, alone and in a pool', function (): void {
+        Http::fake(['unreachable.example.com/*' => Http::failedConnection('cURL error 6: Could not resolve host')]);
+
+        try {
+            Http::get('https://unreachable.example.com/alone');
+        } catch (ConnectionException) {
+        }
+
+        Http::pool(fn ($pool) => [
+            $pool->get('https://unreachable.example.com/pooled'),
+            $pool->get('https://api.example.com/fine'),
+        ]);
+
+        $rows = collect(app(Eyepiece::class)->finalize()->rows('http'))->keyBy('url');
+
+        expect($rows)->toHaveCount(3)
+            ->and($rows['https://unreachable.example.com/alone']['status'])->toBeNull()
+            ->and($rows['https://unreachable.example.com/alone']['failed'])->toBeTrue()
+            ->and($rows['https://unreachable.example.com/alone']['exception']['message'])->toContain('Could not resolve host')
+            ->and($rows['https://unreachable.example.com/pooled']['pool'])->toBe(1)
+            ->and($rows['https://unreachable.example.com/pooled']['failed'])->toBeTrue()
+            ->and($rows['https://api.example.com/fine']['status'])->toBe(201);
+    });
+
+    it('times a real call whose connection is refused', function (): void {
+        try {
+            Http::connectTimeout(1)->get('http://127.0.0.1:1/');
+        } catch (ConnectionException) {
+        }
+
+        $row = app(Eyepiece::class)->finalize()->rows('http')[0];
+
+        expect($row['status'])->toBeNull()
+            ->and($row['failed'])->toBeTrue()
+            ->and($row['exception']['message'])->toContain('127.0.0.1:1')
+            ->and($row['duration'])->toBeFloat();
+    });
+
     it('records every request sent in a pool', function (): void {
         Http::pool(fn ($pool) => [
             $pool->as('orders')->get('https://api.example.com/orders'),

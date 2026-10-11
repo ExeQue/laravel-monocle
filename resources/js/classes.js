@@ -13,6 +13,13 @@ export const cls = {
   origin: 'block font-mono text-[11.5px] text-brass',
 };
 
+/** An HTTP response status: 2xx green, 3xx grey, 4xx and 5xx red, none (a failed connection) red. */
+export const httpStatusClass = (s) => {
+  if (s === null || s === undefined) return 'text-bad';
+  const n = Number(s);
+  return n >= 400 ? 'text-bad' : n >= 300 ? 'text-muted' : 'text-ok';
+};
+
 export const statusClass = (s) => {
   if (s === null || s === undefined) return '';
   if (/^\d+$/.test(String(s))) return Number(s) >= 500 ? 'text-bad' : Number(s) >= 400 ? 'text-warn' : 'text-ok';
