@@ -67,16 +67,23 @@ const FORMATS = {
   fields: (v) => (v && typeof v === 'object' && !Array.isArray(v) && !isThrowable(v)
     ? Object.entries(v).map(([k, x]) => `<div><span class="text-muted">${esc(k)}</span> <span class="font-mono">${classes(fmtValue(x).slice(0, 120))}</span></div>`).join('')
     : esc(fmtValue(v))),
+  // A link to the capture this row started, found among the capture's children by a field such as job_id.
+  capture(v, row, field = 'job_id') {
+    if (v === null || v === undefined || v === '') return '';
+    const run = [...(this?.children ?? [])].reverse().find((c) => c[field] === v);
+    if (!run) return '<span class="text-muted italic">pending</span>';
+    return `<a class="${statusClass(run.status) || 'text-brass'} underline-offset-2 hover:underline" href="#${esc(run.id)}/overview">${esc(run.status ?? 'open')} →</a>`;
+  },
   rules: (v, row) => (v && typeof v === 'object' && !Array.isArray(v)
     ? Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('')
     : esc(fmtValue(v))),
 };
 
-export function cell(row, key, presentation = null) {
+export function cell(row, key, presentation = null, context = {}) {
   const v = row[key];
   if (key === 'origin') return v?.file ? maybeLink(v.file + (v.line ? ':' + v.line : ''), v.link, cls.origin) + (v.via ? `<span class="block font-mono text-[11px] text-muted">via ${maybeLink(v.via.call ?? v.via.file, v.via.call_link ?? v.via.link)}</span>` : '') : '';
   const format = presentation?.formats?.[key];
-  if (format && FORMATS[format[0]]) return FORMATS[format[0]](v, row, ...format.slice(1));
+  if (format && FORMATS[format[0]]) return FORMATS[format[0]].call(context, v, row, ...format.slice(1));
   if (key === 'duration' && typeof v === 'number' && typeof row.time === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span><span class="block whitespace-nowrap text-[11px] text-muted">at ${esc(ms(row.time))}</span>`;
   if ((key === 'duration' || key === 'time' || key.endsWith('_ms')) && typeof v === 'number') return `<span class="whitespace-nowrap">${esc(ms(v))}</span>`;
   if ((key === 'bytes' || key.endsWith('_bytes') || key === 'size') && typeof v === 'number') return '<span class="whitespace-nowrap">' + esc(v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? (v / 1024).toFixed(1) + ' KB' : v + ' B') + '</span>';

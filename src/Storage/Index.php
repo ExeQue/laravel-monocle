@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Storage;
 
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Enums\CaptureType;
 
 /**
  * Builds the summary row kept in the store index so listing, tracing and
@@ -43,6 +44,7 @@ final class Index
             'has_errors' => self::hasErrors($capture),
             'warnings' => (int) ($capture->health['warnings'] ?? 0),
             'errors' => (int) ($capture->health['errors'] ?? 0),
+            'job_id' => $capture->type === CaptureType::Job ? ($capture->section('job')['job_id'] ?? null) : null,
         ];
     }
 

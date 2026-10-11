@@ -518,6 +518,9 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
 
   cls, ms, ago, statusClass, humanize, esc, maybeLink, rowBody, classes,
   phaseColor(name) { return PHASE_COLORS[name] ?? 'var(--c-phase)'; },
+  /** A table cell; formats that link to other captures look among this capture's children. */
+  cell(row, key, presentation = null) { return cells.cell(row, key, presentation, { children: this.capture?.children ?? [] }); },
+
   categoryColor(name) { return CATEGORY_COLORS[name] ?? LENS_COLOR[name] ?? 'var(--c-phase)'; },
 
   originHtml(origin) { return origin?.file ? maybeLink(origin.file + (origin.line ? ':' + origin.line : ''), origin.link, cls.origin) : ''; },

@@ -99,6 +99,10 @@
         "prepare": "@php vendor/bin/testbench package:discover --ansi",
         "test:coverage": "vendor/bin/pest -p --coverage --min=90",
         "build": "@php vendor/bin/testbench workbench:build --ansi",
+        "queue": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php vendor/bin/testbench queue:work database --sleep=1 --ansi"
+        ],
         "serve": [
             "Composer\\Config::disableProcessTimeout",
             "@build",

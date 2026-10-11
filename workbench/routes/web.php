@@ -100,6 +100,8 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         PostPublished::dispatch($post);
         ProcessReport::dispatch('post-'.$post->id);
+        // Queued for the worker (composer queue, or docker compose up queue); it becomes its own capture.
+        ProcessReport::dispatch('post-'.$post->id.'-digest')->onConnection('database');
         Mail::to($author)->send(new OrderShipped());
         $author->notify(new WelcomeNotification());
 
@@ -128,7 +130,7 @@ Route::prefix('demo')->name('demo.')->group(function () use ($result): void {
 
         // A real call, so its transfer timing (dns, connect, tls, wait, download) is recorded.
         try {
-            Http::connectTimeout(2)->timeout(5)->get('https://example.com/');
+            Http::connectTimeout(2)->timeout(5)->get('https://httpbin.org/get', ['source' => 'monocle']);
         } catch (ConnectionException) {
             // Offline: the failed connection is recorded instead.
         }

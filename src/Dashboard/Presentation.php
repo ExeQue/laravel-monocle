@@ -143,6 +143,8 @@ final readonly class Presentation
      *     ['highlight', ['miss'], 'warn'] the listed values coloured
      *     'fields'                   a key/value map as a short list
      *     'rules'                    validation rules per field
+     *     ['capture', 'job_id']      a link to the capture started from this row: the newest child
+     *                                capture whose job_id is the value, or "pending" until there is one
      *
      * @param  array<string, string|list<mixed>>  $formats  field => format or [format, ...arguments]
      */

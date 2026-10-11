@@ -52,6 +52,10 @@ final readonly class CapturesController
             'editor' => $links->enabled(),
             'presentations' => array_map(fn (Presentation $presentation): array => $presentation->toArray(), $this->registry->presentations()),
             'tabs' => $tabs->for($capture, $this->tabOrder(), $result['summary']['problems'] ?? []),
+            'children' => array_map(
+                fn (array $child): array => array_intersect_key($child, array_flip(['id', 'type', 'name', 'status', 'has_errors', 'job_id', 'started_at'])),
+                $captures->children($capture->id),
+            ),
             'context' => [
                 'route' => $route['name'] ?? null,
                 'action' => $route['action'] ?? null,

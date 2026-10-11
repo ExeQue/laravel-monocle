@@ -63,7 +63,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
 
     public function description(): string
     {
-        return 'Jobs dispatched by this capture: job class, connection, queue, delay, job_id, batch_id, chain length and whether it ran inline. Each queued job becomes its own capture (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
+        return 'Jobs dispatched by this capture: job class, connection, queue, delay, job_id, batch_id, chain length, whether it ran inline and run (the job_id again for queued jobs, linking the row to the capture of the job itself). Each queued job becomes its own capture (type job) with parent_id pointing back here - follow them with monocle-trace. Inline jobs (sync queue, dispatchSync) appear as job spans in the timeline.';
     }
 
     public function advice(): string
@@ -164,6 +164,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             'batch_id' => $payload['data']['command'] ?? null ? $this->batchId($event->job) : null,
             'chained' => count($payload['data']['command'] ?? null ? $this->chain($event->job) : []),
             'sync' => $this->isSync($event->connectionName),
+            'run' => $this->isSync($event->connectionName) ? null : ($payload['uuid'] ?? $event->id),
         ]);
     }
 
@@ -323,6 +324,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
     {
         return Presentation::table()
             ->tab('monocle::tabs.jobs')
-            ->groupBy(['job' => 'by job', 'queue' => 'by queue']);
+            ->groupBy(['job' => 'by job', 'queue' => 'by queue'])
+            ->format(['run' => ['capture', 'job_id']]);
     }
 }

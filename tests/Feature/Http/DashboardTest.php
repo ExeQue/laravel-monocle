@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Tests\Feature\Http;
 
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
+use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Editor\EditorLinks;
 use ExeQue\Monocle\Editor\EditorSettings;
+use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Http\Controllers\AssetController;
 use ExeQue\Monocle\Http\Controllers\CapturesController;
 use ExeQue\Monocle\Http\Controllers\DashboardController;
 use ExeQue\Monocle\Http\Middleware\Authorize;
 use ExeQue\Monocle\MonocleServiceProvider;
+use ExeQue\Monocle\Storage\StoreManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -178,6 +181,16 @@ describe('dashboard', function (): void {
 
             $this->get('/things')->assertOk();
             $this->id = latestCapture()->id;
+        });
+
+        it('sends the capture\'s children with the job each ran for', function (): void {
+            $job = new Capture('job-run', CaptureType::Job, microtime(true), parentId: $this->id);
+            $job->status = 'processed';
+            $job->sections['job'] = ['job_id' => 'uuid-1'];
+            app(StoreManager::class)->store()->put($job);
+
+            expect($this->getJson("/_monocle/api/captures/{$this->id}")->json('children'))
+                ->toMatchArray([['id' => 'job-run', 'type' => 'job', 'name' => null, 'status' => 'processed', 'has_errors' => false, 'job_id' => 'uuid-1', 'started_at' => $job->startedAt]]);
         });
 
         it('lists captures', function (): void {
