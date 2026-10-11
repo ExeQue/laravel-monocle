@@ -8,6 +8,9 @@
             "import_functions": true
         },
         "no_unused_imports": true,
-        "ordered_imports": true
+        "ordered_imports": true,
+        "multiline_promoted_properties": {
+            "minimum_number_of_parameters": 1
+        }
     }
 }

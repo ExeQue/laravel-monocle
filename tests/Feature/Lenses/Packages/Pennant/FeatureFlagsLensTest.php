@@ -29,7 +29,7 @@ describe(FeatureFlagsLens::class, function (): void {
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('features');
-        $summary = (new FeatureFlagsLens())->summarize($capture);
+        $summary = app(FeatureFlagsLens::class)->summarize($capture);
 
         expect(array_map(fn (array $row): array => [$row['feature'], $row['source']], $rows))->toContain(
             ['new-checkout', 'resolved'],
@@ -43,6 +43,6 @@ describe(FeatureFlagsLens::class, function (): void {
     });
 
     it('summarizes nothing without flag checks', function (): void {
-        expect((new FeatureFlagsLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(FeatureFlagsLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

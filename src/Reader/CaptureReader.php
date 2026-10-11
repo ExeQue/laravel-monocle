@@ -12,8 +12,9 @@ use ExeQue\Monocle\Storage\StoreManager;
  */
 final class CaptureReader
 {
-    public function __construct(private readonly StoreManager $stores)
-    {
+    public function __construct(
+        private readonly StoreManager $stores
+    ) {
     }
 
     /**

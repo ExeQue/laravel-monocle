@@ -10,7 +10,6 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\VarDumper;
@@ -23,12 +22,15 @@ use Symfony\Component\VarDumper\VarDumper;
  */
 final class DumpLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     /** @var callable|null */
     private $previous;
 
     private Closure $handler;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -45,10 +47,8 @@ final class DumpLens implements Advises, Lens, Summarizable
         return 'Look here for values passed to dump() and dd().';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         $this->handler = function (mixed $value, ?string $label = null): void {
             $this->record($value, $label);
             $this->forward($value, $label);

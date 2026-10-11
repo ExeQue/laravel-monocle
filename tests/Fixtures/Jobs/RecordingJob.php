@@ -18,8 +18,9 @@ final class RecordingJob implements ShouldQueue
 
     public static int $handled = 0;
 
-    public function __construct(public readonly string $label = 'job')
-    {
+    public function __construct(
+        public readonly string $label = 'job'
+    ) {
     }
 
     public function handle(): void

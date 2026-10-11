@@ -2,7 +2,7 @@ ARG PHP=8.4
 FROM php:${PHP}-cli-alpine
 
 RUN apk update && apk add \
-    zip libzip-dev icu-dev git libpng-dev libjpeg-turbo-dev freetype-dev
+    zip libzip-dev icu-dev git libpng-dev libjpeg-turbo-dev freetype-dev nodejs
 
 RUN docker-php-ext-configure gd --with-jpeg --with-freetype && docker-php-ext-install zip intl exif gd
 

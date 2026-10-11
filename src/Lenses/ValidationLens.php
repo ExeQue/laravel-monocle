@@ -30,15 +30,14 @@ use Stringable;
  */
 final class ValidationLens implements Advises, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private ?Closure $resolver = null;
 
     /** @var SplObjectStorage<Validator, float> validators of this capture and when they were made */
     private SplObjectStorage $validators;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
         $this->validators = new SplObjectStorage();
     }
 
@@ -57,15 +56,13 @@ final class ValidationLens implements Advises, Lens, Resettable, Summarizable
         return 'Look here when a form or API call answers 422 or redirects back: which rule failed for which field, and where the validation came from.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
-
         // After every provider has booted, so a resolver the application sets is kept,
         // and again whenever someone set their own resolver after that.
         $app->booted(fn () => $this->wrap($app));
-        $eyepiece->listen(RouteMatched::class, fn () => $this->wrap($app));
-        $eyepiece->listen(JobProcessing::class, fn () => $this->wrap($app));
+        $this->eyepiece->listen(RouteMatched::class, fn () => $this->wrap($app));
+        $this->eyepiece->listen(JobProcessing::class, fn () => $this->wrap($app));
     }
 
     /**

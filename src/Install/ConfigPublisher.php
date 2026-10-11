@@ -14,8 +14,9 @@ use RuntimeException;
  */
 final class ConfigPublisher
 {
-    public function __construct(private readonly string $source)
-    {
+    public function __construct(
+        private readonly string $source
+    ) {
     }
 
     /**

@@ -41,7 +41,7 @@ describe(EventsLens::class, function (): void {
             ->and($rows[2]['listeners'])->toBe([])
             ->and($rows[0]['origin']['file'])->toContain('EventsLensTest.php');
 
-        $summary = (new EventsLens())->summarize($capture);
+        $summary = app(EventsLens::class)->summarize($capture);
 
         expect($summary['totals'])->toBe(['events' => 3, 'events_without_listeners' => 1]);
     });

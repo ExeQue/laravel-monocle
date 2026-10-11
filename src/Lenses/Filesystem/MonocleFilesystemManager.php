@@ -21,8 +21,11 @@ final class MonocleFilesystemManager extends FilesystemManager
     /**
      * @param  Closure(string): bool  $shouldRecord
      */
-    public function __construct(Application $app, private readonly Eyepiece $eyepiece, private readonly Closure $shouldRecord)
-    {
+    public function __construct(
+        Application $app,
+        private readonly Eyepiece $eyepiece,
+        private readonly Closure $shouldRecord
+    ) {
         parent::__construct($app);
     }
 

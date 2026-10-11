@@ -53,7 +53,7 @@ describe(MediaLibraryLens::class, function (): void {
         $rows = collect($capture->rows('media'));
         $added = $rows->firstWhere('event', 'added');
         $conversion = $rows->firstWhere('event', 'conversion');
-        $summary = (new MediaLibraryLens())->summarize($capture);
+        $summary = app(MediaLibraryLens::class)->summarize($capture);
 
         expect($added)->toMatchArray(['model' => Album::class.'#'.$album->id, 'collection' => 'photos', 'disk' => 'media', 'file' => 'beach.png'])
             ->and($added['size'])->toBeGreaterThan(0)

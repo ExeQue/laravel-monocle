@@ -35,7 +35,7 @@ describe(RedisLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['command' => 'get', 'parameters' => ['user:1'], 'connection' => 'default', 'duration' => 0.42])
             ->and($rows[1]['parameters'])->toBe(['user:1', 'ada', 'EX', 60]);
 
-        $summary = (new RedisLens())->summarize($capture);
+        $summary = app(RedisLens::class)->summarize($capture);
 
         expect($summary['totals']['redis_commands'])->toBe(3)
             ->and($summary['totals']['redis_ms'])->toBe(2.22)
@@ -49,6 +49,6 @@ describe(RedisLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->rows('redis'))->toBe([])
-            ->and((new RedisLens())->summarize($capture))->toBe([]);
+            ->and(app(RedisLens::class)->summarize($capture))->toBe([]);
     });
 });

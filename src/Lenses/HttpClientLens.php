@@ -11,7 +11,6 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Events\RequestSending;
 use Illuminate\Http\Client\Events\ResponseReceived;
@@ -24,12 +23,15 @@ use Throwable;
  */
 final class HttpClientLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private bool $bodies = false;
 
     /** @var array<int, float> */
     private array $pending = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -51,15 +53,13 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
         $this->bodies = (bool) ($options['bodies'] ?? $this->bodies);
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(RequestSending::class, function (RequestSending $event): void {
+        $this->eyepiece->listen(RequestSending::class, function (RequestSending $event): void {
             $this->pending[spl_object_id($event->request)] = $this->eyepiece->now();
         });
 
-        $eyepiece->listen(ResponseReceived::class, function (ResponseReceived $event): void {
+        $this->eyepiece->listen(ResponseReceived::class, function (ResponseReceived $event): void {
             $started = $this->take($event->request);
 
             if (! $this->eyepiece->recording()) {
@@ -81,7 +81,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Resettable, S
             ]);
         });
 
-        $eyepiece->listen(ConnectionFailed::class, function (ConnectionFailed $event): void {
+        $this->eyepiece->listen(ConnectionFailed::class, function (ConnectionFailed $event): void {
             $started = $this->take($event->request);
 
             if (! $this->eyepiece->recording()) {

@@ -39,7 +39,6 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
 {
     public const string LABEL_HEADER = 'X-Monocle-Label';
 
-    private Eyepiece $eyepiece;
 
     private Application $app;
 
@@ -59,6 +58,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
 
     /** @var array<string, class-string<ResponseCapture>> Response header => capture. */
     private array $headerCaptures = ['X-Inertia' => InertiaCapture::class];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -82,11 +86,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         $this->headerCaptures = (array) ($options['capture']['headers'] ?? $this->headerCaptures);
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
         $this->app = $app;
-        $this->eyepiece = $eyepiece;
-
         if (! $app->runningInConsole()) {
             $this->startCapture(defined('LARAVEL_START') ? LARAVEL_START : null);
             $this->phase('bootstrap');
@@ -99,7 +101,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         });
 
         if (class_exists(RequestReceived::class)) {
-            $eyepiece->listen(RequestReceived::class, function (object $event): void {
+            $this->eyepiece->listen(RequestReceived::class, function (object $event): void {
                 if ($this->eyepiece->active() === null) {
                     $this->startCapture((float) ($event->request->server('REQUEST_TIME_FLOAT') ?: microtime(true)));
                     $this->phase('middleware (request)');
@@ -108,13 +110,13 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Res
         }
 
         if (class_exists(ViewMatched::class)) {
-            $eyepiece->listen(ViewMatched::class, $this->onFolioPage(...));
+            $this->eyepiece->listen(ViewMatched::class, $this->onFolioPage(...));
         }
 
-        $eyepiece->listen(Routing::class, $this->onRouting(...));
-        $eyepiece->listen(RouteMatched::class, $this->onRouteMatched(...));
-        $eyepiece->listen(PreparingResponse::class, $this->onPreparingResponse(...));
-        $eyepiece->listen(RequestHandled::class, $this->onRequestHandled(...));
+        $this->eyepiece->listen(Routing::class, $this->onRouting(...));
+        $this->eyepiece->listen(RouteMatched::class, $this->onRouteMatched(...));
+        $this->eyepiece->listen(PreparingResponse::class, $this->onPreparingResponse(...));
+        $this->eyepiece->listen(RequestHandled::class, $this->onRequestHandled(...));
 
         $app->terminating(function (): void {
             if ($this->eyepiece->active() === null) {

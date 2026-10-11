@@ -14,7 +14,6 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Origin;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
@@ -28,8 +27,6 @@ use Throwable;
  */
 final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private float $slowMs = 70.0;
 
     private int $nPlusOneThreshold = 3;
@@ -46,6 +43,11 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
 
     /** @var array<string, list<Span>> connection => open transaction spans */
     private array $transactions = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -70,14 +72,12 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Re
         $this->ignoreTables = array_values((array) ($options['ignore_tables'] ?? $this->ignoreTables));
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(QueryExecuted::class, $this->onQuery(...));
-        $eyepiece->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
-        $eyepiece->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
-        $eyepiece->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
+        $this->eyepiece->listen(QueryExecuted::class, $this->onQuery(...));
+        $this->eyepiece->listen(TransactionBeginning::class, $this->onTransactionBeginning(...));
+        $this->eyepiece->listen(TransactionCommitted::class, fn (TransactionCommitted $event) => $this->endTransaction($event->connectionName, 'committed'));
+        $this->eyepiece->listen(TransactionRolledBack::class, fn (TransactionRolledBack $event) => $this->endTransaction($event->connectionName, 'rolled_back'));
     }
 
     public function finalize(Capture $capture): void

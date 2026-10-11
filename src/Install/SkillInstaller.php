@@ -34,8 +34,9 @@ final class SkillInstaller
         'pi' => ['Pi', '.pi/skills', ['.pi']],
     ];
 
-    public function __construct(private readonly string $source)
-    {
+    public function __construct(
+        private readonly string $source
+    ) {
     }
 
     /**

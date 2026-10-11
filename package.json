@@ -13,6 +13,9 @@
     "@alpinejs/collapse": "^3.17.4",
     "@tailwindcss/vite": "^4.3.3",
     "alpinejs": "^3.17.4",
+    "prettier": "^3.9.10",
+    "prettier-plugin-blade": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
     "vite": "^6.4.3",
     "vitepress": "^1.6.4"

@@ -42,7 +42,7 @@ describe(ViewsLens::class, function (): void {
     });
 
     it('summarizes with top-level time only and warns about repeated partials', function (): void {
-        $lens = new ViewsLens();
+        $lens = app(ViewsLens::class);
         $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 0]);
 
         $this->get('/page');

@@ -39,16 +39,16 @@ describe(FilesystemLens::class, function (): void {
 
         expect(app('filesystem'))->toBeInstanceOf(MonocleFilesystemManager::class)
             ->and($disks)->toBe(['spy', 'wild-one'])
-            ->and((new FilesystemLens())->records('plain'))->toBeFalse();
+            ->and(app(FilesystemLens::class)->records('plain'))->toBeFalse();
 
-        $lens = new FilesystemLens();
+        $lens = app(FilesystemLens::class);
         $lens->configure(['disks' => ['*']]);
 
         expect($lens->records('anything'))->toBeTrue();
     });
 
     it('stays out of the way when no disks are selected', function (): void {
-        $lens = new FilesystemLens();
+        $lens = app(FilesystemLens::class);
         $lens->configure([]);
         $before = app('filesystem');
         $lens->boot($this->app, app(Eyepiece::class));
@@ -86,7 +86,7 @@ describe(FilesystemLens::class, function (): void {
             ->and(collect($rows)->first(fn (array $row): bool => $row['ok'] === false))->toMatchArray(['op' => 'read', 'path' => 'missing.txt'])
             ->and(collect($rows)->firstWhere('op', 'write')['origin']['file'])->toContain('FilesystemLensTest.php');
 
-        $summary = (new FilesystemLens())->summarize($capture);
+        $summary = app(FilesystemLens::class)->summarize($capture);
 
         expect($summary['totals'])->toMatchArray(['filesystem_bytes_read' => 11, 'filesystem_bytes_written' => 11, 'filesystem_by_disk' => ['spy' => count($rows)]])
             ->and($summary['totals']['filesystem_ops'])->toBe(count($rows))
@@ -113,6 +113,6 @@ describe(FilesystemLens::class, function (): void {
     });
 
     it('summarizes nothing without operations', function (): void {
-        expect((new FilesystemLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(FilesystemLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

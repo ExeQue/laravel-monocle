@@ -19,7 +19,10 @@ use Throwable;
  */
 final class RedisLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -36,10 +39,8 @@ final class RedisLens implements Advises, Lens, Summarizable
         return 'Look here for Redis commands that do not go through the cache, such as locks, rate limiters and queues.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
-
         if (! $app->bound('redis')) {
             return;
         }
@@ -50,7 +51,7 @@ final class RedisLens implements Advises, Lens, Summarizable
             return;
         }
 
-        $eyepiece->listen(CommandExecuted::class, function (CommandExecuted $event): void {
+        $this->eyepiece->listen(CommandExecuted::class, function (CommandExecuted $event): void {
             if (! $this->eyepiece->recording()) {
                 return;
             }

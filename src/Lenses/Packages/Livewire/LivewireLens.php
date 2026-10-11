@@ -13,7 +13,6 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
-use Illuminate\Contracts\Foundation\Application;
 use Livewire\Component;
 use Livewire\Livewire;
 use Throwable;
@@ -25,13 +24,16 @@ use Throwable;
  */
 final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     /** @var array<string, array<string, mixed>> */
     private array $components = [];
 
     /** @var array<string, Span> */
     private array $spans = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -48,10 +50,8 @@ final class LivewireLens implements Advises, Finalizable, Lens, Resettable, Summ
         return 'Look here for Livewire components: which methods were called, which properties changed and how long rendering took.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         if (! class_exists(Livewire::class)) {
             return;
         }

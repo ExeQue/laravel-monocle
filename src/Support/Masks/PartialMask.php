@@ -11,8 +11,9 @@ namespace ExeQue\Monocle\Support\Masks;
  */
 final class PartialMask
 {
-    public function __construct(private readonly int $visible = 4)
-    {
+    public function __construct(
+        private readonly int $visible = 4
+    ) {
     }
 
     public function __invoke(mixed $value, string $key): mixed

@@ -20,8 +20,9 @@ final class StoreManager
 
     private ?Store $resolved = null;
 
-    public function __construct(private readonly Application $app)
-    {
+    public function __construct(
+        private readonly Application $app
+    ) {
     }
 
     /**

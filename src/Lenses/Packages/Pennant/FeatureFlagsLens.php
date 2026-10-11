@@ -10,7 +10,6 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
-use Illuminate\Contracts\Foundation\Application;
 use Laravel\Pennant\Events\FeatureDeleted;
 use Laravel\Pennant\Events\FeatureResolved;
 use Laravel\Pennant\Events\FeatureRetrieved;
@@ -24,7 +23,10 @@ use Laravel\Pennant\Events\UnknownFeatureResolved;
  */
 final class FeatureFlagsLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -41,10 +43,8 @@ final class FeatureFlagsLens implements Advises, Lens, Summarizable
         return 'Look here when a request took an unexpected branch: which feature flags it checked and the value it got.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         $events = [
             FeatureRetrieved::class => 'stored',
             FeatureResolved::class => 'resolved',
@@ -58,7 +58,7 @@ final class FeatureFlagsLens implements Advises, Lens, Summarizable
                 continue;
             }
 
-            $eyepiece->listen($event, function (object $event) use ($source): void {
+            $this->eyepiece->listen($event, function (object $event) use ($source): void {
                 if (! $this->eyepiece->recording()) {
                     return;
                 }

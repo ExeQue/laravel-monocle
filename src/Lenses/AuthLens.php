@@ -21,7 +21,6 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Foundation\Application;
 use Laravel\Sanctum\Events\TokenAuthenticated;
 
 /**
@@ -31,7 +30,10 @@ use Laravel\Sanctum\Events\TokenAuthenticated;
  */
 final class AuthLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -48,24 +50,22 @@ final class AuthLens implements Advises, Lens, Summarizable
         return 'Look here to see who the request ran as and how, and for failed logins and lockouts.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(Authenticated::class, fn (Authenticated $event) => $this->push('authenticated', $event->guard, $event->user));
-        $eyepiece->listen(Attempting::class, fn (Attempting $event) => $this->push('attempting', $event->guard, null, ['remember' => $event->remember, 'credentials' => array_keys($event->credentials)]));
-        $eyepiece->listen(Login::class, fn (Login $event) => $this->push('login', $event->guard, $event->user, ['remember' => $event->remember]));
-        $eyepiece->listen(Failed::class, fn (Failed $event) => $this->push('failed', $event->guard, $event->user, ['credentials' => array_keys($event->credentials)]));
-        $eyepiece->listen(Lockout::class, fn (Lockout $event) => $this->push('lockout', null, null, ['ip' => $event->request->ip()]));
-        $eyepiece->listen(Logout::class, fn (Logout $event) => $this->push('logout', $event->guard, $event->user));
-        $eyepiece->listen(CurrentDeviceLogout::class, fn (CurrentDeviceLogout $event) => $this->push('logout_current_device', $event->guard, $event->user));
-        $eyepiece->listen(OtherDeviceLogout::class, fn (OtherDeviceLogout $event) => $this->push('logout_other_devices', $event->guard, $event->user));
-        $eyepiece->listen(Registered::class, fn (Registered $event) => $this->push('registered', null, $event->user));
-        $eyepiece->listen(Verified::class, fn (Verified $event) => $this->push('verified', null, $event->user));
-        $eyepiece->listen(PasswordReset::class, fn (PasswordReset $event) => $this->push('password_reset', null, $event->user));
+        $this->eyepiece->listen(Authenticated::class, fn (Authenticated $event) => $this->push('authenticated', $event->guard, $event->user));
+        $this->eyepiece->listen(Attempting::class, fn (Attempting $event) => $this->push('attempting', $event->guard, null, ['remember' => $event->remember, 'credentials' => array_keys($event->credentials)]));
+        $this->eyepiece->listen(Login::class, fn (Login $event) => $this->push('login', $event->guard, $event->user, ['remember' => $event->remember]));
+        $this->eyepiece->listen(Failed::class, fn (Failed $event) => $this->push('failed', $event->guard, $event->user, ['credentials' => array_keys($event->credentials)]));
+        $this->eyepiece->listen(Lockout::class, fn (Lockout $event) => $this->push('lockout', null, null, ['ip' => $event->request->ip()]));
+        $this->eyepiece->listen(Logout::class, fn (Logout $event) => $this->push('logout', $event->guard, $event->user));
+        $this->eyepiece->listen(CurrentDeviceLogout::class, fn (CurrentDeviceLogout $event) => $this->push('logout_current_device', $event->guard, $event->user));
+        $this->eyepiece->listen(OtherDeviceLogout::class, fn (OtherDeviceLogout $event) => $this->push('logout_other_devices', $event->guard, $event->user));
+        $this->eyepiece->listen(Registered::class, fn (Registered $event) => $this->push('registered', null, $event->user));
+        $this->eyepiece->listen(Verified::class, fn (Verified $event) => $this->push('verified', null, $event->user));
+        $this->eyepiece->listen(PasswordReset::class, fn (PasswordReset $event) => $this->push('password_reset', null, $event->user));
 
         if (class_exists(TokenAuthenticated::class)) {
-            $eyepiece->listen(TokenAuthenticated::class, function (object $event): void {
+            $this->eyepiece->listen(TokenAuthenticated::class, function (object $event): void {
                 $token = $event->token ?? null;
 
                 $this->push('token', 'sanctum', null, [

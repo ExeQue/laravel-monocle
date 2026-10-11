@@ -20,8 +20,9 @@ final class ClearCaptures extends Tool
 {
     use RespondsWithJson;
 
-    public function __construct(private readonly Viewfinder $viewfinder)
-    {
+    public function __construct(
+        private readonly Viewfinder $viewfinder
+    ) {
     }
 
     public function handle(Request $request): Response

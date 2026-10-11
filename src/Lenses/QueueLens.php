@@ -38,7 +38,6 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
 {
     public const string PAYLOAD_KEY = 'monocle';
 
-    private Eyepiece $eyepiece;
 
     private Application $app;
 
@@ -47,6 +46,11 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
 
     /** The phase covering a job capture from start to finish. */
     private ?Span $phase = null;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -63,19 +67,17 @@ final class QueueLens implements Advises, Lens, Resettable, Summarizable
         return 'Look here to see which jobs a request dispatched and to which queue; follow them with monocle-trace.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
         $this->app = $app;
-        $this->eyepiece = $eyepiece;
-
         $this->registerPayloadHook();
         $this->registerSyncDispatchPipe($app);
 
-        $eyepiece->listen(JobQueued::class, $this->onQueued(...));
-        $eyepiece->listen(JobProcessing::class, $this->onProcessing(...));
-        $eyepiece->listen(JobProcessed::class, fn (JobProcessed $event) => $this->finish($event->job, 'processed'));
-        $eyepiece->listen(JobFailed::class, fn (JobFailed $event) => $this->fail($event->job, $event->exception, 'failed'));
-        $eyepiece->listen(JobExceptionOccurred::class, fn (JobExceptionOccurred $event) => $this->fail($event->job, $event->exception, 'exception', finish: true));
+        $this->eyepiece->listen(JobQueued::class, $this->onQueued(...));
+        $this->eyepiece->listen(JobProcessing::class, $this->onProcessing(...));
+        $this->eyepiece->listen(JobProcessed::class, fn (JobProcessed $event) => $this->finish($event->job, 'processed'));
+        $this->eyepiece->listen(JobFailed::class, fn (JobFailed $event) => $this->fail($event->job, $event->exception, 'failed'));
+        $this->eyepiece->listen(JobExceptionOccurred::class, fn (JobExceptionOccurred $event) => $this->fail($event->job, $event->exception, 'exception', finish: true));
     }
 
     public function reset(): void

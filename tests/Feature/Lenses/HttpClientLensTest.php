@@ -47,7 +47,7 @@ describe(HttpClientLens::class, function (): void {
             ->and($rows[1]['failed'])->toBeTrue()
             ->and($rows[0]['origin']['file'])->toContain('HttpClientLensTest.php');
 
-        $summary = (new HttpClientLens())->summarize($capture);
+        $summary = app(HttpClientLens::class)->summarize($capture);
 
         expect($summary['totals'])->toMatchArray(['http_calls' => 2, 'http_failed' => 1, 'http_by_host' => ['api.example.com' => 1, 'down.example.com' => 1]])
             ->and($summary['warnings'])->toBe(['HTTP call failed: GET https://down.example.com/health (503)']);
@@ -79,6 +79,6 @@ describe(HttpClientLens::class, function (): void {
     });
 
     it('summarizes nothing without calls', function (): void {
-        expect((new HttpClientLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

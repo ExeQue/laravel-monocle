@@ -73,7 +73,16 @@
     },
     "scripts": {
         "test": "vendor/bin/pest -p",
-        "lint": "vendor/bin/pint -p",
+        "lint": [
+            "@lint:code",
+            "@lint:blade"
+        ],
+        "lint:code": "vendor/bin/pint -p",
+        "lint:blade": "vendor/bin/pint --blade resources/views tests/Fixtures/views",
+        "lint:test": [
+            "vendor/bin/pint -p --test",
+            "vendor/bin/pint --blade --test resources/views tests/Fixtures/views"
+        ],
         "pre-commit": [
             "@composer lint",
             "@composer test"

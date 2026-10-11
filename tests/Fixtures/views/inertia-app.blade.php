@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html>
 <body>
-@inertia
+    @inertia
 </body>
 </html>

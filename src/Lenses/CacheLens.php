@@ -23,7 +23,6 @@ use Illuminate\Cache\Events\KeyWriteFailed;
 use Illuminate\Cache\Events\KeyWritten;
 use Illuminate\Cache\Events\RetrievingKey;
 use Illuminate\Cache\Events\WritingKey;
-use Illuminate\Contracts\Foundation\Application;
 use Throwable;
 
 /**
@@ -32,8 +31,6 @@ use Throwable;
  */
 final class CacheLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private bool $values = false;
 
     private int $repeatThreshold = 5;
@@ -47,6 +44,11 @@ final class CacheLens implements Advises, Configurable, Lens, Resettable, Summar
 
     /** @var array<string, float> store|key => started at (ms) */
     private array $pending = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -70,23 +72,21 @@ final class CacheLens implements Advises, Configurable, Lens, Resettable, Summar
         $this->repeatMs = (float) ($options['repeat_ms'] ?? $this->repeatMs);
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         foreach ([RetrievingKey::class, WritingKey::class, ForgettingKey::class] as $start) {
-            $eyepiece->listen($start, function (CacheEvent $event): void {
+            $this->eyepiece->listen($start, function (CacheEvent $event): void {
                 $this->pending[$this->pendingKey($event)] = $this->eyepiece->now();
             });
         }
 
-        $eyepiece->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
-        $eyepiece->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
-        $eyepiece->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
-        $eyepiece->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
-        $eyepiece->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
-        $eyepiece->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
-        $eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
+        $this->eyepiece->listen(CacheHit::class, fn (CacheHit $event) => $this->record('hit', $event, ['value' => $event->value]));
+        $this->eyepiece->listen(CacheMissed::class, fn (CacheMissed $event) => $this->record('miss', $event));
+        $this->eyepiece->listen(KeyWritten::class, fn (KeyWritten $event) => $this->record('write', $event, ['value' => $event->value, 'ttl' => $event->seconds]));
+        $this->eyepiece->listen(KeyWriteFailed::class, fn (KeyWriteFailed $event) => $this->record('write_failed', $event, ['ttl' => $event->seconds]));
+        $this->eyepiece->listen(KeyForgotten::class, fn (KeyForgotten $event) => $this->record('forget', $event));
+        $this->eyepiece->listen(KeyForgetFailed::class, fn (KeyForgetFailed $event) => $this->record('forget_failed', $event));
+        $this->eyepiece->listen(CacheFlushed::class, function (CacheFlushed $event): void {
             if ($this->eyepiece->recording()) {
                 $this->eyepiece->push('cache', ['type' => 'flush', 'key' => null, 'store' => $event->storeName, 'duration' => null]);
             }

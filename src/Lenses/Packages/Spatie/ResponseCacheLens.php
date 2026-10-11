@@ -9,7 +9,6 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
 use Spatie\ResponseCache\Events\CacheMissedEvent;
 use Spatie\ResponseCache\Events\ClearedResponseCacheEvent;
 use Spatie\ResponseCache\Events\ClearingResponseCacheEvent;
@@ -23,7 +22,10 @@ use Spatie\ResponseCache\Events\ResponseCacheHitEvent;
  */
 final class ResponseCacheLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -40,10 +42,8 @@ final class ResponseCacheLens implements Advises, Lens, Summarizable
         return 'Look here when a change does not show up: a hit means the whole response came from the cache and the controller did not run.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         $events = [
             ResponseCacheHitEvent::class => fn (object $event): array => ['event' => 'hit', 'age_seconds' => $event->ageInSeconds ?? null, 'tags' => $event->tags ?? null],
             CacheMissedEvent::class => fn (object $event): array => ['event' => 'miss'],
@@ -57,7 +57,7 @@ final class ResponseCacheLens implements Advises, Lens, Summarizable
                 continue;
             }
 
-            $eyepiece->listen($class, function (object $event) use ($row): void {
+            $this->eyepiece->listen($class, function (object $event) use ($row): void {
                 if ($this->eyepiece->recording()) {
                     $this->eyepiece->push('response_cache', $row($event));
                 }

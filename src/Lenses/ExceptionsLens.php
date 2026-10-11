@@ -19,9 +19,12 @@ use Throwable;
  */
 final class ExceptionsLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private string $basePath = '';
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -38,9 +41,8 @@ final class ExceptionsLens implements Advises, Lens, Summarizable
         return 'Look here first when something went wrong: the exception, where it was thrown and the frames in the application that led to it.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
         $this->basePath = rtrim($app->basePath(), '/').'/';
 
         $handler = $app->make(ExceptionHandler::class);

@@ -32,7 +32,6 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
 {
     private Application $app;
 
-    private Eyepiece $eyepiece;
 
     private ?Kernel $kernel = null;
 
@@ -43,6 +42,11 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
     private array $global = [];
 
     private float $slowMs = 50.0;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -64,11 +68,9 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
         $this->slowMs = (float) ($options['slow_ms'] ?? $this->slowMs);
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
         $this->app = $app;
-        $this->eyepiece = $eyepiece;
-
         $app->booted(function () use ($app): void {
             $this->kernel = $this->resolveKernel($app);
 
@@ -78,7 +80,7 @@ final class MiddlewareLens implements Advises, Configurable, Lens, Summarizable
             }
         });
 
-        $eyepiece->listen(RouteMatched::class, function (RouteMatched $event): void {
+        $this->eyepiece->listen(RouteMatched::class, function (RouteMatched $event): void {
             foreach ($event->route->gatherMiddleware() as $middleware) {
                 foreach ($this->resolveNames($middleware) as $class) {
                     $this->wrap($class, isset($this->global[$class]) ? 'global' : 'route');

@@ -11,7 +11,6 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Notifications\Events\NotificationSending;
@@ -25,10 +24,13 @@ use Throwable;
  */
 final class MailLens implements Advises, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     /** @var array<string, float> */
     private array $pending = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -45,15 +47,13 @@ final class MailLens implements Advises, Lens, Resettable, Summarizable
         return 'Look here to confirm which mails and notifications were sent, to whom, and whether they were queued.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(MessageSending::class, function (MessageSending $event): void {
+        $this->eyepiece->listen(MessageSending::class, function (MessageSending $event): void {
             $this->pending['mail:'.spl_object_id($event->message)] = $this->eyepiece->now();
         });
 
-        $eyepiece->listen(MessageSent::class, function (MessageSent $event): void {
+        $this->eyepiece->listen(MessageSent::class, function (MessageSent $event): void {
             $message = $event->message;
             $started = $this->pending['mail:'.spl_object_id($message)] ?? null;
             unset($this->pending['mail:'.spl_object_id($message)]);
@@ -76,11 +76,11 @@ final class MailLens implements Advises, Lens, Resettable, Summarizable
             ]);
         });
 
-        $eyepiece->listen(NotificationSending::class, function (NotificationSending $event): void {
+        $this->eyepiece->listen(NotificationSending::class, function (NotificationSending $event): void {
             $this->pending[$this->notificationKey($event->notification, $event->channel)] = $this->eyepiece->now();
         });
 
-        $eyepiece->listen(NotificationSent::class, function (NotificationSent $event): void {
+        $this->eyepiece->listen(NotificationSent::class, function (NotificationSent $event): void {
             $key = $this->notificationKey($event->notification, $event->channel);
             $started = $this->pending[$key] ?? null;
             unset($this->pending[$key]);

@@ -11,7 +11,6 @@ use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -21,10 +20,14 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
 {
     private const array ACTIONS = ['retrieved', 'created', 'updated', 'deleted', 'restored', 'forceDeleted'];
 
-    private Eyepiece $eyepiece;
 
     /** @var array<class-string, array<string, int>> */
     private array $counts = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -41,12 +44,10 @@ final class EloquentLens implements Advises, Finalizable, Lens, Resettable, Summ
         return 'Look here to see how many models a request loaded and which attributes it changed, with old and new values.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         foreach (self::ACTIONS as $action) {
-            $eyepiece->listen("eloquent.{$action}: *", function (string $event, array $payload) use ($action): void {
+            $this->eyepiece->listen("eloquent.{$action}: *", function (string $event, array $payload) use ($action): void {
                 $this->record($action, $payload[0] ?? null);
             });
         }

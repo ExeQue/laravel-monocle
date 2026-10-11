@@ -6,7 +6,8 @@ namespace Tests\Fixtures;
 
 final class CounterEvent
 {
-    public function __construct(public readonly int $value)
-    {
+    public function __construct(
+        public readonly int $value
+    ) {
     }
 }

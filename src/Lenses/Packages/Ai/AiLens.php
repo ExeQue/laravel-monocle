@@ -13,7 +13,6 @@ use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Str;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;
@@ -36,8 +35,6 @@ use Throwable;
  */
 final class AiLens implements Advises, Configurable, Lens, Resettable, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private ?int $maxText = null;
 
     /** @var array<string, Span> */
@@ -51,6 +48,11 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
 
     /** @var array<string, array<string, int>> */
     private array $usage = [];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -72,23 +74,21 @@ final class AiLens implements Advises, Configurable, Lens, Resettable, Summariza
         $this->maxText = isset($options['max_text']) ? (int) $options['max_text'] : null;
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         if (! class_exists(PromptingAgent::class)) {
             return;
         }
 
-        $eyepiece->listen(PromptingAgent::class, $this->onPrompting(...));
-        $eyepiece->listen(AgentPrompted::class, $this->onPrompted(...));
-        $eyepiece->listen(AgentFailed::class, $this->onFailed(...));
-        $eyepiece->listen(StartingStep::class, $this->onStartingStep(...));
-        $eyepiece->listen(StepCompleted::class, $this->onStepCompleted(...));
-        $eyepiece->listen(StepFailed::class, $this->onStepFailed(...));
-        $eyepiece->listen(InvokingTool::class, $this->onInvokingTool(...));
-        $eyepiece->listen(ToolInvoked::class, $this->onToolInvoked(...));
-        $eyepiece->listen(ToolFailed::class, $this->onToolFailed(...));
+        $this->eyepiece->listen(PromptingAgent::class, $this->onPrompting(...));
+        $this->eyepiece->listen(AgentPrompted::class, $this->onPrompted(...));
+        $this->eyepiece->listen(AgentFailed::class, $this->onFailed(...));
+        $this->eyepiece->listen(StartingStep::class, $this->onStartingStep(...));
+        $this->eyepiece->listen(StepCompleted::class, $this->onStepCompleted(...));
+        $this->eyepiece->listen(StepFailed::class, $this->onStepFailed(...));
+        $this->eyepiece->listen(InvokingTool::class, $this->onInvokingTool(...));
+        $this->eyepiece->listen(ToolInvoked::class, $this->onToolInvoked(...));
+        $this->eyepiece->listen(ToolFailed::class, $this->onToolFailed(...));
     }
 
     public function reset(): void

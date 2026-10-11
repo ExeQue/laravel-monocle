@@ -20,7 +20,10 @@ use Illuminate\Contracts\Foundation\Application;
  */
 final class AuthorizationLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -37,10 +40,8 @@ final class AuthorizationLens implements Advises, Lens, Summarizable
         return 'Look here to explain a 403 or a hidden button: which ability was checked, for whom, and the answer.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
-
         $app->make(Gate::class)->after(function (?Authenticatable $user, string $ability, mixed $result, array $arguments): void {
             if (! $this->eyepiece->recording()) {
                 return;

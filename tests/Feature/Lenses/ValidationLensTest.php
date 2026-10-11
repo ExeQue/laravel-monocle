@@ -36,7 +36,7 @@ describe(ValidationLens::class, function (): void {
             ->and($failed['name']['message'])->toContain('3')
             ->and($row['fields'])->toBe(3)
             ->and(json_encode($row))->not->toContain('Rumpelstiltskin')
-            ->and((new ValidationLens())->summarize($capture)['totals'])->toBe(['validations' => 1, 'validation_failed' => 1]);
+            ->and(app(ValidationLens::class)->summarize($capture)['totals'])->toBe(['validations' => 1, 'validation_failed' => 1]);
     });
 
     it('names the FormRequest that validated and records passing validation', function (): void {

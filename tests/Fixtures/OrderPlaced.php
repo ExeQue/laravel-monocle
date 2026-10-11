@@ -6,7 +6,9 @@ namespace Tests\Fixtures;
 
 final class OrderPlaced
 {
-    public function __construct(public readonly int $orderId, public readonly string $customer)
-    {
+    public function __construct(
+        public readonly int $orderId,
+        public readonly string $customer
+    ) {
     }
 }

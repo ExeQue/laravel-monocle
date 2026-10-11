@@ -10,7 +10,6 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
 use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
 use Spatie\MediaLibrary\Conversions\Events\ConversionWillStartEvent;
 use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
@@ -22,7 +21,10 @@ use Spatie\MediaLibrary\MediaCollections\Events\MediaHasBeenAddedEvent;
  */
 final class MediaLibraryLens implements Advises, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -39,12 +41,10 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
         return 'Look here when uploads are slow: media added and image conversions that ran during the request instead of on the queue.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
         if (class_exists(MediaHasBeenAddedEvent::class)) {
-            $eyepiece->listen(MediaHasBeenAddedEvent::class, function (object $event): void {
+            $this->eyepiece->listen(MediaHasBeenAddedEvent::class, function (object $event): void {
                 if ($this->recording()) {
                     $this->eyepiece->push('media', ['event' => 'added', ...$this->media($event->media)]);
                 }
@@ -52,7 +52,7 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
         }
 
         if (class_exists(ConversionWillStartEvent::class)) {
-            $eyepiece->listen(ConversionWillStartEvent::class, function (object $event): void {
+            $this->eyepiece->listen(ConversionWillStartEvent::class, function (object $event): void {
                 if ($this->recording()) {
                     $this->eyepiece->span('conversion '.$event->conversion->getName(), 'media.conversion', $this->spanKey($event))->start([
                         ...$this->media($event->media),
@@ -63,7 +63,7 @@ final class MediaLibraryLens implements Advises, Lens, Summarizable
         }
 
         if (class_exists(ConversionHasBeenCompletedEvent::class)) {
-            $eyepiece->listen(ConversionHasBeenCompletedEvent::class, function (object $event): void {
+            $this->eyepiece->listen(ConversionHasBeenCompletedEvent::class, function (object $event): void {
                 if (! $this->recording()) {
                     return;
                 }

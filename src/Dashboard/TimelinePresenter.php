@@ -22,8 +22,9 @@ final readonly class TimelinePresenter
     /** Row keys shown elsewhere in the node. */
     private const array HIDDEN_KEYS = ['time', 'duration', 'origin', 'sql', 'sql_with_bindings', 'shape', 'shape_hash', 'n'];
 
-    public function __construct(private EditorLinks $links)
-    {
+    public function __construct(
+        private EditorLinks $links
+    ) {
     }
 
     /**

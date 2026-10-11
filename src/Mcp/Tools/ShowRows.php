@@ -23,8 +23,9 @@ final class ShowRows extends Tool
     use DescribesPagination;
     use RespondsWithJson;
 
-    public function __construct(private readonly Viewfinder $viewfinder)
-    {
+    public function __construct(
+        private readonly Viewfinder $viewfinder
+    ) {
     }
 
     public function schema(JsonSchema $schema): array

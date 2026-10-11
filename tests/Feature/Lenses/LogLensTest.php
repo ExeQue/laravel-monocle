@@ -30,7 +30,7 @@ describe(LogLens::class, function (): void {
             ->and($rows[1]['context']['exception']['message'])->toBe('disk full')
             ->and($rows[1]['origin']['file'])->toContain('LogLensTest.php');
 
-        $summary = (new LogLens())->summarize($capture);
+        $summary = app(LogLens::class)->summarize($capture);
 
         expect($summary['totals']['log_captures'])->toBe(3)
             ->and($summary['totals']['log_by_level'])->toBe(['info' => 1, 'error' => 1, 'debug' => 1])
@@ -40,6 +40,6 @@ describe(LogLens::class, function (): void {
     it('summarizes nothing without log rows', function (): void {
         app(Eyepiece::class)->start(CaptureType::Request);
 
-        expect((new LogLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(LogLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

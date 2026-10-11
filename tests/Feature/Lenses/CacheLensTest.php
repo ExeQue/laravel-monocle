@@ -51,7 +51,7 @@ describe(CacheLens::class, function (): void {
         Cache::get('a');
         Cache::get('b');
 
-        $summary = (new CacheLens())->summarize(app(Eyepiece::class)->finalize());
+        $summary = app(CacheLens::class)->summarize(app(Eyepiece::class)->finalize());
 
         expect($summary['totals'])->toMatchArray(['cache_hits' => 2, 'cache_misses' => 1, 'cache_writes' => 1])
             ->and($summary['totals']['cache_hit_rate'])->toBe(66.7)
@@ -67,7 +67,7 @@ describe(CacheLens::class, function (): void {
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('cache');
-        $lens = new CacheLens();
+        $lens = app(CacheLens::class);
         $lens->configure(['repeat_threshold' => 3, 'repeat_ms' => 0]);
 
         expect(array_column($rows, 'n'))->toBe([1, 2, 3, 4, 5])

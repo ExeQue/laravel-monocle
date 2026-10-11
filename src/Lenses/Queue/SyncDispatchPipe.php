@@ -15,8 +15,9 @@ use Throwable;
  */
 final class SyncDispatchPipe
 {
-    public function __construct(private readonly Eyepiece $eyepiece)
-    {
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
     }
 
     public function handle(object $command, Closure $next): mixed

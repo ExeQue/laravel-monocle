@@ -48,7 +48,7 @@ describe(EloquentLens::class, function (): void {
         Thing::query()->get();
         Thing::query()->get();
 
-        $summary = (new EloquentLens())->summarize(app(Eyepiece::class)->finalize());
+        $summary = app(EloquentLens::class)->summarize(app(Eyepiece::class)->finalize());
 
         expect($summary['totals']['models_retrieved'])->toBe(2)
             ->and($summary['totals']['models_written'])->toBe(1)
@@ -59,6 +59,6 @@ describe(EloquentLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->sections)->not->toHaveKey('models')
-            ->and((new EloquentLens())->summarize($capture)['totals']['models_retrieved'])->toBe(0);
+            ->and(app(EloquentLens::class)->summarize($capture)['totals']['models_retrieved'])->toBe(0);
     });
 });

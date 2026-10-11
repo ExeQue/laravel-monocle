@@ -23,10 +23,13 @@ use Throwable;
  */
 final class SessionLens implements Advises, Lens, Resettable
 {
-    private Eyepiece $eyepiece;
-
     /** @var array<string, mixed>|null The session right after it started. */
     private ?array $before = null;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -43,10 +46,8 @@ final class SessionLens implements Advises, Lens, Resettable
         return 'Look here when behaviour depends on session state, such as flash messages, intended URLs or wizard steps, and to see what the request changed in it.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
-
         $app->extend(StartSession::class, fn (object $inner): SnapshotsSession => new SnapshotsSession(
             $inner instanceof SnapshotsSession ? $inner->inner() : $inner,
             function (array $data): void {
@@ -54,7 +55,7 @@ final class SessionLens implements Advises, Lens, Resettable
             },
         ));
 
-        $eyepiece->listen(RequestHandled::class, function (RequestHandled $event) use ($app): void {
+        $this->eyepiece->listen(RequestHandled::class, function (RequestHandled $event) use ($app): void {
             if (! $this->eyepiece->recording() || ! $event->request->hasSession()) {
                 return;
             }

@@ -23,8 +23,6 @@ use Illuminate\Support\Str;
  */
 final class EventsLens implements Advises, Configurable, Lens, Summarizable
 {
-    private Eyepiece $eyepiece;
-
     private Dispatcher $events;
 
     /** @var list<string> */
@@ -39,6 +37,11 @@ final class EventsLens implements Advises, Configurable, Lens, Summarizable
         'bootstrapped:*',
         'locale.*',
     ];
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -60,12 +63,11 @@ final class EventsLens implements Advises, Configurable, Lens, Summarizable
         $this->ignore = array_values((array) ($options['ignore'] ?? $this->ignore));
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
         $this->events = $app->make(Dispatcher::class);
 
-        $eyepiece->listen('*', function (string $event, array $payload): void {
+        $this->eyepiece->listen('*', function (string $event, array $payload): void {
             if (! $this->eyepiece->recording() || $this->ignored($event)) {
                 return;
             }

@@ -17,8 +17,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final readonly class LivewireUpdateCapture implements ResponseCapture
 {
-    public function __construct(private Eyepiece $eyepiece)
-    {
+    public function __construct(
+        private Eyepiece $eyepiece
+    ) {
     }
 
     public function capture(Request $request, Response $response): ?array

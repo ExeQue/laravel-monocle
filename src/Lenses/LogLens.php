@@ -10,7 +10,6 @@ use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Support\Normalizer;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Log\Events\MessageLogged;
 use Throwable;
 
@@ -21,7 +20,11 @@ final class LogLens implements Advises, Lens, Summarizable
 {
     private const array ERROR_LEVELS = ['emergency', 'alert', 'critical', 'error'];
 
-    private Eyepiece $eyepiece;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -38,11 +41,9 @@ final class LogLens implements Advises, Lens, Summarizable
         return 'Look here for warnings and errors the application logged while handling the capture.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(): void
     {
-        $this->eyepiece = $eyepiece;
-
-        $eyepiece->listen(MessageLogged::class, function (MessageLogged $event): void {
+        $this->eyepiece->listen(MessageLogged::class, function (MessageLogged $event): void {
             if (! $this->eyepiece->recording() || str_starts_with((string) $event->message, 'Monocle failed to record')) {
                 return;
             }

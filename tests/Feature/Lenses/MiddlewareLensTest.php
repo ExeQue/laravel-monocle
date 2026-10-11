@@ -88,7 +88,7 @@ describe(MiddlewareLens::class, function (): void {
     });
 
     it('warns about slow middleware in the summary', function (): void {
-        $lens = new MiddlewareLens();
+        $lens = app(MiddlewareLens::class);
         $lens->configure(['slow_ms' => 1]);
 
         $this->get('/timed');

@@ -47,12 +47,12 @@ describe(MailLens::class, function (): void {
             ->and(collect($rows)->firstWhere('type', 'notification')['notifiable'])->toContain('AnonymousNotifiable')
             ->and(collect($rows)->firstWhere('type', 'mail')['subject'])->toBe('Welcome aboard');
 
-        $summary = (new MailLens())->summarize($capture);
+        $summary = app(MailLens::class)->summarize($capture);
 
         expect($summary['totals'])->toBe(['mail_sent' => 1, 'notifications_sent' => 1]);
     });
 
     it('summarizes nothing without mail', function (): void {
-        expect((new MailLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(MailLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

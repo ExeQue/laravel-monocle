@@ -41,7 +41,7 @@ describe(AuthorizationLens::class, function (): void {
             ->and($rows[3]['user'])->toBeNull()
             ->and($rows[0]['origin']['file'])->toContain('AuthorizationLensTest.php');
 
-        $summary = (new AuthorizationLens())->summarize($capture);
+        $summary = app(AuthorizationLens::class)->summarize($capture);
 
         expect($summary['totals'])->toBe(['authorization_checks' => 4, 'authorization_denied' => 2])
             ->and($summary['warnings'])->toBe([
@@ -51,6 +51,6 @@ describe(AuthorizationLens::class, function (): void {
     });
 
     it('summarizes nothing without checks', function (): void {
-        expect((new AuthorizationLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(AuthorizationLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

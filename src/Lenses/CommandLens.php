@@ -28,8 +28,6 @@ use Throwable;
  */
 final class CommandLens implements Advises, Finalizable, Lens, Resettable
 {
-    private Eyepiece $eyepiece;
-
     private bool $usedLaravelStart = false;
 
     /** @var list<Span> open nested command spans */
@@ -38,6 +36,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Resettable
     private Application $app;
 
     private ?Span $phase = null;
+
+    public function __construct(
+        private readonly Eyepiece $eyepiece
+    ) {
+    }
 
     public function key(): string
     {
@@ -54,9 +57,8 @@ final class CommandLens implements Advises, Finalizable, Lens, Resettable
         return 'Look here for an artisan command\'s arguments, options and exit code.';
     }
 
-    public function boot(Application $app, Eyepiece $eyepiece): void
+    public function boot(Application $app): void
     {
-        $this->eyepiece = $eyepiece;
         $this->app = $app;
 
         // The Laravel command events are bridged from Symfony's only once the
@@ -70,8 +72,8 @@ final class CommandLens implements Advises, Finalizable, Lens, Resettable
             }
         }
 
-        $eyepiece->listen(CommandStarting::class, $this->onStarting(...));
-        $eyepiece->listen(CommandFinished::class, $this->onFinished(...));
+        $this->eyepiece->listen(CommandStarting::class, $this->onStarting(...));
+        $this->eyepiece->listen(CommandFinished::class, $this->onFinished(...));
     }
 
     public function finalize(Capture $capture): void

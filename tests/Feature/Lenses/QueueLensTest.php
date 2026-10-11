@@ -117,7 +117,7 @@ describe(QueueLens::class, function (): void {
             ->and($job->section('job')['exception']['message'])->toBe('job exploded')
             ->and($job->health['open_spans_at_finalize'])->toBe(0);
 
-        $summary = (new QueueLens())->summarize($job);
+        $summary = app(QueueLens::class)->summarize($job);
 
         expect(implode(' ', $summary['warnings']))->toContain('job exploded');
     });

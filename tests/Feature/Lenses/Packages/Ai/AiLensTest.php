@@ -107,7 +107,7 @@ describe(AiLens::class, function (): void {
             ->and($tools['tool-2']->meta['status'])->toBe('failed')
             ->and($agents['inv-2']->parentId)->toBe($tools['tool-1']->id);
 
-        $summary = (new AiLens())->summarize($capture);
+        $summary = app(AiLens::class)->summarize($capture);
 
         expect($summary['totals']['ai_calls'])->toBe(2)
             ->and($summary['totals']['ai_tokens']['input'])->toBe(107)
@@ -133,6 +133,6 @@ describe(AiLens::class, function (): void {
         event(new PromptingAgent('inv-9', ($this->prompt)('inv-9')));
         app(Eyepiece::class)->start(CaptureType::Request);
 
-        expect((new AiLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(AiLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

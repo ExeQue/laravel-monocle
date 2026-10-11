@@ -28,8 +28,9 @@ final class LensRegistry
 
     private bool $isBooted = false;
 
-    public function __construct(private readonly Application $app)
-    {
+    public function __construct(
+        private readonly Application $app
+    ) {
     }
 
     /**
@@ -103,7 +104,9 @@ final class LensRegistry
                 $lens->configure($options);
             }
 
-            $lens->boot($this->app, $eyepiece);
+            if (method_exists($lens, 'boot')) {
+                $this->app->call([$lens, 'boot']);
+            }
 
             $this->booted[] = $lens;
         }

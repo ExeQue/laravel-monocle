@@ -78,7 +78,7 @@ describe(DatabaseLens::class, function (): void {
     });
 
     it('summarizes totals, slow queries and N+1 candidates', function (): void {
-        $lens = new DatabaseLens();
+        $lens = app(DatabaseLens::class);
         $lens->configure(['slow_ms' => 0, 'n_plus_one_threshold' => 3]);
 
         foreach ([1, 2, 3] as $id) {

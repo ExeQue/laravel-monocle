@@ -35,7 +35,7 @@ describe(AuthLens::class, function (): void {
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('auth');
-        $summary = (new AuthLens())->summarize($capture);
+        $summary = app(AuthLens::class)->summarize($capture);
 
         expect(array_column($rows, 'event'))->toBe(['attempting', 'failed', 'login', 'authenticated'])
             ->and($rows[0]['credentials'])->toBe(['email', 'password'])
@@ -81,10 +81,10 @@ describe(AuthLens::class, function (): void {
         $capture = app(Eyepiece::class)->finalize();
 
         expect($capture->rows('auth')[0])->toMatchArray(['event' => 'lockout', 'ip' => '10.0.0.1'])
-            ->and((new AuthLens())->summarize($capture)['warnings'])->toBe(['A login was locked out after too many attempts.']);
+            ->and(app(AuthLens::class)->summarize($capture)['warnings'])->toBe(['A login was locked out after too many attempts.']);
     });
 
     it('summarizes nothing when there was no authentication', function (): void {
-        expect((new AuthLens())->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
+        expect(app(AuthLens::class)->summarize(app(Eyepiece::class)->finalize()))->toBe([]);
     });
 });

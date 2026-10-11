@@ -20,8 +20,9 @@ final class ListLenses extends Tool
 {
     use RespondsWithJson;
 
-    public function __construct(private readonly LensRegistry $registry)
-    {
+    public function __construct(
+        private readonly LensRegistry $registry
+    ) {
     }
 
     public function handle(Request $request): Response

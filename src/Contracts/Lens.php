@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Contracts;
 
-use ExeQue\Monocle\Eyepiece;
-use Illuminate\Contracts\Foundation\Application;
-
 /**
- * The minimum a lens provides. Opt into more lifecycle through the companion
- * contracts: Configurable, Finalizable, Resettable, Summarizable.
+ * The minimum a lens provides. A lens hooks into the framework in a boot()
+ * method, called once per process when Monocle and the lens are enabled; its
+ * parameters are resolved from the container, as are the constructor's. Opt
+ * into more lifecycle through the companion contracts: Advises, Configurable,
+ * Finalizable, Resettable, Summarizable.
  */
 interface Lens
 {
@@ -23,10 +23,4 @@ interface Lens
      * fields matter. Shown in the MCP server instructions and in monocle-show.
      */
     public function description(): string;
-
-    /**
-     * Hook into the framework however the lens needs to. Called once per
-     * process, only when Monocle and the lens are enabled.
-     */
-    public function boot(Application $app, Eyepiece $eyepiece): void;
 }

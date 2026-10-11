@@ -24,10 +24,10 @@ describe(ResponseCacheLens::class, function (): void {
         $this->get('/home')->assertOk()->assertSee('home page');
         $hit = latestCapture();
 
-        $summary = (new ResponseCacheLens())->summarize($hit);
+        $summary = app(ResponseCacheLens::class)->summarize($hit);
 
         expect(array_column($miss->rows('response_cache'), 'event'))->toBe(['miss'])
-            ->and((new ResponseCacheLens())->summarize($miss)['warnings'])->toBe([])
+            ->and(app(ResponseCacheLens::class)->summarize($miss)['warnings'])->toBe([])
             ->and($hit->rows('response_cache')[0]['event'])->toBe('hit')
             ->and($hit->rows('response_cache')[0]['age_seconds'])->toBeInt()
             ->and($summary['totals'])->toBe(['response_cache' => 'hit'])

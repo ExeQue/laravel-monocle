@@ -18,8 +18,9 @@ use Illuminate\Support\Arr;
  */
 final readonly class CapturesController
 {
-    public function __construct(private Viewfinder $viewfinder)
-    {
+    public function __construct(
+        private Viewfinder $viewfinder
+    ) {
     }
 
     public function index(Request $request): JsonResponse

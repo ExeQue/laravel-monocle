@@ -34,7 +34,7 @@ describe(ExceptionsLens::class, function (): void {
             ->and($rows[0]['frames'])->toBeArray()
             ->and($rows[0]['previous'])->toMatchArray(['class' => LogicException::class, 'message' => 'root cause']);
 
-        $summary = (new ExceptionsLens())->summarize($capture);
+        $summary = app(ExceptionsLens::class)->summarize($capture);
 
         expect($summary['totals'])->toBe(['exceptions' => 1])
             ->and($summary['warnings'][0])->toStartWith('RuntimeException: kaboom (');
@@ -47,6 +47,6 @@ describe(ExceptionsLens::class, function (): void {
 
         expect($capture->status)->toBe('404')
             ->and($capture->rows('exceptions'))->toBe([])
-            ->and((new ExceptionsLens())->summarize($capture))->toBe([]);
+            ->and(app(ExceptionsLens::class)->summarize($capture))->toBe([]);
     });
 });

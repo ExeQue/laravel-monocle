@@ -18,7 +18,7 @@ describe(DumpLens::class, function (): void {
             $this->seen[] = [$value, $label];
         });
 
-        $lens = new DumpLens();
+        $lens = app(DumpLens::class);
         $lens->boot($this->app, app(Eyepiece::class));
 
         app(Eyepiece::class)->start(CaptureType::Request);
@@ -46,7 +46,7 @@ describe(DumpLens::class, function (): void {
             ->and($this->seen)->toHaveCount(2)
             ->and($this->seen[0])->toBe([['album' => 7], 'first']);
 
-        $summary = (new DumpLens())->summarize($capture);
+        $summary = app(DumpLens::class)->summarize($capture);
 
         expect($summary['totals'])->toBe(['dumps' => 2, 'dd_calls' => 0])
             ->and($summary['warnings'])->toBe([]);
@@ -55,7 +55,7 @@ describe(DumpLens::class, function (): void {
     it('flags dd() in the summary', function (): void {
         app(Eyepiece::class)->push('dumps', ['value' => '1', 'type' => 'int', 'label' => null, 'is_dd' => true]);
 
-        $summary = (new DumpLens())->summarize(app(Eyepiece::class)->finalize());
+        $summary = app(DumpLens::class)->summarize(app(Eyepiece::class)->finalize());
 
         expect($summary['totals']['dd_calls'])->toBe(1)
             ->and($summary['warnings'][0])->toContain('dd() ended the process');

@@ -43,7 +43,7 @@ final class StripeLens implements Lens
 |---|---|
 | `key()` | The name of the section, e.g. `monocle-rows section=stripe`. |
 | `description()` | Tells the agent what the section contains. Mention the fields that matter. |
-| `boot()` | Called once when Monocle starts. Listen to events or hook in however you need to. |
+| `boot()` | Called once when Monocle starts. Listen to events or hook in however you need to. Its parameters are resolved from the container, like the constructor's - take what you need in either. |
 
 Register it in `config/monocle.php`:
 
