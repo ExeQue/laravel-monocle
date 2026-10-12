@@ -53,6 +53,7 @@ These record something only when the package is installed; otherwise they do not
 | [lab404/laravel-impersonate](https://github.com/404labfr/laravel-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
 | [Livewire](https://livewire.laravel.com) | [Livewire](lenses/livewire.md) | `livewire` | components, method calls, property changes and render time |
 | [Prism](https://prismphp.com) | [Prism](lenses/prism.md) | `prism`, `prism_tools` | text, structured, stream, embeddings, image and audio calls with tokens, and tool calls with their time |
+| [stechstudio/filament-impersonate](https://github.com/stechstudio/filament-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](lenses/ai.md) | `ai`, `ai_tools` | agents, steps, tool calls with their time, and tokens |
 | [Laravel Folio](https://laravel.com/docs/folio) | part of [Request](lenses/request.md), see [Folio](lenses/request.md#folio) | `request` | the page file a request matched |
@@ -65,4 +66,3 @@ These record something only when the package is installed; otherwise they do not
 | **Spatie** | | | |
 | [laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](lenses/media-library.md) | `media` | media added and conversions run |
 | [laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](lenses/response-cache.md) | `response_cache` | cache hits and misses for whole responses |
-| [stechstudio/filament-impersonate](https://github.com/stechstudio/filament-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
