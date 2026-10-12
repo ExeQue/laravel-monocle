@@ -30,3 +30,23 @@ html:not(.dark) img[src$='#gh-dark-mode-only'],
 html.dark img[src$='#gh-light-mode-only'] {
     display: none;
 }
+
+/*
+ * The README's badges sit on one centred line, as on GitHub; the theme
+ * otherwise turns every image into a block of its own. They are drawn a
+ * little smaller so the row fits the content column, and scroll on a phone.
+ */
+.vp-doc p[align='center']:has(> a > img[src*='badge'], > img[src*='badge']) {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+}
+
+.vp-doc p[align='center']:has(> a > img[src*='badge'], > img[src*='badge']) img {
+    display: block;
+    flex: none;
+    height: 16px;
+    width: auto;
+}
