@@ -54,14 +54,14 @@
     host.style.all = 'initial';
     var root = host.attachShadow({ mode: 'open' });
     root.innerHTML = '<style>' +
-      ':host{--brass:#a36a1e;--glass:#17181b;--bg:#fff;--fg:#1d1b18;--muted:#6b645a;--line:#ddd6cb;--hover:rgba(163,106,30,.1);--ok:#2f7d4f;--redirect:#3b6fb6;--client:#b26a00;--server:#c0392b}' +
-      '@media (prefers-color-scheme:dark){:host{--brass:#e9b25a;--bg:#17181b;--fg:#ece8e1;--muted:#9b958c;--line:#2c2e33;--hover:rgba(233,178,90,.12);--ok:#5cc28a;--redirect:#7aa7e8;--client:#e9b25a;--server:#f0776a}}' +
+      ':host{--brass:#a36a1e;--on-brass:#fff;--bg:#fff;--fg:#1d1b18;--muted:#6b645a;--line:#ddd6cb;--hover:rgba(163,106,30,.1);--ok:#2f7d4f;--redirect:#3b6fb6;--client:#b26a00;--server:#c0392b}' +
+      '@media (prefers-color-scheme:dark){:host{--brass:#e9b25a;--on-brass:#17181b;--bg:#17181b;--fg:#ece8e1;--muted:#9b958c;--line:#2c2e33;--hover:rgba(233,178,90,.12);--ok:#5cc28a;--redirect:#7aa7e8;--client:#e9b25a;--server:#f0776a}}' +
       '.wrap{position:fixed;z-index:2147483647;font:13px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--fg)}' +
       '.wrap.t{top:16px}.wrap.b{bottom:16px}.wrap.l{left:16px}.wrap.r{right:16px}.wrap.c{left:50%;transform:translateX(-50%)}.wrap.m{top:50%;transform:translateY(-50%)}' +
-      '.dot{position:relative;display:grid;place-items:center;width:44px;height:44px;padding:0;border:3px solid var(--brass);border-radius:50%;background:var(--glass);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s}' +
+      '.dot{position:relative;display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--bg);cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s}' +
       '.dot:hover{transform:scale(1.06)}.dot:focus-visible{outline:2px solid var(--brass);outline-offset:3px}.dragging .dot{cursor:grabbing;transform:scale(1.1);transition:none}' +
-      '.dot svg{width:24px;height:24px}' +
-      '.count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--brass);color:var(--glass);font-size:11px;font-weight:700;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}' +
+      '.dot img{width:34px;height:34px;pointer-events:none}' +
+      '.count{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--brass);color:var(--on-brass);font-size:11px;font-weight:700;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}' +
       '.pop{position:absolute;width:min(420px,calc(100vw - 32px));max-height:60vh;overflow:auto;margin:0;padding:6px;list-style:none;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.22)}' +
       '.t .pop{top:54px}.b .pop{bottom:54px}.t.l .pop,.b.l .pop{left:0}.t.r .pop,.b.r .pop{right:0}.c .pop{left:50%;transform:translateX(-50%)}' +
       '.m .pop{top:50%;transform:translateY(-50%)}.m.l .pop{left:54px}.m.r .pop{right:54px}' +
@@ -75,7 +75,7 @@
       '[hidden]{display:none!important}' +
       '</style>' +
       '<div class="wrap"><button class="dot" type="button" aria-label="Open in Monocle" aria-haspopup="menu" aria-expanded="false">' +
-      '<svg viewBox="5 5 17 17" aria-hidden="true"><rect x="6" y="9" width="13" height="2.4" rx="1.2" fill="#6fd6cc"/><rect x="8.5" y="12.3" width="10" height="2.4" rx="1.2" fill="#a593ea"/><rect x="11" y="15.6" width="5.5" height="2.4" rx="1.2" fill="#6fd6cc"/></svg>' +
+      '<img alt="">' +
       '<span class="count" hidden></span></button><ol class="pop" role="menu" hidden></ol></div>';
     document.documentElement.appendChild(host);
 
@@ -83,6 +83,7 @@
     var dot = root.querySelector('.dot');
     var count = root.querySelector('.count');
     var list = root.querySelector('.pop');
+    root.querySelector('img').src = script.getAttribute('data-monocle-icon') || '';
     var spot = 'br';
     try { spot = localStorage.getItem('monocle.spot') || spot; } catch (e) {}
 

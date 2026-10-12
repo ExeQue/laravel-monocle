@@ -12,23 +12,7 @@ Always on. A queued job becomes its own capture when a worker runs it, a child o
 
 ### Calls a page makes
 
-Off by default. Turn it on with [`trace.browser`](configuration.md#trace):
-
-```php
-'trace' => [
-    'browser' => true,
-],
-```
-
-With it on, every HTML page Monocle records gets a small inline script just before `</body>`. The script adds an `X-Monocle-Parent` header, holding the capture id of the page, to the `fetch()` and `XMLHttpRequest` calls the page makes to its own origin. A request carrying that header becomes a child of the page in the page's trace. Livewire updates, Inertia visits, your own `fetch()` calls and anything else that goes through `fetch` or `XMLHttpRequest` are linked this way. Calls to other origins are left alone, so the header never leaves your application.
-
-The browser's console shows what the script does: a line when it starts linking the page, and a line for every call Monocle recorded, such as `POST /livewire/update recorded as ...8a3670d4, linked to page ...26c79c9a`, each with a link to the capture in the dashboard. Calls Monocle does not record (excepted paths, other origins) are not logged.
-
-With the dashboard on, the page also gets a round Monocle button in the bottom right corner. With only the page's own capture, a click opens it in the dashboard. Once the page has made calls, a click lists the page and every recorded call, newest first, with method, path and status; pick one to open it. Drag the button to another corner or the middle of an edge if it is in the way; the spot is remembered in the browser.
-
-Pages that switch to the next page without a full reload (Livewire's `wire:navigate`, Inertia and other SPA routers that fetch the next page from the server) move the script along: once the address changes, the page fetched for that address becomes the current page, so later calls link to it. The trace then reads: the first page, its calls, the next page, its calls, and so on.
-
-The header is only trusted when it holds a capture id, and only linked when the capture it names is in this application's Monocle store. When it is not there, the request is recorded as a capture of its own, with a note in its header: *Asked to link to `<id>`, not found*. Agents see the same id as `missing_parent_id` in the summary.
+Off by default. With [`trace.browser`](configuration.md#trace) on, recorded HTML pages get a small script that links the `fetch()` and `XMLHttpRequest` calls they make to the page's capture, follows SPA navigation, and adds a Monocle button that opens the page's captures in the dashboard. See [Browser tracing](browser-tracing.md).
 
 ### Commands run in a process
 
@@ -77,10 +61,7 @@ See [Configuration](configuration.md#trace).
 
 ## What is not linked
 
-- **Full page loads.** Following a link, submitting a form or reloading the page is a new page in the browser, not a call made by the page. It starts a trace of its own.
-- **Calls to other origins**, and calls made without `fetch` or `XMLHttpRequest` (images, stylesheets, `<script src>`, `navigator.sendBeacon()`, WebSockets).
-- **Client-side route changes** that fetch nothing from the server keep linking to the last page that was fetched.
-- **Pages with a Content Security Policy that forbids inline scripts.** The browser blocks the script, nothing is linked and the page works as before. When your application sets a nonce through Laravel's `Vite::useCspNonce()`, the script carries it and runs.
+- **Browser calls** that are not linked (full page loads, other origins, calls without `fetch` or `XMLHttpRequest`, pages whose CSP blocks the script): see [Browser tracing](browser-tracing.md#what-is-not-linked).
 - **Parents this store does not hold.** Linking needs the parent in the same Monocle store. A page captured by another application with its own store, a parent pushed out of the ring buffer (`storage.limit`), or a call the page made so early that it arrived before the page's capture was stored, give the *not found* note instead.
 - **Requests and commands that are not recorded** (`except.paths`, `except.commands`, the dashboard). They pass nothing on, and the pages among them get no script.
 - **`Artisan::call()`** runs in the same process. The command is a span in the capture that called it, not a child capture.

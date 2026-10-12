@@ -59,11 +59,14 @@ async function take(browser, shot, id, theme) {
     const page = await browser.newPage();
     await page.setViewport({ ...defaultViewport, ...(shot.viewport ?? {}) });
     await page.evaluateOnNewDocument((value) => localStorage.setItem('monocle.theme', value), theme);
-    await page.goto(`${base}/_monocle#${id}/${shot.tab ?? 'overview'}`, { waitUntil: 'networkidle0' });
+    // Parts that follow the system theme (the Monocle button on traced pages) get it too.
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme }]);
+    // A shot with a url looks at a page of the app; the rest at the capture in the dashboard.
+    await page.goto(shot.url ? shot.url(kit) : `${base}/_monocle#${id}/${shot.tab ?? 'overview'}`, { waitUntil: 'networkidle0' });
     await sleep(600);
 
     // On a tab, scroll past the capture's header so the tab's content fills the picture.
-    if ((shot.tab ?? 'overview') !== 'overview' && shot.scroll !== false) {
+    if (! shot.url && (shot.tab ?? 'overview') !== 'overview' && shot.scroll !== false) {
         await scrollToTabs(page);
         await sleep(200);
     }

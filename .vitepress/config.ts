@@ -59,6 +59,7 @@ export default defineConfig({
           { text: 'Artisan commands', link: '/docs/commands' },
           { text: 'Dashboard', link: '/docs/dashboard' },
           { text: 'Tracing', link: '/docs/tracing' },
+          { text: 'Browser tracing', link: '/docs/browser-tracing' },
           { text: 'What gets recorded', link: '/docs/lenses' },
         ],
       },

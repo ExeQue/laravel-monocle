@@ -20,6 +20,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Http\Controllers\AssetController;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -66,6 +67,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     /** The browser trace script, read once. */
     private ?string $traceScript = null;
+
+    private ?string $iconUrl = null;
 
     /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
     private array $responseTypes = [
@@ -353,6 +356,14 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
+     * The dashboard's own Monocle icon, for the button the trace script adds to the page.
+     */
+    private function iconUrl(): string
+    {
+        return $this->iconUrl ??= $this->app->make('url')->route('monocle.asset', ['file' => 'monocle.svg']).'?v='.AssetController::version('monocle.svg');
+    }
+
+    /**
      * Put the browser trace script into an HTML page (trace.browser), so the
      * calls the page makes send its capture id along.
      */
@@ -380,7 +391,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             $capture->id,
             e($request->getMethod()),
             $response->getStatusCode(),
-            $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'"',
+            $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'" data-monocle-icon="'.e($this->iconUrl()).'"',
             $nonce === null ? '' : ' nonce="'.e($nonce).'"',
             $this->traceScript ??= (string) file_get_contents(dirname(__DIR__, 2).'/resources/trace/browser.js'),
         );

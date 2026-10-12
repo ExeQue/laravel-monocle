@@ -7,6 +7,7 @@
 - [Artisan commands](commands.md) - The same data from the terminal
 - [Dashboard](dashboard.md) - The same data in your browser
 - [Tracing](tracing.md) - How a page, its calls, jobs and processes are linked
+- [Browser tracing](browser-tracing.md) - Linking a page's fetch and XHR calls, and the Monocle button on the page
 - [What gets recorded](lenses.md) - Every lens and what it records
 - [Spans and metadata](spans.md) - Measure your own code
 - [Writing a lens](writing-a-lens.md) - Record something Monocle does not know about
@@ -29,6 +30,7 @@
 | Recording `Storage` disks | [Filesystem](lenses/filesystem.md) |
 | Request phases | [Request](lenses/request.md) |
 | Linking pages, jobs and processes into a trace | [Tracing](tracing.md) |
+| Jumping from a page to its captures | [Browser tracing](browser-tracing.md) |
 | N+1 and slow query warnings | [Database](lenses/database.md) |
 
 ## Contributing

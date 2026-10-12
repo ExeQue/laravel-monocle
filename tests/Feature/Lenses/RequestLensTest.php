@@ -689,7 +689,7 @@ describe(RequestLens::class, function (): void {
             $id = $response->headers->get('X-Monocle-Id');
             $html = $response->getContent();
 
-            expect($html)->toStartWith('<html><body><h1>Hi</h1><script data-monocle-id="'.$id.'" data-monocle-method="GET" data-monocle-status="200" data-monocle-dashboard="'.route('monocle.dashboard').'">')
+            expect($html)->toStartWith('<html><body><h1>Hi</h1><script data-monocle-id="'.$id.'" data-monocle-method="GET" data-monocle-status="200" data-monocle-dashboard="'.route('monocle.dashboard').'" data-monocle-icon="'.e(route('monocle.asset', ['file' => 'monocle.svg']).'?v='.\ExeQue\Monocle\Http\Controllers\AssetController::version('monocle.svg')).'">')
                 ->toEndWith('</script></body></html>')
                 ->toContain('X-Monocle-Parent')
                 ->and($response->headers->has('Content-Length'))->toBeFalse();
