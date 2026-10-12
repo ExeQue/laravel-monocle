@@ -34,13 +34,11 @@ function loadShots(only) {
         .filter((shot) => only.length === 0 || only.some((pick) => shot.name.startsWith(pick) || shot.name.includes(pick)));
 }
 
-// Removes every capture through the dashboard API, which needs the CSRF token.
+// Removes every capture the way the dashboard's Clear button does, which sends its CSRF token.
 async function clearCaptures(page) {
     await page.goto(`${base}/_monocle`, { waitUntil: 'networkidle0' });
     await page.evaluate(async () => {
-        const token = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
-
-        await fetch('/_monocle/api/captures', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token, Accept: 'application/json' } });
+        await window.Alpine.$data(document.querySelector('[x-data^="monocle("]')).clearAll();
     });
 }
 
