@@ -373,9 +373,12 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         }
 
         $nonce = $this->app->make(Vite::class)->cspNonce();
+        // The dashboard's address, so the console can link each call to its capture; none when the dashboard is off.
+        $dashboard = $this->app->make('router')->has('monocle.dashboard') ? $this->app->make('url')->route('monocle.dashboard') : null;
         $script = sprintf(
-            '<script data-monocle-id="%s"%s>%s</script>',
+            '<script data-monocle-id="%s"%s%s>%s</script>',
             $capture->id,
+            $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'"',
             $nonce === null ? '' : ' nonce="'.e($nonce).'"',
             $this->traceScript ??= (string) file_get_contents(dirname(__DIR__, 2).'/resources/trace/browser.js'),
         );
