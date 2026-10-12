@@ -59,6 +59,8 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
             'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
             'monocle.except.commands' => [...(array) config('monocle.except.commands', []), 'workbench:*', 'package:purge-skeleton', 'migrate*', 'db:seed'],
+            // Demo pages link the fetch and XHR calls they make (Livewire updates among them) to the page.
+            'monocle.trace.browser' => true,
         ]);
     }
 
