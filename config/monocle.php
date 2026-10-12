@@ -419,7 +419,8 @@ return [
     | Requests to the dashboard are never recorded.
     |
     | `tabs` orders the section tabs after Overview and Timeline: a lens
-    | class or a section key per entry. Sections not listed follow.
+    | class (its own section, then the other sections it provides) or a
+    | section key per entry. Sections not listed follow.
     |
     */
 
@@ -458,7 +459,7 @@ return [
             McpLens::class,
             ScheduleLens::class,
             ProcessLens::class,
-            'commands',
+            CommandLens::class,
         ],
     ],
 

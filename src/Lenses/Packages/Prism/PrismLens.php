@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -23,7 +24,7 @@ use Prism\Prism\PrismManager;
  * moderation and audio. Prism fires no events, so the Prism manager is
  * replaced with one that wraps every provider it resolves.
  */
-final class PrismLens implements Advises, Configurable, Lens, Presentable, RequiresPackages, Summarizable
+final class PrismLens implements Advises, Configurable, Lens, Presentable, ProvidesSections, RequiresPackages, Summarizable
 {
     private ?int $maxText = null;
 
@@ -35,6 +36,11 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Requi
     public function key(): string
     {
         return 'prism';
+    }
+
+    public function sections(): array
+    {
+        return ['prism_tools'];
     }
 
     public static function packages(): array

@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Counts model events per class and records every write with its changes.
  */
-final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
+final class EloquentLens implements Advises, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
 {
     private const array ACTIONS = ['retrieved', 'created', 'updated', 'deleted', 'restored', 'forceDeleted'];
 
@@ -35,6 +36,11 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Res
     public function key(): string
     {
         return 'models';
+    }
+
+    public function sections(): array
+    {
+        return ['model_changes'];
     }
 
     public function description(): string

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Http\Controllers;
 
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Dashboard\TabList;
 use ExeQue\Monocle\Dashboard\TimelinePresenter;
@@ -97,8 +98,9 @@ final readonly class CapturesController
     }
 
     /**
-     * The section keys in the order monocle.dashboard.tabs lists them; lens
-     * classes stand for the section they record.
+     * The section keys in the order monocle.dashboard.tabs lists them; a lens
+     * class stands for the section it records and then the other sections it
+     * provides.
      *
      * @return list<string>
      */
@@ -107,13 +109,16 @@ final readonly class CapturesController
         $keys = [];
 
         foreach ($this->registry->booted() as $lens) {
-            $keys[$lens::class] = $lens->key();
+            $keys[$lens::class] = [$lens->key(), ...($lens instanceof ProvidesSections ? $lens->sections() : [])];
         }
 
-        return array_values(array_map(
-            fn (mixed $tab): string => $keys[$tab] ?? (string) $tab,
-            (array) config('monocle.dashboard.tabs', []),
-        ));
+        $order = [];
+
+        foreach ((array) config('monocle.dashboard.tabs', []) as $tab) {
+            $order = [...$order, ...($keys[$tab] ?? [(string) $tab])];
+        }
+
+        return array_values(array_unique($order));
     }
 
     /**

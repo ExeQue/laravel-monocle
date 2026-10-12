@@ -9,6 +9,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -43,7 +44,7 @@ use Symfony\Component\HttpFoundation\Response;
  * (PreparingResponse, for the declared props and their types) and the
  * result right after (ResponsePrepared, for the page that was sent).
  */
-final class InertiaLens implements Advises, Configurable, Lens, Presentable, RequiresPackages, Resettable, Summarizable
+final class InertiaLens implements Advises, Configurable, Lens, Presentable, ProvidesSections, RequiresPackages, Resettable, Summarizable
 {
     private int $largePropBytes = 50000;
 
@@ -67,6 +68,11 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Req
     public function key(): string
     {
         return 'inertia';
+    }
+
+    public function sections(): array
+    {
+        return ['inertia_pages'];
     }
 
     public static function packages(): array

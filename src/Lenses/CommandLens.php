@@ -8,6 +8,7 @@ use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -32,7 +33,7 @@ use Throwable;
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead, and a row of the commands section when it finishes.
  */
-final class CommandLens implements Advises, Finalizable, Lens, Presentable, Resettable, Summarizable
+final class CommandLens implements Advises, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
 {
     private bool $usedLaravelStart = false;
 
@@ -51,6 +52,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     public function key(): string
     {
         return 'command';
+    }
+
+    public function sections(): array
+    {
+        return ['commands'];
     }
 
     public function description(): string

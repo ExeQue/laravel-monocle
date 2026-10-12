@@ -194,6 +194,29 @@ final class PaymentsLens implements Advises, Lens
 }
 ```
 
+## More than one section
+
+A lens that writes sections besides its own `key()` lists them with `ProvidesSections::sections()`. Listing the lens in `dashboard.tabs` then places those tabs right after its own:
+
+```php
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
+
+final class StripeLens implements Lens, ProvidesSections
+{
+    public function key(): string
+    {
+        return 'stripe';
+    }
+
+    public function sections(): array
+    {
+        return ['stripe_webhooks'];
+    }
+
+    // ...
+}
+```
+
 ## Before and after each capture
 
 - `Finalizable::finalize(Capture $capture)` - runs just before a capture is saved.

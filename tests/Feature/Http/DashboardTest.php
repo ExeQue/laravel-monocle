@@ -128,6 +128,21 @@ describe('dashboard', function (): void {
     });
 
     describe('built-in detail views', function (): void {
+        it('places the sections a listed lens provides right after its own tab', function (): void {
+            Route::get('/runs-a-command', function () {
+                \Illuminate\Support\Facades\Artisan::call('list');
+
+                return 'ok';
+            });
+
+            $this->get('/runs-a-command')->assertOk();
+            config(['monocle.dashboard.tabs' => [\ExeQue\Monocle\Lenses\RequestLens::class, \ExeQue\Monocle\Lenses\CommandLens::class]]);
+
+            $keys = array_column($this->getJson('/_monocle/api/captures/'.latestCapture()->id)->json('tabs'), 'key');
+
+            expect(array_slice($keys, 0, 2))->toBe(['request', 'commands']);
+        });
+
         it('renders http calls, queries, validations, exceptions and dumps on the server', function (): void {
             Http::fake(['api.example.test/*' => Http::response(['ok' => true], 201)]);
             Route::get('/busy', function () {

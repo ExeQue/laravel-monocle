@@ -9,6 +9,8 @@ use ExeQue\Monocle\LensRegistry;
 
 covers(
     LensRegistry::class,
+    \ExeQue\Monocle\Lenses\Packages\Filament\FilamentLens::class,
+    \ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens::class,
     \ExeQue\Monocle\Lenses\Packages\Laravel\AiLens::class,
     \ExeQue\Monocle\Lenses\AuthorizationLens::class,
     \ExeQue\Monocle\Lenses\CacheLens::class,
@@ -49,6 +51,23 @@ describe('lens descriptions', function (): void {
         }
 
         expect(app(LensRegistry::class)->descriptions())->toHaveKeys($keys);
+    });
+
+    it('names the other sections a lens writes, apart from its own and from every other lens', function (): void {
+        $provided = [];
+
+        foreach (app(LensRegistry::class)->booted() as $lens) {
+            if (! $lens instanceof \ExeQue\Monocle\Contracts\Lenses\ProvidesSections) {
+                continue;
+            }
+
+            foreach ($lens->sections() as $section) {
+                expect($section)->toMatch('/^[a-z_]+$/')->not->toBe($lens->key());
+                $provided[] = $section;
+            }
+        }
+
+        expect($provided)->toEqualCanonicalizing(['commands', 'job', 'model_changes', 'filament_context', 'ai_tools', 'inertia_pages', 'prism_tools']);
     });
 
     it('advises the agent on when to look at every built-in lens, in one sentence', function (): void {

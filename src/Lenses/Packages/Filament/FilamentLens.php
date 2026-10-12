@@ -10,6 +10,7 @@ use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
@@ -45,7 +46,7 @@ use Throwable;
  * records created and updated by resource pages, and the panel, tenant,
  * page and resource the request was for.
  */
-final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Presentable, RequiresPackages, Resettable, Summarizable
+final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Presentable, ProvidesSections, RequiresPackages, Resettable, Summarizable
 {
     /** Session keys Filament keeps notifications under until they are shown. */
     private const array NOTIFICATION_KEYS = ['filament.notifications', 'filament.claimed_notifications'];
@@ -77,6 +78,11 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
     public function key(): string
     {
         return 'filament';
+    }
+
+    public function sections(): array
+    {
+        return ['filament_context'];
     }
 
     public static function packages(): array

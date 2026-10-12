@@ -8,6 +8,7 @@ use DateTimeInterface;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
+use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
 use ExeQue\Monocle\Dashboard\Presentation;
@@ -38,7 +39,7 @@ use Throwable;
  * turns every processed job into its own capture linked to the capture that
  * dispatched it, or into a span when it runs inline inside another capture.
  */
-final class QueueLens implements Advises, Lens, Presentable, Resettable, Summarizable
+final class QueueLens implements Advises, Lens, Presentable, ProvidesSections, Resettable, Summarizable
 {
     public const string PAYLOAD_KEY = 'monocle';
 
@@ -58,6 +59,11 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
     public function key(): string
     {
         return 'jobs';
+    }
+
+    public function sections(): array
+    {
+        return ['job'];
     }
 
     public function description(): string
