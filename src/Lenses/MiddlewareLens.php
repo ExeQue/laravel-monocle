@@ -168,6 +168,13 @@ final class MiddlewareLens implements Advises, Configurable, Finalizable, Lens, 
                 continue;
             }
 
+            // Answering early is often the job (a CORS preflight, a redirect to login); only failures are flagged.
+            $status = $span->meta['short_circuited_with'] ?? null;
+
+            if (($span->meta['threw'] ?? null) === null && is_int($status) && $status < 400) {
+                continue;
+            }
+
             $warnings[] = $this->shortCircuitWarning($span);
         }
 

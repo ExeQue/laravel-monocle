@@ -8,8 +8,8 @@ use Closure;
 
 final class Abort
 {
-    public function handle(mixed $request, Closure $next): mixed
+    public function handle(mixed $request, Closure $next, string $status = '418'): mixed
     {
-        return response('nope', 418);
+        return response('nope', (int) $status);
     }
 }

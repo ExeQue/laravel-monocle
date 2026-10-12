@@ -64,6 +64,22 @@ describe(MiddlewareLens::class, function (): void {
             ->and(latestCapture()->spans)->not->toHaveKey('controller');
     });
 
+    it('warns about short circuits only when they answer with an error status', function (int $status, bool $warned): void {
+        Route::get('/answered', fn () => 'never')->middleware(Abort::class.':'.$status);
+
+        $this->get('/answered')->assertStatus($status);
+
+        $warning = sprintf('Middleware Abort short-circuited the request (%d).', $status);
+        $warnings = app(MiddlewareLens::class)->summarize(latestCapture())->warnings;
+
+        expect(in_array($warning, $warnings, true))->toBe($warned);
+    })->with([
+        'preflight' => [204, false],
+        'redirect' => [302, false],
+        'client error' => [419, true],
+        'server error' => [503, true],
+    ]);
+
     it('records the status a thrown exception turns into and rethrows it', function (string $with, int $status, string $exception): void {
         Route::get('/failing', fn () => 'never')->middleware([SleepBefore::class, Fail::class.':'.$with]);
 

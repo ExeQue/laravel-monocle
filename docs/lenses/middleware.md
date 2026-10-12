@@ -37,7 +37,7 @@ On the timeline each middleware has a `middleware.request` span for the work bef
 Warnings:
 
 - `Middleware <Name> spent <n> ms of its own time.` when one middleware's own time, before and after added up over all its runs in the request, is at least `slow_ms`. Middleware shipped by a package (its class lives in `vendor/`) is left out, since its time is not yours to fix.
-- `Middleware <Name> short-circuited the request (<status>).` for every middleware that did not hand the request on, such as `guest` redirecting a logged-in user.
+- `Middleware <Name> short-circuited the request (<status>).` for every middleware that did not hand the request on and answered with status 400 or higher, such as an API key check answering 401. Answering early with a 2xx or 3xx is often the middleware's job (`HandleCors` answering a preflight, `guest` redirecting a logged-in user), so it is not flagged; the row still shows `passed: false` and the status.
 - `Middleware <Name> short-circuited the request by throwing <Exception> (<status>).` when it stopped the request by throwing, as `auth`, `can` and `throttle` do. The exception is rethrown unchanged, so the application handles it as usual.
 
 The lens raises no errors.
