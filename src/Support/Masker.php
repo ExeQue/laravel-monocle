@@ -192,7 +192,10 @@ final class Masker
         return $body;
     }
 
-    private function matches(string $key): bool
+    /**
+     * Whether an input key matches the input mask expressions.
+     */
+    public function matches(string $key): bool
     {
         foreach ($this->patterns as $pattern) {
             if (preg_match($pattern, $key) === 1) {

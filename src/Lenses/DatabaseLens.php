@@ -47,7 +47,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     /** @var array<string, int> hash => first row number */
     private array $seen = [];
 
-    /** @var array<string, array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string, columns: array<int, ?string>}> */
+    /** @var array<string, array{tables: list<string>, ignored: bool, type: string, shape: string, shape_hash: string, columns: list<list<string>>}> */
     private array $parsed = [];
 
     /** @var array<int, array{0: Connection, 1: string, 2: array<mixed>}> Queries whose sql_with_bindings is filled in at finalize, by row number. */
@@ -280,10 +280,10 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     }
 
     /**
-     * Mask each binding whose column matches the input mask pattern.
+     * Mask each binding where one of its columns matches the input mask pattern.
      *
      * @param  array<array-key, mixed>  $bindings
-     * @param  array<int, ?string>  $columns
+     * @param  array<int, list<string>>  $columns
      * @return array<array-key, mixed>
      */
     private function maskBindings(array $bindings, array $columns): array
@@ -291,18 +291,18 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $masker = $this->eyepiece->masker(self::class);
 
         foreach ($bindings as $index => $value) {
-            $column = $columns[$index] ?? null;
-
-            if ($column === null) {
-                continue;
-            }
-
             // An empty value has nothing to hide, and stays readable as null.
             if ($value === null) {
                 continue;
             }
 
-            $bindings[$index] = $masker->inputs([$column => $value])[$column];
+            foreach ($columns[$index] ?? [] as $column) {
+                if ($masker->matches($column)) {
+                    $bindings[$index] = $masker->mask($value, $column);
+
+                    break;
+                }
+            }
         }
 
         return $bindings;
@@ -448,13 +448,14 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     }
 
     /**
-     * The column each `?` placeholder is compared with or written to, by
-     * position: `column = ?`, `!=`, `<>`, `like`, `in (?, ?)`, the same
-     * with the column wrapped in functions (`lower(column) = ?`), `update ...
-     * set column = ?` and the column list of an insert. Null where the
-     * column cannot be told.
+     * The columns each `?` placeholder is compared with or written to, by
+     * position: `column = ?`, `!=`, `<>`, `<`, `>`, `<=`, `>=`, `like`,
+     * `between ? and ?`, `in (?, ?)`, `update ... set column = ?` and the
+     * column list of an insert. With an expression in front of the
+     * operator, such as `coalesce(email, '') = ?`, every column in it
+     * counts. Empty where no column can be told.
      *
-     * @return list<?string>
+     * @return list<list<string>>
      */
     private function columns(string $sql): array
     {
@@ -465,7 +466,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $columns = [];
         $inserted = 0;
         $previousEnd = 0;
-        $previous = null;
+        $previous = [];
 
         foreach ($matches[0] as [$token, $offset]) {
             if ($token !== '?') {
@@ -479,7 +480,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
                 // The next value in the same list, as in `in (?, ?)`.
                 $column = $previous;
             } else {
-                $column = $this->comparedColumn($sql, $offset);
+                $column = $this->comparedColumns($sql, $offset);
             }
 
             $columns[] = $column;
@@ -491,30 +492,88 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     }
 
     /**
-     * The column in front of the placeholder at the offset, as in
-     * `"users"."email" = ?`, `name like ?` or `id in (?`.
+     * The columns in front of the placeholder at the offset, as in
+     * `"users"."email" = ?`, `name like ?`, `id in (?`, `lower(email) = ?`
+     * or `coalesce(email, '') = ?`.
+     *
+     * @return list<string>
      */
-    private function comparedColumn(string $sql, int $offset): ?string
+    private function comparedColumns(string $sql, int $offset): array
     {
-        // 200 characters is plenty for a quoted schema.table.column and its operator.
+        // ponytail: a 200 character window; an expression longer than that in front of the operator is not read.
         $start = max(0, $offset - 200);
-        $before = substr($sql, $start, $offset - $start);
+        // String literals hold no columns; emptied, their content cannot read as one.
+        $before = (string) preg_replace("/'(?:[^'\\\\]|\\\\.)*'/", "''", substr($sql, $start, $offset - $start));
+        // A Postgres cast does not change the column: `email::text = ?`.
+        $before = (string) preg_replace('/::\w+/', '', $before);
+        // A value passed through a function compares like the value itself: `email = lower(?)`.
+        $before = (string) preg_replace('/(?:\b(?!in\b)\w+\s*\(\s*)+$/i', '', $before);
+        // The second value of a between belongs to the column of the first: `price between ? and ?`.
+        $before = (string) preg_replace('/\s(?:not\s+)?between\s+\?\s+and\s*$/i', ' between ', $before);
 
-        // Closing parentheses may follow, so `lower(email) = ?` compares with email.
-        $pattern = '/([\w."`\[\]]+)(?:\s*\))*\s*(?:=|!=|<>|\s(?:not\s+)?like|\s(?:not\s+)?in\s*\()\s*$/i';
+        $operator = '/^(.*?)\s*(?:<=>|>=|<=|<>|!=|=|>|<|\s(?:not\s+)?(?:like|between)|\s(?:not\s+)?in\s*\()\s*$/is';
 
-        if (preg_match($pattern, $before, $match) !== 1) {
-            return null;
+        if (preg_match($operator, $before, $match) !== 1) {
+            return [];
         }
 
-        return $this->columnName($match[1]);
+        $left = rtrim($match[1]);
+
+        if (str_ends_with($left, ')')) {
+            return $this->identifiers($this->enclosed($left));
+        }
+
+        preg_match('/[\w."`\[\]]+$/', $left, $identifier);
+
+        return $this->identifiers($identifier[0] ?? '');
+    }
+
+    /**
+     * What the parentheses closing at the end of the expression enclose;
+     * empty when they open before it starts.
+     */
+    private function enclosed(string $expression): string
+    {
+        $depth = 0;
+
+        for ($i = strlen($expression) - 1; $i >= 0; $i--) {
+            $depth += match ($expression[$i]) {
+                ')' => 1,
+                '(' => -1,
+                default => 0,
+            };
+
+            if ($depth === 0) {
+                return substr($expression, $i + 1, -1);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * The column names in an expression, leaving out function names and numbers.
+     *
+     * @return list<string>
+     */
+    private function identifiers(string $expression): array
+    {
+        preg_match_all('/[\w."`\[\]]+(?![\w."`\[\]]|\s*\()/', $expression, $matches);
+
+        return collect($matches[0])
+            ->reject(fn (string $identifier): bool => is_numeric($identifier))
+            ->map($this->columnName(...))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
      * The column list of an `insert into t (a, b) values (?, ?), ...` and
      * where its value rows start and end.
      *
-     * @return array{0: list<?string>, 1: int, 2: int}
+     * @return array{0: list<list<string>>, 1: int, 2: int}
      */
     private function insertColumns(string $sql): array
     {
@@ -525,7 +584,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $start = strlen($match[0]);
         preg_match('/(?:\(\s*\?(?:\s*,\s*\?)*\s*\)\s*,?\s*)*/A', $sql, $rows, 0, $start);
 
-        $columns = array_map($this->columnName(...), explode(',', $match[1]));
+        $columns = array_map($this->identifiers(...), explode(',', $match[1]));
 
         return [$columns, $start, $start + strlen($rows[0])];
     }

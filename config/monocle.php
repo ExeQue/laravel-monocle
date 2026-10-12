@@ -331,10 +331,10 @@ return [
     | as are list entries given without a mask.
     |
     | `inputs` also masks query bindings, by the column each value is
-    | compared with or written to (`email = ?`, `lower(email) = ?`, insert
-    | and update columns). Key an expression, or a list of them, by
-    | DatabaseLens to mask more columns in queries only; it adds to the
-    | shared expressions:
+    | compared with or written to (`email = ?`, `coalesce(email, '') = ?`,
+    | `between`, insert and update columns). Key an expression, or a list
+    | of them, by DatabaseLens to mask more columns in queries only; it
+    | adds to the shared expressions:
     |
     |     'inputs' => ['/pass|token/i', DatabaseLens::class => '/^(email|iban)$/i'],
     |

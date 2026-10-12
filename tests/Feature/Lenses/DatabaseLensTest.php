@@ -224,8 +224,13 @@ describe(DatabaseLens::class, function (): void {
         DB::table('users')->where('password', '!=', 'unequal-password')->whereIn('remember_token', ['token-aaaa', 'token-bbbb'])->first();
         DB::table('users')->where('id', 1)->update(['password' => 'updated-password', 'email' => 'c@example.com']);
         DB::select("select '?' as mark from users where `password` like ? and email = ?", ['literal-password', 'd@example.com']);
-        DB::select('select * from users where length(password) > ?', ['unknown-column']);
+        DB::select('select ? as marker from users', ['unknown-column']);
         DB::select('select * from users where trim(lower(password)) = ? and lower(email) = ?', ['wrapped-password', 'f@example.com']);
+        DB::select("select * from users where coalesce(password, '') = ? and coalesce(email, '') = ?", ['coalesced-password', 'g@example.com']);
+        DB::select('select * from users where password between ? and ? and id not between ? and ?', ['between-low-password', 'between-high-password', 1, 9]);
+        DB::select('select * from users where password >= ? and password < ? and id > ?', ['greater-password', 'lesser-password', 2]);
+        DB::select('select * from users where password = lower(?) and email = upper(?)', ['passed-password', 'h@example.com']);
+        DB::select('select * from users where ifnull(email, password) = ?', ['concat-password']);
         DB::table('users')->insert(['email' => 'e@example.com', 'password' => 'set-password', 'remember_token' => null]);
 
         $rows = array_values(array_filter(
@@ -238,7 +243,10 @@ describe(DatabaseLens::class, function (): void {
             ->not->toContain('hunter2hunter2')->not->toContain('unequal-password')
             ->not->toContain('token-aaaa')->not->toContain('token-bbbb')
             ->not->toContain('updated-password')->not->toContain('literal-password')
-            ->not->toContain('wrapped-password')
+            ->not->toContain('wrapped-password')->not->toContain('coalesced-password')
+            ->not->toContain('between-low-password')->not->toContain('between-high-password')
+            ->not->toContain('greater-password')->not->toContain('lesser-password')
+            ->not->toContain('passed-password')->not->toContain('concat-password')
             ->and($rows[0]['bindings'])->toBe(['a@example.com', 'fir****', 'to****', 'b@example.com', 'sec****', 'tok****'])
             ->and($rows[1]['bindings'])->toBe(['hun****'])
             ->and($rows[1]['sql_with_bindings'])->toContain("\"password\" = 'hun****'")
@@ -247,7 +255,25 @@ describe(DatabaseLens::class, function (): void {
             ->and($rows[4]['bindings'])->toBe(['lite****', 'd@example.com'])
             ->and($rows[5]['bindings'])->toBe(['unknown-column'])
             ->and($rows[6]['bindings'])->toBe(['wrap****', 'f@example.com'])
-            ->and($rows[7]['bindings'])->toBe(['e@example.com', 'set****', null]);
+            ->and($rows[7]['bindings'])->toBe(['coal****', 'g@example.com'])
+            ->and($rows[8]['bindings'])->toBe(['betw****', 'betw****', 1, 9])
+            ->and($rows[9]['bindings'])->toBe(['grea****', 'les****', 2])
+            ->and($rows[10]['bindings'])->toBe(['pas****', 'h@example.com'])
+            ->and($rows[11]['bindings'])->toBe(['con****'])
+            ->and($rows[12]['bindings'])->toBe(['e@example.com', 'set****', null]);
+    });
+
+    it('reads the column through a Postgres cast and gives up on parentheses opened before the window', function (): void {
+        $connection = DB::connection();
+        $far = str_repeat(' ', 200);
+
+        event(new \Illuminate\Database\Events\QueryExecuted('select * from users where password::text = ? and lower(email)::text = ?', ['cast-password', 'i@example.com'], 1.0, $connection));
+        event(new \Illuminate\Database\Events\QueryExecuted("select * from users where coalesce(password,{$far}'') = ?", ['far-password'], 1.0, $connection));
+
+        $rows = app(Eyepiece::class)->finalize()->rows('queries');
+
+        expect($rows[0]['bindings'])->toBe(['cas****', 'i@example.com'])
+            ->and($rows[1]['bindings'])->toBe(['far-password']);
     });
 
     it('warns about slow queries the application ran, slowest first', function (): void {

@@ -152,13 +152,15 @@ use ExeQue\Monocle\Lenses\DatabaseLens;
 
 A value is masked when the column it belongs to matches the [`mask.inputs`](../configuration.md#masking) pattern, the same pattern that masks request input. With the default pattern, values for columns such as `password` and `remember_token` are masked in `bindings` and in `sql_with_bindings`. The column is found for values written as:
 
-- `column = ?`, `column != ?`, `column <> ?`, `column like ?` and `column not like ?`
+- `column = ?`, `!=`, `<>`, `<`, `>`, `<=`, `>=`, `like` and `not like`
+- `column between ? and ?` and `not between`, for both values
 - `column in (?, ?)` and `column not in (?, ?)`
 - `update table set a = ?, b = ?`
 - `insert into table (a, b) values (?, ?)`, with any number of rows
-- any of the above with the column wrapped in functions, such as `lower(email) = ?` or `trim(lower(email)) = ?`
+- any of the above with an expression in front of the operator: every column in it counts, so `lower(email) = ?`, `coalesce(password, '') = ?` and `ifnull(email, password) = ?` are masked when one of their columns matches
+- a value passed through a function, such as `password = lower(?)`, and Postgres casts, such as `password::text = ?`
 
-Quoted names such as `"users"."password"` or `` `password` `` count by their column name. A value whose column cannot be found this way, such as `length(password) > ?`, is recorded as it is. Duplicates are found from the real values, so masking does not change `duplicate_of`.
+Quoted names such as `"users"."password"` or `` `password` `` count by their column name. A value with no column in front of it, such as `select ? as marker`, is recorded as it is. Duplicates are found from the real values, so masking does not change `duplicate_of`.
 
 To mask more columns for queries only, key a pattern by the lens:
 
@@ -178,6 +180,6 @@ No extra packages are needed.
 
 - Only queries that go through Laravel's database connections are recorded. Statements run on the raw PDO object are not.
 - Transaction statements have no duration.
-- Values are only masked when their column can be read from the SQL text next to the `?`. Values in raw expressions, functions with more than the column as argument (`coalesce(email, '') = ?`), comparisons such as `>` or `between` are not masked; turn `bindings` off when those can hold secrets.
+- Values are only masked when their column can be read from the SQL text in front of the `?`. Values with the column after them (`? = password`), in a JSON path (`data->'$.password' = ?`) or behind an expression longer than 200 characters are not masked; turn `bindings` off when those can hold secrets.
 - `tables` is read from the SQL text, so tables in unusual syntax may be missed. A query with no tables found is never left out by `ignore_tables`.
 - Queries run while no capture is recording are not listed.
