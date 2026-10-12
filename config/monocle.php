@@ -330,6 +330,13 @@ return [
     | Input keys matching the `inputs` expression are masked with `using`,
     | as are list entries given without a mask.
     |
+    | `inputs` also masks query bindings, by the column each value is
+    | compared with or written to (`email = ?`, `lower(email) = ?`, insert
+    | and update columns). Key an expression by DatabaseLens to mask more
+    | columns in queries only:
+    |
+    |     'inputs' => ['/pass|token/i', DatabaseLens::class => '/^(email|iban)$/i'],
+    |
     | Log context keys matching the `log` expression are masked with `using`;
     | it is a list of its own, so log context can be masked apart from input.
     |

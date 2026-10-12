@@ -225,6 +225,7 @@ describe(DatabaseLens::class, function (): void {
         DB::table('users')->where('id', 1)->update(['password' => 'updated-password', 'email' => 'c@example.com']);
         DB::select("select '?' as mark from users where `password` like ? and email = ?", ['literal-password', 'd@example.com']);
         DB::select('select * from users where length(password) > ?', ['unknown-column']);
+        DB::select('select * from users where trim(lower(password)) = ? and lower(email) = ?', ['wrapped-password', 'f@example.com']);
         DB::table('users')->insert(['email' => 'e@example.com', 'password' => 'set-password', 'remember_token' => null]);
 
         $rows = array_values(array_filter(
@@ -237,6 +238,7 @@ describe(DatabaseLens::class, function (): void {
             ->not->toContain('hunter2hunter2')->not->toContain('unequal-password')
             ->not->toContain('token-aaaa')->not->toContain('token-bbbb')
             ->not->toContain('updated-password')->not->toContain('literal-password')
+            ->not->toContain('wrapped-password')
             ->and($rows[0]['bindings'])->toBe(['a@example.com', 'fir****', 'to****', 'b@example.com', 'sec****', 'tok****'])
             ->and($rows[1]['bindings'])->toBe(['hun****'])
             ->and($rows[1]['sql_with_bindings'])->toContain("\"password\" = 'hun****'")
@@ -244,7 +246,8 @@ describe(DatabaseLens::class, function (): void {
             ->and($rows[3]['bindings'])->toBe(['upda****', 'c@example.com', 1])
             ->and($rows[4]['bindings'])->toBe(['lite****', 'd@example.com'])
             ->and($rows[5]['bindings'])->toBe(['unknown-column'])
-            ->and($rows[6]['bindings'])->toBe(['e@example.com', 'set****', null]);
+            ->and($rows[6]['bindings'])->toBe(['wrap****', 'f@example.com'])
+            ->and($rows[7]['bindings'])->toBe(['e@example.com', 'set****', null]);
     });
 
     it('warns about slow queries the application ran, slowest first', function (): void {

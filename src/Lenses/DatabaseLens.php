@@ -449,7 +449,8 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     /**
      * The column each `?` placeholder is compared with or written to, by
-     * position: `column = ?`, `!=`, `<>`, `like`, `in (?, ?)`, `update ...
+     * position: `column = ?`, `!=`, `<>`, `like`, `in (?, ?)`, the same
+     * with the column wrapped in functions (`lower(column) = ?`), `update ...
      * set column = ?` and the column list of an insert. Null where the
      * column cannot be told.
      *
@@ -499,7 +500,8 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $start = max(0, $offset - 200);
         $before = substr($sql, $start, $offset - $start);
 
-        $pattern = '/([\w."`\[\]]+)\s*(?:=|!=|<>|\s(?:not\s+)?like|\s(?:not\s+)?in\s*\()\s*$/i';
+        // Closing parentheses may follow, so `lower(email) = ?` compares with email.
+        $pattern = '/([\w."`\[\]]+)(?:\s*\))*\s*(?:=|!=|<>|\s(?:not\s+)?like|\s(?:not\s+)?in\s*\()\s*$/i';
 
         if (preg_match($pattern, $before, $match) !== 1) {
             return null;

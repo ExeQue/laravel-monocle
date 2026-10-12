@@ -156,6 +156,7 @@ A value is masked when the column it belongs to matches the [`mask.inputs`](../c
 - `column in (?, ?)` and `column not in (?, ?)`
 - `update table set a = ?, b = ?`
 - `insert into table (a, b) values (?, ?)`, with any number of rows
+- any of the above with the column wrapped in functions, such as `lower(email) = ?` or `trim(lower(email)) = ?`
 
 Quoted names such as `"users"."password"` or `` `password` `` count by their column name. A value whose column cannot be found this way, such as `length(password) > ?`, is recorded as it is. Duplicates are found from the real values, so masking does not change `duplicate_of`.
 
@@ -175,6 +176,6 @@ No extra packages are needed.
 
 - Only queries that go through Laravel's database connections are recorded. Statements run on the raw PDO object are not.
 - Transaction statements have no duration.
-- Values are only masked when their column can be read from the SQL text next to the `?`. Values in raw expressions, function calls or `between` are not masked; turn `bindings` off when those can hold secrets.
+- Values are only masked when their column can be read from the SQL text next to the `?`. Values in raw expressions, functions with more than the column as argument (`coalesce(email, '') = ?`), comparisons such as `>` or `between` are not masked; turn `bindings` off when those can hold secrets.
 - `tables` is read from the SQL text, so tables in unusual syntax may be missed. A query with no tables found is never left out by `ignore_tables`.
 - Queries run while no capture is recording are not listed.
