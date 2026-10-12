@@ -28,9 +28,9 @@ The summary gets these totals when at least one message was logged:
 | `log_captures` | Number of log entries |
 | `log_by_level` | Number of entries per level |
 
-Errors: every entry at level `emergency`, `alert`, `critical` or `error` is an error. The summary lists the first three as `Logged {level}: {message}`, such as `Logged error: Import failed`. Entries at `warning` and below are not flagged.
+Errors: every entry at level `emergency`, `alert`, `critical` or `error` is an error. The summary lists the first three as `Logged {level}: {message}`, such as `Logged error: Import failed`. Entries below `warning` are not flagged.
 
-This lens reports no warnings.
+Warnings: every entry at level `warning` is a warning, listed the same way (first three), such as `Logged warning: Function strftime() is deprecated`. PHP deprecations end up here, since Laravel logs them as warnings to the `deprecations` channel.
 
 ## In the dashboard
 

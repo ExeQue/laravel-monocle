@@ -74,15 +74,26 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
             return Summary::make();
         }
 
-        $errors = collect($rows)
-            ->whereInStrict('level', self::ERROR_LEVELS)
-            ->take(self::MAX_ERRORS)
-            ->map(fn (array $row): string => sprintf('Logged %s: %s', $row['level'], $row['message']));
-
         return Summary::make()
             ->total('log_captures', count($rows), 'entries')
             ->totals(['log_by_level' => collect($rows)->countBy('level')->all()])
-            ->errors($errors);
+            ->warnings($this->flagged($rows, ['warning']))
+            ->errors($this->flagged($rows, self::ERROR_LEVELS));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  list<string>  $levels
+     * @return list<string>
+     */
+    private function flagged(array $rows, array $levels): array
+    {
+        return collect($rows)
+            ->whereInStrict('level', $levels)
+            ->take(self::MAX_ERRORS)
+            ->map(fn (array $row): string => sprintf('Logged %s: %s', $row['level'], $row['message']))
+            ->values()
+            ->all();
     }
 
     /**

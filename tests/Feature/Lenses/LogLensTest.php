@@ -20,11 +20,12 @@ describe(LogLens::class, function (): void {
         Log::info('Started import', ['album' => 3]);
         Log::error('Import failed', ['exception' => new RuntimeException('disk full')]);
         Log::debug('noise');
+        Log::warning('Function strftime() is deprecated');
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('log');
 
-        expect(array_column($rows, 'level'))->toBe(['info', 'error', 'debug'])
+        expect(array_column($rows, 'level'))->toBe(['info', 'error', 'debug', 'warning'])
             ->and($rows[0]['context'])->toBe(['album' => 3])
             ->and($rows[1]['context']['exception']['class'])->toBe(RuntimeException::class)
             ->and($rows[1]['context']['exception']['message'])->toBe('disk full')
@@ -32,8 +33,9 @@ describe(LogLens::class, function (): void {
 
         $summary = app(LogLens::class)->summarize($capture);
 
-        expect($summary->totals['log_captures'])->toBe(3)
-            ->and($summary->totals['log_by_level'])->toBe(['info' => 1, 'error' => 1, 'debug' => 1])
+        expect($summary->totals['log_captures'])->toBe(4)
+            ->and($summary->totals['log_by_level'])->toBe(['info' => 1, 'error' => 1, 'debug' => 1, 'warning' => 1])
+            ->and($summary->warnings)->toBe(['Logged warning: Function strftime() is deprecated'])
             ->and($summary->errors)->toBe(['Logged error: Import failed']);
     });
 
