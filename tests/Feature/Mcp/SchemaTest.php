@@ -10,13 +10,14 @@ use ExeQue\Monocle\Mcp\Tools\CompareCaptures;
 use ExeQue\Monocle\Mcp\Tools\Concerns\DescribesPagination;
 use ExeQue\Monocle\Mcp\Tools\Concerns\RespondsWithJson;
 use ExeQue\Monocle\Mcp\Tools\ListCaptures;
+use ExeQue\Monocle\Mcp\Tools\ListLenses;
 use ExeQue\Monocle\Mcp\Tools\ShowCapture;
 use ExeQue\Monocle\Mcp\Tools\ShowQueries;
 use ExeQue\Monocle\Mcp\Tools\ShowRows;
 use ExeQue\Monocle\Mcp\Tools\ShowTrace;
 use Laravel\Mcp\Server\Transport\FakeTransporter;
 
-covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, CompareCaptures::class, ClearCaptures::class, DescribesPagination::class, RespondsWithJson::class);
+covers(MonocleServer::class, ListCaptures::class, ShowCapture::class, ShowRows::class, ShowQueries::class, ShowTrace::class, CompareCaptures::class, ClearCaptures::class, ListLenses::class, DescribesPagination::class, RespondsWithJson::class);
 
 describe('MCP tool schemas', function (): void {
     it('advertises every tool with a name, a description and an input schema', function (): void {
@@ -40,6 +41,7 @@ describe('MCP tool schemas', function (): void {
             ->and($tools['monocle-queries']['inputSchema']['properties']['group_by']['enum'])->toBe(['shape', 'caller', 'table', 'transaction'])
             ->and($tools['monocle-compare']['inputSchema']['required'])->toBe(['a'])
             ->and($tools['monocle-trace']['inputSchema']['properties'])->toHaveKey('id')
+            ->and($tools['monocle-lenses']['inputSchema']['properties'])->toHaveKey('sections')
             ->and($tools['monocle-clear']['annotations']['destructiveHint'] ?? null)->toBeTrue()
             ->and($tools['monocle-list']['annotations']['readOnlyHint'] ?? null)->toBeTrue();
     });
