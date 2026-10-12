@@ -2,8 +2,6 @@
 
 # Redis
 
-Part of [what gets recorded](../lenses.md).
-
 The Redis lens records every command sent through Laravel's Redis connections while a request, job or command is captured. This includes the commands the cache and queue drivers send when they use Redis, as well as locks, rate limiters and your own `Redis::` calls.
 
 ## Rows

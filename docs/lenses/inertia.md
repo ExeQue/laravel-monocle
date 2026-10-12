@@ -2,8 +2,6 @@
 
 # Inertia
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Inertia tab](../images/52-lens-inertia-light.webp#gh-light-mode-only)
 ![The Inertia tab](../images/52-lens-inertia-dark.webp#gh-dark-mode-only)
 

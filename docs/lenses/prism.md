@@ -2,8 +2,6 @@
 
 # Prism
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Prism tab](../images/57-lens-prism-light.webp#gh-light-mode-only)
 ![The Prism tab](../images/57-lens-prism-dark.webp#gh-dark-mode-only)
 

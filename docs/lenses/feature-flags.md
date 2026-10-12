@@ -2,8 +2,6 @@
 
 # Feature flags
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Features tab](../images/53-lens-pennant-light.webp#gh-light-mode-only)
 ![The Features tab](../images/53-lens-pennant-dark.webp#gh-dark-mode-only)
 

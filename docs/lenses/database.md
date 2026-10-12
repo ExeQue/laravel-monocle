@@ -2,8 +2,6 @@
 
 # Database
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Queries tab](../images/33-lens-database-light.webp#gh-light-mode-only)
 ![The Queries tab](../images/33-lens-database-dark.webp#gh-dark-mode-only)
 

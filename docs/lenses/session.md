@@ -2,8 +2,6 @@
 
 # Session
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Session tab](../images/31-lens-session-light.webp#gh-light-mode-only)
 ![The Session tab](../images/31-lens-session-dark.webp#gh-dark-mode-only)
 

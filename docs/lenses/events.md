@@ -2,8 +2,6 @@
 
 # Events
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Events tab](../images/36-lens-events-light.webp#gh-light-mode-only)
 ![The Events tab](../images/36-lens-events-dark.webp#gh-dark-mode-only)
 

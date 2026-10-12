@@ -2,8 +2,6 @@
 
 # Views
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Views tab](../images/39-lens-views-light.webp#gh-light-mode-only)
 ![The Views tab](../images/39-lens-views-dark.webp#gh-dark-mode-only)
 

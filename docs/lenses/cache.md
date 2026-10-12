@@ -2,8 +2,6 @@
 
 # Cache
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Cache tab](../images/35-lens-cache-light.webp#gh-light-mode-only)
 ![The Cache tab](../images/35-lens-cache-dark.webp#gh-dark-mode-only)
 

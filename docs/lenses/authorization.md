@@ -2,8 +2,6 @@
 
 # Authorization
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Authorization tab](../images/49-lens-authorization-light.webp#gh-light-mode-only)
 ![The Authorization tab](../images/49-lens-authorization-dark.webp#gh-dark-mode-only)
 

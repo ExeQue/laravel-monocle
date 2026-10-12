@@ -2,8 +2,6 @@
 
 # Log
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Log tab](../images/37-lens-log-light.webp#gh-light-mode-only)
 ![The Log tab](../images/37-lens-log-dark.webp#gh-dark-mode-only)
 

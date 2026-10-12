@@ -2,8 +2,6 @@
 
 # Dumps
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Dumps tab](../images/47-lens-dumps-light.webp#gh-light-mode-only)
 ![The Dumps tab](../images/47-lens-dumps-dark.webp#gh-dark-mode-only)
 

@@ -2,8 +2,6 @@
 
 # Queue
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Jobs tab](../images/42-lens-queue-light.webp#gh-light-mode-only)
 ![The Jobs tab](../images/42-lens-queue-dark.webp#gh-dark-mode-only)
 

@@ -2,8 +2,6 @@
 
 # Request
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Request tab](../images/30-lens-request-light.webp#gh-light-mode-only)
 ![The Request tab](../images/30-lens-request-dark.webp#gh-dark-mode-only)
 

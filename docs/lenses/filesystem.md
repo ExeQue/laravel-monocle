@@ -2,8 +2,6 @@
 
 # Filesystem
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Filesystem tab](../images/46-lens-filesystem-light.webp#gh-light-mode-only)
 ![The Filesystem tab](../images/46-lens-filesystem-dark.webp#gh-dark-mode-only)
 

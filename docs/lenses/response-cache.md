@@ -2,8 +2,6 @@
 
 # Response cache
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Response cache tab](../images/54-lens-response-cache-light.webp#gh-light-mode-only)
 ![The Response cache tab](../images/54-lens-response-cache-dark.webp#gh-dark-mode-only)
 

@@ -2,8 +2,6 @@
 
 # Media library
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Media tab](../images/55-lens-media-library-light.webp#gh-light-mode-only)
 ![The Media tab](../images/55-lens-media-library-dark.webp#gh-dark-mode-only)
 

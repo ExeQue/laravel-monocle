@@ -2,8 +2,6 @@
 
 # Eloquent
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Models tab](../images/34-lens-eloquent-light.webp#gh-light-mode-only)
 ![The Models tab](../images/34-lens-eloquent-dark.webp#gh-dark-mode-only)
 

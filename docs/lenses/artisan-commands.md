@@ -2,8 +2,6 @@
 
 # Artisan commands
 
-Part of [what gets recorded](../lenses.md).
-
 ![A command capture](../images/43-lens-commands-light.webp#gh-light-mode-only)
 ![A command capture](../images/43-lens-commands-dark.webp#gh-dark-mode-only)
 

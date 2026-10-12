@@ -2,8 +2,6 @@
 
 # Validation
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Validation tab](../images/50-lens-validation-light.webp#gh-light-mode-only)
 ![The Validation tab](../images/50-lens-validation-dark.webp#gh-dark-mode-only)
 

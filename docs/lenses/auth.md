@@ -2,8 +2,6 @@
 
 # Auth
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Request tab with the auth events](../images/48-lens-auth-light.webp#gh-light-mode-only)
 ![The Request tab with the auth events](../images/48-lens-auth-dark.webp#gh-dark-mode-only)
 

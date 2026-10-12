@@ -2,8 +2,6 @@
 
 # Processes
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Processes tab](../images/44-lens-processes-light.webp#gh-light-mode-only)
 ![The Processes tab](../images/44-lens-processes-dark.webp#gh-dark-mode-only)
 

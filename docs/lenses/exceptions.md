@@ -2,8 +2,6 @@
 
 # Exceptions
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Exceptions tab](../images/38-lens-exceptions-light.webp#gh-light-mode-only)
 ![The Exceptions tab](../images/38-lens-exceptions-dark.webp#gh-dark-mode-only)
 

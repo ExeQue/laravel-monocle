@@ -2,8 +2,6 @@
 
 # Middleware
 
-Part of [what gets recorded](../lenses.md).
-
 ![The Middleware tab](../images/32-lens-middleware-light.webp#gh-light-mode-only)
 ![The Middleware tab](../images/32-lens-middleware-dark.webp#gh-dark-mode-only)
 

@@ -2,8 +2,6 @@
 
 # HTTP client
 
-Part of [what gets recorded](../lenses.md).
-
 ![The HTTP tab](../images/41-lens-http-client-light.webp#gh-light-mode-only)
 ![The HTTP tab](../images/41-lens-http-client-dark.webp#gh-dark-mode-only)
 

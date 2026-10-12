@@ -2,8 +2,6 @@
 
 # MCP servers
 
-Part of [what gets recorded](../lenses.md).
-
 The MCP servers lens records every call to the MCP servers your application provides with `laravel/mcp`: which method was called, which tool, resource or prompt, the arguments, how long it took and whether it failed. Over HTTP a call is part of the request capture; over stdio each call becomes a capture of its own, of type `mcp`.
 
 ## Rows

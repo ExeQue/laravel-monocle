@@ -2,8 +2,6 @@
 
 # Filament
 
-Part of [what gets recorded](../lenses.md).
-
 The Filament lens records what Filament did during a request: the actions mounted or run and how they ended, the notifications sent, the state of every table rendered and the records created or updated by resource pages, one row each in section `filament`. It also records the panel, tenant, page and resource the request was for in section `filament_context`, and tells which Livewire components are Filament's on the [Livewire](livewire.md) rows.
 
 ## Rows

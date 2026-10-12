@@ -2,8 +2,6 @@
 
 # Scheduler
 
-Part of [what gets recorded](../lenses.md).
-
 ![A schedule:run capture](../images/45-lens-schedule-light.webp#gh-light-mode-only)
 ![A schedule:run capture](../images/45-lens-schedule-dark.webp#gh-dark-mode-only)
 

@@ -2,8 +2,6 @@
 
 # Livewire
 
-Part of [what gets recorded](../lenses.md).
-
 ![A Livewire update](../images/21-livewire-light.webp#gh-light-mode-only)
 ![A Livewire update](../images/21-livewire-dark.webp#gh-dark-mode-only)
 

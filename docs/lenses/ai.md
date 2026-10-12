@@ -2,8 +2,6 @@
 
 # AI
 
-Part of [what gets recorded](../lenses.md).
-
 ![The AI tab](../images/56-lens-ai-light.webp#gh-light-mode-only)
 ![The AI tab](../images/56-lens-ai-dark.webp#gh-dark-mode-only)
 
