@@ -279,7 +279,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->markNavigation($capture, $response);
 
         try {
-            $this->injectTraceScript($capture, $response);
+            $this->injectTraceScript($capture, $request, $response);
             $response->headers->set('X-Monocle-Id', $capture->id);
             $response->headers->set('Server-Timing', $this->serverTiming($capture));
         } catch (Throwable) {
@@ -356,7 +356,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
      * Put the browser trace script into an HTML page (trace.browser), so the
      * calls the page makes send its capture id along.
      */
-    private function injectTraceScript(Capture $capture, Response $response): void
+    private function injectTraceScript(Capture $capture, Request $request, Response $response): void
     {
         if (! $this->eyepiece->config('trace.browser', false)) {
             return;
@@ -376,8 +376,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         // The dashboard's address, so the console can link each call to its capture; none when the dashboard is off.
         $dashboard = $this->app->make('router')->has('monocle.dashboard') ? $this->app->make('url')->route('monocle.dashboard') : null;
         $script = sprintf(
-            '<script data-monocle-id="%s"%s%s>%s</script>',
+            '<script data-monocle-id="%s" data-monocle-method="%s" data-monocle-status="%d"%s%s>%s</script>',
             $capture->id,
+            e($request->getMethod()),
+            $response->getStatusCode(),
             $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'"',
             $nonce === null ? '' : ' nonce="'.e($nonce).'"',
             $this->traceScript ??= (string) file_get_contents(dirname(__DIR__, 2).'/resources/trace/browser.js'),
