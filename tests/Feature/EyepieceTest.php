@@ -13,6 +13,7 @@ use ExeQue\Monocle\Exceptions\InvalidMaskException;
 use ExeQue\Monocle\Exceptions\InvalidSpanColorException;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Facades\Monocle;
+use ExeQue\Monocle\Lenses\DatabaseLens;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\MonocleManager;
@@ -486,7 +487,7 @@ describe(Eyepiece::class, function (): void {
                     'authorization' => FullMask::class,
                     HttpClientLens::class => ['x-api-key' => FullMask::class, 'authorization' => [PartialMask::class, 2]],
                 ],
-                'monocle.mask.inputs' => ['/pass/i', HttpClientLens::class => '/client_id/i'],
+                'monocle.mask.inputs' => ['/pass/i', HttpClientLens::class => '/client_id/i', DatabaseLens::class => ['/^email$/i', '/iban/i']],
             ]);
 
             $headers = ['Authorization' => 'Bearer abcdefghijklmnop', 'X-Api-Key' => 'abcdefghijklmnop'];
@@ -495,7 +496,9 @@ describe(Eyepiece::class, function (): void {
             expect($this->eyepiece->masker()->headers($headers))->toBe(['Authorization' => '********', 'X-Api-Key' => 'abcdefghijklmnop'])
                 ->and($this->eyepiece->masker(RequestLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcdefghijklmnop'])
                 ->and($this->eyepiece->masker(HttpClientLens::class)->headers($headers))->toBe(['Authorization' => 'Be****', 'X-Api-Key' => '********'])
-                ->and($this->eyepiece->masker(HttpClientLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcd****']);
+                ->and($this->eyepiece->masker(HttpClientLens::class)->inputs($input))->toBe(['password' => '****', 'client_id' => 'abcd****'])
+                ->and($this->eyepiece->masker(DatabaseLens::class)->inputs(['password' => 'x', 'email' => 'abcdefghijklmnop', 'iban' => 'abcdefghijklmnop', 'backup_email' => 'abcdefghijklmnop']))
+                ->toBe(['password' => '****', 'email' => 'abcd****', 'iban' => 'abcd****', 'backup_email' => 'abcdefghijklmnop']);
         });
 
         it('adds a lens\'s object masks to the shared ones per property', function (): void {

@@ -127,6 +127,8 @@ use ExeQue\Monocle\Lenses\RequestLens;
 'inputs' => ['/pass|token|secret/i', HttpClientLens::class => '/client_id/i'],
 ```
 
+For `inputs` and `log`, a lens's expressions add to the shared ones: above, the HTTP client masks `client_id` as well as `pass`, `token` and `secret`. A lens can have one expression or a list of them: `DatabaseLens::class => ['/^email$/i', '/iban/i']`.
+
 For `objects`, a lens's list adds to the shared one for the same class, and its mask wins for the same name:
 
 ```php

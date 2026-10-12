@@ -168,6 +168,8 @@ To mask more columns for queries only, key a pattern by the lens:
 ],
 ```
 
+The lens's expressions add to the shared ones, so `password` and `remember_token` stay masked. Give a list to use more than one: `DatabaseLens::class => ['/^email$/i', '/iban|ssn/i']`. An expression matches anywhere in the column name unless anchored, so `/email/i` also masks `backup_email`; `/^email$/i` masks only `email`.
+
 To keep every value out, set `bindings` to `false`. To keep a table out entirely, add it to `ignore_tables`.
 
 ## Requirements and limits

@@ -332,8 +332,9 @@ return [
     |
     | `inputs` also masks query bindings, by the column each value is
     | compared with or written to (`email = ?`, `lower(email) = ?`, insert
-    | and update columns). Key an expression by DatabaseLens to mask more
-    | columns in queries only:
+    | and update columns). Key an expression, or a list of them, by
+    | DatabaseLens to mask more columns in queries only; it adds to the
+    | shared expressions:
     |
     |     'inputs' => ['/pass|token/i', DatabaseLens::class => '/^(email|iban)$/i'],
     |
@@ -346,7 +347,8 @@ return [
     |     'objects' => [Authenticatable::class => ['password'], Card::class => ['number' => FullMask::class]],
     |
     | Entries apply to every lens. Key them by a lens class to apply them to
-    | that lens only; a mask set for one lens wins over the shared one:
+    | that lens only; a mask set for one lens wins over the shared one, and
+    | expressions for `inputs` and `log` add to the shared ones:
     |
     |     'headers' => [HttpClientLens::class => ['x-api-key' => FullMask::class]],
     |     'inputs' => ['/pass|token/i', HttpClientLens::class => '/client_secret/i'],
