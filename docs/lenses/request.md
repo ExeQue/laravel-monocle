@@ -37,6 +37,7 @@ The `request` section is one set of facts per capture, not a list of rows.
 | `response_headers` | response headers, masked | - | - |
 | `redirect` | the `Location` header | - | null unless the status is a redirect |
 | `response_capture` | the response as `cards`, the `raw` body and the `capture` class that made them, see [Response captures](#response-captures) | - | null when no capture applies or the capture returned nothing |
+| `input_formats` | payload fields the capture shows in a format, by dotted key: `format` (such as `graphql`) and the `text` shown, see [Payload formats](#payload-formats) | - | missing when the capture formats no field |
 
 Route parameters bound to a model show as `Class#key`, other objects as their class name.
 
@@ -99,7 +100,7 @@ The Request tab has no table and no groupings. It shows, top to bottom:
 - **Request**: method and URL, route name (or URI), action, the user and how they were authenticated, IP, user agent and locale, each with a copy button.
 - **Authentication**: logins, failures, logouts, lockouts and tokens from the [Auth](auth.md) lens, when there were any. Click a row for its details.
 - **Query**: the query string parameters.
-- **Payload**: the input, and a table of uploaded files with field, name, type and size.
+- **Payload**: the input as a table of fields or, with **Raw**, as JSON, and a table of uploaded files with field, name, type and size.
 - **Request headers** and **Cookies**.
 - **Response**: status, content type, size, the redirect target, the response headers and the body. When a capture applied, **Pretty** shows the cards and **Raw** the body as sent, with a button to copy it.
 
@@ -139,7 +140,7 @@ The lens is listed under `lenses` in `config/monocle.php`, keyed by `RequestLens
 |---|---|---|
 | `capture.response_types` | `application/json` and `application/*+json` with `JsonCapture`, `text/html` with `InertiaCapture` | content type (wildcards allowed) => capture class |
 | `capture.headers` | `X-Inertia` with `InertiaCapture` | response header => capture class |
-| `capture.routes` | `*livewire.update` with `LivewireUpdateCapture` | route name (wildcards allowed) => capture class |
+| `capture.routes` | `*livewire.update` with `LivewireUpdateCapture`, `graphql` and `graphql.*` with `GraphQLCapture` | route name (wildcards allowed) => capture class |
 
 Each key replaces its default when you set it, so list the entries you want to keep. With `RequestLens::class => true`, all three defaults apply, so Livewire updates get one card per component.
 
@@ -158,6 +159,7 @@ Other configuration that affects this lens:
 Mask entries keyed by `RequestLens::class` apply to this lens only and win over the shared ones.
 
 ```php
+use ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -180,6 +182,8 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
             ],
             'routes' => [
                 '*livewire.update' => LivewireUpdateCapture::class,
+                'graphql' => GraphQLCapture::class,
+                'graphql.*' => GraphQLCapture::class,
                 'api.orders.*' => OrderResponseCapture::class,
             ],
         ],
@@ -221,31 +225,39 @@ The captures that come with Monocle:
 | `TextCapture` | one card titled with the content type, holding the body as it is. Not used by default; add it for `text/plain`, `text/*` or another text format you want to read in full. |
 | `InertiaCapture` | the Inertia page: component, props and, on a partial reload, which props were asked for. Works for Inertia visits and for the page embedded in the first HTML load. See [Inertia](inertia.md). |
 | `LivewireUpdateCapture` | one card per component in a Livewire update: methods called with their parameters, properties that changed, events dispatched and what was returned. See [Livewire](livewire.md). |
+| `GraphQLCapture` | one card per GraphQL operation, a batch included: the query, variables, data, errors and extensions. See [GraphQL](graphql.md). |
 
-To show your own responses as cards, write a class implementing `ExeQue\Monocle\Contracts\ResponseCapture` and map a route name, header or content type to it (see the example under [Configuration](#configuration)):
+To show your own responses as cards, write a class implementing `ExeQue\Monocle\Contracts\FormatsCapture` and map a route name, header or content type to it (see the example under [Configuration](#configuration)):
 
 ```php
-use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Contracts\FormatsCapture;
+use ExeQue\Monocle\Data\Card;
+use ExeQue\Monocle\Data\Formatted;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class OrderResponseCapture implements ResponseCapture
+final class OrderResponseCapture implements FormatsCapture
 {
-    public function capture(Request $request, Response $response): ?array
+    public function format(Request $request, Response $response): Formatted
     {
         $order = json_decode($response->getContent(), true);
 
         if (! is_array($order)) {
-            return null;
+            return Formatted::make();
         }
 
-        return [[
-            'title' => 'Order '.$order['number'],
-            'items' => ['status' => $order['status'], 'lines' => count($order['lines'])],
-        ]];
+        return Formatted::make()->card(
+            Card::titled('Order '.$order['number'])
+                ->item('status', $order['status'])
+                ->item('lines', count($order['lines'])),
+        );
     }
 }
 ```
+
+### Payload formats
+
+A capture can also say how fields of the request's payload read best, with `field()` and `replace()` on the `Formatted` it returns. `GraphQLCapture` does this for the GraphQL query: the **Payload** table shows `query` (or `0.query`, `1.query`... in a batch) printed one field per line and coloured, and records the query with secrets written into it masked. A field that input masking changes keeps its masked value and is not formatted, so the text cannot show what the mask hides.
 
 If a capture throws, the request is still recorded without a capture, and the capture carries a "Monocle failed to record part of this capture" warning. See [Extending the request lens](../writing-a-lens.md#extending-the-request-lens) for the card format.
 

@@ -115,18 +115,12 @@ abstract class ImpersonationLens implements ExtendsLens, Lens, RequiresPackages,
 
     public function summarize(Capture $capture): Summary
     {
-        $impersonator = null;
-
         // The impersonator on the last authenticated row.
-        foreach ($capture->rows('auth') as $row) {
-            if (($row['event'] ?? null) !== 'authenticated') {
-                continue;
-            }
-
-            if (isset($row['impersonated_by'])) {
-                $impersonator = $row['impersonated_by'];
-            }
-        }
+        $impersonator = collect($capture->rows('auth'))
+            ->whereStrict('event', 'authenticated')
+            ->whereNotNull('impersonated_by')
+            ->pluck('impersonated_by')
+            ->last();
 
         return Summary::make()
             ->when($impersonator !== null)

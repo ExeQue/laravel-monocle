@@ -126,13 +126,11 @@ final readonly class EditorLinks
      */
     public function mappings(): array
     {
-        $mappings = [];
-
-        foreach ($this->settings->paths ?? [] as $from => $to) {
-            $mappings[rtrim(str_replace('\\', '/', (string) $from), '/')] = rtrim(str_replace('\\', '/', (string) $to), '/');
-        }
-
-        return $mappings;
+        return collect($this->settings->paths ?? [])
+            ->mapWithKeys(fn (string $to, int|string $from): array => [
+                rtrim(str_replace('\\', '/', (string) $from), '/') => rtrim(str_replace('\\', '/', $to), '/'),
+            ])
+            ->all();
     }
 
     /**
@@ -140,19 +138,10 @@ final readonly class EditorLinks
      */
     private function mappedPrefix(string $path): ?string
     {
-        $match = null;
-
-        foreach (array_keys($this->mappings()) as $prefix) {
-            if (! $this->startsWithDirectory($path, $prefix)) {
-                continue;
-            }
-
-            if ($match === null || strlen($prefix) > strlen($match)) {
-                $match = $prefix;
-            }
-        }
-
-        return $match;
+        return collect($this->mappings())->keys()
+            ->filter(fn (string $prefix): bool => $this->startsWithDirectory($path, $prefix))
+            ->sortByDesc(fn (string $prefix): int => strlen($prefix))
+            ->first();
     }
 
     /**

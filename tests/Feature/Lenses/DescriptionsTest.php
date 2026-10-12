@@ -22,6 +22,7 @@ covers(
     \ExeQue\Monocle\Lenses\ExceptionsLens::class,
     \ExeQue\Monocle\Lenses\FilesystemLens::class,
     \ExeQue\Monocle\Lenses\HttpClientLens::class,
+    \ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLLens::class,
     \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens::class,
     \ExeQue\Monocle\Lenses\LogLens::class,
     \ExeQue\Monocle\Lenses\MailLens::class,
@@ -42,7 +43,7 @@ describe('lens descriptions', function (): void {
         $lenses = array_values(array_filter($all, fn (Lens $lens): bool => ! $lens instanceof \ExeQue\Monocle\Contracts\Lenses\ExtendsLens));
         $keys = array_map(fn (Lens $lens): string => $lens->key(), $lenses);
 
-        expect($lenses)->toHaveCount(31)
+        expect($lenses)->toHaveCount(32)
             ->and($keys)->toBe(array_unique($keys));
 
         foreach ($lenses as $lens) {

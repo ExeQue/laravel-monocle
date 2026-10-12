@@ -151,7 +151,7 @@ public function summarize(Capture $capture): Summary
 
 `summarize()` runs every time the summary is read - on the dashboard, through MCP and from artisan - possibly long after the capture was recorded. Work from `$capture` alone, not from anything the lens kept while recording.
 
-A summary is immutable: start with `Summary::make()`, and since every method returns a new summary, chain the calls or assign the result. `when()` makes the next call conditional, as above.
+A summary is immutable: start with `Summary::make()`, and since every method returns a new summary, chain the calls or assign the result. `when()` makes the next call conditional, as above. Methods that take an array (`totals()`, `warnings()`, `errors()`) take a collection too, as do those of `Presentation`, `Card` and `Formatted`.
 
 | Method | What it adds |
 |---|---|
@@ -238,7 +238,7 @@ final class StripeLens implements Lens, RequiresPackages
 }
 ```
 
-Use the package's Composer name, as in its `composer.json`. A response capture (`ResponseCapture`, see [Extending the request lens](#extending-the-request-lens)) for another package implements `RequiresPackages` too.
+Use the package's Composer name, as in its `composer.json`. A capture (`FormatsCapture`, see [Extending the request lens](#extending-the-request-lens)) for another package implements `RequiresPackages` too.
 
 ## Adding to another lens
 
@@ -339,41 +339,61 @@ The auth section then gets a row when an impersonation starts and ends, the auth
 
 ## Extending the request lens
 
-The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. Write your own capture for responses that read better another way - an API error format, a GraphQL result, an export.
+The request lens keeps a response's body when it has a capture for it, and shows it on the Request tab as cards next to the raw body. A capture can also show fields of the request's payload in a format. Write your own capture for requests and responses that read better another way - an API error format, a GraphQL call, an export.
 
 ```php
 namespace App\Monocle;
 
-use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Contracts\FormatsCapture;
+use ExeQue\Monocle\Data\Card;
+use ExeQue\Monocle\Data\Formatted;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-final class ProblemCapture implements ResponseCapture
+final class ProblemCapture implements FormatsCapture
 {
-    public function capture(Request $request, Response $response): ?array
+    public function format(Request $request, Response $response): Formatted
     {
         $problem = json_decode((string) $response->getContent(), true);
 
         if (! is_array($problem) || ! isset($problem['title'])) {
-            return null;
+            return Formatted::make();
         }
 
-        return [[
-            'title' => $problem['title'],
-            'subtitle' => $problem['type'] ?? null,
-            'items' => [
-                'status' => $problem['status'] ?? $response->getStatusCode(),
-                'detail' => $problem['detail'] ?? null,
-                'errors' => $problem['errors'] ?? [],
-            ],
-        ]];
+        return Formatted::make()->card(
+            Card::titled($problem['title'])
+                ->subtitle($problem['type'] ?? null)
+                ->items([
+                    'status' => $problem['status'] ?? $response->getStatusCode(),
+                    'detail' => $problem['detail'] ?? null,
+                    'errors' => $problem['errors'] ?? [],
+                ]),
+        );
     }
 }
 ```
 
-Each card has a `title`, an optional `subtitle` and named `items`. Items can be text, numbers, lists and maps. A list of `field`/`from`/`to` entries shows as a table of changes, and a list of other objects as a table. Return `null` when the response is not one the capture understands; nothing is kept then.
+`format()` returns a `Formatted`, built fluently from `Formatted::make()`. A side you leave alone is kept as it is:
 
-Captures are resolved from the container, so the constructor can take what it needs. Card values are masked like request input. A capture for another package can implement `RequiresPackages`; when the package is not installed the capture is skipped and the next matching entry is used. The HTTP client lens uses the same captures for response content types, under its own `capture.response_types`.
+| Method | Side | What it does |
+|---|---|---|
+| `card(Card $card)` | response | adds a card; without cards only the raw body is kept |
+| `field(string $key, string $format, ?string $text = null)` | request | shows a payload field (dotted key, such as `query` or `0.query`) in a format, optionally as this text, such as the value printed neatly |
+| `replace(string $key, mixed $value)` | request | records this value for a payload field instead of the one sent, such as the value with secrets inside it masked |
+
+A `Card` is built the same way, from `Card::titled($title)`:
+
+| Method | What it does |
+|---|---|
+| `subtitle(?string $subtitle)` | the line next to the title |
+| `item(string $name, mixed $value, ?string $format = null)` | one item, optionally shown in a format |
+| `items(array $items)` | more items, after the ones the card has |
+
+Items can be text, numbers, lists and maps. A list of `field`/`from`/`to` entries shows as a table of changes, and a list of other objects as a table. The format `graphql` colours a GraphQL document; it is the only format so far.
+
+A payload field that input masking changes keeps its masked value and gets no format, so its text cannot show what the mask hides.
+
+Captures are resolved from the container, so the constructor can take what it needs. Card values are masked like request input; mask secrets inside a field's value yourself with `replace()`. A capture for another package can implement `RequiresPackages`; when the package is not installed the capture is skipped and the next matching entry is used. The HTTP client lens uses the same captures for response content types, under its own `capture.response_types`; there the request side formats the call's payload.
 
 Register the capture in `config/monocle.php` for a route name, a response header or a content type (wildcards allowed in route names and content types):
 

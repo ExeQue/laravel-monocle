@@ -108,18 +108,12 @@ final class EventsLens implements Advises, Configurable, Lens, Presentable, Summ
             return Summary::make();
         }
 
-        /** @var array<string, true> $unhandled event names nobody listened to */
-        $unhandled = [];
-
-        foreach ($rows as $row) {
-            if ($row['listeners'] === []) {
-                $unhandled[$row['event']] = true;
-            }
-        }
+        // The event names nobody listened to.
+        $unhandled = collect($rows)->whereStrict('listeners', [])->pluck('event')->uniqueStrict();
 
         return Summary::make()
             ->total('events', count($rows), 'events')
-            ->total('events_without_listeners', count($unhandled), 'without listeners');
+            ->total('events_without_listeners', $unhandled->count(), 'without listeners');
     }
 
     private function ignored(string $event): bool

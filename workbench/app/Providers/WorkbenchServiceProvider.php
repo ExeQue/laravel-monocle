@@ -22,6 +22,8 @@ use Workbench\App\Cache\SlowStore;
 use Workbench\App\Console\Commands\FailingCommand;
 use Workbench\App\Console\Commands\GreetCommand;
 use Workbench\App\Events\PostPublished;
+use Workbench\App\GraphQL\BoomQuery;
+use Workbench\App\GraphQL\HelloQuery;
 use Workbench\App\Listeners\NotifyFollowers;
 use Workbench\App\Livewire\BrokenWidget;
 use Workbench\App\Livewire\Counter;
@@ -59,6 +61,11 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
             'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
             'monocle.except.commands' => [...(array) config('monocle.except.commands', []), 'workbench:*', 'package:purge-skeleton', 'migrate*', 'db:seed'],
+            // Lighthouse serves /graphql, rebing /rebing, side by side.
+            'lighthouse.schema_path' => dirname(__DIR__, 2).'/graphql/schema.graphql',
+            'lighthouse.schema_cache.enable' => false,
+            'graphql.route.prefix' => 'rebing',
+            'graphql.schemas.default.query' => [HelloQuery::class, BoomQuery::class],
             // Demo pages link the fetch and XHR calls they make (Livewire updates among them) to the page.
             'monocle.trace.browser.enabled' => true,
         ]);

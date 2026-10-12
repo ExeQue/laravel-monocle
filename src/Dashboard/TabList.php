@@ -67,15 +67,8 @@ final readonly class TabList
     {
         $sectionKeys = array_map('strval', array_keys($capture->sections));
         $keys = array_unique([...$sectionKeys, ...array_keys($presentations)]);
-        $shown = [];
 
-        foreach ($keys as $key) {
-            if ($this->isShown($capture, $presentations, $key)) {
-                $shown[] = $key;
-            }
-        }
-
-        return $shown;
+        return collect($keys)->filter(fn (string $key): bool => $this->isShown($capture, $presentations, $key))->values()->all();
     }
 
     /**
@@ -103,15 +96,9 @@ final readonly class TabList
      */
     private function withoutHosted(array $keys, array $presentations): array
     {
-        $hosted = [];
+        $hosted = collect($keys)->flatMap(fn (string $key): array => $this->includes($presentations, $key));
 
-        foreach ($keys as $key) {
-            foreach ($this->includes($presentations, $key) as $section) {
-                $hosted[$section] = true;
-            }
-        }
-
-        return array_values(array_filter($keys, fn (string $key): bool => ! isset($hosted[$key])));
+        return collect($keys)->diff($hosted)->values()->all();
     }
 
     /**
@@ -181,12 +168,6 @@ final readonly class TabList
      */
     private function problemCount(array $problems, array $sections, string $kind): int
     {
-        $total = 0;
-
-        foreach ($sections as $section) {
-            $total += $problems[$section][$kind] ?? 0;
-        }
-
-        return $total;
+        return collect($sections)->sum(fn (string $section): int => $problems[$section][$kind] ?? 0);
     }
 }

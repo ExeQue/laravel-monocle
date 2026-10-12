@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Inertia;
 
+use ExeQue\Monocle\Contracts\FormatsCapture;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
-use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Data\Card;
+use ExeQue\Monocle\Data\Formatted;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,7 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  * props were asked for. Reads both the JSON of an Inertia visit and the page
  * embedded in the HTML of a first visit; other HTML is left alone.
  */
-final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
+final readonly class InertiaCapture implements RequiresPackages, FormatsCapture
 {
     public static function packages(): array
     {
@@ -27,16 +29,16 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
     ) {
     }
 
-    public function capture(Request $request, Response $response): ?array
+    public function format(Request $request, Response $response): Formatted
     {
         $page = $this->page((string) $response->getContent());
 
         if (! is_array($page)) {
-            return null;
+            return Formatted::make();
         }
 
         if (! isset($page['component'])) {
-            return null;
+            return Formatted::make();
         }
 
         $partial = array_filter([
@@ -45,10 +47,10 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
             'except' => $this->list($request->headers->get('X-Inertia-Partial-Except')),
         ]);
 
-        return [[
-            'title' => (string) $page['component'],
-            'subtitle' => isset($page['url']) ? (string) $page['url'] : null,
-            'items' => array_filter([
+        return Formatted::make()->card(
+            Card::titled((string) $page['component'])
+                ->subtitle(isset($page['url']) ? (string) $page['url'] : null)
+                ->items(array_filter([
                 'visit' => $request->headers->has('X-Inertia') ? 'inertia' : 'first load',
                 'version' => $page['version'] ?? null,
                 'partial_reload' => $partial === [] ? null : $partial,
@@ -57,8 +59,8 @@ final readonly class InertiaCapture implements RequiresPackages, ResponseCapture
                 'merge_props' => $page['mergeProps'] ?? null,
                 'encrypt_history' => ($page['encryptHistory'] ?? false) ?: null,
                 'clear_history' => ($page['clearHistory'] ?? false) ?: null,
-            ], fn (mixed $value): bool => $value !== null && $value !== []),
-        ]];
+                ], fn (mixed $value): bool => $value !== null && $value !== [])),
+        );
     }
 
     /**

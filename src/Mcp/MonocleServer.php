@@ -56,12 +56,9 @@ MARKDOWN;
      */
     protected function boot(): void
     {
-        $lines = [];
+        $lines = collect(Container::getInstance()->make(LensRegistry::class)->descriptions())
+            ->map(fn (string $description, int|string $key): string => "- `{$key}`: {$description}");
 
-        foreach (Container::getInstance()->make(LensRegistry::class)->descriptions() as $key => $description) {
-            $lines[] = "- `{$key}`: {$description}";
-        }
-
-        $this->instructions = self::INSTRUCTIONS."\n".implode("\n", $lines ?: ['- (no lenses enabled)']);
+        $this->instructions = self::INSTRUCTIONS."\n".($lines->implode("\n") ?: '- (no lenses enabled)');
     }
 }

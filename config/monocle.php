@@ -18,6 +18,10 @@ use ExeQue\Monocle\Lenses\MailLens;
 use ExeQue\Monocle\Lenses\MiddlewareLens;
 use ExeQue\Monocle\Lenses\Packages\Filament\FilamentLens;
 use ExeQue\Monocle\Lenses\Packages\Filament\FilamentLivewireLens;
+use ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture;
+use ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLLens;
+use ExeQue\Monocle\Lenses\Packages\GraphQL\Lighthouse\LighthouseHook;
+use ExeQue\Monocle\Lenses\Packages\GraphQL\Rebing\RebingHook;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens;
 use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
@@ -104,6 +108,8 @@ return [
                 ],
                 'routes' => [
                     '*livewire.update' => LivewireUpdateCapture::class,
+                    'graphql' => GraphQLCapture::class,
+                    'graphql.*' => GraphQLCapture::class,
                 ],
             ],
         ],
@@ -195,6 +201,16 @@ return [
 
         // spatie/laravel-medialibrary
         MediaLibraryLens::class => true,
+
+        /** @see https://exeque.github.io/laravel-monocle/docs/lenses/graphql-hooks */
+        GraphQLLens::class => [
+            'hooks' => [
+                // nuwave/lighthouse
+                LighthouseHook::class,
+                // rebing/graphql-laravel
+                RebingHook::class,
+            ],
+        ],
 
         // Additions to the auth lens: laravel/fortify, laravel/sanctum and the
         // impersonation packages lab404/laravel-impersonate,
@@ -442,6 +458,7 @@ return [
             MiddlewareLens::class,
             ExceptionsLens::class,
             ValidationLens::class,
+            GraphQLLens::class,
             ResponseCacheLens::class,
             PennantLens::class,
             CacheLens::class,

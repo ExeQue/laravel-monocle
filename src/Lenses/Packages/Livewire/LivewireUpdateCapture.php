@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses\Packages\Livewire;
 
+use ExeQue\Monocle\Contracts\FormatsCapture;
 use ExeQue\Monocle\Contracts\Lenses\RequiresPackages;
-use ExeQue\Monocle\Contracts\ResponseCapture;
+use ExeQue\Monocle\Data\Card;
+use ExeQue\Monocle\Data\Formatted;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -16,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
  * the properties the browser updated, what changed in its data, the events it
  * dispatched, what it returned and how much HTML it sent back.
  */
-final readonly class LivewireUpdateCapture implements RequiresPackages, ResponseCapture
+final readonly class LivewireUpdateCapture implements RequiresPackages, FormatsCapture
 {
     public static function packages(): array
     {
@@ -28,35 +30,34 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
     ) {
     }
 
-    public function capture(Request $request, Response $response): ?array
+    public function format(Request $request, Response $response): Formatted
     {
+        $formatted = Formatted::make();
         $body = json_decode((string) $response->getContent(), true);
 
         if (! is_array($body)) {
-            return null;
+            return $formatted;
         }
 
         if (! is_array($body['components'] ?? null)) {
-            return null;
+            return $formatted;
         }
 
         // The request lists the components in the same order the response does.
         $sent = (array) $request->input('components', []);
-        $cards = [];
 
         foreach ($body['components'] as $index => $component) {
-            $cards[] = $this->card($component, $sent[$index] ?? []);
+            $formatted = $this->card($formatted, $component, $sent[$index] ?? []);
         }
 
-        return $cards;
+        return $formatted;
     }
 
     /**
      * @param  mixed  $component  the component as the response returned it
      * @param  mixed  $sent  the same component as the request sent it
-     * @return array{title: string, subtitle: ?string, items: array<string, mixed>}
      */
-    private function card(mixed $component, mixed $sent): array
+    private function card(Formatted $formatted, mixed $component, mixed $sent): Formatted
     {
         $masker = $this->eyepiece->masker();
         $after = $this->snapshot($component['snapshot'] ?? null);
@@ -77,11 +78,11 @@ final readonly class LivewireUpdateCapture implements RequiresPackages, Response
             'html_bytes' => isset($effects['html']) ? strlen((string) $effects['html']) : null,
         ];
 
-        return [
-            'title' => (string) ($after['memo']['name'] ?? 'component'),
-            'subtitle' => isset($after['memo']['id']) ? (string) $after['memo']['id'] : null,
-            'items' => array_filter($items, fn (mixed $value): bool => $value !== null && $value !== []),
-        ];
+        return $formatted->card(
+            Card::titled((string) ($after['memo']['name'] ?? 'component'))
+                ->subtitle(isset($after['memo']['id']) ? (string) $after['memo']['id'] : null)
+                ->items(array_filter($items, fn (mixed $value): bool => $value !== null && $value !== [])),
+        );
     }
 
     /**

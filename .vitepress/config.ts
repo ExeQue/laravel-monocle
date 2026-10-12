@@ -107,7 +107,9 @@ export default defineConfig({
               { text: 'laravel/nova', link: '/docs/lenses/auth#impersonation' },
               { text: 'laravel/pennant', link: '/docs/lenses/feature-flags' },
               { text: 'livewire/livewire', link: '/docs/lenses/livewire' },
+              { text: 'nuwave/lighthouse', link: '/docs/lenses/graphql' },
               { text: 'prism-php/prism', link: '/docs/lenses/prism' },
+              { text: 'rebing/graphql-laravel', link: '/docs/lenses/graphql' },
               { text: 'spatie/laravel-medialibrary', link: '/docs/lenses/media-library' },
               { text: 'spatie/laravel-responsecache', link: '/docs/lenses/response-cache' },
               { text: 'stechstudio/filament-impersonate', link: '/docs/lenses/auth#impersonation' },
@@ -121,6 +123,7 @@ export default defineConfig({
         items: [
           { text: 'Spans and metadata', link: '/docs/spans' },
           { text: 'Writing a lens', link: '/docs/writing-a-lens' },
+          { text: 'Writing a GraphQL hook', link: '/docs/lenses/graphql-hooks' },
         ],
       },
       {

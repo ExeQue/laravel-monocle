@@ -55,8 +55,9 @@ final class Viewfinder
             return $this->notFound($args);
         }
 
-        $requested = array_map('strval', (array) ($args['sections'] ?? ['summary']));
-        $requested = array_values(array_filter($requested));
+        $requested = collect((array) ($args['sections'] ?? ['summary']))
+            ->map(fn (mixed $section): string => (string) $section)
+            ->filter();
 
         $query = RowQuery::fromArray([
             'limit' => $args['limit'] ?? 25,
@@ -89,9 +90,7 @@ final class Viewfinder
     private function searchedTimeline(Capture $capture, array $args, RowQuery $query): array
     {
         $spans = $this->timeline->build($capture, (array) ($args['kinds'] ?? []), $query->verbose);
-        $matching = array_filter($spans, fn (array $span): bool => Search::matches($span, $query->search));
-
-        return array_values($matching);
+        return collect($spans)->filter(fn (array $span): bool => Search::matches($span, $query->search))->values()->all();
     }
 
     /**

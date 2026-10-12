@@ -156,6 +156,10 @@ test('internal classes are marked @internal and public ones are not', function (
         'ExeQue\Monocle\Lenses\Request\TextCapture',
         'ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture',
         'ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture',
+        'ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture',
+        'ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLHook',
+        'ExeQue\Monocle\Lenses\Packages\GraphQL\Lighthouse\LighthouseHook',
+        'ExeQue\Monocle\Lenses\Packages\GraphQL\Rebing\RebingHook',
     ];
     $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src')->name('*.php');
 

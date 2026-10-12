@@ -176,6 +176,14 @@ final class Catalog
                 self::demo('GET', '/demo/alarms/prism-failed', 'Failed Prism call', 'A text call to a model that is always overloaded.', 'prism', [['Prism call failed', 'bad']]),
                 self::demo('GET', '/demo/alarms/prism-tool-failed', 'Failed Prism tool', 'A Prism tool that throws when the provider runs it.', 'prism', [['Prism tool failed', 'bad']]),
             ]),
+            self::lens('graphql', 'GraphQL', 'Packages', 'Lighthouse and rebing operations', [
+                self::demo('GET', '/demo/graphql/lighthouse', 'Lighthouse operation', 'A named query with a variable.', 'graphql', look: [['GraphQL', 'Send the request, then open its capture.']]),
+                self::demo('GET', '/demo/graphql/lighthouse-login', 'Masked variables', 'A mutation whose password variable is masked.', 'graphql'),
+                self::demo('GET', '/demo/graphql/lighthouse-batch', 'Batch', 'Two operations in one request, one failing validation.', 'graphql', [['GraphQL operation failed', 'bad']]),
+                self::demo('GET', '/demo/graphql/rebing', 'rebing operation', 'A named query on rebing/graphql-laravel.', 'graphql'),
+                self::demo('GET', '/demo/graphql/resolver-exception', 'Resolver exception', 'A resolver that throws behind a 200 response.', 'graphql', [['GraphQL operation failed', 'bad']]),
+                self::demo('GET', '/demo/graphql/validation-error', 'Validation error', 'Fields that do not exist, answered with 200.', 'graphql', [['GraphQL operation failed', 'bad']]),
+            ]),
             self::lens('mcp', 'MCP', 'Packages', 'your own MCP servers', [
                 self::demo('GET', '/demo/mcp', 'MCP tool call', 'Calls a tool on a small web MCP server.', 'mcp'),
                 self::demo('GET', '/demo/alarms/mcp-error', 'MCP error', 'Calls a tool the demo server does not have; the answer is an error.', 'mcp', [['MCP call returned an error', 'bad']], [['MCP', 'Send the request, then open its capture.']]),

@@ -95,19 +95,15 @@ final class CompareCommand extends Command
      */
     private function totals(array $totals): void
     {
-        $rows = [];
-
         // CaptureComparer only diffs numeric totals and duration_ms is always one, so rows is never empty.
-        foreach ($totals as $name => $total) {
-            $rows[] = [
-                ucfirst(str_replace('_', ' ', (string) $name)),
-                $this->amount((string) $name, $total['a']),
-                $this->amount((string) $name, $total['b']),
-                $this->change((string) $name, $total['delta'], $total['percent']),
-            ];
-        }
+        $rows = collect($totals)->map(fn (array $total, int|string $name): array => [
+            ucfirst(str_replace('_', ' ', (string) $name)),
+            $this->amount((string) $name, $total['a']),
+            $this->amount((string) $name, $total['b']),
+            $this->change((string) $name, $total['delta'], $total['percent']),
+        ]);
 
-        table(['Metric', 'A', 'B', 'Change'], $rows);
+        table(['Metric', 'A', 'B', 'Change'], $rows->values()->all());
     }
 
     /**
@@ -119,22 +115,18 @@ final class CompareCommand extends Command
             return;
         }
 
-        $rows = [];
-
-        foreach ($lines as $name => $line) {
-            $rows[] = [
-                $name,
-                $line['a_ms'] === null ? '' : $this->ms($line['a_ms']),
-                $line['b_ms'] === null ? '' : $this->ms($line['b_ms']),
-                $this->change('ms', $line['delta_ms'], null),
-                (string) ($line['a_count'] ?? ''),
-                (string) ($line['b_count'] ?? ''),
-            ];
-        }
+        $rows = collect($lines)->map(fn (array $line, int|string $name): array => [
+            $name,
+            $line['a_ms'] === null ? '' : $this->ms($line['a_ms']),
+            $line['b_ms'] === null ? '' : $this->ms($line['b_ms']),
+            $this->change('ms', $line['delta_ms'], null),
+            (string) ($line['a_count'] ?? ''),
+            (string) ($line['b_count'] ?? ''),
+        ]);
 
         note($title);
 
-        table(['Name', 'A', 'B', 'Change', 'Count A', 'Count B'], $rows);
+        table(['Name', 'A', 'B', 'Change', 'Count A', 'Count B'], $rows->values()->all());
     }
 
     /**
@@ -147,18 +139,14 @@ final class CompareCommand extends Command
                 continue;
             }
 
-            $rows = [];
-
-            foreach ($queries[$key] as $query) {
-                $rows[] = [
-                    $this->cell($query['shape'], 90),
-                    (string) $query['count'],
-                    $this->ms($query['total_ms']),
-                ];
-            }
+            $rows = collect($queries[$key])->map(fn (array $query): array => [
+                $this->cell($query['shape'], 90),
+                (string) $query['count'],
+                $this->ms($query['total_ms']),
+            ]);
 
             note($title);
-            table(['Query', 'Count', 'Time'], $rows);
+            table(['Query', 'Count', 'Time'], $rows->all());
         }
 
         $changed = $queries['changed'] ?? [];
@@ -167,20 +155,16 @@ final class CompareCommand extends Command
             return;
         }
 
-        $rows = [];
-
-        foreach ($changed as $query) {
-            $rows[] = [
-                $this->cell($query['shape'], 90),
-                (string) $query['a_count'],
-                (string) $query['b_count'],
-                $this->ms($query['a_ms']),
-                $this->ms($query['b_ms']),
-            ];
-        }
+        $rows = collect($changed)->map(fn (array $query): array => [
+            $this->cell($query['shape'], 90),
+            (string) $query['a_count'],
+            (string) $query['b_count'],
+            $this->ms($query['a_ms']),
+            $this->ms($query['b_ms']),
+        ]);
 
         note('Queries run a different number of times');
-        table(['Query', 'Count A', 'Count B', 'Time A', 'Time B'], $rows);
+        table(['Query', 'Count A', 'Count B', 'Time A', 'Time B'], $rows->all());
     }
 
     /**

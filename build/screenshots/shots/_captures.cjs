@@ -23,6 +23,24 @@ module.exports = {
             await sleep(800);
         },
     },
+    // A Lighthouse operation with a variable, a directive and a fragment, whose second field throws.
+    graphql: {
+        key: 'graphql',
+        query: 'uri=graphql',
+        seed: async (page, { base }) => {
+            await page.goto(`${base}/`, { waitUntil: 'networkidle0' });
+            await page.evaluate(async () => {
+                await fetch('/graphql', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    body: JSON.stringify({
+                        query: 'query Feed($name: String, $loud: Boolean = true) { hello(name: $name) @include(if: $loud) ...Extra } fragment Extra on Query { boom }',
+                        variables: { name: 'Ada' },
+                    }),
+                });
+            });
+        },
+    },
     // A list with a bit of everything, for the command palette and the list search: the showcase
     // (whose jobs then run), a dump, a Livewire page and a page that does not exist.
     mixed: {

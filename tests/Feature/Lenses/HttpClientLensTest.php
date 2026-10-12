@@ -190,6 +190,23 @@ describe(HttpClientLens::class, function (): void {
             ->and($withBody['response_body'])->toBe('nope');
     });
 
+    it('formats the payload of an outgoing call with the capture for its response', function (): void {
+        Http::fake(['graph.example.com/*' => Http::response(['data' => ['login' => true]], 200)]);
+        $lens = app(HttpClientLens::class);
+        $lens->configure(['capture' => ['response_types' => ['application/json' => \ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture::class]]]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        Http::post('https://graph.example.com/graphql', ['query' => 'mutation { login(password: "hunter22hunter22") }']);
+        Http::post('https://graph.example.com/graphql', ['query' => '{ a }', 'token' => 'abcdefghijkl']);
+
+        [$login, $plain] = array_values(array_filter(app(Eyepiece::class)->finalize()->rows('http'), fn (array $row): bool => ($row['response_capture']['capture'] ?? null) === \ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture::class));
+
+        expect($login['request_payload'])->toBe(['query' => 'mutation { login(password: "hunt****") }'])
+            ->and($login['request_formats'])->toBe(['query' => ['format' => 'graphql', 'text' => "mutation {\n  login(password: \"hunt****\")\n}"]])
+            ->and($login['response_capture']['cards'][0]['title'])->toBe('mutation')
+            ->and($plain['request_payload'])->toBe(['query' => '{ a }', 'token' => 'abc****']);
+    });
+
     it('summarizes nothing without calls', function (): void {
         expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });

@@ -24,22 +24,13 @@ final class GitignoreWriter
     {
         $existing = is_file($file) ? (string) file_get_contents($file) : '';
         $present = array_map($this->normalize(...), preg_split('/\R/', $existing) ?: []);
-        $missing = [];
-
-        foreach ((array) $entries as $entry) {
+        $missing = collect((array) $entries)
             // Anchored to the root, so "storage/monocle/" does not also match nested folders.
-            $line = '/'.ltrim($entry, '/');
-
-            if (in_array($this->normalize($line), $present, true)) {
-                continue;
-            }
-
-            if (in_array($line, $missing, true)) {
-                continue;
-            }
-
-            $missing[] = $line;
-        }
+            ->map(fn (string $entry): string => '/'.ltrim($entry, '/'))
+            ->reject(fn (string $line): bool => in_array($this->normalize($line), $present, true))
+            ->unique()
+            ->values()
+            ->all();
 
         if ($missing === []) {
             return 'unchanged';

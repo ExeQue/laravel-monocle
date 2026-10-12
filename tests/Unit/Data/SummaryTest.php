@@ -96,4 +96,15 @@ describe(Summary::class, function (): void {
         expect($summary->totals)->toBe(['kept' => 2])
             ->and($summary->warnings)->toBe([]);
     });
+
+    it('takes collections for totals, warnings and errors', function (): void {
+        $summary = Summary::make()
+            ->totals(collect(['a' => 1, 'b' => 2]))
+            ->warnings(collect(['slow']))
+            ->errors(collect(['k' => 'broke']));
+
+        expect($summary->totals)->toBe(['a' => 1, 'b' => 2])
+            ->and($summary->warnings)->toBe(['slow'])
+            ->and($summary->errors)->toBe(['broke']);
+    });
 });

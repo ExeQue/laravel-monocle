@@ -270,22 +270,17 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
             return $summary;
         }
 
-        $failed = [];
-        $ms = 0.0;
-
-        foreach ($rows as $row) {
-            $ms += (float) ($row['duration'] ?? 0);
-
-            if ($row['failed'] ?? false) {
-                $failed[] = sprintf('Command %s failed (exit code %s).', $row['name'], $row['exit_code']);
-            }
-        }
+        $rows = collect($rows);
+        $failed = $rows
+            ->filter(fn (array $row): bool => (bool) ($row['failed'] ?? false))
+            ->map(fn (array $row): string => sprintf('Command %s failed (exit code %s).', $row['name'], $row['exit_code']));
+        $ms = $rows->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
 
         return $summary
             ->total('commands_ms', round($ms, 3), 'spent', Unit::Milliseconds)
-            ->total('commands', count($rows), 'commands')
-            ->total('commands_failed', count($failed), 'failed')
-            ->errors(array_slice($failed, 0, 3));
+            ->total('commands', $rows->count(), 'commands')
+            ->total('commands_failed', $failed->count(), 'failed')
+            ->errors($failed->take(3));
     }
 
     /**

@@ -634,21 +634,20 @@ final class InertiaLens implements Advises, Configurable, Lens, Presentable, Pro
             }
         }
 
-        foreach ($pages as $page) {
-            if ((int) ($page['payload_bytes'] ?? 0) > $this->largePageBytes) {
-                $warnings[] = sprintf('Inertia page %s is %s.', $page['component'], Format::bytes($page['payload_bytes']));
-            }
-        }
+        $largePages = collect($pages)
+            ->filter(fn (array $page): bool => (int) ($page['payload_bytes'] ?? 0) > $this->largePageBytes)
+            ->map(fn (array $page): string => sprintf('Inertia page %s is %s.', $page['component'], Format::bytes($page['payload_bytes'])));
 
-        $durations = array_map(fn (array $row): float => (float) ($row['duration'] ?? 0), $props);
+        $ms = collect($props)->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
         $deferred = array_filter($props, fn (array $row): bool => ($row['omitted'] ?? null) === 'deferred');
 
         return Summary::make()
-            ->total('inertia_ms', round(array_sum($durations), 3), 'spent', Unit::Milliseconds)
+            ->total('inertia_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->total('inertia_props', count($sent), 'props sent')
             ->total('inertia_payload_bytes', array_sum(array_column($pages, 'payload_bytes')), 'payload', Unit::Bytes)
             ->total('inertia_deferred', count($deferred), 'deferred')
-            ->warnings($warnings);
+            ->warnings($warnings)
+            ->warnings($largePages);
     }
 
     public function presentation(): Presentation

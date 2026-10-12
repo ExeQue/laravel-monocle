@@ -129,11 +129,9 @@ final class InstallCommand extends Command
         $skills = array_map(fn (array $agent): string => "{$agent[0]} ({$agent[1]})", SkillInstaller::AGENTS);
         $targets = $this->targets($boost);
         $detected = Platform::detect($this->laravel->basePath());
-        $platforms = [];
-
-        foreach (Platform::cases() as $platform) {
-            $platforms[$platform->value] = $this->platformLabel($platform);
-        }
+        $platforms = collect(Platform::cases())
+            ->mapWithKeys(fn (Platform $platform): array => [$platform->value => $this->platformLabel($platform)])
+            ->all();
 
         $drivers = [
             'file' => 'Files in storage/monocle (shared by web, workers and the MCP server)',

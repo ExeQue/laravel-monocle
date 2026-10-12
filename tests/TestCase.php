@@ -62,6 +62,8 @@ abstract class TestCase extends BaseTestCase
             \Laravel\Fortify\FortifyServiceProvider::class,
             \Laravel\Folio\FolioServiceProvider::class,
             \Inertia\ServiceProvider::class,
+            \Nuwave\Lighthouse\LighthouseServiceProvider::class,
+            \Rebing\GraphQL\GraphQLServiceProvider::class,
             MonocleServiceProvider::class,
         ];
     }
@@ -75,6 +77,19 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('monocle.storage.file.path', $this->monoclePath);
         $app['config']->set('monocle.lenses.'.\ExeQue\Monocle\Lenses\FilesystemLens::class, ['disks' => ['spy', 'wild-*']]);
         $app['config']->set('monocle.storage.limit', 10);
+        $app['config']->set('lighthouse.schema_path', __DIR__.'/Fixtures/GraphQL/schema.graphql');
+        $app['config']->set('lighthouse.schema_cache.enable', false);
+        $app['config']->set('lighthouse.query_cache.enable', false);
+        $app['config']->set('lighthouse.namespaces.queries', 'Tests\\Fixtures\\GraphQL\\Queries');
+        $app['config']->set('lighthouse.namespaces.mutations', ['App\\GraphQL\\Mutations', 'Tests\\Fixtures\\GraphQL']);
+        $app['config']->set('graphql.route.prefix', 'rebing');
+        $app['config']->set('graphql.schemas', [
+            'default' => ['query' => [\Tests\Fixtures\GraphQL\HelloQuery::class, \Tests\Fixtures\GraphQL\BoomQuery::class]],
+            'own' => [
+                'query' => [\Tests\Fixtures\GraphQL\HelloQuery::class],
+                'execution_middleware' => [\Rebing\GraphQL\Support\ExecutionMiddleware\ValidateOperationParamsMiddleware::class],
+            ],
+        ]);
         foreach (self::$bootConfig as $key => $value) {
             $app['config']->set($key, $value);
         }

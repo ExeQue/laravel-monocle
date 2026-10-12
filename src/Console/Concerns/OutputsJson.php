@@ -121,18 +121,13 @@ trait OutputsJson
      */
     protected function parseWhere(array $clauses): array
     {
-        $where = [];
-
-        foreach ($clauses as $clause) {
-            $parts = explode(':', $clause, 3);
-
-            $where[] = [
+        return collect($clauses)
+            ->map(fn (string $clause): array => explode(':', $clause, 3))
+            ->map(fn (array $parts): array => [
                 'field' => $parts[0],
                 'op' => $parts[1] ?? '=',
                 'value' => $parts[2] ?? null,
-            ];
-        }
-
-        return $where;
+            ])
+            ->all();
     }
 }

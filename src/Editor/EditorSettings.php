@@ -33,17 +33,11 @@ final readonly class EditorSettings
      */
     public static function fromArray(array $data): self
     {
-        $paths = [];
-
-        foreach ((array) ($data['paths'] ?? []) as $from => $to) {
-            if (is_string($to) && $to !== '') {
-                $paths[(string) $from] = $to;
-            }
-        }
+        $paths = collect((array) ($data['paths'] ?? []))->filter(fn (mixed $to): bool => is_string($to) && $to !== '');
 
         return new self(
             editor: self::nonEmptyString($data['editor'] ?? null),
-            paths: $paths,
+            paths: $paths->all(),
             wslDistro: self::nonEmptyString($data['wsl']['distro'] ?? null),
             project: self::nonEmptyString($data['project'] ?? null),
         );

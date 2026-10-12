@@ -1,0 +1,12 @@
+#import mutations.graphql
+
+type Query {
+    hello(name: String): String! @field(resolver: "Tests\\Fixtures\\GraphQL\\Resolvers@hello")
+    boom: String @field(resolver: "Tests\\Fixtures\\GraphQL\\Resolvers@boom")
+    """
+    Found by its name in the queries namespace.
+    shout: is not a field
+    """
+    ping: String! @deprecated
+    shout: String @method(name: "shout")
+}

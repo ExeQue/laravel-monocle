@@ -103,19 +103,14 @@ final class RowQuery
     {
         $filteredFrom = count($rows);
 
-        $rows = array_values(array_filter($rows, fn (array $row): bool => $this->matches($row)));
+        $rows = collect($rows)->filter(fn (array $row): bool => $this->matches($row));
 
         if ($this->sort !== null) {
-            usort($rows, function (array $a, array $b): int {
-                $result = Arr::get($a, $this->sort) <=> Arr::get($b, $this->sort);
-
-                return $this->dir === 'desc' ? -$result : $result;
-            });
+            $rows = $rows->sortBy(fn (array $row): mixed => Arr::get($row, $this->sort), descending: $this->dir === 'desc');
         }
 
-        $total = count($rows);
-        $page = array_slice($rows, $this->offset, $this->limit);
-        $page = array_map(fn (array $row): array => $this->project($row), $page);
+        $total = $rows->count();
+        $page = $rows->slice($this->offset, $this->limit)->map(fn (array $row): array => $this->project($row))->values()->all();
         $nextOffset = $this->offset + count($page);
 
         return [

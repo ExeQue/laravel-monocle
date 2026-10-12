@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Lenses;
 
 use Closure;
+use ExeQue\Monocle\Contracts\FormatsCapture;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
@@ -12,15 +13,16 @@ use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Formatted;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Http\Controllers\AssetController;
+use ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
@@ -31,11 +33,13 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Events\PreparingResponse;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Routing\Events\Routing;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Laravel\Folio\Events\ViewMatched;
 use Laravel\Octane\Events\RequestReceived;
@@ -70,17 +74,21 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private ?string $iconUrl = null;
 
-    /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
+    /** @var array<string, class-string<FormatsCapture>> Content type pattern => capture. */
     private array $responseTypes = [
         'application/json' => JsonCapture::class,
         'application/*+json' => JsonCapture::class,
         'text/html' => InertiaCapture::class,
     ];
 
-    /** @var array<string, class-string<ResponseCapture>> Route name pattern => capture. */
-    private array $routeCaptures = ['*livewire.update' => LivewireUpdateCapture::class];
+    /** @var array<string, class-string<FormatsCapture>> Route name pattern => capture. */
+    private array $routeCaptures = [
+        '*livewire.update' => LivewireUpdateCapture::class,
+        'graphql' => GraphQLCapture::class,
+        'graphql.*' => GraphQLCapture::class,
+    ];
 
-    /** @var array<string, class-string<ResponseCapture>> Response header => capture. */
+    /** @var array<string, class-string<FormatsCapture>> Response header => capture. */
     private array $headerCaptures = ['X-Inertia' => InertiaCapture::class];
 
     public function __construct(
@@ -95,7 +103,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), input_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
     }
 
     public function advice(): string
@@ -275,7 +283,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->eyepiece->set('request', [
             ...$this->describeResponse($response),
             'cookies' => $this->cookies($request),
-            'response_capture' => $this->captureResponse($request, $response),
+            ...$this->format($request, $response),
         ]);
         $this->phase('terminate');
 
@@ -574,23 +582,15 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
      */
     private function uploadedFiles(Request $request): array
     {
-        $files = [];
-
-        foreach ($request->allFiles() as $key => $file) {
-            // A field like "photos[]" holds a list of uploads.
-            $uploads = is_array($file) ? $file : [$file];
-
-            foreach ($uploads as $uploaded) {
-                $files[] = [
-                    'key' => $key,
-                    'name' => $uploaded->getClientOriginalName(),
-                    'size' => $uploaded->getSize(),
-                    'mime' => $uploaded->getClientMimeType(),
-                ];
-            }
-        }
-
-        return $files;
+        // A field like "photos[]" holds a list of uploads.
+        return collect($request->allFiles())
+            ->flatMap(fn (UploadedFile|array $file, int|string $key): array => array_map(fn (UploadedFile $uploaded): array => [
+                'key' => $key,
+                'name' => $uploaded->getClientOriginalName(),
+                'size' => $uploaded->getSize(),
+                'mime' => $uploaded->getClientMimeType(),
+            ], is_array($file) ? $file : [$file]))
+            ->all();
     }
 
     /**
@@ -598,11 +598,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
      */
     private function describeRoute(Route $route): array
     {
-        $parameters = [];
-
-        foreach ($route->parameters() as $name => $value) {
-            $parameters[$name] = $this->describeParameter($value);
-        }
+        $parameters = collect($route->parameters())->map($this->describeParameter(...))->all();
 
         return [
             'route' => [
@@ -704,12 +700,17 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
-     * The response as presented by the capture registered for its route, a
-     * response header or its content type, in that order. Null when none applies.
+     * The request and response as the capture registered for the route, a
+     * response header or the content type (in that order) formats them:
+     * response_capture (cards and the raw body) and, when the capture
+     * formats payload fields, input_formats and the payload with the
+     * values it masks itself. Fields the input masking changes keep their
+     * masked value and no format, so their text cannot show what the mask
+     * hides.
      *
-     * @return array{capture: string, cards: list<array<string, mixed>>, raw: string|null}|null
+     * @return array{response_capture: array{capture: string, cards: list<array<string, mixed>>, raw: string|null}|null, input_formats?: array<string, array{format: string, text?: string}>, input?: array<string, mixed>}
      */
-    private function captureResponse(Request $request, Response $response): ?array
+    private function format(Request $request, Response $response): array
     {
         $route = $request->route()?->getName();
         // "application/json; charset=utf-8" is matched as "application/json".
@@ -717,42 +718,61 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $class = $this->captureClass($route, $response, $type);
 
         if ($class === null) {
-            return null;
+            return ['response_capture' => null];
         }
 
         try {
-            $cards = $this->eyepiece->outside(function () use ($class, $request, $response): ?array {
+            $formatted = $this->eyepiece->outside(function () use ($class, $request, $response): ?Formatted {
                 $capture = $this->app->make($class);
 
-                return $capture instanceof ResponseCapture ? $capture->capture($request, $response) : null;
+                return $capture instanceof FormatsCapture ? $capture->format($request, $response) : null;
             });
         } catch (Throwable $e) {
             $this->eyepiece->failed($e);
 
-            return null;
+            return ['response_capture' => null];
         }
 
-        if ($cards === null) {
-            return null;
-        }
+        $masker = $this->eyepiece->masker(self::class);
 
+        return [
+            'response_capture' => $formatted?->response === null ? null : [
+                'capture' => $class,
+                'cards' => $masker->cards($formatted->response),
+                'raw' => $this->rawBody($response, $type),
+            ],
+            ...$this->formatInput($request, $formatted),
+        ];
+    }
+
+    private function rawBody(Response $response, string $type): ?string
+    {
         try {
             $raw = $response->getContent();
         } catch (Throwable) {
             $raw = null;
         }
 
-        $masker = $this->eyepiece->masker(self::class);
-
-        return [
-            'capture' => $class,
-            'cards' => $masker->cards($cards),
-            'raw' => is_string($raw) ? $masker->body($raw, $type) : null,
-        ];
+        return is_string($raw) ? $this->eyepiece->masker(self::class)->body($raw, $type) : null;
     }
 
     /**
-     * @return class-string<ResponseCapture>|null
+     * @return array{input_formats?: array<string, array{format: string, text?: string}>, input?: array<array-key, mixed>}
+     */
+    private function formatInput(Request $request, ?Formatted $formatted): array
+    {
+        if ($formatted?->request === null) {
+            return [];
+        }
+
+        $body = Arr::except($request->input(), array_keys($request->query()));
+        [$input, $formats] = $formatted->payload($body, $this->eyepiece->masker(self::class)->inputs($body));
+
+        return [...$formats === [] ? [] : ['input_formats' => $formats], 'input' => $input];
+    }
+
+    /**
+     * @return class-string<FormatsCapture>|null
      */
     private function captureClass(?string $route, Response $response, string $type): ?string
     {
@@ -793,7 +813,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
-     * @param  array<string, class-string<ResponseCapture>>  $captures  pattern => capture
+     * @param  array<string, class-string<FormatsCapture>>  $captures  pattern => capture
      */
     private function match(array $captures, string $subject): ?string
     {
@@ -834,25 +854,15 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private function serverTiming(Capture $capture): string
     {
-        $parts = ['app;dur='.round($capture->duration(), 1)];
+        $phases = collect($capture->spansOfKind('phase'))
+            ->filter(fn (Span $span): bool => $span->duration() !== null)
+            ->map(fn (Span $span): string => Str::slug($span->name).';dur='.round($span->duration(), 1));
+        $db = collect($capture->rows('queries'))->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
 
-        foreach ($capture->spansOfKind('phase') as $span) {
-            if ($span->duration() !== null) {
-                $parts[] = Str::slug($span->name).';dur='.round($span->duration(), 1);
-            }
-        }
-
-        $db = 0.0;
-
-        foreach ($capture->rows('queries') as $row) {
-            $db += (float) ($row['duration'] ?? 0);
-        }
-
-        if ($db > 0) {
-            $parts[] = 'db;dur='.round($db, 1);
-        }
-
-        return implode(', ', $parts);
+        return collect(['app;dur='.round($capture->duration(), 1)])
+            ->merge($phases)
+            ->when($db > 0, fn (Collection $parts): Collection => $parts->push('db;dur='.round($db, 1)))
+            ->implode(', ');
     }
 
     /**
@@ -904,17 +914,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private function routeMiddlewareShortCircuited(Capture $capture): bool
     {
-        foreach ($capture->spansOfKind('middleware.request') as $span) {
-            if ($this->handedOn($span)) {
-                continue;
-            }
-
-            if (($span->meta['group'] ?? null) === 'route') {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($capture->spansOfKind('middleware.request'))
+            ->contains(fn (Span $span): bool => ! $this->handedOn($span) && ($span->meta['group'] ?? null) === 'route');
     }
 
     /**
@@ -949,15 +950,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private function firstResponseMiddlewareStart(Capture $capture): ?float
     {
-        $first = null;
-
-        foreach ($capture->spansOfKind('middleware.response') as $span) {
-            if ($first === null || $span->start < $first) {
-                $first = $span->start;
-            }
-        }
-
-        return $first;
+        return collect($capture->spansOfKind('middleware.response'))->min(fn (Span $span): ?float => $span->start);
     }
 
     /**
@@ -1022,13 +1015,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private function handlePhaseId(Capture $capture): ?string
     {
-        foreach ($capture->spansOfKind('phase') as $span) {
-            if ($span->name === 'handle') {
-                return $span->id;
-            }
-        }
-
-        return null;
+        return collect($capture->spansOfKind('phase'))->firstWhere('name', 'handle')?->id;
     }
 
     public function presentation(): Presentation

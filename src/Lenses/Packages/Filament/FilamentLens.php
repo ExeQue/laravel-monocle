@@ -601,11 +601,11 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
             }
         }
 
-        $count = fn (string $kind): int => count(array_filter($rows, fn (array $row): bool => ($row['kind'] ?? null) === $kind));
+        $kinds = collect($rows)->countBy('kind');
 
         return Summary::make()
-            ->total('filament_actions', $count('action'), 'actions')
-            ->total('filament_notifications', $count('notification'), 'notifications')
+            ->total('filament_actions', $kinds->get('action', 0), 'actions')
+            ->total('filament_notifications', $kinds->get('notification', 0), 'notifications')
             ->errors($errors)
             ->warnings($warnings);
     }

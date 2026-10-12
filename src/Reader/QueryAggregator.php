@@ -52,19 +52,19 @@ final class QueryAggregator
             }
         }
 
-        $groups = array_values(array_map(function (array $group): array {
-            $group['total_ms'] = round($group['total_ms'], 3);
-            $group['avg_ms'] = round($group['total_ms'] / max(1, $group['count']), 3);
-            $group['connections'] = array_keys($group['connections']);
-
-            return $group;
-        }, $groups));
-
         $field = in_array($sort, ['total_ms', 'count', 'max_ms', 'avg_ms'], true) ? $sort : 'total_ms';
 
-        usort($groups, fn (array $a, array $b): int => $b[$field] <=> $a[$field]);
+        return collect($groups)
+            ->map(function (array $group): array {
+                $group['total_ms'] = round($group['total_ms'], 3);
+                $group['avg_ms'] = round($group['total_ms'] / max(1, $group['count']), 3);
+                $group['connections'] = array_keys($group['connections']);
 
-        return $groups;
+                return $group;
+            })
+            ->sortByDesc($field)
+            ->values()
+            ->all();
     }
 
     /**

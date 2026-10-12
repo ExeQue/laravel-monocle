@@ -146,21 +146,15 @@ final class LivewireLens implements Advises, Finalizable, Lens, Presentable, Req
             return Summary::make();
         }
 
-        $calls = 0;
-        $warnings = [];
-
-        foreach ($rows as $row) {
-            $calls += count($row['calls'] ?? []);
-
-            if (isset($row['exception'])) {
-                $warnings[] = sprintf('Livewire %s threw %s: %s', $row['component'], $row['exception']['class'], $row['exception']['message']);
-            }
-        }
+        $rows = collect($rows);
+        $errors = $rows->whereNotNull('exception')->map(
+            fn (array $row): string => sprintf('Livewire %s threw %s: %s', $row['component'], $row['exception']['class'], $row['exception']['message']),
+        );
 
         return Summary::make()
-            ->total('livewire_components', count($rows), 'components')
-            ->total('livewire_calls', $calls, 'calls')
-            ->errors($warnings);
+            ->total('livewire_components', $rows->count(), 'components')
+            ->total('livewire_calls', $rows->sum(fn (array $row): int => count($row['calls'] ?? [])), 'calls')
+            ->errors($errors);
     }
 
     /**

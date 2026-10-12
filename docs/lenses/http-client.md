@@ -19,7 +19,8 @@ Every row in the `http` section has these fields:
 | `endpoint` | Method and URL without the query, with numeric ids, UUIDs and long hex ids in the path replaced by `{id}`, such as `GET https://api.example.com/orders/{id}` | | never |
 | `request_headers` | Headers sent, masked by `mask.headers` | | never |
 | `request_bytes` | Size of the request body | bytes | never (0 without a body) |
-| `request_payload` | A JSON or form body as fields, masked like request input | | `null` when the body is empty or not a list of fields |
+| `request_payload` | A JSON or form body as fields, masked like request input, with the values the capture masks itself (such as secrets written into a GraphQL query) | | `null` when the body is empty or not a list of fields |
+| `request_formats` | payload fields the capture for the response shows in a format, by dotted key: `format` (such as `graphql`) and the `text` shown | | missing when the capture formats no field |
 | `request_body` | The raw request body, with JSON and form bodies masked | | `null` unless the `bodies` option is on |
 | `status` | Response status code | | `null` when no response arrived |
 | `response_headers` | Headers received, masked by `mask.headers` | | empty when no response arrived |

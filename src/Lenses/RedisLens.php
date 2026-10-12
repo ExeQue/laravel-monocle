@@ -155,16 +155,8 @@ final class RedisLens implements Advises, Lens, Presentable, Summarizable
             return Summary::make();
         }
 
-        $byCommand = [];
-        $ms = 0.0;
-
-        foreach ($rows as $row) {
-            $command = strtoupper((string) $row['command']);
-            $byCommand[$command] = ($byCommand[$command] ?? 0) + 1;
-            $ms += (float) ($row['duration'] ?? 0);
-        }
-
-        arsort($byCommand);
+        $byCommand = collect($rows)->countBy(fn (array $row): string => strtoupper((string) $row['command']))->sortDesc()->all();
+        $ms = collect($rows)->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
 
         return Summary::make()
             ->total('redis_ms', round($ms, 3), 'spent', Unit::Milliseconds)

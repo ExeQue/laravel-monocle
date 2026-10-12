@@ -24,12 +24,9 @@ final class CaptureReader
      */
     public function list(Filter $filter): array
     {
-        $rows = array_values(array_filter(
-            $this->stores->store()->index(),
-            fn (array $row): bool => $filter->matches($row),
-        ));
-        $total = count($rows);
-        $page = array_slice($rows, $filter->offset, $filter->limit);
+        $rows = collect($this->stores->store()->index())->filter(fn (array $row): bool => $filter->matches($row));
+        $total = $rows->count();
+        $page = $rows->slice($filter->offset, $filter->limit)->map($this->presentIndexRow(...))->values()->all();
         $next = $filter->offset + count($page);
 
         return [
@@ -37,7 +34,7 @@ final class CaptureReader
             'returned' => count($page),
             'offset' => $filter->offset,
             'next_offset' => $next < $total ? $next : null,
-            'rows' => array_map($this->presentIndexRow(...), $page),
+            'rows' => $page,
         ];
     }
 
@@ -74,10 +71,7 @@ final class CaptureReader
      */
     public function children(string $id): array
     {
-        return array_values(array_filter(
-            $this->stores->store()->index(),
-            fn (array $row): bool => ($row['parent_id'] ?? null) === $id,
-        ));
+        return collect($this->stores->store()->index())->whereStrict('parent_id', $id)->values()->all();
     }
 
     /**
@@ -88,12 +82,11 @@ final class CaptureReader
      */
     public function trace(string $traceId): array
     {
-        $rows = array_values(array_filter(
-            $this->stores->store()->index(),
-            fn (array $row): bool => ($row['trace_id'] ?? null) === $traceId,
-        ));
-
-        usort($rows, fn (array $a, array $b): int => ($a['started_at'] ?? 0) <=> ($b['started_at'] ?? 0));
+        $rows = collect($this->stores->store()->index())
+            ->whereStrict('trace_id', $traceId)
+            ->sortBy(fn (array $row): mixed => $row['started_at'] ?? 0)
+            ->values()
+            ->all();
 
         $byId = array_column($rows, null, 'id');
         $root = null;

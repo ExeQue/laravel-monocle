@@ -16,17 +16,17 @@ describe(JsonCapture::class, function (): void {
         $capture = new JsonCapture();
         $request = Request::create('/');
 
-        expect($capture->capture($request, new Response('{"a":1,"b":[2]}')))->toBe([['title' => 'JSON', 'subtitle' => null, 'items' => ['a' => 1, 'b' => [2]]]])
-            ->and($capture->capture($request, new Response('[1,2,3]')))->toBe([['title' => 'JSON', 'subtitle' => '3 items', 'items' => ['data' => [1, 2, 3]]]])
-            ->and($capture->capture($request, new Response('42')))->toBe([['title' => 'JSON', 'subtitle' => null, 'items' => ['data' => 42]]]);
+        expect($capture->format($request, new Response('{"a":1,"b":[2]}'))->response)->toBe([['title' => 'JSON', 'subtitle' => null, 'items' => ['a' => 1, 'b' => [2]]]])
+            ->and($capture->format($request, new Response('[1,2,3]'))->response)->toBe([['title' => 'JSON', 'subtitle' => '3 items', 'items' => ['data' => [1, 2, 3]]]])
+            ->and($capture->format($request, new Response('42'))->response)->toBe([['title' => 'JSON', 'subtitle' => null, 'items' => ['data' => 42]]]);
     });
 
     it('captures nothing for a streamed, empty or malformed body', function (): void {
         $capture = new JsonCapture();
         $request = Request::create('/');
 
-        expect($capture->capture($request, new StreamedResponse(fn () => null)))->toBeNull()
-            ->and($capture->capture($request, new Response('')))->toBeNull()
-            ->and($capture->capture($request, new Response('{"a":')))->toBeNull();
+        expect($capture->format($request, new StreamedResponse(fn () => null))->response)->toBeNull()
+            ->and($capture->format($request, new Response(''))->response)->toBeNull()
+            ->and($capture->format($request, new Response('{"a":'))->response)->toBeNull();
     });
 });

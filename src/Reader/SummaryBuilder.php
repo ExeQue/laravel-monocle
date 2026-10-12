@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Reader;
 
+use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Enums\Unit;
@@ -177,15 +178,10 @@ final class SummaryBuilder
      */
     private function rowCounts(Capture $capture): array
     {
-        $counts = [];
-
-        foreach ($capture->sections as $section => $rows) {
-            if (array_is_list($rows)) {
-                $counts[$section] = count($rows);
-            }
-        }
-
-        return $counts;
+        return collect($capture->sections)
+            ->filter(fn (array $rows): bool => array_is_list($rows))
+            ->map(fn (array $rows): int => count($rows))
+            ->all();
     }
 
     /**
@@ -225,11 +221,7 @@ final class SummaryBuilder
                 continue;
             }
 
-            $ms = 0.0;
-
-            foreach ($rows as $row) {
-                $ms += (float) ($row['duration'] ?? 0);
-            }
+            $ms = collect($rows)->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
 
             $categories[] = $this->line($category, round($ms, 3), count($rows), $total);
         }
@@ -266,28 +258,12 @@ final class SummaryBuilder
      */
     private function spanTime(Capture $capture, string $kind, ?string $name, bool $topLevelOnly = false): array
     {
-        $ms = 0.0;
-        $count = 0;
-
-        foreach ($capture->spans as $span) {
-            if ($span->kind !== $kind) {
-                continue;
-            }
-
-            if ($name !== null && $span->name !== $name) {
-                continue;
-            }
-
+        $spans = collect($capture->spans)
+            ->filter(fn (Span $span): bool => $span->kind === $kind && ($name === null || $span->name === $name))
             // A view rendered inside another view is already part of the outer one's time.
-            if ($topLevelOnly && $this->hasParentOfSameKind($span, $capture)) {
-                continue;
-            }
+            ->reject(fn (Span $span): bool => $topLevelOnly && $this->hasParentOfSameKind($span, $capture));
 
-            $ms += $span->duration() ?? 0.0;
-            $count++;
-        }
-
-        return [round($ms, 3), $count];
+        return [round($spans->sum(fn (Span $span): float => $span->duration() ?? 0.0), 3), $spans->count()];
     }
 
     private function hasParentOfSameKind(Span $span, Capture $capture): bool
@@ -336,24 +312,9 @@ final class SummaryBuilder
      */
     private function sortFlags(array $flags): array
     {
-        $unique = [];
+        $unique = collect($flags)->uniqueStrict(fn (array $flag): string => $flag['level'].'|'.$flag['message']);
 
-        foreach ($flags as $flag) {
-            $unique[$flag['level'].'|'.$flag['message']] ??= $flag;
-        }
-
-        $errors = [];
-        $warnings = [];
-
-        foreach ($unique as $flag) {
-            if ($flag['level'] === 'error') {
-                $errors[] = $flag;
-            } elseif ($flag['level'] === 'warning') {
-                $warnings[] = $flag;
-            }
-        }
-
-        return [...$errors, ...$warnings];
+        return [...$unique->whereStrict('level', 'error')->all(), ...$unique->whereStrict('level', 'warning')->all()];
     }
 
     /**
@@ -391,11 +352,9 @@ final class SummaryBuilder
      */
     private function overheadBySection(array $byLens): array
     {
-        $sections = [];
-
-        foreach ($this->registry->booted() as $lens) {
-            $sections[$lens->key()] = $this->registry->sectionOf($lens);
-        }
+        $sections = collect($this->registry->booted())
+            ->mapWithKeys(fn (Lens $lens): array => [$lens->key() => $this->registry->sectionOf($lens)])
+            ->all();
 
         $bySection = [];
 

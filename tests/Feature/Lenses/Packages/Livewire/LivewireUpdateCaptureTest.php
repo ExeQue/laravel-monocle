@@ -27,15 +27,15 @@ describe(LivewireUpdateCapture::class, function (): void {
             'effects' => $effects,
         ]]]);
 
-        return app(LivewireUpdateCapture::class)->capture($request, $response)[0];
+        return app(LivewireUpdateCapture::class)->format($request, $response)->response[0];
     };
 
     it('ignores responses that are not a Livewire update payload', function (): void {
         $capture = app(LivewireUpdateCapture::class);
         $request = Request::create('/livewire/update', 'POST');
 
-        expect($capture->capture($request, new Response('<html></html>')))->toBeNull()
-            ->and($capture->capture($request, new JsonResponse(['redirect' => '/home'])))->toBeNull();
+        expect($capture->format($request, new Response('<html></html>'))->response)->toBeNull()
+            ->and($capture->format($request, new JsonResponse(['redirect' => '/home']))->response)->toBeNull();
     });
 
     it('names events dispatched without params by their plain name', function () use ($card): void {

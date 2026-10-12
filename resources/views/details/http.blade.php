@@ -89,7 +89,18 @@
             :copy="isset($row['request_payload']) ? json_encode($row['request_payload']) : ($row['request_body'] ?? null)"
         >
             @if (! empty($row['request_payload']))
-                <x-monocle::pairs :pairs="Format::dot($row['request_payload'])" what="payload" />
+                @php($formats = $row['request_formats'] ?? [])
+                <x-monocle::pairs
+                    :pairs="array_values(array_filter(Format::dot($row['request_payload']), fn (array $pair): bool => ! isset($formats[$pair[0]])))"
+                    what="payload"
+                />
+                @foreach ($formats as $key => $format)
+                    <div class="text-muted mt-2 font-mono text-[11px]">{{ $key }}</div>
+                    <pre
+                        @if (($format['format'] ?? null) === 'graphql') data-monocle-graphql @endif
+                        class="scroll-quiet border-line bg-panel m-0 max-h-80 overflow-auto rounded-md border p-2.5 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
+                    >{{ $format['text'] ?? data_get($row['request_payload'], $key) }}</pre>
+                @endforeach
             @elseif (! empty($row['request_body']))
                 <pre class="scroll-quiet border-line bg-panel m-0 max-h-80 overflow-auto rounded-md border p-2.5 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap">{{ $row['request_body'] }}</pre>
             @else

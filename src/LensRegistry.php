@@ -88,28 +88,16 @@ final class LensRegistry
      */
     public function enabled(): array
     {
-        $enabled = [];
-
-        foreach ($this->lenses() as $class => $options) {
-            if ($options === false) {
-                continue;
-            }
-
-            if (! self::available($class)) {
-                continue;
-            }
-
-            $enabled[] = $class;
-        }
+        $enabled = collect($this->lenses())
+            ->reject(fn (mixed $options): bool => $options === false)
+            ->keys()
+            ->filter(fn (string $class): bool => self::available($class));
 
         // An extension runs only while the lens it adds to does.
-        return array_values(array_filter($enabled, function (string $class) use ($enabled): bool {
-            if (! is_subclass_of($class, ExtendsLens::class)) {
-                return true;
-            }
-
-            return in_array($class::extends(), $enabled, true);
-        }));
+        return $enabled
+            ->reject(fn (string $class): bool => is_subclass_of($class, ExtendsLens::class) && ! $enabled->containsStrict($class::extends()))
+            ->values()
+            ->all();
     }
 
     /**
@@ -249,23 +237,12 @@ final class LensRegistry
      */
     public function advice(): array
     {
-        $advice = [];
-
-        foreach ($this->describedLenses() as $lens) {
-            if ($lens instanceof ExtendsLens) {
-                continue;
-            }
-
-            if ($lens instanceof Advises) {
-                $advice[$lens->key()] = $lens->advice();
-
-                continue;
-            }
-
-            $advice[$lens->key()] = self::firstSentence($lens->description());
-        }
-
-        return $advice;
+        return collect($this->describedLenses())
+            ->reject(fn (Lens $lens): bool => $lens instanceof ExtendsLens)
+            ->mapWithKeys(fn (Lens $lens): array => [
+                $lens->key() => $lens instanceof Advises ? $lens->advice() : self::firstSentence($lens->description()),
+            ])
+            ->all();
     }
 
     /**
@@ -298,7 +275,7 @@ final class LensRegistry
      */
     public function summarizers(): array
     {
-        return array_values(array_filter($this->booted, fn (Lens $lens): bool => $lens instanceof Summarizable));
+        return collect($this->booted)->whereInstanceOf(Summarizable::class)->values()->all();
     }
 
     public function finalize(Capture $capture): void

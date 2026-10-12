@@ -17,6 +17,7 @@ use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Collection;
 use Illuminate\View\Engines\EngineResolver;
 use Throwable;
 
@@ -97,44 +98,31 @@ final class ViewsLens implements Advises, Configurable, Lens, Presentable, Summa
         }
 
         // Only views not rendered inside another view count, or nested time would be counted twice.
-        $topLevel = 0.0;
+        $topLevel = collect($capture->spansOfKind('view'))
+            ->reject(fn (Span $span): bool => $this->isNested($capture, $span))
+            ->sum(fn (Span $span): float => $span->duration() ?? 0.0);
 
-        foreach ($capture->spansOfKind('view') as $span) {
-            if ($this->isNested($capture, $span)) {
-                continue;
-            }
+        // Each view with how often it rendered and the time it took, most rendered first.
+        $views = collect($rows)
+            ->groupBy('view')
+            ->map(fn (Collection $renders): array => [
+                'count' => $renders->count(),
+                'ms' => $renders->sum(fn (array $row): float => (float) ($row['duration'] ?? 0)),
+                'library' => str_starts_with((string) ($renders->last()['path'] ?? ''), 'vendor/'),
+            ])
+            ->sortByDesc('count');
 
-            $topLevel += $span->duration() ?? 0.0;
-        }
-
-        $repeats = array_count_values(array_column($rows, 'view'));
-        arsort($repeats);
-
-        $spent = [];
-        $library = [];
-
-        foreach ($rows as $row) {
-            $view = $row['view'];
-            $spent[$view] = ($spent[$view] ?? 0.0) + (float) ($row['duration'] ?? 0);
-            $library[$view] = str_starts_with((string) ($row['path'] ?? ''), 'vendor/');
-        }
-
-        $warnings = [];
-
-        foreach ($repeats as $view => $count) {
-            $repeated = $count >= $this->repeatThreshold;
-            $costly = $spent[$view] >= $this->repeatMs;
-
-            // A package's views are not the application's to fix.
-            if ($repeated && $costly && ! $library[$view]) {
-                $warnings[] = sprintf('View %s rendered %d times, %.1f ms in all.', $view, $count, $spent[$view]);
-            }
-        }
+        $warnings = $views
+            ->filter(fn (array $view): bool => $view['count'] >= $this->repeatThreshold
+                && $view['ms'] >= $this->repeatMs
+                // A package's views are not the application's to fix.
+                && ! $view['library'])
+            ->map(fn (array $view, int|string $name): string => sprintf('View %s rendered %d times, %.1f ms in all.', $name, $view['count'], $view['ms']));
 
         return Summary::make()
             ->total('views_ms', round($topLevel, 3), 'spent', Unit::Milliseconds)
             ->totals([
-                'views_most_rendered' => array_slice($repeats, 0, 3, true),
+                'views_most_rendered' => $views->take(3)->map(fn (array $view): int => $view['count'])->all(),
             ])
             ->total('views_rendered', count($rows), 'rendered')
             ->warnings($warnings);

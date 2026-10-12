@@ -16,6 +16,7 @@ use Workbench\App\Http\Controllers\Demos\Eloquent\ModelChangesController;
 use Workbench\App\Http\Controllers\Demos\Events\CustomEventController;
 use Workbench\App\Http\Controllers\Demos\Exceptions\{ReportedExceptionController, ServerErrorResponseController, ThrownExceptionController};
 use Workbench\App\Http\Controllers\Demos\Filesystem\{FailedReadController, PutGetDeleteController};
+use Workbench\App\Http\Controllers\Demos\GraphQL\OperationController as GraphQLOperationController;
 use Workbench\App\Http\Controllers\Demos\HttpClient\{FailedConnectionsController, FakedApiController, UnknownHostController};
 use Workbench\App\Http\Controllers\Demos\Inertia\{InertiaPageController, LargePageController, SharedPropOnPartialController};
 use Workbench\App\Http\Controllers\Demos\Livewire\{ComponentExceptionController, CounterController};
@@ -141,6 +142,9 @@ Route::prefix('demo')->name('demo.')->group(function (): void {
 
     // Prism
     Route::get('prism', TextCallController::class)->name('prism');
+
+    // GraphQL
+    Route::get('graphql/{demo}', GraphQLOperationController::class)->name('graphql');
 
     // MCP
     Route::get('mcp', ToolCallController::class)->name('mcp');

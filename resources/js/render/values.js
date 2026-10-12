@@ -1,5 +1,6 @@
 import { esc, humanize, fmtValue, maybeLink, copyable, nameLink } from '../format.js';
 import { totalValue } from './totals.js';
+import { graphqlHtml } from './graphql.js';
 
 /** Field changes as a table: a new field is null in From, a removed one null in To. */
 export const changesTable = (changes) => {
@@ -14,6 +15,12 @@ export function dot(value, prefix = '') {
   const entries = Array.isArray(value) ? value.map((v, i) => [String(i), v]) : Object.entries(value);
   if (!entries.length) return prefix ? [[prefix, Array.isArray(value) ? '[]' : '{}']] : [];
   return entries.flatMap(([k, v]) => dot(v, prefix ? `${prefix}.${k}` : k));
+}
+
+/** A payload value a capture asked to show in a format (Formatted::field()): a GraphQL query coloured, anything else as usual. */
+export function formattedValue(format, v) {
+  if (format?.format === 'graphql') return `<pre class="m-0 max-h-96 overflow-auto whitespace-pre-wrap">${graphqlHtml(format.text ?? v)}</pre>`;
+  return payloadValue(v);
 }
 
 /** A payload value; JSON strings (Livewire snapshots, API bodies) are shown formatted. */
@@ -61,7 +68,8 @@ export function levelClass(level) {
 }
 
 /** One item of a response capture card. */
-export function cardValue(value, key) {
+export function cardValue(value, key, format = null) {
+  if (format === 'graphql' && typeof value === 'string') return `<pre class="m-0 max-h-96 overflow-auto whitespace-pre-wrap">${graphqlHtml(value)}</pre>`;
   if (Array.isArray(value) && value.length && value.every((c) => c && typeof c === 'object' && 'field' in c && 'from' in c && 'to' in c)) return changesTable(value);
   if (key.endsWith('_bytes') && typeof value === 'number') return esc(totalValue([key, value, 'bytes']));
   if (Array.isArray(value) && value.length && value.every((v) => v && typeof v === 'object' && !Array.isArray(v))) {
@@ -93,7 +101,7 @@ export function linkText(text, links = {}) {
 export function cardsHtml(cards) {
   return `<div class="grid gap-3">${(cards ?? []).map((card) => `<div class="overflow-hidden rounded-md border border-line bg-panel">
     <div class="flex flex-wrap items-baseline gap-x-2 border-b border-line bg-sunk px-3 py-2"><b class="text-[13px]">${esc(card.title ?? '')}</b><span class="font-mono text-[11px] text-muted">${esc(card.subtitle ?? '')}</span></div>
-    <dl class="m-0">${Object.entries(card.items ?? {}).map(([k, v]) => `<div class="grid gap-1 border-b border-line px-3 py-2 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-3"><dt class="text-xs text-muted">${esc(humanize(k))}</dt><dd class="m-0 min-w-0 font-mono text-xs [overflow-wrap:anywhere]">${cardValue(v, k)}</dd></div>`).join('') || '<p class="m-0 px-3 py-2 text-xs text-muted">Nothing happened in this component.</p>'}</dl>
+    <dl class="m-0">${Object.entries(card.items ?? {}).map(([k, v]) => `<div class="grid gap-1 border-b border-line px-3 py-2 last:border-b-0 sm:grid-cols-[120px_minmax(0,1fr)] sm:gap-3"><dt class="text-xs text-muted">${esc(humanize(k))}</dt><dd class="m-0 min-w-0 font-mono text-xs [overflow-wrap:anywhere]">${cardValue(v, k, card.formats?.[k])}</dd></div>`).join('') || '<p class="m-0 px-3 py-2 text-xs text-muted">Nothing happened in this component.</p>'}</dl>
   </div>`).join('')}</div>`;
 }
 
@@ -110,6 +118,9 @@ export function hydrate(html) {
     el.outerHTML = 'full' in el.dataset
       ? copyable(el.dataset.link ? `<a class="decoration-brass underline-offset-2 hover:text-brass hover:underline ${extra}" href="${esc(el.dataset.link)}">${esc(text)}</a>` : `<span class="${extra}">${esc(text)}</span>`, text)
       : nameLink(text, el.dataset.link, extra);
+  });
+  root.querySelectorAll('[data-monocle-graphql]').forEach((el) => {
+    el.innerHTML = graphqlHtml(el.textContent);
   });
   root.querySelectorAll('[data-monocle-cards]').forEach((el) => {
     try { el.outerHTML = cardsHtml(JSON.parse(el.dataset.monocleCards)); } catch { /* not cards */ }

@@ -137,18 +137,15 @@ final class ShowCommand extends Command
         $totals = $summary['totals'] ?? [];
         $labels = $summary['labels'] ?? [];
         $units = $summary['units'] ?? [];
-        $rows = [];
 
-        foreach ($summary['headlines'] ?? [] as $key) {
-            $value = $totals[$key] ?? null;
-
-            if ($this->isEmptyTotal($value)) {
-                continue;
-            }
-
-            $label = Str::ucfirst($labels[$key] ?? $key);
-            $rows[] = [$label, $this->total($value, $units[$key] ?? null)];
-        }
+        $rows = collect($summary['headlines'] ?? [])
+            ->reject(fn (string $key): bool => $this->isEmptyTotal($totals[$key] ?? null))
+            ->map(fn (string $key): array => [
+                Str::ucfirst($labels[$key] ?? $key),
+                $this->total($totals[$key] ?? null, $units[$key] ?? null),
+            ])
+            ->values()
+            ->all();
 
         if ($rows === []) {
             return;
@@ -166,19 +163,15 @@ final class ShowCommand extends Command
             return;
         }
 
-        $rows = [];
+        $rows = collect($parts)->map(fn (array $part): array => [
+            $part['name'],
+            $this->ms($part['ms']),
+            $part['percent'].'%',
+            (string) $part['count'],
+            $this->bar((float) $part['percent']),
+        ]);
 
-        foreach ($parts as $part) {
-            $rows[] = [
-                $part['name'],
-                $this->ms($part['ms']),
-                $part['percent'].'%',
-                (string) $part['count'],
-                $this->bar((float) $part['percent']),
-            ];
-        }
-
-        table([$header, 'Time', '%', 'Count', ''], $rows);
+        table([$header, 'Time', '%', 'Count', ''], $rows->all());
     }
 
     /**
@@ -252,26 +245,19 @@ final class ShowCommand extends Command
         // The JSON keeps every span; people get the first --limit of them.
         $limit = max(1, (int) ($this->option('limit') ?? 25));
         $total = count($spans);
-        $spans = array_slice($spans, 0, $limit);
 
-        $rows = [];
+        $rows = collect($spans)->take($limit)->map(fn (array $span): array => [
+            $this->ms($span['start'] ?? 0),
+            $this->ms($span['duration'] ?? 0),
+            (string) ($span['kind'] ?? ''),
+            str_repeat('  ', (int) ($span['depth'] ?? 0)).$this->cell($span['name'] ?? '', 80),
+        ]);
 
-        foreach ($spans as $span) {
-            $indent = str_repeat('  ', (int) ($span['depth'] ?? 0));
-
-            $rows[] = [
-                $this->ms($span['start'] ?? 0),
-                $this->ms($span['duration'] ?? 0),
-                (string) ($span['kind'] ?? ''),
-                $indent.$this->cell($span['name'] ?? '', 80),
-            ];
-        }
-
-        table(['Start', 'Duration', 'Kind', 'Name'], $rows);
+        table(['Start', 'Duration', 'Kind', 'Name'], $rows->all());
 
         $page = [
             'offset' => 0,
-            'returned' => count($spans),
+            'returned' => $rows->count(),
             'total' => $total,
             'next_offset' => $total > $limit ? $limit : null,
         ];
@@ -306,18 +292,12 @@ final class ShowCommand extends Command
      */
     private function availableSections(array $sections): void
     {
-        $parts = [];
-
-        foreach ($sections as $section) {
-            if ($section['rows'] === 0) {
-                continue;
-            }
-
-            $parts[] = $section['rows'] === null ? $section['key'] : $section['key'].' ('.$section['rows'].')';
-        }
+        $parts = collect($sections)
+            ->reject(fn (array $section): bool => $section['rows'] === 0)
+            ->map(fn (array $section): string => $section['rows'] === null ? $section['key'] : $section['key'].' ('.$section['rows'].')');
 
         // The summary is always available, so parts is never empty.
-        note('Sections (--section=...): '.implode(', ', $parts));
+        note('Sections (--section=...): '.$parts->implode(', '));
     }
 
     private function total(mixed $value, ?string $unit): string

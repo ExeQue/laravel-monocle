@@ -83,39 +83,28 @@ final class FilesystemLens implements Advises, Configurable, Lens, Presentable, 
             return Summary::make();
         }
 
-        $read = 0;
-        $written = 0;
-        $ms = 0.0;
-        $byDisk = [];
-        $failed = [];
-
-        foreach ($rows as $row) {
-            $ms += (float) ($row['duration'] ?? 0);
-            $byDisk[$row['disk']] = ($byDisk[$row['disk']] ?? 0) + 1;
-
-            if (in_array($row['op'], ['read', 'readStream'], true)) {
-                $read += (int) ($row['bytes'] ?? 0);
-            }
-
-            if (in_array($row['op'], ['write', 'writeStream'], true)) {
-                $written += (int) ($row['bytes'] ?? 0);
-            }
-
-            if (($row['ok'] ?? true) === false) {
-                $reason = $row['exception']['message'] ?? 'unknown error';
-                $failed[] = sprintf('Filesystem %s failed on %s:%s (%s)', $row['op'], $row['disk'], $row['path'], $reason);
-            }
-        }
+        $rows = collect($rows);
+        $ms = $rows->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
+        $bytes = fn (array $row): int => (int) ($row['bytes'] ?? 0);
+        $failed = $rows
+            ->filter(fn (array $row): bool => ($row['ok'] ?? true) === false)
+            ->map(fn (array $row): string => sprintf(
+                'Filesystem %s failed on %s:%s (%s)',
+                $row['op'],
+                $row['disk'],
+                $row['path'],
+                $row['exception']['message'] ?? 'unknown error',
+            ));
 
         return Summary::make()
             ->total('filesystem_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
-                'filesystem_by_disk' => $byDisk,
+                'filesystem_by_disk' => $rows->countBy('disk')->all(),
             ])
-            ->total('filesystem_ops', count($rows), 'operations')
-            ->total('filesystem_bytes_read', $read, 'read', Unit::Bytes)
-            ->total('filesystem_bytes_written', $written, 'written', Unit::Bytes)
-            ->errors(array_slice($failed, 0, 3));
+            ->total('filesystem_ops', $rows->count(), 'operations')
+            ->total('filesystem_bytes_read', $rows->whereInStrict('op', ['read', 'readStream'])->sum($bytes), 'read', Unit::Bytes)
+            ->total('filesystem_bytes_written', $rows->whereInStrict('op', ['write', 'writeStream'])->sum($bytes), 'written', Unit::Bytes)
+            ->errors($failed->take(3));
     }
 
     public function presentation(): Presentation

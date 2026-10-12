@@ -28,13 +28,12 @@ final class ListLenses extends Tool
 
     public function handle(Request $request): Response
     {
-        $lenses = [];
         $advice = $this->registry->advice();
 
-        foreach ($this->registry->descriptions() as $key => $description) {
-            $lenses[] = ['section' => $key, 'when' => $advice[$key] ?? null, 'description' => $description];
-        }
+        $lenses = collect($this->registry->descriptions())
+            ->map(fn (string $description, int|string $key): array => ['section' => $key, 'when' => $advice[$key] ?? null, 'description' => $description])
+            ->values();
 
-        return $this->json(['lenses' => $lenses]);
+        return $this->json(['lenses' => $lenses->all()]);
     }
 }

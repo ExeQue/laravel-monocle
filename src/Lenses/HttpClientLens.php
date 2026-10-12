@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses;
 
+use ExeQue\Monocle\Contracts\FormatsCapture;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
-use ExeQue\Monocle\Contracts\ResponseCapture;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Formatted;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
@@ -41,7 +42,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 {
     private bool $bodies = false;
 
-    /** @var array<string, class-string<ResponseCapture>> content type pattern => capture */
+    /** @var array<string, class-string<FormatsCapture>> content type pattern => capture */
     private array $responseTypes = ['application/json' => JsonCapture::class, 'application/*+json' => JsonCapture::class];
 
     /** @var array<int, array{at: float, pool: int|null, call: string}> */
@@ -66,7 +67,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 
     public function description(): string
     {
-        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and timing (cURL transfer stats: dns, connect, tls, wait (time to first byte), download and redirect in ms, the remote address, protocol and redirects followed; absent for faked calls and failed connections), pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
+        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), request_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and timing (cURL transfer stats: dns, connect, tls, wait (time to first byte), download and redirect in ms, the remote address, protocol and redirects followed; absent for faked calls and failed connections), pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
     }
 
     public function advice(): string
@@ -110,7 +111,8 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 
         $status = $response->status();
         $body = $this->eyepiece->outside(fn (): string => $response->body());
-        $capture = $this->captureResponse($event->request, $response, $body);
+        $formatted = $this->format($event->request, $response, $body);
+        $capture = $formatted['response_capture'];
         $stats = $response->handlerStats();
 
         // A captured response already carries its raw body; only fall back to the plain body without one.
@@ -126,7 +128,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             'response_headers' => $masker->headers($response->headers()),
             'response_bytes' => strlen($body),
             'response_body' => $responseBody,
-            'response_capture' => $capture,
+            ...$formatted,
             'duration' => $this->duration($pending['at'] ?? null, $stats),
             'timing' => $this->timing($stats),
             'failed' => $status >= 400,
@@ -174,37 +176,31 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 
     public function summarize(Capture $capture): Summary
     {
-        $rows = $capture->rows('http');
+        $rows = collect($capture->rows('http'));
 
-        if ($rows === []) {
+        if ($rows->isEmpty()) {
             return Summary::make();
         }
 
-        $failed = array_filter($rows, fn (array $row): bool => (bool) $row['failed']);
-        $byHost = [];
-        $ms = 0.0;
+        $failed = $rows->filter(fn (array $row): bool => (bool) $row['failed']);
+        $byHost = $rows->countBy(fn (array $row): string => (string) (parse_url((string) $row['url'], PHP_URL_HOST) ?: '?'));
+        $ms = $rows->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
 
-        foreach ($rows as $row) {
-            $host = (string) (parse_url((string) $row['url'], PHP_URL_HOST) ?: '?');
-            $byHost[$host] = ($byHost[$host] ?? 0) + 1;
-            $ms += (float) ($row['duration'] ?? 0);
-        }
-
-        $errors = [];
-
-        foreach (array_slice(array_values($failed), 0, 3) as $row) {
-            $reason = $row['status'] ?? $row['exception']['message'] ?? 'no response';
-            $errors[] = sprintf('HTTP call failed: %s %s (%s)', $row['method'], $row['url'], $reason);
-        }
+        $errors = $failed->take(3)->map(fn (array $row): string => sprintf(
+            'HTTP call failed: %s %s (%s)',
+            $row['method'],
+            $row['url'],
+            $row['status'] ?? $row['exception']['message'] ?? 'no response',
+        ));
 
         return Summary::make()
             ->total('http_ms', round($ms, 3), 'spent', Unit::Milliseconds)
             ->totals([
-                'http_by_host' => $byHost,
+                'http_by_host' => $byHost->all(),
             ])
-            ->total('http_calls', count($rows), 'calls')
-            ->total('http_failed', count($failed), 'failed')
-            ->errors($errors);
+            ->total('http_calls', $rows->count(), 'calls')
+            ->total('http_failed', $failed->count(), 'failed')
+            ->errors($errors->values());
     }
 
     /**
@@ -243,37 +239,43 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
      */
     private function payload(Request $request): ?array
     {
+        $data = $this->data($request);
+
+        return $data === null ? null : $this->eyepiece->masker(self::class)->inputs($data);
+    }
+
+    /**
+     * A JSON or form body as it was sent, or null when there is none.
+     *
+     * @return array<array-key, mixed>|null
+     */
+    private function data(Request $request): ?array
+    {
         try {
             $data = $request->data();
         } catch (Throwable) {
             return null;
         }
 
-        if (! is_array($data)) {
-            return null;
-        }
-
-        if ($data === []) {
-            return null;
-        }
-
-        return $this->eyepiece->masker(self::class)->inputs($data);
+        return is_array($data) && $data !== [] ? $data : null;
     }
 
     /**
-     * The response as cards from the capture registered for its content type,
-     * using the same captures as incoming responses.
+     * The call as the capture registered for the response content type
+     * formats it, using the same captures as incoming requests:
+     * response_capture (cards and the raw body) and, when the capture
+     * formats payload fields, request_formats and the payload with the
+     * values it masks itself.
      *
-     * @return array{capture: string, cards: list<array<string, mixed>>, raw: string}|null
+     * @return array{response_capture: array{capture: string, cards: list<array<string, mixed>>, raw: string}|null, request_formats?: array<string, array{format: string, text?: string}>, request_payload?: array<array-key, mixed>}
      */
-    private function captureResponse(Request $request, ClientResponse $response, string $body): ?array
+    private function format(Request $request, ClientResponse $response, string $body): array
     {
-        $contentType = (string) $response->header('Content-Type');
-        $type = strtolower(trim(Str::before($contentType, ';')));
+        $type = strtolower(trim(Str::before((string) $response->header('Content-Type'), ';')));
         $class = $this->captureFor($type);
 
         if ($class === null) {
-            return null;
+            return ['response_capture' => null];
         }
 
         try {
@@ -281,40 +283,39 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             $incoming = HttpRequest::create($request->url(), $request->method(), [], [], [], [], $request->body());
             $incoming->headers->replace($request->headers());
 
-            $cards = $this->eyepiece->outside(function () use ($class, $incoming, $body, $response): ?array {
+            $formatted = $this->eyepiece->outside(function () use ($class, $incoming, $body, $response): ?Formatted {
                 $capture = $this->app->make($class);
 
-                if (! $capture instanceof ResponseCapture) {
-                    return null;
-                }
-
-                $asResponse = new HttpResponse($body, $response->status(), $response->headers());
-
-                return $capture->capture($incoming, $asResponse);
+                return $capture instanceof FormatsCapture ? $capture->format($incoming, new HttpResponse($body, $response->status(), $response->headers())) : null;
             });
         } catch (Throwable $e) {
             $this->eyepiece->failed($e);
 
-            return null;
-        }
-
-        if ($cards === null) {
-            return null;
+            return ['response_capture' => null];
         }
 
         $masker = $this->eyepiece->masker(self::class);
+        $data = $this->data($request);
+
+        if ($formatted?->request !== null && $data !== null) {
+            [$payload, $formats] = $formatted->payload($data, $masker->inputs($data));
+        }
 
         return [
-            'capture' => $class,
-            'cards' => $masker->cards($cards),
-            'raw' => $masker->body($body, $type),
+            'response_capture' => $formatted?->response === null ? null : [
+                'capture' => $class,
+                'cards' => $masker->cards($formatted->response),
+                'raw' => $masker->body($body, $type),
+            ],
+            ...isset($payload) ? ['request_payload' => $payload] : [],
+            ...empty($formats) ? [] : ['request_formats' => $formats],
         ];
     }
 
     /**
      * The first available capture whose content type pattern matches.
      *
-     * @return class-string<ResponseCapture>|null
+     * @return class-string<FormatsCapture>|null
      */
     private function captureFor(string $type): ?string
     {

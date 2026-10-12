@@ -11,10 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 covers(InertiaCapture::class);
 
 describe(InertiaCapture::class, function (): void {
-    $capture = fn (string $content, array $headers = []): ?array => app(InertiaCapture::class)->capture(
+    $capture = fn (string $content, array $headers = []): ?array => app(InertiaCapture::class)->format(
         Request::create('/orders', server: collect($headers)->mapWithKeys(fn (string $value, string $key): array => ['HTTP_'.strtoupper(str_replace('-', '_', $key)) => $value])->all()),
         new Response($content),
-    );
+    )->response;
 
     it('reads the page from an escaped data-page attribute', function () use ($capture): void {
         $page = htmlspecialchars('{"component":"Orders/Index","url":"/orders","props":{"a":1}}', ENT_QUOTES);

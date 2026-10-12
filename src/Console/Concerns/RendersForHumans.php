@@ -156,19 +156,13 @@ trait RendersForHumans
 
         $headers = $this->headers($columns ?? array_keys($rows[0]));
         $keys = array_keys($headers);
-        $cells = [];
 
-        foreach ($rows as $row) {
-            $line = [];
+        $cells = collect($rows)->map(fn (array $row): array => array_map(
+            fn (int|string $key): string => $this->cell($row[$key] ?? null, $width),
+            $keys,
+        ));
 
-            foreach ($keys as $key) {
-                $line[] = $this->cell($row[$key] ?? null, $width);
-            }
-
-            $cells[] = $line;
-        }
-
-        table(array_values($headers), $cells);
+        table(array_values($headers), $cells->all());
     }
 
     /**
@@ -183,13 +177,7 @@ trait RendersForHumans
             return $columns;
         }
 
-        $headers = [];
-
-        foreach ($columns as $key) {
-            $headers[$key] = Str::headline($key);
-        }
-
-        return $headers;
+        return collect($columns)->mapWithKeys(fn (string $key): array => [$key => Str::headline($key)])->all();
     }
 
     /**
@@ -203,25 +191,17 @@ trait RendersForHumans
     protected function columns(array $rows, int $max = 8): array
     {
         $noisy = ['id', 'origin', 'shape', 'shape_hash', 'sql_with_bindings', 'bindings', 'meta'];
-        $useful = [];
 
-        foreach (array_keys(array_merge(...$rows)) as $key) {
-            if (in_array($key, $noisy, true)) {
-                continue;
-            }
+        $useful = collect(array_merge(...$rows))->keys()
+            ->reject(fn (int|string $key): bool => in_array($key, $noisy, true))
+            ->filter(function (int|string $key) use ($rows): bool {
+                $values = array_column($rows, $key);
 
-            $values = array_column($rows, $key);
-
-            if ($this->holdsNestedData($values)) {
-                continue;
-            }
-
-            if ($this->allEmpty($values)) {
-                continue;
-            }
-
-            $useful[] = (string) $key;
-        }
+                return ! $this->holdsNestedData($values) && ! $this->allEmpty($values);
+            })
+            ->map(fn (int|string $key): string => (string) $key)
+            ->values()
+            ->all();
 
         $shown = array_slice($useful, 0, $max);
 
@@ -240,17 +220,9 @@ trait RendersForHumans
      */
     private function holdsNestedData(array $values): bool
     {
-        foreach ($values as $value) {
-            if (! is_array($value)) {
-                continue;
-            }
-
-            if (array_filter($value, is_scalar(...)) !== $value) {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($values)->contains(
+            fn (mixed $value): bool => is_array($value) && array_filter($value, is_scalar(...)) !== $value,
+        );
     }
 
     /**
@@ -258,13 +230,7 @@ trait RendersForHumans
      */
     private function allEmpty(array $values): bool
     {
-        foreach ($values as $value) {
-            if ($value !== null && $value !== []) {
-                return false;
-            }
-        }
-
-        return true;
+        return collect($values)->every(fn (mixed $value): bool => $value === null || $value === []);
     }
 
     /**
@@ -281,13 +247,9 @@ trait RendersForHumans
             return;
         }
 
-        $rows = [];
+        $rows = collect($pairs)->mapSpread(fn (string $dotKey, mixed $item): array => [$this->cell($dotKey, 50), $this->cell($item, $width)]);
 
-        foreach ($pairs as [$dotKey, $item]) {
-            $rows[] = [$this->cell($dotKey, 50), $this->cell($item, $width)];
-        }
-
-        table([$key, $header], $rows);
+        table([$key, $header], $rows->all());
     }
 
     /**

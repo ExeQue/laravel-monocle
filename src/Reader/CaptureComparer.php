@@ -135,32 +135,24 @@ final class CaptureComparer
      */
     private function diffQueries(Capture $a, Capture $b): array
     {
-        $shapesA = array_column($this->queries->group($a, 'shape'), null, 'key');
-        $shapesB = array_column($this->queries->group($b, 'shape'), null, 'key');
+        $shapesA = collect($this->queries->group($a, 'shape'))->keyBy('key');
+        $shapesB = collect($this->queries->group($b, 'shape'))->keyBy('key');
+        $only = fn (array $group, int|string $shape): array => ['shape' => $shape, 'count' => $group['count'], 'total_ms' => $group['total_ms']];
 
-        $onlyA = [];
-        $onlyB = [];
-        $changed = [];
-
-        foreach ($shapesA as $shape => $group) {
-            if (! isset($shapesB[$shape])) {
-                $onlyA[] = ['shape' => $shape, 'count' => $group['count'], 'total_ms' => $group['total_ms']];
-            } elseif ($shapesB[$shape]['count'] !== $group['count']) {
-                $changed[] = [
-                    'shape' => $shape,
-                    'a_count' => $group['count'],
-                    'b_count' => $shapesB[$shape]['count'],
-                    'a_ms' => $group['total_ms'],
-                    'b_ms' => $shapesB[$shape]['total_ms'],
-                ];
-            }
-        }
-
-        foreach ($shapesB as $shape => $group) {
-            if (! isset($shapesA[$shape])) {
-                $onlyB[] = ['shape' => $shape, 'count' => $group['count'], 'total_ms' => $group['total_ms']];
-            }
-        }
+        $onlyA = $shapesA->diffKeys($shapesB)->map($only)->values()->all();
+        $onlyB = $shapesB->diffKeys($shapesA)->map($only)->values()->all();
+        $changed = $shapesA
+            ->intersectByKeys($shapesB)
+            ->filter(fn (array $group, int|string $shape): bool => $shapesB[$shape]['count'] !== $group['count'])
+            ->map(fn (array $group, int|string $shape): array => [
+                'shape' => $shape,
+                'a_count' => $group['count'],
+                'b_count' => $shapesB[$shape]['count'],
+                'a_ms' => $group['total_ms'],
+                'b_ms' => $shapesB[$shape]['total_ms'],
+            ])
+            ->values()
+            ->all();
 
         return ['only_in_a' => $onlyA, 'only_in_b' => $onlyB, 'changed' => $changed];
     }

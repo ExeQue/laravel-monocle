@@ -7,6 +7,8 @@ namespace ExeQue\Monocle\Data;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Exceptions\InvalidSummaryTotalException;
 use ExeQue\Monocle\Support\Concerns\Immutable;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Enumerable;
 use Illuminate\Support\Traits\Conditionable;
 
 /**
@@ -76,10 +78,11 @@ final readonly class Summary
      * Several totals as name => value, all in the same unit. Null values are
      * kept and left out of the overview.
      *
-     * @param  array<string, mixed>  $totals
+     * @param  array<string, mixed>|Enumerable<string, mixed>  $totals
      */
-    public function totals(array $totals, Unit|string|null $unit = null): self
+    public function totals(array|Enumerable $totals, Unit|string|null $unit = null): self
     {
+        $totals = Arr::from($totals);
         $units = $this->units;
 
         foreach (array_keys($totals) as $name) {
@@ -102,11 +105,11 @@ final readonly class Summary
     }
 
     /**
-     * @param  list<string>  $warnings
+     * @param  list<string>|Enumerable<int, string>  $warnings
      */
-    public function warnings(array $warnings): self
+    public function warnings(array|Enumerable $warnings): self
     {
-        return $this->with(['warnings' => [...$this->warnings, ...array_values($warnings)]]);
+        return $this->with(['warnings' => [...$this->warnings, ...array_values(Arr::from($warnings))]]);
     }
 
     public function error(string $error): self
@@ -115,11 +118,11 @@ final readonly class Summary
     }
 
     /**
-     * @param  list<string>  $errors
+     * @param  list<string>|Enumerable<int, string>  $errors
      */
-    public function errors(array $errors): self
+    public function errors(array|Enumerable $errors): self
     {
-        return $this->with(['errors' => [...$this->errors, ...array_values($errors)]]);
+        return $this->with(['errors' => [...$this->errors, ...array_values(Arr::from($errors))]]);
     }
 
     /**

@@ -161,13 +161,9 @@ final readonly class TimelinePresenter
      */
     private function redisParameters(array $row): string
     {
-        $parameters = [];
-
-        foreach ((array) ($row['parameters'] ?? []) as $value) {
-            $parameters[] = is_scalar($value) ? (string) $value : '...';
-        }
-
-        return implode(' ', $parameters);
+        return collect((array) ($row['parameters'] ?? []))
+            ->map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '...')
+            ->implode(' ');
     }
 
     /**
@@ -491,7 +487,7 @@ final readonly class TimelinePresenter
             return null;
         }
 
-        if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,5})(?::(\d+))?$#', $path, $match) === 1) {
+        if (preg_match('#^(.*/[^/\s]+\.[a-z]{2,8})(?::(\d+))?$#', $path, $match) === 1) {
             $line = isset($match[2]) ? (int) $match[2] : null;
 
             return $this->links->file($match[1], $line);

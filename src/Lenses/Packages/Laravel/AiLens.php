@@ -128,21 +128,11 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
 
         $tools = $capture->rows('ai_tools');
         $topLevel = $this->topLevelInvocations($rows);
-        $ms = 0.0;
-        $toolMs = 0.0;
+        $duration = fn (array $row): float => (float) ($row['duration'] ?? 0);
 
         // A nested agent and its tools run inside the tool call of the agent above, so time counts only once: at the top.
-        foreach ($rows as $row) {
-            if (in_array($row['invocation_id'] ?? null, $topLevel, true)) {
-                $ms += (float) ($row['duration'] ?? 0);
-            }
-        }
-
-        foreach ($tools as $tool) {
-            if (in_array($tool['invocation_id'] ?? null, $topLevel, true)) {
-                $toolMs += (float) ($tool['duration'] ?? 0);
-            }
-        }
+        $ms = collect($rows)->whereInStrict('invocation_id', $topLevel)->sum($duration);
+        $toolMs = collect($tools)->whereInStrict('invocation_id', $topLevel)->sum($duration);
 
         $tokens = self::NO_TOKENS;
         $byModel = [];

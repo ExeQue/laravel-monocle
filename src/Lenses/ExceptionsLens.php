@@ -116,12 +116,7 @@ final class ExceptionsLens implements Advises, Lens, Presentable, Resettable, Su
             return Summary::make();
         }
 
-        $errors = [];
-
-        foreach (array_slice($rows, 0, 3) as $row) {
-            $errors[] = sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']);
-        }
-
+        $errors = collect($rows)->take(3)->map(fn (array $row): string => sprintf('%s: %s (%s)', $row['class'], $row['message'], $row['file']));
         $distinct = count(array_unique(array_column($rows, 'class')));
 
         $summary = Summary::make()

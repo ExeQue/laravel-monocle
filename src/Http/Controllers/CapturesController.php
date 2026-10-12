@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Http\Controllers;
 
+use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Dashboard\TabList;
@@ -106,19 +107,15 @@ final readonly class CapturesController
      */
     private function tabOrder(): array
     {
-        $keys = [];
+        $keys = collect($this->registry->booted())
+            ->mapWithKeys(fn (Lens $lens): array => [$lens::class => [$lens->key(), ...($lens instanceof ProvidesSections ? $lens->sections() : [])]])
+            ->all();
 
-        foreach ($this->registry->booted() as $lens) {
-            $keys[$lens::class] = [$lens->key(), ...($lens instanceof ProvidesSections ? $lens->sections() : [])];
-        }
-
-        $order = [];
-
-        foreach ((array) config('monocle.dashboard.tabs', []) as $tab) {
-            $order = [...$order, ...($keys[$tab] ?? [(string) $tab])];
-        }
-
-        return array_values(array_unique($order));
+        return collect((array) config('monocle.dashboard.tabs', []))
+            ->flatMap(fn (mixed $tab): array => $keys[$tab] ?? [(string) $tab])
+            ->uniqueStrict()
+            ->values()
+            ->all();
     }
 
     /**

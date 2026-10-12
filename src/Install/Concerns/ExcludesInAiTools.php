@@ -52,16 +52,7 @@ trait ExcludesInAiTools
      */
     private function usesAiTool(string $basePath, string $file, array $directories): bool
     {
-        if (is_file($basePath.'/'.$file)) {
-            return true;
-        }
-
-        foreach ($directories as $directory) {
-            if (is_dir($basePath.'/'.$directory)) {
-                return true;
-            }
-        }
-
-        return false;
+        return is_file($basePath.'/'.$file)
+            || collect($directories)->contains(fn (string $directory): bool => is_dir($basePath.'/'.$directory));
     }
 }

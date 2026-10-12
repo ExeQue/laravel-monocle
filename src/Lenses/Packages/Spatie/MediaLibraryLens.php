@@ -100,18 +100,18 @@ final class MediaLibraryLens implements Advises, Lens, Presentable, RequiresPack
             return Summary::make();
         }
 
-        $conversions = array_values(array_filter($rows, fn (array $row): bool => $row['event'] === 'conversion'));
-        $ms = round(array_sum(array_column($conversions, 'duration')), 1);
+        $conversions = collect($rows)->whereStrict('event', 'conversion');
+        $ms = round($conversions->sum('duration'), 1);
 
         return Summary::make()
-            ->when($conversions !== [])
+            ->when($conversions->isNotEmpty())
             ->total('media_conversion_ms', $ms, 'spent', Unit::Milliseconds)
-            ->when(count($rows) > count($conversions))
-            ->total('media_added', count($rows) - count($conversions), 'added')
-            ->when($conversions !== [])
-            ->total('media_conversions', count($conversions), 'conversions')
-            ->when($capture->type === CaptureType::Request && $conversions !== [])
-            ->warning(sprintf('%d media conversion(s) ran during the request (%s ms); queued conversions keep the response fast.', count($conversions), $ms));
+            ->when(count($rows) > $conversions->count())
+            ->total('media_added', count($rows) - $conversions->count(), 'added')
+            ->when($conversions->isNotEmpty())
+            ->total('media_conversions', $conversions->count(), 'conversions')
+            ->when($capture->type === CaptureType::Request && $conversions->isNotEmpty())
+            ->warning(sprintf('%d media conversion(s) ran during the request (%s ms); queued conversions keep the response fast.', $conversions->count(), $ms));
     }
 
     private function recording(): bool

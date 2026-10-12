@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Dashboard;
 
 use ExeQue\Monocle\Support\Concerns\Immutable;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Enumerable;
 
 /**
  * How a lens's section shows in the dashboard. Everything is optional; what
@@ -54,41 +56,34 @@ final readonly class Presentation
     /**
      * The table's columns, in order: a list of fields, or field => header.
      *
-     * @param  array<int|string, string>  $columns
+     * @param  array<int|string, string>|Enumerable<int|string, string>  $columns
      */
-    public function columns(array $columns): self
+    public function columns(array|Enumerable $columns): self
     {
-        $normalized = [];
+        // A listed field has no header of its own; field => header names one.
+        $normalized = collect($columns)->mapWithKeys(fn (string $label, int|string $field): array => is_int($field) ? [$label => null] : [$field => $label]);
 
-        foreach ($columns as $field => $label) {
-            if (is_int($field)) {
-                $normalized[$label] = null;
-            } else {
-                $normalized[$field] = $label;
-            }
-        }
-
-        return $this->with(['columns' => $normalized]);
+        return $this->with(['columns' => $normalized->all()]);
     }
 
     /**
      * Fields shown when a row is expanded, never as a column.
      *
-     * @param  list<string>  $fields
+     * @param  list<string>|Enumerable<int, string>  $fields
      */
-    public function detailsOnly(array $fields): self
+    public function detailsOnly(array|Enumerable $fields): self
     {
-        return $this->with(['detailsOnly' => $fields]);
+        return $this->with(['detailsOnly' => Arr::from($fields)]);
     }
 
     /**
      * Fields the rows can be grouped by, with the label of their chip.
      *
-     * @param  array<string, string>  $groupings  field => label, e.g. ['endpoint' => 'by endpoint']
+     * @param  array<string, string>|Enumerable<string, string>  $groupings  field => label, e.g. ['endpoint' => 'by endpoint']
      */
-    public function groupBy(array $groupings): self
+    public function groupBy(array|Enumerable $groupings): self
     {
-        return $this->with(['groupings' => $groupings]);
+        return $this->with(['groupings' => Arr::from($groupings)]);
     }
 
     /**
@@ -116,34 +111,27 @@ final readonly class Presentation
      * They get no tab of their own while this one is shown. Give a section a
      * presentation of its own to format its table: ['changes' => Presentation::table()->format(...)].
      *
-     * @param  array<int|string, string|self>  $sections
+     * @param  array<int|string, string|self>|Enumerable<int|string, string|self>  $sections
      */
-    public function includes(array $sections): self
+    public function includes(array|Enumerable $sections): self
     {
-        $keys = [];
-        $included = [];
+        $sections = collect($sections);
+        // A section listed by name keeps its own presentation; section => presentation formats it here.
+        $included = $sections->whereInstanceOf(self::class)->mapWithKeys(fn (self $section, int|string $key): array => [(string) $key => $section]);
+        $keys = $sections->map(fn (string|self $section, int|string $key): string => $section instanceof self ? (string) $key : $section);
 
-        foreach ($sections as $key => $section) {
-            if ($section instanceof self) {
-                $keys[] = (string) $key;
-                $included[(string) $key] = $section;
-            } else {
-                $keys[] = $section;
-            }
-        }
-
-        return $this->with(['includes' => $keys, 'included' => $included]);
+        return $this->with(['includes' => $keys->values()->all(), 'included' => $included->all()]);
     }
 
     /**
      * Other sections the lens writes that get a tab of their own, such as
      * the facts of a job capture beside the jobs it dispatched.
      *
-     * @param  array<string, self>  $sections  section => how it is shown
+     * @param  array<string, self>|Enumerable<string, self>  $sections  section => how it is shown
      */
-    public function alongside(array $sections): self
+    public function alongside(array|Enumerable $sections): self
     {
-        return $this->with(['included' => [...$this->included, ...$sections]]);
+        return $this->with(['included' => [...$this->included, ...Arr::from($sections)]]);
     }
 
     /**
@@ -165,23 +153,23 @@ final readonly class Presentation
      *     ['capture', 'job_id']      a link to the capture started from this row: the newest child
      *                                capture whose job_id is the value, or "pending" until there is one
      *
-     * @param  array<string, string|list<mixed>>  $formats  field => format or [format, ...arguments]
+     * @param  array<string, string|list<mixed>>|Enumerable<string, string|list<mixed>>  $formats  field => format or [format, ...arguments]
      */
-    public function format(array $formats): self
+    public function format(array|Enumerable $formats): self
     {
-        $normalized = array_map(fn (string|array $format): array => (array) $format, $formats);
+        $normalized = collect($formats)->map(fn (string|array $format): array => (array) $format);
 
-        return $this->with(['formats' => [...$this->formats, ...$normalized]]);
+        return $this->with(['formats' => [...$this->formats, ...$normalized->all()]]);
     }
 
     /**
      * Tints rows where a field is set, such as repeated reads.
      *
-     * @param  array<string, 'warn'|'bad'>  $fields  field => tone
+     * @param  array<string, 'warn'|'bad'>|Enumerable<string, 'warn'|'bad'>  $fields  field => tone
      */
-    public function highlight(array $fields): self
+    public function highlight(array|Enumerable $fields): self
     {
-        return $this->with(['highlights' => [...$this->highlights, ...$fields]]);
+        return $this->with(['highlights' => [...$this->highlights, ...Arr::from($fields)]]);
     }
 
     /**
@@ -211,7 +199,7 @@ final readonly class Presentation
             'columns' => array_keys($this->columns),
             'labels' => array_filter($this->columns, 'is_string'),
             'details_only' => $this->detailsOnly,
-            'groupings' => array_map(fn (string $field, string $label): array => [$field, $label], array_keys($this->groupings), $this->groupings),
+            'groupings' => collect($this->groupings)->map(fn (string $label, string $field): array => [$field, $label])->values()->all(),
             'details_view' => $this->detailsView !== null,
             'includes' => $this->includes,
             'formats' => $this->formats,

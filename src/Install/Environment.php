@@ -32,13 +32,7 @@ final readonly class Environment
      */
     public function inContainer(): bool
     {
-        foreach ($this->containerFiles as $file) {
-            if (file_exists($file)) {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($this->containerFiles)->contains(fn (string $file): bool => file_exists($file));
     }
 
     public function os(): string
@@ -52,17 +46,9 @@ final readonly class Environment
             return false;
         }
 
-        foreach ($this->kernelFiles as $file) {
-            if (! is_readable($file)) {
-                continue;
-            }
-
-            if (stripos((string) file_get_contents($file), 'microsoft') !== false) {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($this->kernelFiles)->contains(
+            fn (string $file): bool => is_readable($file) && stripos((string) file_get_contents($file), 'microsoft') !== false,
+        );
     }
 
     /**

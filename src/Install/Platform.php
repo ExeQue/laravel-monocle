@@ -104,13 +104,7 @@ enum Platform: string
      */
     private static function anyExists(string $base, array $files): bool
     {
-        foreach ($files as $file) {
-            if (file_exists($base.$file)) {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($files)->contains(fn (string $file): bool => file_exists($base.$file));
     }
 
     /**
@@ -118,13 +112,7 @@ enum Platform: string
      */
     private static function envStartsWith(array $env, string $prefix): bool
     {
-        foreach (array_keys($env) as $key) {
-            if (str_starts_with((string) $key, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
+        return collect($env)->keys()->contains(fn (int|string $key): bool => str_starts_with((string) $key, $prefix));
     }
 
     /**

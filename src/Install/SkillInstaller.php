@@ -50,15 +50,10 @@ final class SkillInstaller
     {
         $base = rtrim($basePath, '/').'/';
 
-        return array_keys(array_filter(self::AGENTS, function (array $agent) use ($base): bool {
-            foreach ($agent[2] as $marker) {
-                if (file_exists($base.$marker)) {
-                    return true;
-                }
-            }
-
-            return false;
-        }));
+        return collect(self::AGENTS)
+            ->filter(fn (array $agent): bool => collect($agent[2])->contains(fn (string $marker): bool => file_exists($base.$marker)))
+            ->keys()
+            ->all();
     }
 
     public function render(): string
@@ -98,13 +93,11 @@ final class SkillInstaller
      */
     private function folders(array $agents): array
     {
-        $folders = [];
-
-        foreach ($agents as $agent) {
-            $folders[] = self::AGENTS[$agent][1] ?? throw new RuntimeException("Unknown agent [{$agent}].");
-        }
-
-        return array_values(array_unique($folders));
+        return collect($agents)
+            ->map(fn (string $agent): string => self::AGENTS[$agent][1] ?? throw new RuntimeException("Unknown agent [{$agent}]."))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

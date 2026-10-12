@@ -17,6 +17,7 @@ use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Eyepiece;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 /**
  * Counts model events per class and records every write with its changes.
@@ -88,27 +89,25 @@ final class EloquentLens implements Advises, Finalizable, Lens, Presentable, Pro
 
     public function summarize(Capture $capture): Summary
     {
-        $counts = ['retrieved' => 0, 'created' => 0, 'updated' => 0, 'deleted' => 0];
-        $top = [];
-
-        foreach ($capture->rows('models') as $row) {
-            $action = match ($row['action']) {
+        $rows = collect($capture->rows('models'))->map(fn (array $row): array => [
+            ...$row,
+            'action' => match ($row['action']) {
                 'restored' => 'updated',
                 'forceDeleted' => 'deleted',
                 default => $row['action'],
-            };
-            $counts[$action] = ($counts[$action] ?? 0) + $row['count'];
-
-            if ($action === 'retrieved') {
-                $top[$row['model']] = ($top[$row['model']] ?? 0) + $row['count'];
-            }
-        }
-
-        arsort($top);
+            },
+        ]);
+        $counts = $rows->groupBy('action')->map(fn (Collection $group): int => $group->sum('count'))->all()
+            + ['retrieved' => 0, 'created' => 0, 'updated' => 0, 'deleted' => 0];
+        $top = $rows->whereStrict('action', 'retrieved')
+            ->groupBy('model')
+            ->map(fn (Collection $group): int => $group->sum('count'))
+            ->sortDesc()
+            ->take(3);
 
         return Summary::make()
             ->totals([
-                'models_top_retrieved' => array_slice($top, 0, 3, true),
+                'models_top_retrieved' => $top->all(),
             ])
             ->total('models_retrieved', $counts['retrieved'], 'retrieved')
             ->total('models_created', $counts['created'], 'created')

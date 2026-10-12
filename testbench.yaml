@@ -25,6 +25,8 @@ providers:
   - Lab404\Impersonate\ImpersonateServiceProvider
   - Laravel\Folio\FolioServiceProvider
   - Inertia\ServiceProvider
+  - Nuwave\Lighthouse\LighthouseServiceProvider
+  - Rebing\GraphQL\GraphQLServiceProvider
   - ExeQue\Monocle\MonocleServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
   - Workbench\App\Providers\AdminPanelProvider

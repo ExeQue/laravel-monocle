@@ -90,8 +90,7 @@ final class ResponseCacheLens implements Advises, Lens, Presentable, RequiresPac
             return Summary::make();
         }
 
-        $hits = array_filter($rows, fn (array $row): bool => $row['event'] === 'hit');
-        $hit = array_values($hits)[0] ?? null;
+        $hit = collect($rows)->first(fn (array $row): bool => $row['event'] === 'hit');
 
         return Summary::make()
             ->total('response_cache', $this->outcome($rows, $hit), 'response cache')

@@ -556,7 +556,7 @@ describe(RequestLens::class, function (): void {
         $request = app(Eyepiece::class)->finalize()->section('request');
 
         expect($request['response_bytes'])->toBeNull()
-            ->and($request['response_capture'])->toBe(['capture' => StaticCardCapture::class, 'cards' => [['title' => 'Static', 'items' => ['status' => 200]]], 'raw' => null]);
+            ->and($request['response_capture'])->toBe(['capture' => StaticCardCapture::class, 'cards' => [['title' => 'Static', 'subtitle' => null, 'items' => ['status' => 200]]], 'raw' => null]);
     });
 
     it('records the failure of a response capture and keeps the request', function () use ($booted): void {

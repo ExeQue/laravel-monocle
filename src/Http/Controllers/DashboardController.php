@@ -29,7 +29,7 @@ final class DashboardController
             }
         }
 
-        $labels = array_filter(array_map(fn (Presentation $presentation): ?string => $presentation->label, $registry->presentations()));
+        $labels = collect($registry->presentations())->map(fn (Presentation $presentation): ?string => $presentation->label)->filter()->all();
 
         return view('monocle::dashboard', [
             'tabs' => $tabs,

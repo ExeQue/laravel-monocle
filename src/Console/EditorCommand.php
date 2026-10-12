@@ -98,11 +98,9 @@ final class EditorCommand extends Command
             return $current->editor;
         }
 
-        $options = [];
-
-        foreach (Editor::cases() as $editor) {
-            $options[$editor->value] = $editor->label();
-        }
+        $options = collect(Editor::cases())
+            ->mapWithKeys(fn (Editor $editor): array => [$editor->value => $editor->label()])
+            ->all();
 
         $options[self::CUSTOM] = 'Other (URL template)';
         $choice = (string) select('Which editor do you use?', $options, $this->defaultEditorChoice($current));

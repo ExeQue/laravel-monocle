@@ -28,6 +28,7 @@ use Illuminate\Cache\Events\KeyWriteFailed;
 use Illuminate\Cache\Events\KeyWritten;
 use Illuminate\Cache\Events\RetrievingKey;
 use Illuminate\Cache\Events\WritingKey;
+use Illuminate\Support\Collection;
 use Throwable;
 
 /**
@@ -125,22 +126,10 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
     public function summarize(Capture $capture): Summary
     {
         $rows = $capture->rows('cache');
-        $counts = ['hit' => 0, 'miss' => 0, 'write' => 0, 'forget' => 0];
-        $ms = 0.0;
-        $keys = [];
-
-        foreach ($rows as $row) {
-            $type = $row['type'] ?? 'other';
-            $counts[$type] = ($counts[$type] ?? 0) + 1;
-            $ms += (float) ($row['duration'] ?? 0);
-
-            if (isset($row['key'])) {
-                $keys[$row['key']] = ($keys[$row['key']] ?? 0) + 1;
-            }
-        }
-
-        arsort($keys);
-        $hottestKeys = array_slice($keys, 0, 5, true);
+        $counts = collect($rows)->countBy(fn (array $row): mixed => $row['type'] ?? 'other')->all()
+            + ['hit' => 0, 'miss' => 0, 'write' => 0, 'forget' => 0];
+        $ms = collect($rows)->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
+        $hottestKeys = collect($rows)->whereNotNull('key')->countBy('key')->sortDesc()->take(5)->all();
 
         $reads = $counts['hit'] + $counts['miss'];
         $hitRate = round($counts['hit'] / max($reads, 1) * 100, 1);
@@ -169,24 +158,18 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
      */
     private function slowWarnings(array $rows): array
     {
-        $warnings = [];
-
-        foreach ($rows as $row) {
-            $duration = (float) ($row['duration'] ?? 0);
-
-            if ($duration < $this->slowMs) {
-                continue;
-            }
-
-            $operation = $row['type'] ?? 'call';
-            $store = $this->describeStore($row['store'] ?? null);
-            $key = $row['key'] ?? '?';
-            $where = $this->where($row['origin'] ?? null);
-
-            $warnings[] = sprintf('Slow cache %s (%.1f ms) on %s: %s%s', $operation, $duration, $store, $key, $where);
-        }
-
-        return $warnings;
+        return collect($rows)
+            ->filter(fn (array $row): bool => (float) ($row['duration'] ?? 0) >= $this->slowMs)
+            ->map(fn (array $row): string => sprintf(
+                'Slow cache %s (%.1f ms) on %s: %s%s',
+                $row['type'] ?? 'call',
+                (float) ($row['duration'] ?? 0),
+                $this->describeStore($row['store'] ?? null),
+                $row['key'] ?? '?',
+                $this->where($row['origin'] ?? null),
+            ))
+            ->values()
+            ->all();
     }
 
     /**
@@ -230,52 +213,29 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
      */
     private function repeatWarnings(array $rows): array
     {
-        /** @var array<string, array{key: string, count: int, ms: float, origin: mixed}> $reads store|key => reads of it, with the origin of the first */
-        $reads = [];
-
-        foreach ($rows as $row) {
-            if (! in_array($row['type'] ?? null, ['hit', 'miss'], true)) {
-                continue;
-            }
-
-            if (! isset($row['key'])) {
-                continue;
-            }
-
-            $id = ($row['store'] ?? '').'|'.$row['key'];
-            $reads[$id] ??= ['key' => $row['key'], 'count' => 0, 'ms' => 0.0, 'origin' => $row['origin'] ?? null];
-            $reads[$id]['count']++;
-            $reads[$id]['ms'] += (float) ($row['duration'] ?? 0);
-        }
-
-        $warnings = [];
-
-        foreach ($reads as $read) {
-            if ($read['count'] < $this->repeatThreshold) {
-                continue;
-            }
-
-            if ($read['ms'] < $this->repeatMs) {
-                continue;
-            }
-
-            // Repeated reads inside vendor code are not the app's to fix.
-            if (Origin::fromLibrary(is_array($read['origin']) ? $read['origin'] : null)) {
-                continue;
-            }
-
-            $where = $this->where($read['origin']);
-
-            $warnings[] = sprintf(
+        return collect($rows)
+            ->filter(fn (array $row): bool => in_array($row['type'] ?? null, ['hit', 'miss'], true) && isset($row['key']))
+            ->groupBy(fn (array $row): string => ($row['store'] ?? '').'|'.$row['key'])
+            // The reads of each store|key, with the origin of the first.
+            ->map(fn (Collection $reads): array => [
+                'key' => $reads->first()['key'],
+                'count' => $reads->count(),
+                'ms' => $reads->sum(fn (array $row): float => (float) ($row['duration'] ?? 0)),
+                'origin' => $reads->first()['origin'] ?? null,
+            ])
+            ->filter(fn (array $read): bool => $read['count'] >= $this->repeatThreshold
+                && $read['ms'] >= $this->repeatMs
+                // Repeated reads inside vendor code are not the app's to fix.
+                && ! Origin::fromLibrary(is_array($read['origin']) ? $read['origin'] : null))
+            ->map(fn (array $read): string => sprintf(
                 'Cache key %s read %d times (%.1f ms)%s; remember it for the request with Cache::memo() or once().',
                 $read['key'],
                 $read['count'],
                 $read['ms'],
-                $where,
-            );
-        }
-
-        return $warnings;
+                $this->where($read['origin']),
+            ))
+            ->values()
+            ->all();
     }
 
     /**

@@ -89,18 +89,13 @@ final class AuthLens implements Advises, Lens, Presentable, Summarizable
         }
 
         $counts = array_count_values(array_column($rows, 'event'));
-        $user = null;
 
         // The last user the request was authenticated or logged in as.
-        foreach ($rows as $row) {
-            if (! in_array($row['event'], ['authenticated', 'login'], true)) {
-                continue;
-            }
-
-            if ($row['user'] !== null) {
-                $user = $row['user'];
-            }
-        }
+        $user = collect($rows)
+            ->whereInStrict('event', ['authenticated', 'login'])
+            ->whereNotNull('user')
+            ->pluck('user')
+            ->last();
 
         return Summary::make()
             ->when($user !== null)

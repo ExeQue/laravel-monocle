@@ -96,4 +96,13 @@ async function openPalette(page, search = '') {
     }
 }
 
-module.exports = { expandRow, clickText, scrollToTabs, openPalette };
+// Scrolls the capture's pane so the heading with this text (such as "Payload" on the Request tab) is at its top.
+async function scrollToHeading(page, text) {
+    const find = (needle) => [...document.querySelectorAll('main h3')].find((heading) => heading.offsetParent !== null && heading.textContent.trim().toLowerCase() === needle.toLowerCase());
+
+    await page.waitForFunction(find, { timeout: 8000 }, text).catch(() => console.warn(`no heading "${text}"`));
+    await settle(page);
+    await page.evaluate(`(${scrollPaneTo})((${find})(${JSON.stringify(text)}))`);
+}
+
+module.exports = { expandRow, clickText, scrollToTabs, openPalette, scrollToHeading };

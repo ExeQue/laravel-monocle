@@ -51,8 +51,10 @@ These record something only when the package is installed; otherwise they do not
 | [franbarbalopez/mirror](https://github.com/franbarbalopez/mirror) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
 | [Inertia](https://inertiajs.com) | [Inertia](lenses/inertia.md) | `inertia`, `inertia_pages` | the page, every prop with its type and size, deferred props and partial reloads |
 | [lab404/laravel-impersonate](https://github.com/404labfr/laravel-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
+| [Lighthouse](https://lighthouse-php.com) | [GraphQL](lenses/graphql.md) | `graphql` | operations with their query, variables, errors and time |
 | [Livewire](https://livewire.laravel.com) | [Livewire](lenses/livewire.md) | `livewire` | components, method calls, property changes and render time |
 | [Prism](https://prismphp.com) | [Prism](lenses/prism.md) | `prism`, `prism_tools` | text, structured, stream, embeddings, image and audio calls with tokens, and tool calls with their time |
+| [rebing/graphql-laravel](https://github.com/rebing/graphql-laravel) | [GraphQL](lenses/graphql.md) | `graphql` | operations with their schema, query, variables, errors and time |
 | [stechstudio/filament-impersonate](https://github.com/stechstudio/filament-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](lenses/ai.md) | `ai`, `ai_tools` | agents, steps, tool calls with their time, and tokens |

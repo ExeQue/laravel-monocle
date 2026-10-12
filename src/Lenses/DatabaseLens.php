@@ -23,6 +23,7 @@ use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Database\Events\TransactionRolledBack;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -121,15 +122,7 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
         $rows = $capture->sections['queries'] ?? [];
 
         /** @var array<int, int> $repeats first row number => how many later rows repeated it */
-        $repeats = [];
-
-        foreach ($rows as $row) {
-            $original = $row['duplicate_of'] ?? null;
-
-            if ($original) {
-                $repeats[$original] = ($repeats[$original] ?? 0) + 1;
-            }
-        }
+        $repeats = collect($rows)->pluck('duplicate_of')->filter()->countBy()->all();
 
         foreach ($rows as $index => $row) {
             $number = $row['n'] ?? 0;
@@ -148,18 +141,12 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     {
         $rows = $capture->sections['queries'] ?? [];
 
+        // Repeats with the same bindings are duplicates, not an N+1; count each distinct query once.
         /** @var array<string, int> $counts shape => distinct selects with that shape */
-        $counts = [];
-
-        foreach ($rows as $row) {
-            // Repeats with the same bindings are duplicates, not an N+1; count each distinct query once.
-            if (! $this->isDistinctSelect($row)) {
-                continue;
-            }
-
-            $shape = (string) ($row['shape'] ?? '');
-            $counts[$shape] = ($counts[$shape] ?? 0) + 1;
-        }
+        $counts = collect($rows)
+            ->filter($this->isDistinctSelect(...))
+            ->countBy(fn (array $row): string => (string) ($row['shape'] ?? ''))
+            ->all();
 
         foreach ($rows as $index => $row) {
             if (($row['type'] ?? null) !== 'select') {
@@ -198,79 +185,49 @@ final class DatabaseLens implements Advises, Configurable, Finalizable, Lens, Pr
     public function summarize(Capture $capture): Summary
     {
         // Transaction statements are listed with the queries but are not queries themselves.
-        $rows = array_values(array_filter(
-            $capture->rows('queries'),
-            fn (array $row): bool => ($row['type'] ?? null) !== 'transaction',
-        ));
+        $rows = collect($capture->rows('queries'))->reject(fn (array $row): bool => ($row['type'] ?? null) === 'transaction');
+        $total = $rows->sum(fn (array $row): float => (float) ($row['duration'] ?? 0));
+        $byType = $rows->countBy(fn (array $row): mixed => $row['type'] ?? 'other')->all();
 
-        $total = 0.0;
-        $slow = [];
-        $duplicates = 0;
-        $byType = [];
-        $shapes = [];
+        // Slow or duplicate queries from vendor code are not something the app can fix: keep them out of the warnings.
+        $fromApp = $rows->reject(fn (array $row): bool => Origin::fromLibrary(is_array($row['origin'] ?? null) ? $row['origin'] : null));
+        $slow = $fromApp->filter(fn (array $row): bool => (bool) ($row['slow'] ?? false));
+        $duplicates = $fromApp->filter(fn (array $row): bool => ($row['duplicate_of'] ?? null) !== null)->count();
 
-        foreach ($rows as $row) {
-            $duration = (float) ($row['duration'] ?? 0);
-            $total += $duration;
+        $slowest = $slow
+            ->sortByDesc(fn (array $row): mixed => $row['duration'] ?? 0)
+            ->take(3)
+            ->map(fn (array $row): string => sprintf('Slow query (%.1f ms): %s', $row['duration'], $this->truncate($row['sql'] ?? '')));
 
-            $type = $row['type'] ?? 'other';
-            $byType[$type] = ($byType[$type] ?? 0) + 1;
+        // Each shape run often enough as a distinct select, with the origin of its first run.
+        $nPlusOne = $rows
+            ->filter($this->isDistinctSelect(...))
+            ->groupBy(fn (array $row): string => (string) ($row['shape'] ?? ''))
+            ->filter(fn (Collection $selects): bool => $selects->count() >= $this->nPlusOneThreshold)
+            ->map(function (Collection $selects, string $shape): string {
+                $origin = $selects->first()['origin'] ?? null;
+                $where = Origin::describe(is_array($origin) ? $origin : null) ?? 'unknown origin';
 
-            $origin = is_array($row['origin'] ?? null) ? $row['origin'] : null;
-
-            // Slow or duplicate queries from vendor code are not something the app can fix: keep them out of the warnings.
-            $fromLibrary = Origin::fromLibrary($origin);
-            $isSlow = (bool) ($row['slow'] ?? false);
-            $isDuplicate = ($row['duplicate_of'] ?? null) !== null;
-
-            if ($isSlow && ! $fromLibrary) {
-                $slow[] = $row;
-            }
-
-            if ($isDuplicate && ! $fromLibrary) {
-                $duplicates++;
-            }
-
-            if ($this->isDistinctSelect($row)) {
-                $shape = (string) ($row['shape'] ?? '');
-                $shapes[$shape] ??= ['count' => 0, 'origin' => $row['origin'] ?? null];
-                $shapes[$shape]['count']++;
-            }
-        }
-
-        $warnings = [];
-
-        usort($slow, fn (array $a, array $b): int => ($b['duration'] ?? 0) <=> ($a['duration'] ?? 0));
-
-        foreach (array_slice($slow, 0, 3) as $row) {
-            $warnings[] = sprintf('Slow query (%.1f ms): %s', $row['duration'], $this->truncate($row['sql'] ?? ''));
-        }
-
-        if ($duplicates > 0) {
-            $warnings[] = "{$duplicates} duplicate queries (same SQL and bindings). Use monocle-queries group_by=shape to inspect.";
-        }
-
-        foreach ($shapes as $shape => $info) {
-            if ($info['count'] >= $this->nPlusOneThreshold) {
-                $origin = Origin::describe(is_array($info['origin']) ? $info['origin'] : null) ?? 'unknown origin';
-                $warnings[] = sprintf('Possible N+1: %d x %s (%s)', $info['count'], $this->truncate($shape), $origin);
-            }
-        }
+                return sprintf('Possible N+1: %d x %s (%s)', $selects->count(), $this->truncate($shape), $where);
+            });
 
         return Summary::make()
             ->total('query_ms', round($total, 3), 'spent', Unit::Milliseconds)
             ->totals([
                 'queries_by_type' => $byType,
             ])
-            ->total('queries', count($rows), 'queries')
+            ->total('queries', $rows->count(), 'queries')
             ->total('selects', $byType['select'] ?? 0, 'selects')
             ->total('inserts', $byType['insert'] ?? 0, 'inserts')
             ->total('updates', $byType['update'] ?? 0, 'updates')
             ->total('deletes', $byType['delete'] ?? 0, 'deletes')
             ->total('transactions', count($capture->spansOfKind('db.transaction')), 'transactions')
-            ->total('slow_queries', count($slow), 'slow')
+            ->total('slow_queries', $slow->count(), 'slow')
             ->total('duplicate_queries', $duplicates, 'duplicates')
-            ->warnings($warnings);
+            ->warnings($slowest)
+            ->when($duplicates > 0)
+            ->warning("{$duplicates} duplicate queries (same SQL and bindings). Use monocle-queries group_by=shape to inspect.")
+            ->warnings($nPlusOne);
     }
 
     private function onQuery(QueryExecuted $event): void

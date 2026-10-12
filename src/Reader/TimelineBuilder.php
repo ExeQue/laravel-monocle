@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Data\Capture;
 use ExeQue\Monocle\Data\Span;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -29,23 +30,10 @@ final class TimelineBuilder
         }
 
         // Spans whose parent was filtered out (or never recorded) become roots.
-        $children = [];
-
-        foreach ($spans as $span) {
-            $parent = $span->parentId;
-
-            if ($parent === null || ! isset($spans[$parent])) {
-                $parent = '';
-            }
-
-            $children[$parent][] = $span;
-        }
-
-        foreach ($children as &$group) {
-            usort($group, fn (Span $a, Span $b): int => ($a->start ?? 0) <=> ($b->start ?? 0));
-        }
-
-        unset($group);
+        $children = collect($spans)
+            ->groupBy(fn (Span $span): string => $span->parentId !== null && isset($spans[$span->parentId]) ? $span->parentId : '')
+            ->map(fn (Collection $group): array => $group->sortBy(fn (Span $span): float|int => $span->start ?? 0)->values()->all())
+            ->all();
 
         $rows = [];
         $this->walk($children, '', 0, $rows, $verbose);

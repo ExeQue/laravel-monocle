@@ -4,6 +4,7 @@
     class="grid gap-6"
     x-data="{
         responseView: 'pretty',
+        payloadView: 'table',
         get request() {
             return tab === 'request' ? (tabData?.data ?? null) : null
         },
@@ -39,7 +40,39 @@
             </x-monocle::section>
 
             <x-monocle::section title="Payload" show="dot(request.input).length || request.files?.length">
-                <x-monocle::kv-table rows="dot(request.input)" x-show="dot(request.input).length" />
+                <div class="mb-3 flex gap-1.5" x-show="dot(request.input).length">
+                    <template
+                        x-for="
+                            v in
+                            [
+                                ['table', 'Table'],
+                                ['raw', 'Raw'],
+                            ]
+                        "
+                        :key="v[0]"
+                    >
+                        <button
+                            type="button"
+                            :class="cls.chip"
+                            @click="payloadView = v[0]"
+                            :aria-pressed="payloadView === v[0]"
+                            x-text="v[1]"
+                        ></button>
+                    </template>
+                    <span class="ml-auto">
+                        <x-monocle::copy bind="JSON.stringify(request.input, null, 2)" what="payload" />
+                    </span>
+                </div>
+                <x-monocle::kv-table
+                    rows="dot(request.input)"
+                    value="formattedValue(request.input_formats?.[k], v)"
+                    x-show="payloadView === 'table' && dot(request.input).length"
+                />
+                <pre
+                    class="scroll-quiet border-line bg-panel m-0 max-h-[480px] overflow-auto rounded-md border p-3 font-mono text-xs [overflow-wrap:anywhere] whitespace-pre-wrap"
+                    x-show="payloadView === 'raw' && dot(request.input).length"
+                    x-text="JSON.stringify(request.input, null, 2)"
+                ></pre>
                 <div class="mt-3" :class="cls.tableWrap" x-show="request.files?.length">
                     <table class="w-full border-collapse text-[13px]">
                         <thead>

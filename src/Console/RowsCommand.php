@@ -86,11 +86,9 @@ final class RowsCommand extends Command
      */
     private function filterLine(array $where, array $data): void
     {
-        $parts = [];
-
-        foreach ($where as $clause) {
-            $parts[] = trim("{$clause['field']} {$clause['op']} {$clause['value']}");
-        }
+        $parts = collect($where)
+            ->map(fn (array $clause): string => trim("{$clause['field']} {$clause['op']} {$clause['value']}"))
+            ->all();
 
         $search = $this->option('search');
 
