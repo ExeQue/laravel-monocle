@@ -61,6 +61,11 @@ final class WorkbenchServiceProvider extends ServiceProvider
             'monocle.mask.headers' => [...(array) config('monocle.mask.headers', []), HttpClientLens::class => ['x-api-key' => FullMask::class]],
             'monocle.mask.inputs' => [...(array) config('monocle.mask.inputs', []), HttpClientLens::class => '/signature/i'],
             'monocle.except.commands' => [...(array) config('monocle.except.commands', []), 'workbench:*', 'package:purge-skeleton', 'migrate*', 'db:seed'],
+            // Event sourcing: the demo's handlers, failures caught so the request finishes.
+            'event-sourcing.auto_discover_projectors_and_reactors' => [],
+            'event-sourcing.projectors' => [\Workbench\App\EventSourcing\BalanceProjector::class],
+            'event-sourcing.reactors' => [\Workbench\App\EventSourcing\WelcomeReactor::class],
+            'event-sourcing.catch_exceptions' => true,
             // Lighthouse serves /graphql, rebing /rebing, side by side.
             'lighthouse.schema_path' => dirname(__DIR__, 2).'/graphql/schema.graphql',
             'lighthouse.schema_cache.enable' => false,

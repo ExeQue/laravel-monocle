@@ -14,6 +14,7 @@ use Workbench\App\Http\Controllers\Demos\Database\{DuplicateQueryController, NPl
 use Workbench\App\Http\Controllers\Demos\Dumps\{DieAndDumpController, DumpController};
 use Workbench\App\Http\Controllers\Demos\Eloquent\ModelChangesController;
 use Workbench\App\Http\Controllers\Demos\Events\CustomEventController;
+use Workbench\App\Http\Controllers\Demos\EventSourcing\AccountController as EventSourcingAccountController;
 use Workbench\App\Http\Controllers\Demos\Exceptions\{ReportedExceptionController, ServerErrorResponseController, ThrownExceptionController};
 use Workbench\App\Http\Controllers\Demos\Filesystem\{FailedReadController, PutGetDeleteController};
 use Workbench\App\Http\Controllers\Demos\GraphQL\OperationController as GraphQLOperationController;
@@ -143,6 +144,9 @@ Route::prefix('demo')->name('demo.')->group(function (): void {
     // Prism
     Route::get('prism', TextCallController::class)->name('prism');
 
+    // Event sourcing
+    Route::get('event-sourcing', EventSourcingAccountController::class)->name('event-sourcing');
+
     // GraphQL
     Route::get('graphql/{demo}', GraphQLOperationController::class)->name('graphql');
 
@@ -154,6 +158,7 @@ Route::prefix('demo')->name('demo.')->group(function (): void {
 
     // One route per warning or error Monocle can raise; the demo index lists them by lens.
     Route::prefix('alarms')->name('alarms.')->group(function (): void {
+        Route::get('event-sourcing-failed', fn () => app(EventSourcingAccountController::class)('bounce'))->name('event-sourcing-failed');
         // Cache
         Route::get('slow-cache', SlowCacheStoreController::class)->name('slow-cache');
 

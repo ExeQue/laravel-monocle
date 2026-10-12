@@ -41,6 +41,12 @@ module.exports = {
             });
         },
     },
+    // An account opened and paid into through an aggregate root, then rebuilt from its events.
+    eventSourcing: {
+        key: 'event-sourcing',
+        query: 'uri=event-sourcing',
+        seed: (page, { base }) => page.goto(`${base}/demo/event-sourcing`, { waitUntil: 'networkidle0' }),
+    },
     // A list with a bit of everything, for the command palette and the list search: the showcase
     // (whose jobs then run), a dump, a Livewire page and a page that does not exist.
     mixed: {

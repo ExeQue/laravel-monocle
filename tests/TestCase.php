@@ -64,6 +64,7 @@ abstract class TestCase extends BaseTestCase
             \Inertia\ServiceProvider::class,
             \Nuwave\Lighthouse\LighthouseServiceProvider::class,
             \Rebing\GraphQL\GraphQLServiceProvider::class,
+            \Spatie\EventSourcing\EventSourcingServiceProvider::class,
             MonocleServiceProvider::class,
         ];
     }
@@ -83,6 +84,10 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('lighthouse.namespaces.queries', 'Tests\\Fixtures\\GraphQL\\Queries');
         $app['config']->set('lighthouse.namespaces.mutations', ['App\\GraphQL\\Mutations', 'Tests\\Fixtures\\GraphQL']);
         $app['config']->set('graphql.route.prefix', 'rebing');
+        $app['config']->set('event-sourcing.auto_discover_projectors_and_reactors', []);
+        $app['config']->set('event-sourcing.projectors', [\Tests\Fixtures\EventSourcing\BalanceProjector::class, \Tests\Fixtures\EventSourcing\QueuedProjector::class]);
+        $app['config']->set('event-sourcing.reactors', [\Tests\Fixtures\EventSourcing\WelcomeReactor::class]);
+        $app['config']->set('event-sourcing.catch_exceptions', true);
         $app['config']->set('graphql.schemas', [
             'default' => ['query' => [\Tests\Fixtures\GraphQL\HelloQuery::class, \Tests\Fixtures\GraphQL\BoomQuery::class]],
             'own' => [

@@ -35,6 +35,7 @@ use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireLens;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Packages\Mirror\MirrorLens;
 use ExeQue\Monocle\Lenses\Packages\Prism\PrismLens;
+use ExeQue\Monocle\Lenses\Packages\Spatie\EventSourcing\EventSourcingLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\MediaLibraryLens;
 use ExeQue\Monocle\Lenses\Packages\Spatie\ResponseCacheLens;
 use ExeQue\Monocle\Lenses\Packages\STS\FilamentImpersonateLens;
@@ -201,6 +202,11 @@ return [
 
         // spatie/laravel-medialibrary
         MediaLibraryLens::class => true,
+
+        // spatie/laravel-event-sourcing
+        EventSourcingLens::class => [
+            'snapshot_threshold' => 100,            // warn when an aggregate is rebuilt from at least this many events without a snapshot
+        ],
 
         /** @see https://exeque.github.io/laravel-monocle/docs/lenses/graphql-hooks */
         GraphQLLens::class => [
@@ -468,6 +474,7 @@ return [
             PrismLens::class,
             FilesystemLens::class,
             MediaLibraryLens::class,
+            EventSourcingLens::class,
             QueueLens::class,
             FilamentLens::class,
             LivewireLens::class,

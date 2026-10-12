@@ -66,5 +66,6 @@ These record something only when the package is installed; otherwise they do not
 | [Laravel Pennant](https://laravel.com/docs/pennant) | [Feature flags](lenses/feature-flags.md) | `features` | every feature check and its value |
 | [Laravel Sanctum](https://laravel.com/docs/sanctum) | [Sanctum](lenses/auth.md#sanctum) | `auth` | the token a request used |
 | **Spatie** | | | |
+| [laravel-event-sourcing](https://github.com/spatie/laravel-event-sourcing) | [Event sourcing](lenses/event-sourcing.md) | `event_sourcing`, `aggregates` | events stored, the projectors and reactors that handled them, and aggregate roots retrieved and persisted |
 | [laravel-medialibrary](https://github.com/spatie/laravel-medialibrary) | [Media library](lenses/media-library.md) | `media` | media added and conversions run |
 | [laravel-responsecache](https://github.com/spatie/laravel-responsecache) | [Response cache](lenses/response-cache.md) | `response_cache` | cache hits and misses for whole responses |

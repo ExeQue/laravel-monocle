@@ -110,6 +110,7 @@ export default defineConfig({
               { text: 'nuwave/lighthouse', link: '/docs/lenses/graphql' },
               { text: 'prism-php/prism', link: '/docs/lenses/prism' },
               { text: 'rebing/graphql-laravel', link: '/docs/lenses/graphql' },
+              { text: 'spatie/laravel-event-sourcing', link: '/docs/lenses/event-sourcing' },
               { text: 'spatie/laravel-medialibrary', link: '/docs/lenses/media-library' },
               { text: 'spatie/laravel-responsecache', link: '/docs/lenses/response-cache' },
               { text: 'stechstudio/filament-impersonate', link: '/docs/lenses/auth#impersonation' },

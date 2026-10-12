@@ -27,6 +27,7 @@ providers:
   - Inertia\ServiceProvider
   - Nuwave\Lighthouse\LighthouseServiceProvider
   - Rebing\GraphQL\GraphQLServiceProvider
+  - Spatie\EventSourcing\EventSourcingServiceProvider
   - ExeQue\Monocle\MonocleServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
   - Workbench\App\Providers\AdminPanelProvider

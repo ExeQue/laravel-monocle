@@ -176,6 +176,10 @@ final class Catalog
                 self::demo('GET', '/demo/alarms/prism-failed', 'Failed Prism call', 'A text call to a model that is always overloaded.', 'prism', [['Prism call failed', 'bad']]),
                 self::demo('GET', '/demo/alarms/prism-tool-failed', 'Failed Prism tool', 'A Prism tool that throws when the provider runs it.', 'prism', [['Prism tool failed', 'bad']]),
             ]),
+            self::lens('event_sourcing', 'Event sourcing', 'Packages', 'spatie/laravel-event-sourcing', [
+                self::demo('GET', '/demo/event-sourcing', 'Aggregate root', 'Opens an account and deposits twice; a projector and a reactor handle the events, then the account is rebuilt from them.', 'event_sourcing'),
+                self::demo('GET', '/demo/alarms/event-sourcing-failed', 'Failed reactor', 'A reactor whose welcome mail bounces.', 'event_sourcing', [['Reactor failed handling', 'bad']]),
+            ]),
             self::lens('graphql', 'GraphQL', 'Packages', 'Lighthouse and rebing operations', [
                 self::demo('GET', '/demo/graphql/lighthouse', 'Lighthouse operation', 'A named query with a variable.', 'graphql', look: [['GraphQL', 'Send the request, then open its capture.']]),
                 self::demo('GET', '/demo/graphql/lighthouse-login', 'Masked variables', 'A mutation whose password variable is masked.', 'graphql'),
