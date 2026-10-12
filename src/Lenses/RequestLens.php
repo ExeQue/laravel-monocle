@@ -278,6 +278,18 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $request = $event->request;
         $response = $event->response;
 
+        // Global middleware (HandleCors answering a preflight) can respond before routing.
+        if (! isset($capture->section('request')['method'])) {
+            if ($this->isExcepted($request)) {
+                $this->eyepiece->discard();
+
+                return;
+            }
+
+            $this->joinTrace($capture, $request);
+            $this->recordRequest($request);
+        }
+
         $this->eyepiece->describe(status: (string) $response->getStatusCode());
 
         $this->eyepiece->set('request', [

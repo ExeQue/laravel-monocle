@@ -602,6 +602,25 @@ describe(RequestLens::class, function (): void {
             ->and($response->headers->get('Server-Timing'))->toContain('db;dur=');
     });
 
+    it('records the request when global middleware answered before routing', function (string $path, bool $kept): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        event(new RequestHandled(Request::create($path, 'OPTIONS'), new Response('', 204)));
+
+        $capture = app(Eyepiece::class)->finalize();
+
+        expect($capture !== null)->toBe($kept);
+
+        if ($kept) {
+            expect($capture->name)->toBe('OPTIONS /api/albums')
+                ->and($capture->status)->toBe('204')
+                ->and($capture->section('request')['url'])->toEndWith('/api/albums');
+        }
+    })->with([
+        'preflight' => ['/api/albums', true],
+        'excepted path' => ['/_monocle/api', false],
+    ]);
+
     it('derives no controller span when no route matched or a route middleware short-circuited', function (): void {
         Route::get('/aborted', fn () => 'never')->middleware(Abort::class);
 
