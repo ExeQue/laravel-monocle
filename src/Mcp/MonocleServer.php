@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Mcp;
 
 use ExeQue\Monocle\LensRegistry;
+use ExeQue\Monocle\Mcp\Prompts\CompareCaptures as ComparePrompt;
+use ExeQue\Monocle\Mcp\Prompts\InvestigateCapture;
 use ExeQue\Monocle\Mcp\Tools\ClearCaptures;
 use ExeQue\Monocle\Mcp\Tools\CompareCaptures;
 use ExeQue\Monocle\Mcp\Tools\ListCaptures;
@@ -50,6 +52,11 @@ MARKDOWN;
         CompareCaptures::class,
         ClearCaptures::class,
         ListLenses::class,
+    ];
+
+    protected array $prompts = [
+        InvestigateCapture::class,
+        ComparePrompt::class,
     ];
 
     /**

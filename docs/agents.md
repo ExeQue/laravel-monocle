@@ -117,6 +117,15 @@ Deletes all captures, so the next `monocle-list` only shows what happens after.
 
 Lists the lenses enabled in the application: each section key you can pass to `monocle-show` and `monocle-rows`, with when to look at it and the fields it records. Pass `sections`, e.g. `["queries"]`, to describe only those. The server instructions carry only the when; this is where the fields are.
 
+## Prompts
+
+The server also offers prompts: ready-made requests you pick in your agent, filled in with Monocle's data. Claude Code shows them as slash commands, e.g. `/mcp__monocle__investigate`; other clients list them in their prompt menu. The agent cannot start them itself.
+
+| Prompt | Arguments | Asks the agent to |
+|---|---|---|
+| `investigate` | `id` (default: the latest capture) | look into the capture, with what Monocle flagged: explain what is slow or wrong, point at the file:line, fix it, reproduce and compare. The same text as the dashboard's copy prompt button, without the totals the agent reads from `monocle-show` |
+| `compare` | `before` (id or label), `after` (default: the latest capture) | run `monocle-compare`, say whether the change helped and look into anything that got worse |
+
 ## Skill
 
 Monocle ships a skill that teaches your agent the workflow above and lists the sections your application records. With [Laravel Boost](https://laravel.com/docs/boost), `boost:install` and `boost:update` add it for every agent Boost is set up for. Without Boost, `monocle:install` offers to write it for the agents your project uses.
