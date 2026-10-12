@@ -45,6 +45,11 @@ describe(ConfigPublisher::class, function (): void {
             ->and($config['storage']['limit'])->toBe(50);
     });
 
+    it('writes whether the dashboard shows the host', function (): void {
+        expect(loadRenderedConfig($this->publisher->render(['show_host' => true]))['dashboard']['show_host'])->toBeTrue()
+            ->and(loadRenderedConfig($this->publisher->render(['show_host' => false]))['dashboard']['show_host'])->toBeFalse();
+    });
+
     it('publishes, reports updates and leaves identical files alone', function (): void {
         expect($this->publisher->publish($this->target, ['limit' => 10]))->toBe('created')
             ->and($this->publisher->publish($this->target, ['limit' => 10]))->toBe('unchanged')

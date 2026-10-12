@@ -73,20 +73,22 @@ describe(InstallCommand::class, function (): void {
     });
 
     it('publishes the config from flags when asked', function (): void {
-        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--publish' => true, '--driver' => 'cache', '--limit' => '42', '--no-interaction' => true])
+        $this->artisan('monocle:install', ['--platform' => 'php', '--file' => [$this->dir.'/.mcp.json'], '--publish' => true, '--driver' => 'cache', '--limit' => '42', '--show-host' => true, '--no-interaction' => true])
             ->expectsOutputToContain('config/monocle.php')
             ->assertSuccessful();
 
         $config = include config_path('monocle.php');
 
         expect($config['storage']['limit'])->toBe(42)
-            ->and($config['storage']['driver'])->toBe('cache');
+            ->and($config['storage']['driver'])->toBe('cache')
+            ->and($config['dashboard']['show_host'])->toBeTrue();
     });
 
     it('asks for every choice interactively and publishes the result', function (): void {
         $this->artisan('monocle:install')
             ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
             ->expectsQuestion('How many captures should be kept?', '75')
+            ->expectsConfirmation('Show the host of each request in the dashboard list?', 'yes')
             ->expectsChoice('How does your MCP client start PHP?', 'herd', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
             ->expectsChoice('Register the MCP server in', ['.mcp.json'], ['.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'yes')
@@ -104,6 +106,7 @@ describe(InstallCommand::class, function (): void {
             ->and(file_get_contents(base_path('.agents/skills/laravel-monocle/SKILL.md')))->toBe($skill)
             ->and(file_exists(base_path('.cursor/skills/laravel-monocle/SKILL.md')))->toBeFalse()
             ->and($config['storage']['limit'])->toBe(75)
+            ->and($config['dashboard']['show_host'])->toBeTrue()
             ->and($config['lenses'][\ExeQue\Monocle\Lenses\RequestLens::class])->toBe(['capture' => ['response_types' => ['application/json' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'application/*+json' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class, 'text/html' => \ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'headers' => ['X-Inertia' => \ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture::class], 'routes' => ['*livewire.update' => \ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture::class, 'graphql' => \ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture::class, 'graphql.*' => \ExeQue\Monocle\Lenses\Packages\GraphQL\GraphQLCapture::class]]])
             ->and($config['lenses'][\ExeQue\Monocle\Lenses\CacheLens::class])->not->toBeFalse()
             ->and(json_decode((string) file_get_contents($this->dir.'/.mcp.json'), true)['mcpServers']['monocle']['command'])->toBe('herd');
@@ -142,6 +145,7 @@ describe(InstallCommand::class, function (): void {
         $this->artisan('monocle:install')
             ->expectsChoice('Where should captures be stored?', 'file', ['file' => 'Files in storage/monocle (shared by web, workers and the MCP server)', 'cache' => 'The application cache store'])
             ->expectsQuestion('How many captures should be kept?', '200')
+            ->expectsConfirmation('Show the host of each request in the dashboard list?', 'no')
             ->expectsChoice('How does your MCP client start PHP?', 'php', ['sail' => 'Laravel Sail (vendor/bin/sail artisan ...)', 'lerd' => 'Lerd (lerd artisan ...)', 'herd' => 'Laravel Herd (herd php artisan ...)', 'php' => 'Plain PHP (absolute php binary)'])
             ->expectsChoice('Register the MCP server in', ['boost'], ['boost' => 'Laravel Boost agents (claude_code)', '.mcp.json' => 'Claude Code / Codex (.mcp.json)', '.cursor/mcp.json' => 'Cursor (.cursor/mcp.json)', '.vscode/mcp.json' => 'VS Code / Copilot (.vscode/mcp.json)'])
             ->expectsConfirmation('Publish config/monocle.php with these choices?', 'no')

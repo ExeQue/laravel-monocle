@@ -122,7 +122,7 @@ final class InstallCommand extends Command
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, skill: list<string>}
+     * @return array{driver: string, limit: int, show_host: bool, platform: string, files: list<string>, publish: bool, skill: list<string>}
      */
     private function askChoices(BoostAgents $boost, SkillInstaller $skillInstaller): array
     {
@@ -142,6 +142,7 @@ final class InstallCommand extends Command
             ->intro('Monocle setup')
             ->select('Where should captures be stored?', $drivers, 'file', name: 'driver')
             ->text('How many captures should be kept?', default: '200', validate: $this->validateLimit(...), name: 'limit')
+            ->confirm('Show the host of each request in the dashboard list?', false, hint: 'Useful when the application answers on more than one domain.', name: 'show_host')
             ->select('How does your MCP client start PHP?', $platforms, $this->option('platform') ?: $detected->value, name: 'platform')
             ->multiselect('Register the MCP server in', $targets, $this->option('file') ?: $this->defaultTargets($boost), required: true, name: 'files')
             ->confirm('Publish config/monocle.php with these choices?', true, name: 'publish')
@@ -158,6 +159,7 @@ final class InstallCommand extends Command
         return [
             'driver' => (string) $answers['driver'],
             'limit' => (int) $answers['limit'],
+            'show_host' => (bool) $answers['show_host'],
             'platform' => (string) $answers['platform'],
             'files' => array_values($answers['files']),
             'publish' => (bool) $answers['publish'],
@@ -179,13 +181,14 @@ final class InstallCommand extends Command
     }
 
     /**
-     * @return array{driver: string, limit: int, platform: string, files: list<string>, publish: bool, skill: list<string>}
+     * @return array{driver: string, limit: int, show_host: bool, platform: string, files: list<string>, publish: bool, skill: list<string>}
      */
     private function choicesFromOptions(BoostAgents $boost): array
     {
         return [
             'driver' => (string) ($this->option('driver') ?: 'file'),
             'limit' => (int) ($this->option('limit') ?: 200),
+            'show_host' => (bool) $this->option('show-host'),
             'platform' => (string) ($this->option('platform') ?: Platform::detect($this->laravel->basePath())->value),
             'files' => array_values((array) $this->option('file')) ?: $this->defaultTargets($boost),
             'publish' => (bool) $this->option('publish'),
@@ -278,6 +281,7 @@ final class InstallCommand extends Command
             new InputOption('skill', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Install the Monocle skill for an agent (repeatable): '.implode('|', array_keys(SkillInstaller::AGENTS))),
             new InputOption('driver', null, InputOption::VALUE_REQUIRED, 'Storage driver for captures: file|cache'),
             new InputOption('limit', null, InputOption::VALUE_REQUIRED, 'How many captures to keep'),
+            new InputOption('show-host', null, InputOption::VALUE_NONE, 'Show the host of each request in the dashboard list'),
             new InputOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be written without touching files'),
         ];
     }

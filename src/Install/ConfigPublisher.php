@@ -10,7 +10,7 @@ use RuntimeException;
  * Publishes config/monocle.php with the choices made during install, by
  * editing the shipped config text so every comment survives.
  *
- * @phpstan-type Choices array{driver?: string, limit?: int}
+ * @phpstan-type Choices array{driver?: string, limit?: int, show_host?: bool}
  *
  * @internal
  */
@@ -69,6 +69,11 @@ final class ConfigPublisher
         if (array_key_exists('limit', $choices)) {
             $limit = "'limit' => ".(int) $choices['limit'].',';
             $source = $this->replaceOnce($source, "/'limit' => \d+,/", $limit);
+        }
+
+        if (array_key_exists('show_host', $choices)) {
+            $showHost = "env('MONOCLE_DASHBOARD_SHOW_HOST', ".($choices['show_host'] ? 'true' : 'false').')';
+            $source = $this->replaceOnce($source, "/env\('MONOCLE_DASHBOARD_SHOW_HOST', (true|false)\)/", $showHost);
         }
 
         return $source;
