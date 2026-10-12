@@ -24,6 +24,7 @@ final class RecordingPendingProcess extends PendingProcess
 
     public function run(array|string|null $command = null, ?callable $output = null)
     {
+        $this->withTrace();
         $commandLine = $this->commandLine($command);
         $ticket = $this->recorder->begin($commandLine, $this->workingDirectory(), async: false);
 
@@ -42,6 +43,7 @@ final class RecordingPendingProcess extends PendingProcess
 
     public function start(array|string|null $command = null, ?callable $output = null)
     {
+        $this->withTrace();
         $commandLine = $this->commandLine($command);
         $ticket = $this->recorder->begin($commandLine, $this->workingDirectory(), async: true);
 
@@ -59,6 +61,14 @@ final class RecordingPendingProcess extends PendingProcess
         }
 
         return new RecordingInvokedProcess($process, $this->recorder, $ticket);
+    }
+
+    /**
+     * Hand the trace to the process; variables set by the caller win.
+     */
+    private function withTrace(): void
+    {
+        $this->environment = [...$this->recorder->traceEnvironment(), ...$this->environment];
     }
 
     /**

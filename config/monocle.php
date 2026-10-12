@@ -273,6 +273,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Trace
+    |--------------------------------------------------------------------------
+    |
+    | Queued jobs always join the trace of the capture that dispatched them.
+    | Turn `browser` on to link a page to the calls it makes: HTML pages get
+    | a small inline script that sends the page's capture id along with its
+    | same-origin fetch and XHR calls, and requests carrying it become
+    | children of the page. With `processes` on, commands started through
+    | the Process facade join the trace of the capture that started them.
+    |
+    */
+
+    'trace' => [
+        'browser' => false,
+        'processes' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Masking
     |--------------------------------------------------------------------------
     |

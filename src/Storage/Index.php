@@ -32,6 +32,7 @@ final class Index
             'id' => $capture->id,
             'parent_id' => $capture->parentId,
             'trace_id' => $capture->traceId,
+            'linked_via' => $capture->linkedVia,
             'type' => $capture->type->value,
             'name' => $capture->name,
             'route' => $capture->section('request')['route']['name'] ?? null,

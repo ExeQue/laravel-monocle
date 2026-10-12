@@ -15,6 +15,7 @@ use ExeQue\Monocle\Lenses\RequestLens;
 use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
+use ExeQue\Monocle\Viewfinder;
 use Illuminate\Auth\GenericUser;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
@@ -27,6 +28,7 @@ use Illuminate\Routing\Events\Routing;
 use Illuminate\Routing\Route as RoutingRoute;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Vite;
 use Laravel\Folio\Events\ViewMatched;
 use Laravel\Folio\MountPath;
 use Laravel\Folio\Pipeline\MatchedView;
@@ -666,5 +668,134 @@ describe(RequestLens::class, function (): void {
 
         expect($presentation->tabView)->toBe('monocle::tabs.request')
             ->and($presentation->includes)->toBe(['auth']);
+    });
+
+    describe('browser trace', function (): void {
+        beforeEach(function (): void {
+            Route::get('/page', fn () => response('<html><body><h1>Hi</h1></body></html>'));
+            Route::get('/fragment', fn () => response('<p>partial</p>'));
+            Route::get('/data', fn () => response()->json(['ok' => true]));
+            Route::get('/download', fn () => response()->streamDownload(fn () => print ('<body></body>'), 'page.html', ['Content-Type' => 'text/html']));
+        });
+
+        it('leaves pages alone by default', function (): void {
+            expect($this->get('/page')->getContent())->toBe('<html><body><h1>Hi</h1></body></html>');
+        });
+
+        it('injects the trace script with the page capture id before the closing body tag', function (): void {
+            config(['monocle.trace.browser' => true]);
+
+            $response = $this->get('/page');
+            $id = $response->headers->get('X-Monocle-Id');
+            $html = $response->getContent();
+
+            expect($html)->toStartWith('<html><body><h1>Hi</h1><script data-monocle-id="'.$id.'">')
+                ->toEndWith('</script></body></html>')
+                ->toContain('X-Monocle-Parent')
+                ->and($response->headers->has('Content-Length'))->toBeFalse();
+        });
+
+        it('appends the script to HTML without a body tag and carries the CSP nonce', function (): void {
+            config(['monocle.trace.browser' => true]);
+            Vite::useCspNonce('n0nce');
+
+            $html = $this->get('/fragment')->getContent();
+
+            expect($html)->toStartWith('<p>partial</p><script data-monocle-id="')
+                ->toContain(' nonce="n0nce">')
+                ->toEndWith('</script>');
+        });
+
+        it('injects nothing into other content, streams or pages not recorded', function (): void {
+            config(['monocle.trace.browser' => true]);
+
+            expect($this->get('/data')->getContent())->toBe('{"ok":true}')
+                ->and($this->get('/_monocle/api')->getContent())->toBe('hidden');
+
+            $this->get('/download')->assertStreamedContent('<body></body>');
+        });
+
+        it('ignores the parent header by default', function (): void {
+            $this->get('/page');
+            $parent = latestCapture();
+
+            $this->get('/ping/1', ['X-Monocle-Parent' => $parent->id])->assertOk();
+
+            $capture = latestCapture();
+
+            expect($capture->parentId)->toBeNull()
+                ->and($capture->section('request'))->not->toHaveKey('missing_parent_id');
+        });
+
+        it('joins the trace of the page that sent the request', function (): void {
+            config(['monocle.trace.browser' => true]);
+            $this->get('/page');
+            $page = latestCapture();
+
+            $this->get('/ping/1', ['X-Monocle-Parent' => $page->id])->assertOk();
+            $call = latestCapture();
+
+            $this->get('/ping/2', ['X-Monocle-Parent' => strtoupper($call->id)])->assertOk();
+            $nested = latestCapture();
+
+            expect($call->parentId)->toBe($page->id)
+                ->and($call->traceId)->toBe($page->traceId)
+                ->and($call->linkedVia)->toBe('browser')
+                ->and($nested->linkedVia)->toBe('browser')
+                ->and($nested->parentId)->toBe($call->id)
+                ->and($nested->traceId)->toBe($page->traceId);
+        });
+
+        it('marks a call answered with a whole page as a navigation', function (): void {
+            config(['monocle.trace.browser' => true]);
+            Route::get('/inertia', fn () => response()->json(['component' => 'Next'])->header('X-Inertia', 'true'));
+            $this->get('/page');
+            $page = latestCapture();
+
+            $kinds = [];
+
+            foreach (['/page', '/inertia', '/fragment', '/data', '/download'] as $path) {
+                $this->get($path, ['X-Monocle-Parent' => $page->id]);
+                $kinds[$path] = latestCapture()->linkedVia;
+            }
+
+            expect($kinds)->toBe([
+                '/page' => 'navigation',
+                '/inertia' => 'navigation',
+                '/fragment' => 'browser',
+                '/data' => 'browser',
+                '/download' => 'browser',
+            ])
+                ->and(app(Viewfinder::class)->show(['id' => latestCapture()->id])['summary']['linked_via'])->toBe('browser');
+        });
+
+        it('stays a root and notes a parent this store does not hold', function (): void {
+            config(['monocle.trace.browser' => true]);
+            $unknown = '019a0000-0000-7000-8000-000000000001';
+
+            $this->get('/ping/1', ['X-Monocle-Parent' => $unknown])->assertOk();
+
+            $capture = latestCapture();
+
+            expect($capture->parentId)->toBeNull()
+                ->and($capture->traceId)->toBe($capture->id)
+                ->and($capture->section('request')['missing_parent_id'])->toBe($unknown)
+                ->and(app(Viewfinder::class)->show(['id' => $capture->id])['summary']['missing_parent_id'])->toBe($unknown);
+        });
+
+        it('ignores parent ids that are not capture ids', function (string $value): void {
+            config(['monocle.trace.browser' => true]);
+
+            $this->get('/ping/1', ['X-Monocle-Parent' => $value])->assertOk();
+
+            $capture = latestCapture();
+
+            expect($capture->parentId)->toBeNull()
+                ->and($capture->section('request'))->not->toHaveKey('missing_parent_id');
+        })->with([
+            'garbage' => ['nope'],
+            'a path' => ['../../etc/passwd'],
+            'a UUIDv4' => ['9b2f1c1e-8a7d-4c1e-9f3a-2d5e6f7a8b9c'],
+        ]);
     });
 });

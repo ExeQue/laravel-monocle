@@ -24,6 +24,9 @@ final class Capture
 
     public string $endedBy = 'normal';
 
+    /** How this capture was linked to its parent: queue, process or browser; null without a parent. */
+    public ?string $linkedVia = null;
+
     /** @var array<string, mixed> User metadata set through Monocle::meta(). */
     public array $meta = [];
 
@@ -98,6 +101,7 @@ final class Capture
             'label' => $this->label,
             'parent_id' => $this->parentId,
             'trace_id' => $this->traceId,
+            'linked_via' => $this->linkedVia,
             'started_at' => $this->startedAt,
             'ended_at' => $this->endedAt,
             'ended_by' => $this->endedBy,
@@ -127,6 +131,7 @@ final class Capture
         $capture->label = $data['label'] ?? null;
         $capture->endedAt = $data['ended_at'] ?? null;
         $capture->endedBy = $data['ended_by'] ?? 'normal';
+        $capture->linkedVia = $data['linked_via'] ?? null;
         $capture->meta = $data['meta'] ?? [];
         $capture->health = $data['health'] ?? [];
         $capture->sections = $data['sections'] ?? [];

@@ -24,8 +24,11 @@ use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Livewire\LivewireUpdateCapture;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\LensRegistry;
+use ExeQue\Monocle\Reader\CaptureReader;
+use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Foundation\Vite;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Events\PreparingResponse;
 use Illuminate\Routing\Events\RouteMatched;
@@ -61,6 +64,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private int $requestsInProcess = 0;
 
+    /** The browser trace script, read once. */
+    private ?string $traceScript = null;
+
     /** @var array<string, class-string<ResponseCapture>> Content type pattern => capture. */
     private array $responseTypes = [
         'application/json' => JsonCapture::class,
@@ -86,7 +92,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
     }
 
     public function advice(): string
@@ -171,9 +177,11 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     {
         $request = $event->request;
 
+        $capture = $this->eyepiece->active();
+
         // Every request after the first in this process starts a fresh capture.
-        if ($this->eyepiece->active() === null || $this->requestsInProcess > 0) {
-            $this->startCapture($this->requestStartedAt($request));
+        if ($capture === null || $this->requestsInProcess > 0) {
+            $capture = $this->startCapture($this->requestStartedAt($request));
             $this->phase('middleware (request)');
         }
 
@@ -185,6 +193,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             return;
         }
 
+        $this->joinTrace($capture, $request);
         $this->recordRequest($request);
         $this->phase('routing');
     }
@@ -267,7 +276,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         ]);
         $this->phase('terminate');
 
+        $this->markNavigation($capture, $response);
+
         try {
+            $this->injectTraceScript($capture, $response);
             $response->headers->set('X-Monocle-Id', $capture->id);
             $response->headers->set('Server-Timing', $this->serverTiming($capture));
         } catch (Throwable) {
@@ -275,10 +287,104 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         }
     }
 
-    private function startCapture(?float $startedAt): void
+    private function startCapture(?float $startedAt): Capture
     {
         $this->reset();
-        $this->eyepiece->start(CaptureType::Request, $startedAt);
+
+        return $this->eyepiece->start(CaptureType::Request, $startedAt);
+    }
+
+    /**
+     * A request sent by a page with the browser trace script (trace.browser)
+     * joins the trace of that page's capture as its child. A parent this
+     * store does not hold is noted instead, and the capture stays a root.
+     */
+    private function joinTrace(Capture $capture, Request $request): void
+    {
+        if (! $this->eyepiece->config('trace.browser', false)) {
+            return;
+        }
+
+        $parentId = $request->headers->get(TraceContext::PARENT_HEADER);
+
+        if (! TraceContext::isCaptureId($parentId)) {
+            return;
+        }
+
+        $parentId = strtolower($parentId);
+        $parent = $this->app->make(CaptureReader::class)->indexRow($parentId);
+
+        if ($parent === null) {
+            $this->eyepiece->set('request', ['missing_parent_id' => $parentId]);
+
+            return;
+        }
+
+        $capture->parentId = $parentId;
+        $capture->traceId = (string) ($parent['trace_id'] ?? $parentId);
+        $capture->linkedVia = 'browser';
+    }
+
+    /**
+     * A call from a page that answered with a whole page (an HTML document,
+     * or an Inertia page) was an SPA router fetching the next page.
+     */
+    private function markNavigation(Capture $capture, Response $response): void
+    {
+        if ($capture->linkedVia !== 'browser') {
+            return;
+        }
+
+        if ($response->headers->has('X-Inertia')) {
+            $capture->linkedVia = 'navigation';
+
+            return;
+        }
+
+        if (! str_starts_with(strtolower((string) $response->headers->get('Content-Type')), 'text/html')) {
+            return;
+        }
+
+        if (stripos((string) $response->getContent(), '</body>') === false) {
+            return;
+        }
+
+        $capture->linkedVia = 'navigation';
+    }
+
+    /**
+     * Put the browser trace script into an HTML page (trace.browser), so the
+     * calls the page makes send its capture id along.
+     */
+    private function injectTraceScript(Capture $capture, Response $response): void
+    {
+        if (! $this->eyepiece->config('trace.browser', false)) {
+            return;
+        }
+
+        if (! str_starts_with(strtolower((string) $response->headers->get('Content-Type')), 'text/html')) {
+            return;
+        }
+
+        $html = $response->getContent();
+
+        if (! is_string($html)) {
+            return;
+        }
+
+        $nonce = $this->app->make(Vite::class)->cspNonce();
+        $script = sprintf(
+            '<script data-monocle-id="%s"%s>%s</script>',
+            $capture->id,
+            $nonce === null ? '' : ' nonce="'.e($nonce).'"',
+            $this->traceScript ??= (string) file_get_contents(dirname(__DIR__, 2).'/resources/trace/browser.js'),
+        );
+
+        $position = strripos($html, '</body>');
+        $html = $position === false ? $html.$script : substr_replace($html, $script, $position, 0);
+
+        $response->setContent($html);
+        $response->headers->remove('Content-Length');
     }
 
     private function requestStartedAt(Request $request): float

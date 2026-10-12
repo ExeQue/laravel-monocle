@@ -8,6 +8,7 @@ use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\ProcessLens;
 use ExeQue\Monocle\Support\ThrowableChain;
+use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\ProcessResult as IlluminateProcessResult;
@@ -41,6 +42,34 @@ final class ProcessRecorder
         private readonly Eyepiece $eyepiece,
         private readonly string $basePath,
     ) {
+    }
+
+    /**
+     * The variables that let a command capture in the process join the
+     * active trace (trace.processes); empty when nothing is being recorded.
+     *
+     * @return array<string, string>
+     */
+    public function traceEnvironment(): array
+    {
+        $capture = $this->eyepiece->active();
+
+        if ($capture === null) {
+            return [];
+        }
+
+        if (! $this->eyepiece->recording()) {
+            return [];
+        }
+
+        if (! $this->eyepiece->config('trace.processes', true)) {
+            return [];
+        }
+
+        return [
+            TraceContext::TRACE_ENV => (string) $capture->traceId,
+            TraceContext::PARENT_ENV => $capture->id,
+        ];
     }
 
     /**

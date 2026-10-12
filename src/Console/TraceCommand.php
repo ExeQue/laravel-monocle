@@ -45,8 +45,8 @@ final class TraceCommand extends Command
     }
 
     /**
-     * The trace as a tree from the root capture down through every job it
-     * dispatched, queued jobs without a capture yet included.
+     * The trace as a tree from the root capture down through every capture
+     * started from it, queued jobs without a capture yet included.
      *
      * @param  array{id: string, trace_id: string|null, captures: list<array<string, mixed>>}  $data
      */
@@ -144,6 +144,10 @@ final class TraceCommand extends Command
             $this->ms($node['duration'] ?? null),
             $this->ms($node['offset_ms'] ?? null),
         );
+
+        if (isset($node['linked_via'])) {
+            $line .= sprintf('  <fg=gray>via %s</>', $node['linked_via']);
+        }
 
         if ((int) ($node['errors'] ?? 0) > 0) {
             $line .= sprintf('  <fg=red>%d errors</>', $node['errors']);

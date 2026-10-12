@@ -257,6 +257,7 @@ final class QueueLens implements Advises, Lens, Presentable, Resettable, Summari
             CaptureType::Job,
             parentId: $link['parent_id'] ?? null,
             traceId: $link['trace_id'] ?? null,
+            linkedVia: 'queue',
         );
 
         $this->eyepiece->describe(name: $job->resolveName());

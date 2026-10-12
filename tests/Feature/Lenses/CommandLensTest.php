@@ -251,4 +251,44 @@ describe(CommandLens::class, function (): void {
     it('advises the agent when to look at it', function (): void {
         expect(app(CommandLens::class)->advice())->toContain('exit code');
     });
+
+    describe('trace from the environment', function (): void {
+        $parent = '019a0000-0000-7000-8000-000000000001';
+        $trace = '019a0000-0000-7000-8000-000000000002';
+
+        afterEach(function (): void {
+            putenv('MONOCLE_PARENT_ID');
+            putenv('MONOCLE_TRACE_ID');
+        });
+
+        it('joins the trace of the capture that started the process', function () use ($parent, $trace): void {
+            putenv('MONOCLE_PARENT_ID='.$parent);
+            putenv('MONOCLE_TRACE_ID='.$trace);
+
+            Artisan::call('monocle-test:ok');
+
+            $capture = latestCapture();
+
+            expect($capture->parentId)->toBe($parent)
+                ->and($capture->traceId)->toBe($trace)
+                ->and($capture->linkedVia)->toBe('process');
+        });
+
+        it('stays a root when trace.processes is off or the ids are not capture ids', function (string $parentId, bool $enabled) use ($trace): void {
+            config(['monocle.trace.processes' => $enabled]);
+            putenv('MONOCLE_PARENT_ID='.$parentId);
+            putenv('MONOCLE_TRACE_ID='.$trace);
+
+            Artisan::call('monocle-test:ok');
+
+            $capture = latestCapture();
+
+            expect($capture->parentId)->toBeNull()
+                ->and($capture->traceId)->toBe($capture->id)
+                ->and($capture->linkedVia)->toBeNull();
+        })->with([
+            'turned off' => [$parent, false],
+            'not a capture id' => ['nope', true],
+        ]);
+    });
 });

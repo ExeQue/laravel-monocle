@@ -101,17 +101,23 @@
         <span x-text="copied === 'prompt' ? 'Copied' : 'Copy agent prompt'"></span>
     </button>
 </div>
-<div class="flex flex-wrap gap-2 text-[13px]" x-show="summary.parent_id || summary.children?.length">
+<div
+    class="flex flex-wrap gap-2 text-[13px]"
+    x-show="summary.parent_id || summary.missing_parent_id || summary.children?.length"
+>
     <span x-show="summary.parent_id"
-        >Dispatched by
-        <button type="button" :class="cls.link" @click="select(summary.parent_id)">parent capture</button></span>
+        >Started by <button type="button" :class="cls.link" @click="select(summary.parent_id)">parent capture</button
+        ><span x-show="summary.linked_via" x-text="' via ' + summary.linked_via"></span
+    ></span>
+    <span class="text-muted" x-show="summary.missing_parent_id"
+        >Asked to link to <code class="font-mono text-xs" x-text="summary.missing_parent_id"></code>, not found</span>
     <span x-show="summary.children?.length"
-        >Dispatched
+        >Started
         <button
             type="button"
             :class="cls.link"
             @click="openTab('trace')"
-            x-text="summary.children?.length + ' job(s)'"
+            x-text="summary.children?.length + ' child capture(s)'"
         ></button
     ></span>
 </div>

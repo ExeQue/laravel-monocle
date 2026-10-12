@@ -131,7 +131,8 @@ describe(QueueLens::class, function (): void {
 
         expect(array_column($trace, 'id'))->toBe($ids)
             ->and(array_column($trace, 'depth'))->toBe([0, 1, 2, 3, 4])
-            ->and(array_column($trace, 'parent_id'))->toBe([null, ...array_slice($ids, 0, 4)]);
+            ->and(array_column($trace, 'parent_id'))->toBe([null, ...array_slice($ids, 0, 4)])
+            ->and(array_column($trace, 'linked_via'))->toBe([null, 'queue', 'queue', 'queue', 'queue']);
     });
 
     it('marks failed jobs with the exception', function (): void {

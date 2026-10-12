@@ -15,6 +15,7 @@ use ExeQue\Monocle\Lenses\Process\RecordingPendingProcess;
 use ExeQue\Monocle\Lenses\ProcessLens;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\Factory;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Process\Pool;
 use Illuminate\Support\Facades\Process;
 
@@ -240,5 +241,33 @@ describe(ProcessLens::class, function (): void {
         expect($row['output_bytes'])->toBeNull()
             ->and($row['error_output_bytes'])->toBeNull()
             ->and($row['successful'])->toBeTrue();
+    });
+
+    it('hands the trace to processes it starts, without overriding variables the caller set', function (): void {
+        Process::fake();
+        $capture = app(Eyepiece::class)->active();
+
+        Process::run('php artisan sync');
+        Process::env(['MONOCLE_PARENT_ID' => 'mine'])->start('php artisan import')->wait();
+
+        Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'php artisan sync'
+            && $process->environment === ['MONOCLE_TRACE_ID' => $capture->traceId, 'MONOCLE_PARENT_ID' => $capture->id]);
+        Process::assertRan(fn (PendingProcess $process): bool => $process->command === 'php artisan import'
+            && $process->environment === ['MONOCLE_TRACE_ID' => $capture->traceId, 'MONOCLE_PARENT_ID' => 'mine']);
+    });
+
+    it('hands no trace to processes when trace.processes is off or nothing is recording', function (): void {
+        Process::fake();
+        config(['monocle.trace.processes' => false]);
+        Process::run('php artisan off');
+
+        config(['monocle.trace.processes' => true]);
+        app(Eyepiece::class)->discard();
+        Process::run('php artisan discarded');
+
+        app(Eyepiece::class)->finalize();
+        Process::run('php artisan idle');
+
+        Process::assertRanTimes(fn (PendingProcess $process): bool => $process->environment === [], 3);
     });
 });

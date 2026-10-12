@@ -16,6 +16,7 @@ use ExeQue\Monocle\Reader\TimelineBuilder;
 use ExeQue\Monocle\Storage\Index;
 use ExeQue\Monocle\Storage\StoreManager;
 use ExeQue\Monocle\Viewfinder;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -160,6 +161,37 @@ describe(Viewfinder::class, function (): void {
         expect($trace['trace_id'])->toBe('trace-1')
             ->and($trace['captures'])->toHaveCount(2)
             ->and($trace['pending'])->toBe([['parent_id' => 'trace-parent', 'job' => 'App\\Jobs\\Waiting', 'job_id' => 'job-waiting']]);
+    });
+
+    it('traces a page through the calls it made to the commands they started', function (): void {
+        config(['monocle.trace.browser' => true]);
+        Route::get('/page', fn () => response('<body>page</body>'));
+        Route::get('/call', fn () => 'called');
+        Artisan::command('monocle-test:child', fn (): int => 0);
+
+        $this->get('/page');
+        $page = latestCapture();
+
+        $this->get('/call', ['X-Monocle-Parent' => $page->id]);
+        $call = latestCapture();
+
+        putenv('MONOCLE_PARENT_ID='.$call->id);
+        putenv('MONOCLE_TRACE_ID='.$call->traceId);
+
+        try {
+            Artisan::call('monocle-test:child');
+        } finally {
+            putenv('MONOCLE_PARENT_ID');
+            putenv('MONOCLE_TRACE_ID');
+        }
+
+        $trace = app(Viewfinder::class)->trace(['id' => $page->id]);
+
+        expect(array_column($trace['captures'], 'name'))->toBe(['GET /page', 'GET /call', 'artisan monocle-test:child'])
+            ->and(array_column($trace['captures'], 'depth'))->toBe([0, 1, 2])
+            ->and(array_column($trace['captures'], 'linked_via'))->toBe([null, 'browser', 'process'])
+            ->and(app(CaptureReader::class)->indexRow($call->id)['trace_id'])->toBe($page->id)
+            ->and(app(CaptureReader::class)->indexRow('missing'))->toBeNull();
     });
 
     it('refuses to compare without a first capture', function (): void {

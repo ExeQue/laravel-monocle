@@ -101,6 +101,7 @@ describe(ShowCommand::class, function (): void {
 
         $child = new Capture('child-run', CaptureType::Job, microtime(true), parentId: $parent, traceId: $parent);
         $child->name = 'ChildJob';
+        $child->linkedVia = 'queue';
         $child->status = 'processed';
         $child->endedAt = $child->startedAt + 0.01;
         app(StoreManager::class)->store()->put($child);
@@ -117,7 +118,7 @@ describe(ShowCommand::class, function (): void {
 
         Artisan::call('monocle:show', ['id' => 'child-run']);
 
-        expect(Artisan::output())->toContain('Parent: '.$parent.' (monocle:show '.$parent.')');
+        expect(Artisan::output())->toContain('Parent: '.$parent.' via queue (monocle:show '.$parent.')');
     });
 
     it('leaves out empty totals, breakdowns and spans of an empty capture', function (): void {

@@ -104,7 +104,8 @@ final class ShowCommand extends Command
         }
 
         if (($summary['parent_id'] ?? null) !== null) {
-            $details[] = 'Parent: '.$summary['parent_id'].' (monocle:show '.$summary['parent_id'].')';
+            $via = isset($summary['linked_via']) ? ' via '.$summary['linked_via'] : '';
+            $details[] = 'Parent: '.$summary['parent_id'].$via.' (monocle:show '.$summary['parent_id'].')';
         }
 
         if (($summary['children'] ?? []) !== []) {

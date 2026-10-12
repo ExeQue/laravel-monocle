@@ -55,7 +55,7 @@ describe(TraceCommand::class, function (): void {
         $lines = explode("\n", trim(Artisan::output()));
 
         expect($lines[0])->toStartWith('request GET /fan-out  200  ')->toContain($this->root)->not->toContain('requested')
-            ->and($lines[1])->toStartWith('├─ job CountdownJob  processed  ')->toContain('at +')->toContain($this->countdown)->toEndWith('<- requested')
+            ->and($lines[1])->toStartWith('├─ job CountdownJob  processed  ')->toContain('at +')->toContain('via queue')->toContain($this->countdown)->toEndWith('<- requested')
             ->and($lines[2])->toStartWith('│  └─ job CountdownJob  PENDING, no capture yet  job id ')
             ->and($lines[3])->toStartWith('└─ job FailingJob  failed FAILED  ')->toContain('errors')->toContain($this->failing)
             ->and(end($lines))->toContain('3 captures,')->toContain('1 failed, 1 pending.');
@@ -86,7 +86,7 @@ describe(TraceCommand::class, function (): void {
         Artisan::call('monocle:trace', ['id' => 'orphan']);
         $lines = explode("\n", trim(Artisan::output()));
 
-        expect($lines[0])->toStartWith('job CountdownJob  processed  ')->toContain('2 warnings')->toEndWith('<- requested')
+        expect($lines[0])->toStartWith('job CountdownJob  processed  ')->toContain('2 warnings')->not->toContain('via')->toEndWith('<- requested')
             ->and(end($lines))->toContain('1 capture,')->toContain('0 failed.');
     });
 });

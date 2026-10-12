@@ -281,19 +281,26 @@ final class Eyepiece
         return new $class(...$arguments);
     }
 
-    public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null): Capture
+    /**
+     * Start a capture; with a parent, $linkedVia says how it was linked (queue, process, browser).
+     */
+    public function start(CaptureType $type, ?float $startedAt = null, ?string $parentId = null, ?string $traceId = null, ?string $linkedVia = null): Capture
     {
         $this->reset();
         $this->overhead = $this->registered;
         $this->registered = [];
 
-        return $this->capture = new Capture(
+        $this->capture = new Capture(
             id: (string) Str::uuid7(),
             type: $type,
             startedAt: $startedAt ?? microtime(true),
             parentId: $parentId,
             traceId: $traceId,
         );
+
+        $this->capture->linkedVia = $parentId === null ? null : $linkedVia;
+
+        return $this->capture;
     }
 
     public function active(): ?Capture

@@ -60,6 +60,16 @@ final class CaptureReader
     }
 
     /**
+     * The index row of a stored capture, without loading the capture itself.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function indexRow(string $id): ?array
+    {
+        return array_find($this->stores->store()->index(), fn (array $row): bool => ($row['id'] ?? null) === $id);
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function children(string $id): array

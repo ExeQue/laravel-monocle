@@ -17,6 +17,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
@@ -54,7 +55,7 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
 
     public function description(): string
     {
-        return 'Artisan command facts for captures of type command: name, arguments and options (both masked), exit code (a non-zero exit code is an error). Section commands has one row per Artisan::call() made while any capture (request, job, command) is active: name, class, arguments and options (masked), exit_code, failed (non-zero exit code), duration, time and origin; each is also a command span in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures.';
+        return 'Artisan command facts for captures of type command: name, arguments and options (both masked), exit code (a non-zero exit code is an error). Section commands has one row per Artisan::call() made while any capture (request, job, command) is active: name, class, arguments and options (masked), exit_code, failed (non-zero exit code), duration, time and origin; each is also a command span in the timeline. Long-running workers (queue:work, horizon, schedule:work) are excluded; the work they do is recorded as job captures. A command started through the Process facade while a capture records joins its trace as a child (MONOCLE_TRACE_ID and MONOCLE_PARENT_ID in the environment).';
     }
 
     public function advice(): string
@@ -139,8 +140,15 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
     private function startCapture(string $command, array $arguments, array $options): void
     {
         $startedAt = $this->laravelStart();
+        $link = $this->traceLink();
 
-        $this->eyepiece->start(CaptureType::Command, $startedAt);
+        $this->eyepiece->start(
+            CaptureType::Command,
+            $startedAt,
+            parentId: $link['parent_id'] ?? null,
+            traceId: $link['trace_id'] ?? null,
+            linkedVia: 'process',
+        );
         $this->eyepiece->describe(name: 'artisan '.$command);
         $this->eyepiece->set('command', [
             'name' => $command,
@@ -163,6 +171,21 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Rese
         $this->phase = $this->eyepiece->span('command', 'phase');
         $this->eyepiece->startSpan($this->phase, origin: false);
         $this->phase->parentId = null;
+    }
+
+    /**
+     * The trace a parent capture handed to this process through its
+     * environment (ProcessLens with trace.processes).
+     *
+     * @return array{parent_id: string, trace_id: string}|null
+     */
+    private function traceLink(): ?array
+    {
+        if (! $this->eyepiece->config('trace.processes', true)) {
+            return null;
+        }
+
+        return TraceContext::link(getenv(TraceContext::PARENT_ENV), getenv(TraceContext::TRACE_ENV));
     }
 
     /**
