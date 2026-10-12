@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Reader;
 
 use ExeQue\Monocle\Support\Search;
+use Illuminate\Support\Str;
 
 /**
  * Filters applied to index rows when listing captures.
@@ -16,6 +17,8 @@ final class Filter
     public function __construct(
         public readonly ?string $type = null,
         public readonly ?string $uri = null,
+        /** Exact host, wildcards allowed: "shop.example.com" or "*.example.com". */
+        public readonly ?string $host = null,
         public readonly ?int $status = null,
         public readonly ?float $minDuration = null,
         public readonly ?float $since = null,
@@ -29,7 +32,7 @@ final class Filter
         public readonly array $exclude = [],
         public readonly int $offset = 0,
         public readonly int $limit = 20,
-        /** Free text: every word must appear in the name, route, type, status, label or a tag. */
+        /** Free text: every word must appear in the name, host, route, type, status, label or a tag. */
         public readonly ?string $search = null,
     ) {
     }
@@ -42,6 +45,7 @@ final class Filter
         return new self(
             type: self::string($input['type'] ?? null),
             uri: self::string($input['uri'] ?? null),
+            host: self::string($input['host'] ?? null),
             status: isset($input['status']) ? (int) $input['status'] : null,
             minDuration: isset($input['min_duration_ms']) ? (float) $input['min_duration_ms'] : null,
             since: self::since($input['since'] ?? null),
@@ -67,6 +71,10 @@ final class Filter
         }
 
         if ($this->uri !== null && ! str_contains(strtolower((string) ($row['name'] ?? '')), strtolower($this->uri))) {
+            return false;
+        }
+
+        if ($this->host !== null && ! Str::is(strtolower($this->host), strtolower((string) ($row['host'] ?? '')))) {
             return false;
         }
 
@@ -104,6 +112,7 @@ final class Filter
 
         $searchable = [
             $row['name'] ?? null,
+            $row['host'] ?? null,
             $row['route'] ?? null,
             $row['type'] ?? null,
             $row['status'] ?? null,

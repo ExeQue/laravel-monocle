@@ -33,9 +33,10 @@ final class ListCaptures extends Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            'search' => $schema->string()->description('Free text: every word must appear in the name, route, type, status, label or a tag.'),
+            'search' => $schema->string()->description('Free text: every word must appear in the name, host, route, type, status, label or a tag.'),
             'type' => $schema->string()->enum(['request', 'job', 'command', 'mcp'])->description('Only captures of this type.'),
             'uri' => $schema->string()->description('Substring of the capture name, e.g. "/api/orders" or "POST".'),
+            'host' => $schema->string()->description('Only requests to this host (domain), wildcards allowed, e.g. "shop.example.com" or "*.example.com".'),
             'status' => $schema->integer()->description('Exact HTTP status (requests) to match.'),
             'min_duration_ms' => $schema->number()->description('Only captures at least this slow.'),
             'since' => $schema->string()->description('Only captures started after this: unix timestamp, ISO date or relative like "15m", "2h".'),

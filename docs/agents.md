@@ -27,8 +27,9 @@ Recent captures, newest first.
 | Argument | Meaning |
 |---|---|
 | `type` | `request`, `job`, `command` or `mcp` |
-| `search` | free text; every word must appear in the name, route, type, status, label or a tag |
+| `search` | free text; every word must appear in the name, host, route, type, status, label or a tag |
 | `uri` | part of the name, e.g. `/api/orders` or `POST` |
+| `host` | only requests to this host, wildcards allowed, e.g. `shop.example.com` or `*.example.com` |
 | `status` | HTTP status |
 | `min_duration_ms` | only captures at least this slow |
 | `since` | a timestamp, a date, or `15m`, `2h`, ... |

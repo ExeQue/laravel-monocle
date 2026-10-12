@@ -85,6 +85,14 @@ describe('dashboard', function (): void {
             $this->get('/_monocle/assets/secret.php')->assertNotFound();
         });
 
+        it('shows the host of each capture in the list only when show_host is on', function (): void {
+            $this->get('/_monocle')->assertDontSee('x-text="c.host"', false);
+
+            config(['monocle.dashboard.show_host' => true]);
+
+            $this->get('/_monocle')->assertSee('x-text="c.host"', false);
+        });
+
         it('sends the names the tabs show for sections that have one', function (): void {
             $this->get('/_monocle')->assertViewHas('labels', fn (array $labels): bool => ($labels['model_changes'] ?? null) === 'Changes'
                 && ! in_array(null, $labels, true));

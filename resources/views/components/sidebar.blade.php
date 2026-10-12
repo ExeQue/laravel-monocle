@@ -138,6 +138,9 @@
                         <span class="font-mono text-xs tabular-nums" x-text="ms(c.duration)"></span>
                         <span class="text-muted col-span-2 col-start-2 flex flex-wrap gap-2.5 text-xs">
                             <span class="font-mono" :class="statusClass(c.status)" x-text="c.status ?? ''"></span>
+                            @if (config('monocle.dashboard.show_host'))
+                                <span x-show="c.host" x-text="c.host"></span>
+                            @endif
                             <span
                                 x-show="c.counts?.queries"
                                 x-text="c.counts?.queries + (c.counts?.queries === 1 ? ' query' : ' queries')"

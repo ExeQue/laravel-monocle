@@ -114,6 +114,7 @@ Gate::define('viewMonocle', fn ($user = null) => $user?->isAdmin() ?? false);
     'path' => env('MONOCLE_PATH', '_monocle'),
     'domain' => env('MONOCLE_DOMAIN'),
     'middleware' => ['web'],
+    'show_host' => env('MONOCLE_DASHBOARD_SHOW_HOST', false),
     'tabs' => [
         RequestLens::class,
         SessionLens::class,
@@ -130,6 +131,7 @@ Gate::define('viewMonocle', fn ($user = null) => $user?->isAdmin() ?? false);
 | `path` | where the dashboard lives; the API is under `{path}/api` |
 | `domain` | serve the dashboard on this domain only |
 | `middleware` | middleware for the dashboard and its API |
+| `show_host` | `true` shows the host of each request in the list, for applications that answer on more than one domain |
 | `tabs` | the order of the tabs after Overview and Timeline: lens classes or section keys. A lens class places its own tab and then the tabs of the other sections it writes (`CommandLens::class` places the command's facts and the commands it called). Tabs not listed, such as those of your own lenses, follow in the order their sections were recorded |
 
 Requests to the dashboard are not recorded.

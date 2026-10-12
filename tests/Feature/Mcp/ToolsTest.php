@@ -58,6 +58,9 @@ describe('MCP tools', function (): void {
             ->and(toolJson(ListCaptures::class, ['exclude' => ['/THINGS']])['total'])->toBe(0)
             ->and(toolJson(ListCaptures::class, ['exclude' => ['/other']])['total'])->toBe(1)
             ->and(toolJson(ListCaptures::class, ['exclude' => ['things.index']])['total'])->toBe(0)
+            ->and(toolJson(ListCaptures::class, ['host' => 'localhost'])['total'])->toBe(1)
+            ->and(toolJson(ListCaptures::class, ['host' => 'other.test'])['total'])->toBe(0)
+            ->and($result['rows'][0]['host'])->toBe('localhost')
             ->and($result['rows'][0]['route'])->toBe('things.index')
             ->and($result['rows'][0])->not->toHaveKeys(['label', 'trace_id', 'job_id']);
     });

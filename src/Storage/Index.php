@@ -35,6 +35,7 @@ final class Index
             'linked_via' => $capture->linkedVia,
             'type' => $capture->type->value,
             'name' => $capture->name,
+            'host' => $capture->section('request')['host'] ?? null,
             'route' => $capture->section('request')['route']['name'] ?? null,
             'status' => $capture->status,
             'label' => $capture->label,

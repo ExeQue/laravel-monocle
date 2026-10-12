@@ -19,6 +19,7 @@ Without an `id` the latest capture is used.
 ```bash
 php artisan monocle:list --uri=/orders --min-duration-ms=300 --since=15m
 php artisan monocle:list --has=exceptions
+php artisan monocle:list --host='*.example.com'
 php artisan monocle:list --search="orders impersonated"
 php artisan monocle:show
 php artisan monocle:show --section=timeline --kind=middleware

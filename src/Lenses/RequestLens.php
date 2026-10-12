@@ -574,6 +574,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->eyepiece->set('request', [
             'method' => $request->getMethod(),
             'url' => $request->fullUrl(),
+            'host' => $request->getHost(),
             'path' => $path,
             'query' => $masker->inputs($query),
             'input' => $masker->inputs($body),

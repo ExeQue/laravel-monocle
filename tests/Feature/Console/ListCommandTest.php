@@ -50,6 +50,12 @@ describe(ListCommand::class, function (): void {
             ->assertSuccessful();
     });
 
+    it('filters by host', function (): void {
+        $this->artisan('monocle:list', ['--host' => 'other.test'])
+            ->expectsOutputToContain('No captures found.')
+            ->assertSuccessful();
+    });
+
     it('says so when nothing was recorded', function (): void {
         $this->artisan('monocle:list', ['--uri' => 'nothing-matches'])
             ->expectsOutputToContain('No captures found.')

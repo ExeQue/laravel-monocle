@@ -29,6 +29,17 @@ describe(Filter::class, function (): void {
             ->and(Filter::fromArray(['status' => 500])->matches($row()))->toBeFalse();
     });
 
+    it('matches on the host, wildcards allowed, ignoring case', function () use ($row): void {
+        $shop = $row(['host' => 'shop.example.com']);
+
+        expect(Filter::fromArray(['host' => 'shop.example.com'])->matches($shop))->toBeTrue()
+            ->and(Filter::fromArray(['host' => '*.EXAMPLE.com'])->matches($shop))->toBeTrue()
+            ->and(Filter::fromArray(['host' => 'admin.example.com'])->matches($shop))->toBeFalse()
+            ->and(Filter::fromArray(['host' => 'example.com'])->matches($shop))->toBeFalse()
+            ->and(Filter::fromArray(['host' => 'shop.example.com'])->matches($row()))->toBeFalse()
+            ->and(Filter::fromArray(['search' => 'shop.example'])->matches($shop))->toBeTrue();
+    });
+
     it('matches on minimum duration, label and errors', function () use ($row): void {
         expect(Filter::fromArray(['min_duration_ms' => 100])->matches($row()))->toBeTrue()
             ->and(Filter::fromArray(['min_duration_ms' => 200])->matches($row()))->toBeFalse()

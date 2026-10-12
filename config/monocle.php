@@ -446,6 +446,9 @@ return [
     | allows the local environment; define the gate yourself to change that.
     | Requests to the dashboard are never recorded.
     |
+    | `show_host` adds the host of each request to the capture list, for
+    | applications that answer on more than one domain.
+    |
     | `tabs` orders the section tabs after Overview and Timeline: a lens
     | class (its own section, then the other sections it provides) or a
     | section key per entry. Sections not listed follow.
@@ -457,6 +460,7 @@ return [
         'path' => env('MONOCLE_PATH', '_monocle'),
         'domain' => env('MONOCLE_DOMAIN'),
         'middleware' => ['web'],
+        'show_host' => env('MONOCLE_DASHBOARD_SHOW_HOST', false),
         'tabs' => [
             RequestLens::class,
             SessionLens::class,

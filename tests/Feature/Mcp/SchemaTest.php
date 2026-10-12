@@ -35,7 +35,7 @@ describe('MCP tool schemas', function (): void {
         expect($tools['monocle-rows']['inputSchema']['properties'])->toHaveKeys(['section', 'offset', 'limit', 'sort', 'dir', 'where', 'fields', 'verbose'])
             ->and($tools['monocle-rows']['inputSchema']['required'])->toBe(['section'])
             ->and($tools['monocle-rows']['inputSchema']['properties']['where']['items']['properties']['op']['enum'])->toContain('contains', 'in')
-            ->and($tools['monocle-list']['inputSchema']['properties'])->toHaveKeys(['type', 'uri', 'status', 'min_duration_ms', 'since', 'label', 'has_errors', 'has', 'offset', 'limit'])
+            ->and($tools['monocle-list']['inputSchema']['properties'])->toHaveKeys(['type', 'uri', 'host', 'status', 'min_duration_ms', 'since', 'label', 'has_errors', 'has', 'offset', 'limit'])
             ->and($tools['monocle-list']['inputSchema']['properties']['type']['enum'])->toBe(['request', 'job', 'command', 'mcp'])
             ->and($tools['monocle-show']['inputSchema']['properties'])->toHaveKeys(['id', 'sections', 'limit', 'kinds', 'verbose'])
             ->and($tools['monocle-queries']['inputSchema']['properties']['group_by']['enum'])->toBe(['shape', 'caller', 'table', 'transaction'])

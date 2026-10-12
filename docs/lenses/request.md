@@ -15,6 +15,7 @@ The `request` section is one set of facts per capture, not a list of rows.
 |---|---|---|---|
 | `method` | HTTP method | - | - |
 | `url` | full URL, query string included | - | - |
+| `host` | the host the request was sent to, without the port | - | - |
 | `path` | path, starting with `/` | - | - |
 | `query` | query string parameters, masked | - | empty when there is no query string |
 | `input` | the payload without the query string parameters, masked | - | empty when there is no payload |
