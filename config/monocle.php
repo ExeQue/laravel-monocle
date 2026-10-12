@@ -121,8 +121,8 @@ return [
         DatabaseLens::class => [
             'slow_ms' => 70,
             'n_plus_one_threshold' => 3,
-            'bindings' => true,
-            'ignore_tables' => ['telescope_*', 'pulse_*'],
+            'bindings' => true,                     // false keeps every value out; sensitive columns are masked by mask.inputs
+            'ignore_tables' => ['telescope_*', 'pulse_*'],  // queries on these tables are not recorded
         ],
         EloquentLens::class => true,
         CacheLens::class => [
