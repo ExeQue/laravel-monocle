@@ -96,14 +96,18 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: 'filament/filament', link: '/docs/lenses/filament' },
+          { text: 'franbarbalopez/mirror', link: '/docs/lenses/auth#impersonation' },
           { text: 'inertiajs/inertia-laravel', link: '/docs/lenses/inertia' },
+          { text: 'lab404/laravel-impersonate', link: '/docs/lenses/auth#impersonation' },
           { text: 'laravel/ai', link: '/docs/lenses/ai' },
           { text: 'laravel/mcp', link: '/docs/lenses/mcp-servers' },
+          { text: 'laravel/nova', link: '/docs/lenses/auth#impersonation' },
           { text: 'laravel/pennant', link: '/docs/lenses/feature-flags' },
           { text: 'livewire/livewire', link: '/docs/lenses/livewire' },
           { text: 'prism-php/prism', link: '/docs/lenses/prism' },
           { text: 'spatie/laravel-medialibrary', link: '/docs/lenses/media-library' },
           { text: 'spatie/laravel-responsecache', link: '/docs/lenses/response-cache' },
+          { text: 'stechstudio/filament-impersonate', link: '/docs/lenses/auth#impersonation' },
         ],
       },
       {
