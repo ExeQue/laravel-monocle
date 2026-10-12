@@ -53,6 +53,20 @@ Requests and commands that are never recorded:
 
 Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization, Laravel Boost's browser logs, the health-check route and commands of spatie/laravel-health, and long-running commands such as queue workers, Reverb, Octane, Pulse and the Nightwatch agent, as well as `tinker`, `test`, `package:discover`, Boost and Monocle's own commands and MCP server. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
 
+## `trace`
+
+How captures are linked into a trace beyond queued jobs, which are always linked. See [Tracing](tracing.md).
+
+```php
+'trace' => [
+    'browser' => false,
+    'processes' => true,
+],
+```
+
+- `browser` (default `false`): recorded HTML pages get a small inline script that sends the page's capture id, as `X-Monocle-Parent`, with the `fetch()` and `XMLHttpRequest` calls the page makes to its own origin. A request carrying that header becomes a child of the page when the page's capture is in this store. With it off, no script is added and the header is ignored.
+- `processes` (default `true`): processes started through the `Process` facade while a capture is recorded get `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID`, and an artisan command captured in such a process becomes a child of that capture.
+
 ## Masking
 
 ```php

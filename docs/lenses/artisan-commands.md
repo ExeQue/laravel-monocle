@@ -13,6 +13,7 @@ The Artisan commands lens records every artisan command you run as a capture of 
 
 - `php artisan orders:prune --days=30` run from a terminal, cron or the scheduler becomes a capture of type `command`, named `artisan orders:prune`. Its status is the exit code. Everything the command does (queries, cache calls, HTTP calls, jobs it dispatches) belongs to that capture, and jobs it dispatches are linked to it like jobs dispatched by a request; see [Queue](queue.md#how-jobs-are-linked).
 - `Artisan::call('orders:prune')` inside a request, job or another command does not start a new capture. It becomes a `command` span on the timeline of the running capture and a row in its `commands` section.
+- A command run in a process started with the `Process` facade, while a capture is recorded, is handed `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID` in its environment. Its capture becomes a child of the capture that started the process, in the same trace. Only values that look like capture ids are used, and only with [`trace.processes`](../configuration.md#trace) on (the default). See [Tracing](../tracing.md).
 - Long-running commands such as `queue:work`, `horizon` and `schedule:work` are not recorded (see [Configuration](#configuration)). The jobs a worker runs are recorded as job captures.
 
 ## Rows
@@ -104,6 +105,7 @@ Other settings that affect this lens:
 - [`except.commands`](../configuration.md#except): commands that are never recorded, neither as their own capture nor as a row when called with `Artisan::call()`. Patterns support `*` and can include arguments: `'mcp:start monocle'` matches that command only with that argument. The default list holds Monocle's own commands, queue workers, `schedule:work`, `package:discover`, `test`, `tinker` and the long-running commands of Boost, Horizon, Pulse, Reverb, Octane, Nightwatch and spatie/laravel-health. Setting the key replaces the list, so keep the defaults you need.
 - [`mask.inputs`](../configuration.md#masking) and `mask.using`: argument and option names matching `inputs` (by default `/pass|token|secret|authorization/i`) have their value masked with `using` (by default a partial mask). Key an entry by `CommandLens::class` to mask more for commands only.
 - [`origin`](../configuration.md#origin): whether `commands` rows carry the line that called the command.
+- [`trace.processes`](../configuration.md#trace): whether a command capture joins the trace handed to it through `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID` (default `true`).
 
 ```php
 use ExeQue\Monocle\Lenses\CommandLens;

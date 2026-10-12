@@ -32,6 +32,7 @@ The `request` section is one set of facts per capture, not a list of rows.
 | `auth` | the logged-in user as `class` and `id` | - | null for guests, or when the user could not be resolved |
 | `route` | `name`, `action` (`Controller@method`, or `Closure (file:line)`), `uri`, `methods`, `parameters`, `middleware` (the route's middleware list as written) and `domain` | - | no route matched, for example a 404 |
 | `folio` | the matched Folio page, see [Folio](#folio) | - | the request was not a Folio page |
+| `missing_parent_id` | the capture id sent in `X-Monocle-Parent` when this store does not hold that capture, see [Linking a page to its calls](#linking-a-page-to-its-calls) | - | `trace.browser` is off, no valid header was sent, or the parent was found |
 | `status` | response status code | - | the request ended before a response, for example with `dd()` |
 | `content_type` | the response `Content-Type` header | - | null when the response has none |
 | `response_bytes` | size of the response body | bytes | null for streamed and file responses |
@@ -70,6 +71,14 @@ Every recorded response gets two extra headers:
 | `Server-Timing` | `app` (the request so far), each finished phase (`bootstrap`, `middleware-request`, `routing`, `handle`) and `db` (total query time, when there were queries), in milliseconds. Browser developer tools show these in the network panel. |
 
 Send an `X-Monocle-Label` header with a request to label its capture, so you can find it with `monocle-list` (`label`) or compare it with `monocle-compare`.
+
+### Linking a page to its calls
+
+With [`trace.browser`](../configuration.md#trace) on (it is off by default), recorded HTML pages get a small inline script before `</body>` that sends `X-Monocle-Parent: <capture id of the page>` with the page's own `fetch()` and `XMLHttpRequest` calls. Calls to other origins are left alone. Pages that move on without a full reload (`wire:navigate`, Inertia and other SPA routers that fetch the next page from the server) hand the script on to the next page.
+
+A request carrying `X-Monocle-Parent` with a capture id becomes a child of that capture, in its trace, when the capture is in this application's Monocle store. When it is not (another application with its own store, a capture already pushed out of the ring buffer, or a call that arrived before the page's capture was stored), the request is recorded as a capture of its own and its `request` section holds `missing_parent_id`; the dashboard header says *Asked to link to `<id>`, not found*. Anything that is not a capture id is ignored, and so is the header while `trace.browser` is off.
+
+A Content Security Policy that forbids inline scripts blocks the script: nothing is linked and the page works as before. A nonce set with Laravel's `Vite::useCspNonce()` is added to the script. See [Tracing](../tracing.md).
 
 ## Totals, warnings and errors
 
@@ -146,6 +155,7 @@ Other configuration that affects this lens:
 | [`mask.headers`](../configuration.md#masking) | request and response headers to mask |
 | [`mask.cookies`](../configuration.md#masking) | cookies to mask; the session cookie is always masked |
 | [`dashboard.tabs`](../dashboard.md#configuration) | where the Request tab sits; it comes first by default |
+| [`trace.browser`](../configuration.md#trace) | put the trace script into HTML pages and link requests that carry `X-Monocle-Parent`; off by default |
 
 Mask entries keyed by `RequestLens::class` apply to this lens only and win over the shared ones.
 

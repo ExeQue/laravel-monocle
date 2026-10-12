@@ -47,7 +47,7 @@ One capture - the latest unless an `id` is given. By default it returns the summ
 - **Errors** - things that failed: exceptions, failed HTTP calls, jobs and scheduled tasks, error log entries, 5xx responses and the like.
 - **Warnings** - things worth a look: slow queries, N+1 candidates, duplicate queries, slow middleware and the like.
 - **Flags** - the errors and warnings together, errors first, each with its level and the section that reported it, so the agent knows where to dig.
-- **Trace links** - the parent capture and any jobs it dispatched.
+- **Trace links** - the parent capture and its child captures (jobs, calls a page made, commands run in a process). See [Tracing](tracing.md).
 - **Available sections** - what else can be fetched, with a description and row count.
 
 The summary, also returned by `monocle:show`, has these keys:
@@ -56,6 +56,8 @@ The summary, also returned by `monocle:show`, has these keys:
 |---|---|
 | `id`, `type`, `name`, `status`, `label`, `started_at`, `ended_by` | the capture |
 | `parent_id`, `trace_id`, `children` | trace links |
+| `linked_via` | how the capture was linked to its parent: `queue`, `browser`, `navigation` or `process`; null for a root |
+| `missing_parent_id` | a parent id a request was sent with that this store does not hold (the capture is not linked) |
 | `breakdown` | time per phase and per category |
 | `totals` | name => value |
 | `labels`, `units` | what each total counts and its unit |
@@ -91,7 +93,11 @@ Database queries grouped by `shape` (the same query with different values), `cal
 
 ### `monocle-trace`
 
-A request or command together with every job it dispatched, and the jobs those dispatched. `pending` lists queued jobs no worker has run yet, each with the capture that dispatched it (`parent_id`), the job class and its job id.
+Every capture in the same trace as the given one, oldest first, each with its `parent_id`, `linked_via` (`queue`, `browser`, `navigation` or `process`), `depth` and start offset: the request or command that started it, the jobs it dispatched and the jobs those dispatched, and, when turned on, the calls a page made and commands run through the `Process` facade. `pending` lists queued jobs no worker has run yet, each with the capture that dispatched it (`parent_id`), the job class and its job id. See [Tracing](tracing.md).
+
+```json
+{"id": "latest"}
+```
 
 ### `monocle-compare`
 

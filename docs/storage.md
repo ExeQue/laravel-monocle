@@ -37,7 +37,7 @@ interface Store
 }
 ```
 
-`index()` returns one row per capture, newest first, with `id`, `parent_id`, `trace_id`, `type`, `name`, `route`, `status`, `label`, `duration`, `started_at`, `ended_by`, `counts` (rows per section), `has_errors`, `warnings`, `errors`, `tags` and `job_id`.
+`index()` returns one row per capture, newest first, with `id`, `parent_id`, `trace_id`, `linked_via`, `type`, `name`, `route`, `status`, `label`, `duration`, `started_at`, `ended_by`, `counts` (rows per section), `has_errors`, `warnings`, `errors`, `tags` and `job_id`.
 
 Register it in a service provider's `register()` method:
 
@@ -60,7 +60,7 @@ Each capture is a JSON document:
 {
   "schema_version": 1,
   "id": "01a126fa-...", "type": "request", "name": "GET /en", "status": "200", "label": null,
-  "parent_id": null, "trace_id": "01a126fa-...",
+  "parent_id": null, "trace_id": "01a126fa-...", "linked_via": null,
   "started_at": 1760120000.123, "ended_at": 1760120000.592, "duration": 469.5,
   "meta": {},
   "spans": [{"id": "s1", "kind": "phase", "name": "bootstrap", "start": 0, "end": 51.9, "duration": 51.9, "meta": {}}],

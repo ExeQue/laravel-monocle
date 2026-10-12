@@ -6,6 +6,7 @@
 - [For AI agents](agents.md) - The MCP tools and how an agent uses them
 - [Artisan commands](commands.md) - The same data from the terminal
 - [Dashboard](dashboard.md) - The same data in your browser
+- [Tracing](tracing.md) - How a page, its calls, jobs and processes are linked
 - [What gets recorded](lenses.md) - Every lens and what it records
 - [Spans and metadata](spans.md) - Measure your own code
 - [Writing a lens](writing-a-lens.md) - Record something Monocle does not know about
@@ -27,6 +28,7 @@
 | Masking secrets | [Configuration](configuration.md#masking) |
 | Recording `Storage` disks | [Filesystem](lenses/filesystem.md) |
 | Request phases | [Request](lenses/request.md) |
+| Linking pages, jobs and processes into a trace | [Tracing](tracing.md) |
 | N+1 and slow query warnings | [Database](lenses/database.md) |
 
 ## Contributing

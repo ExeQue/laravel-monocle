@@ -94,7 +94,7 @@ Click a line on the timeline or a row in a table to see its details: the query w
 
 ## Jobs and traces
 
-A capture that dispatched queued jobs, or was dispatched by one, has a **Trace** tab (always last): the request or command with every job it dispatched, nested, each with its status, duration and when it started. The header links to the parent capture, and **Dispatched N job(s)** opens the Trace tab. In the Jobs tab, the `run` column links each queued job to its own capture, or shows *pending* until a worker has run it.
+A capture with a parent or children has a **Trace** tab (always last): the capture that started it all with every capture started from it, nested, each with its status, duration and when it started. Children are the queued jobs a capture dispatched, and, when turned on, the calls a page made and the commands a capture ran through the `Process` facade; see [Tracing](tracing.md). Each capture in the tree has a chip saying how it was linked: *queue*, *browser*, *navigation* or *process*. The header says **Started by parent capture via ...**, linking back, and **Started N child capture(s)** opens the Trace tab. A request that was asked to link to a page this store does not hold says *Asked to link to `<id>`, not found* instead. In the Jobs tab, the `run` column links each queued job to its own capture, or shows *pending* until a worker has run it.
 
 ## Access
 

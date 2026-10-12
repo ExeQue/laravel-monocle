@@ -58,6 +58,7 @@ export default defineConfig({
           { text: 'For AI agents (MCP)', link: '/docs/agents' },
           { text: 'Artisan commands', link: '/docs/commands' },
           { text: 'Dashboard', link: '/docs/dashboard' },
+          { text: 'Tracing', link: '/docs/tracing' },
           { text: 'What gets recorded', link: '/docs/lenses' },
         ],
       },

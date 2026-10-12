@@ -81,7 +81,7 @@ The lens reports no warnings. A failure inside a job run on the `sync` connectio
 
 The **Jobs** tab lists the jobs a capture dispatched, in order. Group the rows **by job** or **by queue**. The `run` column links each queued job to its own capture, or shows *pending* until a worker has run it; when a job ran more than once, it links to the newest attempt. Click a row to fold it out: every field in full and the line of your code that dispatched it.
 
-In the capture list, the **Jobs** filter shows only job captures. A job capture's header says **Dispatched by parent capture**, linking back. A capture that dispatched queued jobs says **Dispatched N job(s)**, which opens the **Trace** tab: the request or command with every job it set off, nested, each with its status, duration and when it started. See [Jobs and traces](../dashboard.md#jobs-and-traces).
+In the capture list, the **Jobs** filter shows only job captures. A job capture's header says **Started by parent capture**, linking back. A capture that dispatched queued jobs says **Started N child capture(s)**, which opens the **Trace** tab: the request or command with every job it set off, nested, each with its status, duration and when it started. See [Jobs and traces](../dashboard.md#jobs-and-traces).
 
 ![A request and the jobs it set off](../images/20-trace-light.webp#gh-light-mode-only)
 ![A request and the jobs it set off](../images/20-trace-dark.webp#gh-dark-mode-only)

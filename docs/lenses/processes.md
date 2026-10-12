@@ -36,6 +36,10 @@ How each way of running a process is recorded:
 - `Process::pipe()` gives one row per step of the pipe.
 - With `Process::fake()`, faked processes are recorded too, with the exit code and output of the fake.
 
+## Linking commands to the capture that started them
+
+With [`trace.processes`](../configuration.md#trace) on (the default), every process started through the facade while a capture is recorded gets two environment variables: `MONOCLE_TRACE_ID` (the trace) and `MONOCLE_PARENT_ID` (the capture that started it). When the process runs an artisan command of an application with Monocle enabled, such as `Process::run('php artisan orders:sync')`, that command's capture becomes a child of the capture that started it and shows up in its trace. Variables you set with `Process::env()` win over these. See [Tracing](../tracing.md).
+
 ## Totals, warnings and errors
 
 When the capture has rows in `processes`:
@@ -95,6 +99,7 @@ Other settings that affect this lens:
 
 - [`except`](../configuration.md#except): processes started during a request or command that is not recorded are not recorded either.
 - [`origin`](../configuration.md#origin): whether rows carry the line of your code that started the process.
+- [`trace.processes`](../configuration.md#trace): whether processes get the trace in their environment (default `true`).
 
 Command lines are masked with [`mask.inputs`](../configuration.md#masking): the value of a long option whose name matches, written as `--password=secret` or `--token secret`, and the value of a variable set in front of the command, such as `DB_PASSWORD=secret php artisan migrate`. Entries keyed by `ProcessLens::class` apply to this lens only.
 
