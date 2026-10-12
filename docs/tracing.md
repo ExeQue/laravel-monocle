@@ -12,7 +12,7 @@ Always on. A queued job becomes its own capture when a worker runs it, a child o
 
 ### Calls a page makes
 
-Off by default. With [`trace.browser`](configuration.md#trace) on, recorded HTML pages get a small script that links the `fetch()` and `XMLHttpRequest` calls they make to the page's capture, follows SPA navigation, and adds a Monocle button that opens the page's captures in the dashboard. See [Browser tracing](browser-tracing.md).
+Off by default. With [`trace.browser.enabled`](configuration.md#trace) on, recorded HTML pages get a small script that links the `fetch()` and `XMLHttpRequest` calls they make to the page's capture, follows SPA navigation, and adds a Monocle button that opens the page's captures in the dashboard. See [Browser tracing](browser-tracing.md).
 
 ### Commands run in a process
 
@@ -47,14 +47,18 @@ Captures recorded before this was added, and root captures, have no `linked_via`
 
 ```php
 'trace' => [
-    'browser' => false,
+    'browser' => [
+        'enabled' => false,
+        'button' => true,
+    ],
     'processes' => true,
 ],
 ```
 
 | Key | Default | What it does |
 |---|---|---|
-| `browser` | `false` | Put the trace script into recorded HTML pages, and link requests that carry `X-Monocle-Parent` to the page that sent them. Both need this on: with it off, the header is ignored. |
+| `browser.enabled` | `false` | Put the trace script into recorded HTML pages, and link requests that carry `X-Monocle-Parent` to the page that sent them. Both need this on: with it off, the header is ignored. |
+| `browser.button` | `true` | With `browser.enabled` and the dashboard on, add the Monocle button to traced pages. See [Browser tracing](browser-tracing.md#the-monocle-button). |
 | `processes` | `true` | Hand the trace to processes started through the `Process` facade, and let a command capture join the trace it was handed. |
 
 See [Configuration](configuration.md#trace).

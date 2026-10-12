@@ -1,11 +1,11 @@
 /*
- * Monocle browser trace, injected into HTML pages when trace.browser is on.
+ * Monocle browser trace, injected into HTML pages when trace.browser.enabled is on.
  * Same-origin fetch and XMLHttpRequest calls send X-Monocle-Parent with the
  * capture id of the current page, so their captures join the page's trace.
  * When an SPA router (wire:navigate, Inertia, ...) moves to another URL, the
  * capture of the response fetched for that URL becomes the current page.
  * Each step is written to the console, with links to the captures.
- * With the dashboard on, a round button in a corner opens the captures in it:
+ * With the dashboard and trace.browser.button on, a round button in a corner opens the captures in it:
  * straight away for one, from a list (newest first) once calls have followed.
  * The button can be dragged to a corner or the middle of an edge, which is remembered.
  */
@@ -43,7 +43,8 @@
   }
   trace = window.__monocleTrace = { id: id, seen: {}, waiting: null, captures: [], add: function () {} };
   trace.seen[key(location.href)] = id;
-  if (dashboard) button();
+  // The server only sends the button's icon when trace.browser.button is on.
+  if (dashboard && script.getAttribute('data-monocle-icon')) button();
   trace.add(page);
   log('linking this page\'s fetch and XHR calls to its capture ' + short(id), id);
 

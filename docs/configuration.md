@@ -59,12 +59,16 @@ How captures are linked into a trace beyond queued jobs, which are always linked
 
 ```php
 'trace' => [
-    'browser' => false,
+    'browser' => [
+        'enabled' => false,
+        'button' => true,
+    ],
     'processes' => true,
 ],
 ```
 
-- `browser` (default `false`): recorded HTML pages get a small inline script that sends the page's capture id, as `X-Monocle-Parent`, with the `fetch()` and `XMLHttpRequest` calls the page makes to its own origin. A request carrying that header becomes a child of the page when the page's capture is in this store. With it off, no script is added and the header is ignored.
+- `browser.enabled` (default `false`): recorded HTML pages get a small inline script that sends the page's capture id, as `X-Monocle-Parent`, with the `fetch()` and `XMLHttpRequest` calls the page makes to its own origin. A request carrying that header becomes a child of the page when the page's capture is in this store. With it off, no script is added and the header is ignored.
+- `browser.button` (default `true`): with `browser.enabled` and the dashboard on, those pages also get a Monocle button that opens their captures in the dashboard. Set it to `false` to keep the linking without the button. See [Browser tracing](browser-tracing.md#the-monocle-button).
 - `processes` (default `true`): processes started through the `Process` facade while a capture is recorded get `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID`, and an artisan command captured in such a process becomes a child of that capture.
 
 ## Masking

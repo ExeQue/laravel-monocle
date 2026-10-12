@@ -9,11 +9,13 @@ A page rarely ends with its first response. Livewire updates, Inertia visits and
 
 ## Turning it on
 
-Off by default. Turn it on with [`trace.browser`](configuration.md#trace):
+Off by default. Turn it on with [`trace.browser.enabled`](configuration.md#trace):
 
 ```php
 'trace' => [
-    'browser' => true,
+    'browser' => [
+        'enabled' => true,
+    ],
 ],
 ```
 
@@ -34,7 +36,16 @@ Livewire's `wire:navigate`, Inertia and other SPA routers fetch the next page fr
 
 ## The Monocle button
 
-With the dashboard on, the page also gets a round Monocle button in the bottom right corner.
+With the dashboard on, the page also gets a round Monocle button in the bottom right corner. It comes with browser tracing; turn it off on its own with `trace.browser.button`:
+
+```php
+'trace' => [
+    'browser' => [
+        'enabled' => true,
+        'button' => false,
+    ],
+],
+```
 
 - With only the page's own capture, a click opens it in the dashboard in a new tab.
 - Once the page has made calls, the button shows how many captures it holds, and a click lists them: the page and every recorded call, newest first, with method, path and status. Pick one to open it. The list has no limit; it scrolls.

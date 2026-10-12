@@ -95,7 +95,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
     }
 
     public function advice(): string
@@ -298,13 +298,13 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
-     * A request sent by a page with the browser trace script (trace.browser)
+     * A request sent by a page with the browser trace script (trace.browser.enabled)
      * joins the trace of that page's capture as its child. A parent this
      * store does not hold is noted instead, and the capture stays a root.
      */
     private function joinTrace(Capture $capture, Request $request): void
     {
-        if (! $this->eyepiece->config('trace.browser', false)) {
+        if (! $this->eyepiece->config('trace.browser.enabled', false)) {
             return;
         }
 
@@ -364,12 +364,12 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     }
 
     /**
-     * Put the browser trace script into an HTML page (trace.browser), so the
+     * Put the browser trace script into an HTML page (trace.browser.enabled), so the
      * calls the page makes send its capture id along.
      */
     private function injectTraceScript(Capture $capture, Request $request, Response $response): void
     {
-        if (! $this->eyepiece->config('trace.browser', false)) {
+        if (! $this->eyepiece->config('trace.browser.enabled', false)) {
             return;
         }
 
@@ -387,11 +387,12 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         // The dashboard's address, so the console can link each call to its capture; none when the dashboard is off.
         $dashboard = $this->app->make('router')->has('monocle.dashboard') ? $this->app->make('url')->route('monocle.dashboard') : null;
         $script = sprintf(
-            '<script data-monocle-id="%s" data-monocle-method="%s" data-monocle-status="%d"%s%s>%s</script>',
+            '<script data-monocle-id="%s" data-monocle-method="%s" data-monocle-status="%d"%s%s%s>%s</script>',
             $capture->id,
             e($request->getMethod()),
             $response->getStatusCode(),
-            $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'" data-monocle-icon="'.e($this->iconUrl()).'"',
+            $dashboard === null ? '' : ' data-monocle-dashboard="'.e($dashboard).'"',
+            $dashboard !== null && $this->eyepiece->config('trace.browser.button', true) ? ' data-monocle-icon="'.e($this->iconUrl()).'"' : '',
             $nonce === null ? '' : ' nonce="'.e($nonce).'"',
             $this->traceScript ??= (string) file_get_contents(dirname(__DIR__, 2).'/resources/trace/browser.js'),
         );

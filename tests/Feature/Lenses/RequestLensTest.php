@@ -683,7 +683,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('injects the trace script with the page capture id before the closing body tag', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
 
             $response = $this->get('/page');
             $id = $response->headers->get('X-Monocle-Id');
@@ -695,8 +695,17 @@ describe(RequestLens::class, function (): void {
                 ->and($response->headers->has('Content-Length'))->toBeFalse();
         });
 
+        it('leaves the button out when trace.browser.button is off', function (): void {
+            config(['monocle.trace.browser.enabled' => true, 'monocle.trace.browser.button' => false]);
+
+            $html = $this->get('/page')->getContent();
+
+            expect($html)->toContain('data-monocle-dashboard="'.route('monocle.dashboard').'"')
+                ->not->toContain('data-monocle-icon="');
+        });
+
         it('appends the script to HTML without a body tag and carries the CSP nonce', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
             Vite::useCspNonce('n0nce');
 
             $html = $this->get('/fragment')->getContent();
@@ -707,7 +716,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('injects nothing into other content, streams or pages not recorded', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
 
             expect($this->get('/data')->getContent())->toBe('{"ok":true}')
                 ->and($this->get('/_monocle/api')->getContent())->toBe('hidden');
@@ -728,7 +737,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('joins the trace of the page that sent the request', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
             $this->get('/page');
             $page = latestCapture();
 
@@ -747,7 +756,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('marks a call answered with a whole page as a navigation', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
             Route::get('/inertia', fn () => response()->json(['component' => 'Next'])->header('X-Inertia', 'true'));
             $this->get('/page');
             $page = latestCapture();
@@ -770,7 +779,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('stays a root and notes a parent this store does not hold', function (): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
             $unknown = '019a0000-0000-7000-8000-000000000001';
 
             $this->get('/ping/1', ['X-Monocle-Parent' => $unknown])->assertOk();
@@ -784,7 +793,7 @@ describe(RequestLens::class, function (): void {
         });
 
         it('ignores parent ids that are not capture ids', function (string $value): void {
-            config(['monocle.trace.browser' => true]);
+            config(['monocle.trace.browser.enabled' => true]);
 
             $this->get('/ping/1', ['X-Monocle-Parent' => $value])->assertOk();
 

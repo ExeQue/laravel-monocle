@@ -127,7 +127,7 @@ final class SummaryBuilder
             'started_at' => date('c', (int) $capture->startedAt),
             'ended_by' => $capture->endedBy,
             'parent_id' => $capture->parentId,
-            // A request asked to join a capture this store does not hold (trace.browser).
+            // A request asked to join a capture this store does not hold (trace.browser.enabled).
             'missing_parent_id' => $capture->section('request')['missing_parent_id'] ?? null,
             'trace_id' => $capture->traceId,
             'linked_via' => $capture->linkedVia,

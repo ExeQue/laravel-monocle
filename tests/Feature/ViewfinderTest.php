@@ -164,7 +164,7 @@ describe(Viewfinder::class, function (): void {
     });
 
     it('traces a page through the calls it made to the commands they started', function (): void {
-        config(['monocle.trace.browser' => true]);
+        config(['monocle.trace.browser.enabled' => true]);
         Route::get('/page', fn () => response('<body>page</body>'));
         Route::get('/call', fn () => 'called');
         Artisan::command('monocle-test:child', fn (): int => 0);
