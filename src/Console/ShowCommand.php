@@ -7,6 +7,7 @@ namespace ExeQue\Monocle\Console;
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
 use ExeQue\Monocle\Console\Concerns\RendersForHumans;
 use ExeQue\Monocle\Dashboard\Format;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
@@ -42,7 +43,7 @@ final class ShowCommand extends Command
             'kinds' => $this->option('kind'),
             'verbose' => (bool) $this->option('verbose-origin'),
             ...$this->optionArgs(['limit', 'search']),
-        ]), $this->render(...));
+        ]), $this->render(...), AgentView::show(...));
     }
 
     /**

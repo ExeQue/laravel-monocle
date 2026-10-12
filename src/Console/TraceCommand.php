@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
 use ExeQue\Monocle\Console\Concerns\RendersForHumans;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 
@@ -29,6 +30,7 @@ final class TraceCommand extends Command
         return $this->respond(
             $viewfinder->trace(['id' => $this->argument('id')]),
             $this->render(...),
+            AgentView::trace(...),
         );
     }
 

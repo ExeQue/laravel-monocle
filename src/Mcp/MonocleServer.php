@@ -36,7 +36,9 @@ pagination. Every row carries `origin` (user-land file:line) so you can jump to
 the code that triggered it.
 
 Sections are written by lenses. Besides `summary` and `timeline` (the span tree:
-phases, middleware, controller, transactions, user spans) this application records:
+phases, middleware, controller, transactions, user spans) this application records
+the sections below, each with when to look at it. `monocle-lenses` describes the
+fields each section records.
 MARKDOWN;
 
     protected array $tools = [
@@ -52,12 +54,13 @@ MARKDOWN;
 
     /**
      * The lens list is part of the instructions so the agent knows every
-     * section it can ask for before making a single call.
+     * section it can ask for before making a single call. Only the advice:
+     * the field descriptions are in monocle-lenses, read when needed.
      */
     protected function boot(): void
     {
-        $lines = collect(Container::getInstance()->make(LensRegistry::class)->descriptions())
-            ->map(fn (string $description, int|string $key): string => "- `{$key}`: {$description}");
+        $lines = collect(Container::getInstance()->make(LensRegistry::class)->advice())
+            ->map(fn (string $advice, int|string $key): string => "- `{$key}`: {$advice}");
 
         $this->instructions = self::INSTRUCTIONS."\n".($lines->implode("\n") ?: '- (no lenses enabled)');
     }

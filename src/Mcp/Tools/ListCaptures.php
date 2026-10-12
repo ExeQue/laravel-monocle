@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Mcp\Tools;
 
 use ExeQue\Monocle\Mcp\Tools\Concerns\DescribesPagination;
 use ExeQue\Monocle\Mcp\Tools\Concerns\RespondsWithJson;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -48,6 +49,6 @@ final class ListCaptures extends Tool
 
     public function handle(Request $request): Response
     {
-        return $this->json($this->viewfinder->list($request->all()));
+        return $this->json(AgentView::list($this->viewfinder->list($request->all())));
     }
 }

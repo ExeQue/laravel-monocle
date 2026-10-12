@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Console;
 
 use ExeQue\Monocle\Console\Concerns\OutputsJson;
 use ExeQue\Monocle\Console\Concerns\RendersForHumans;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Console\Command;
 
@@ -32,7 +33,7 @@ final class ListCommand extends Command
             ...$this->optionArgs(['type', 'uri', 'status', 'min-duration-ms', 'since', 'label', 'has-errors', 'offset', 'limit', 'search']),
         ]);
 
-        return $this->respond($data, fn (array $data) => $this->renderForHumans($data));
+        return $this->respond($data, fn (array $data) => $this->renderForHumans($data), AgentView::list(...));
     }
 
     /**

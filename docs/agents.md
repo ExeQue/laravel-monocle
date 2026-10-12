@@ -12,7 +12,7 @@ Monocle lets a coding agent answer "what did the application do when I hit that 
 4. Dig into a section with `monocle-rows` or `monocle-queries`.
 5. Every row has an `origin` - the `file:line` in your code that caused it, and `via` - the library call it went through on the way, when there is one. Fix the code, reproduce, and use `monocle-compare` to see the difference.
 
-The agent learns which sections exist (queries, cache, views, ...) and what they contain as soon as it connects, so it can go straight to the right one.
+The agent learns which sections exist (queries, cache, views, ...) and when to look at each as soon as it connects, so it can go straight to the right one.
 
 A **capture** is one request, queued job, artisan command or MCP call.
 
@@ -43,32 +43,29 @@ Recent captures, newest first.
 One capture - the latest unless an `id` is given. By default it returns the summary:
 
 - **Time breakdown** - bootstrap, middleware (request), routing, controller, middleware (response) and terminate, plus how much of it was database, cache, views, HTTP calls, filesystem, AI and so on.
-- **Totals** - number of queries, cache hit rate, memory, tokens, ... with their labels, units and the section each belongs to.
-- **Errors** - things that failed: exceptions, failed HTTP calls, jobs and scheduled tasks, error log entries, 5xx responses and the like.
-- **Warnings** - things worth a look: slow queries, N+1 candidates, duplicate queries, slow middleware and the like.
-- **Flags** - the errors and warnings together, errors first, each with its level and the section that reported it, so the agent knows where to dig.
+- **Totals** - number of queries, cache hit rate, memory, tokens, ... Names end in their unit where they have one (`_ms`, `_mb`, `_bytes`, `_percent`).
+- **Flags** - errors (exceptions, failed HTTP calls, jobs and scheduled tasks, error log entries, 5xx responses, ...) and warnings (slow queries, N+1 candidates, duplicate queries, slow middleware, ...), errors first, each with its level and the section that reported it, so the agent knows where to dig.
 - **Trace links** - the parent capture and its child captures (jobs, calls a page made, commands run in a process). See [Tracing](tracing.md).
-- **Available sections** - what else can be fetched, with a description and row count.
+- **Available sections** - each section holding data, with its row count (`"record"` for a section holding one record, such as `request`). What each section records is in the server instructions and `monocle-lenses`.
 
-The summary, also returned by `monocle:show`, has these keys:
+To save tokens, keys without a value (null or empty) are left out. The summary has these keys:
 
 | Key | Holds |
 |---|---|
 | `id`, `type`, `name`, `status`, `label`, `started_at`, `ended_by` | the capture |
 | `parent_id`, `trace_id`, `children` | trace links |
-| `linked_via` | how the capture was linked to its parent: `queue`, `browser`, `navigation` or `process`; null for a root |
+| `linked_via` | how the capture was linked to its parent: `queue`, `browser`, `navigation` or `process`; left out for a root |
 | `missing_parent_id` | a parent id a request was sent with that this store does not hold (the capture is not linked) |
 | `breakdown` | time per phase and per category |
 | `totals` | name => value |
-| `labels`, `units` | what each total counts and its unit |
 | `headlines` | the totals about the whole capture, such as duration and peak memory |
-| `groups` | total => the section that reported it (headlines are left out) |
-| `counts` | rows per section |
-| `errors`, `warnings` | the messages |
 | `flags` | every error and warning as `{level, section, message}`, errors first |
-| `problems` | section => `{warnings, errors}` counts |
 | `tags` | short labels for the whole capture as `{label, tone}`, such as "impersonated by #1 (web guard)" |
-| `meta`, `health` | metadata added to the capture, and memory, overhead, lens failures and the sections recorded. `overhead_ms` is the time Monocle spent while the capture ran (also the `monocle_ms` and `monocle_percent` totals); `overhead_by` splits it per lens (registering it, its listeners and the rows it wrote; application code a lens calls is left out); `finalize_ms` is the time spent closing it afterwards, outside the request |
+| `meta` | metadata added to the capture |
+| `monocle_top` | the five lenses that took Monocle the most time (registering, listeners and the rows they wrote; application code a lens calls is left out). The total is the `monocle_ms` and `monocle_percent` totals |
+| `health` | `finalize_ms` (time spent closing the capture, outside the request), and lens failures and spans left open, when there were any |
+
+The dashboard and the tables of `monocle:show` get the full summary, with the labels, units and groups they lay it out by.
 
 Ask for more with `sections`, e.g. `["timeline", "queries"]`. The timeline is the tree of timed spans; filter it with `kinds`, e.g. `["middleware"]` (which includes `middleware.request` and `middleware.response`). `limit` sets the rows per section (default 25); `verbose: true` adds the full call chain behind each `origin`.
 
@@ -118,7 +115,7 @@ Deletes all captures, so the next `monocle-list` only shows what happens after.
 
 ### `monocle-lenses`
 
-Lists the lenses enabled in the application: each section key you can pass to `monocle-show` and `monocle-rows`, with what it records.
+Lists the lenses enabled in the application: each section key you can pass to `monocle-show` and `monocle-rows`, with when to look at it and the fields it records. Pass `sections`, e.g. `["queries"]`, to describe only those. The server instructions carry only the when; this is where the fields are.
 
 ## Skill
 

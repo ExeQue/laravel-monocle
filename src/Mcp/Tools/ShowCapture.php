@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Mcp\Tools;
 
 use ExeQue\Monocle\Mcp\Tools\Concerns\RespondsWithJson;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -31,7 +32,7 @@ final class ShowCapture extends Tool
     {
         return [
             'id' => $schema->string()->description('Capture id from monocle-list or the X-Monocle-Id response header. Defaults to "latest".'),
-            'sections' => $schema->array()->items($schema->string())->description('Sections to include. Default ["summary"]. "timeline" plus every lens section listed in the server instructions; the response also lists available_sections with descriptions and row counts.'),
+            'sections' => $schema->array()->items($schema->string())->description('Sections to include. Default ["summary"]. "timeline" plus every lens section listed in the server instructions; the response also lists available_sections: each section holding data with its row count ("record" for a single record).'),
             'limit' => $schema->integer()->description('Rows per included section (default 25).'),
             'search' => $schema->string()->description('Free text: only rows and timeline spans where every word appears in some value.'),
             'kinds' => $schema->array()->items($schema->string())->description('For timeline: only spans of these kinds (phase, middleware, controller, user, db.transaction, ...).'),
@@ -41,6 +42,6 @@ final class ShowCapture extends Tool
 
     public function handle(Request $request): Response
     {
-        return $this->json($this->viewfinder->show($request->all()));
+        return $this->json(AgentView::show($this->viewfinder->show($request->all())));
     }
 }

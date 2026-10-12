@@ -84,7 +84,9 @@ describe(ShowCommand::class, function (): void {
         $data = json_decode(Artisan::output(), true);
 
         expect($data['summary']['name'])->toBe('GET /things')
-            ->and($data['queries']['rows'][0])->toHaveKey('sql');
+            ->and($data['queries']['rows'][0])->toHaveKey('sql')
+            ->and($data['summary'])->not->toHaveKey('labels')
+            ->and($data['available_sections'])->toHaveKey('queries');
     });
 
     it('fails with the error for unknown captures', function (): void {

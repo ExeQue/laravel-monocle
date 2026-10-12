@@ -22,11 +22,12 @@ trait OutputsJson
     /**
      * @param  array<string, mixed>  $data
      * @param  Closure(array<string, mixed>): void  $forHumans
+     * @param  (Closure(array<string, mixed>): array<string, mixed>)|null  $forAgents  trims the JSON output
      */
-    protected function respond(array $data, Closure $forHumans): int
+    protected function respond(array $data, Closure $forHumans, ?Closure $forAgents = null): int
     {
         if ($this->wantsJson()) {
-            return $this->outputJson($data);
+            return $this->outputJson($forAgents === null ? $data : $forAgents($data));
         }
 
         if (isset($data['error'])) {

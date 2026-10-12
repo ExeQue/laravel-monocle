@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Monocle\Mcp\Tools;
 
 use ExeQue\Monocle\Mcp\Tools\Concerns\RespondsWithJson;
+use ExeQue\Monocle\Reader\AgentView;
 use ExeQue\Monocle\Viewfinder;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -36,6 +37,6 @@ final class ShowTrace extends Tool
 
     public function handle(Request $request): Response
     {
-        return $this->json($this->viewfinder->trace($request->all()));
+        return $this->json(AgentView::trace($this->viewfinder->trace($request->all())));
     }
 }
