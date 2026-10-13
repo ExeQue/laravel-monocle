@@ -142,6 +142,7 @@ The lens is listed under `lenses` in `config/monocle.php`, keyed by `RequestLens
 | `capture.response_types` | `application/json` and `application/*+json` with `JsonCapture`, `text/html` with `InertiaCapture` | content type (wildcards allowed) => capture class |
 | `capture.headers` | `X-Inertia` with `InertiaCapture` | response header => capture class |
 | `capture.routes` | `*livewire.update` with `LivewireUpdateCapture`, `graphql` and `graphql.*` with `GraphQLCapture` | route name (wildcards allowed) => capture class |
+| `capture.max_bytes` | `1048576` (1 MB) | responses larger than this are not formatted and their raw body is not kept: `response_capture` holds one "Response not captured" card with the size. Decoding and masking a body takes several times its size in memory, so a large response could exhaust the request's `memory_limit`. `null` turns the limit off. |
 
 Each key replaces its default when you set it, so list the entries you want to keep. With `RequestLens::class => true`, all three defaults apply, so Livewire updates get one card per component.
 

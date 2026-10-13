@@ -99,6 +99,7 @@ return [
         // Laravel
         RequestLens::class => [
             'capture' => [
+                'max_bytes' => 1024 * 1024,         // larger responses are not formatted or kept raw; null = no limit
                 'response_types' => [
                     'application/json' => JsonCapture::class,
                     'application/*+json' => JsonCapture::class,

@@ -158,6 +158,28 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture()->section('request')['response_capture']['capture'])->toBe(\ExeQue\Monocle\Lenses\Request\TextCapture::class);
     });
 
+    it('does not format responses larger than capture.max_bytes', function (): void {
+        $lens = collect(app(LensRegistry::class)->booted())->first(fn ($lens) => $lens instanceof RequestLens);
+        $body = (string) json_encode(['data' => str_repeat('x', 2037)]);
+        Route::get('/large', fn () => response($body, 200, ['Content-Type' => 'application/json']));
+
+        $lens->configure(['capture' => ['max_bytes' => strlen($body)]]);
+        $this->get('/large')->assertOk();
+        expect(latestCapture()->section('request')['response_capture']['raw'])->toBe($body);
+
+        $lens->configure(['capture' => ['max_bytes' => 1024]]);
+        $this->get('/large')->assertOk();
+        expect(latestCapture()->section('request')['response_capture'])->toBe([
+            'capture' => \ExeQue\Monocle\Lenses\Request\JsonCapture::class,
+            'cards' => [['title' => 'Response not captured', 'subtitle' => '2.0 KB, larger than capture.max_bytes (1.0 KB)', 'items' => []]],
+            'raw' => null,
+        ])->and(latestCapture()->section('request')['response_bytes'])->toBe(strlen($body));
+
+        $lens->configure(['capture' => ['max_bytes' => null]]);
+        $this->get('/large')->assertOk();
+        expect(latestCapture()->section('request')['response_capture']['raw'])->toBe($body);
+    });
+
     it('captures Livewire updates per component with the default options', function (): void {
         TestCase::$bootConfig = ['monocle.lenses.'.RequestLens::class => true];
         $this->refreshApplication();

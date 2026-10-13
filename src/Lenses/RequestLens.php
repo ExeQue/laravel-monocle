@@ -13,8 +13,10 @@ use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\Resettable;
 use ExeQue\Monocle\Contracts\Lenses\Summarizable;
+use ExeQue\Monocle\Dashboard\Format;
 use ExeQue\Monocle\Dashboard\Presentation;
 use ExeQue\Monocle\Data\Capture;
+use ExeQue\Monocle\Data\Card;
 use ExeQue\Monocle\Data\Formatted;
 use ExeQue\Monocle\Data\Span;
 use ExeQue\Monocle\Data\Summary;
@@ -91,6 +93,9 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
     /** @var array<string, class-string<FormatsCapture>> Response header => capture. */
     private array $headerCaptures = ['X-Inertia' => InertiaCapture::class];
 
+    /** Responses larger than this are not formatted or kept raw; null = no limit. */
+    private ?int $maxBytes = 1024 * 1024;
+
     public function __construct(
         private readonly Eyepiece $eyepiece
     ) {
@@ -103,7 +108,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default), input_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default); a response over capture.max_bytes (1 MB by default) gets one "Response not captured" card and no raw body, input_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
     }
 
     public function advice(): string
@@ -116,6 +121,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->responseTypes = (array) ($options['capture']['response_types'] ?? $this->responseTypes);
         $this->routeCaptures = (array) ($options['capture']['routes'] ?? $this->routeCaptures);
         $this->headerCaptures = (array) ($options['capture']['headers'] ?? $this->headerCaptures);
+
+        if (array_key_exists('max_bytes', $options['capture'] ?? [])) {
+            $this->maxBytes = $options['capture']['max_bytes'] === null ? null : (int) $options['capture']['max_bytes'];
+        }
     }
 
     public function boot(Application $app): void
@@ -719,7 +728,8 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
      * formats payload fields, input_formats and the payload with the
      * values it masks itself. Fields the input masking changes keep their
      * masked value and no format, so their text cannot show what the mask
-     * hides.
+     * hides. A body over capture.max_bytes is not formatted: one card says
+     * so and raw is null.
      *
      * @return array{response_capture: array{capture: string, cards: list<array<string, mixed>>, raw: string|null}|null, input_formats?: array<string, array{format: string, text?: string}>, input?: array<string, mixed>}
      */
@@ -732,6 +742,20 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
         if ($class === null) {
             return ['response_capture' => null];
+        }
+
+        // Decoding and masking a large body takes several times its size in
+        // memory, enough to exhaust the request's memory_limit.
+        $size = $this->contentLength($response);
+
+        if ($this->maxBytes !== null && $size > $this->maxBytes) {
+            return ['response_capture' => [
+                'capture' => $class,
+                'cards' => [Card::titled('Response not captured')
+                    ->subtitle(sprintf('%s, larger than capture.max_bytes (%s)', Format::bytes($size), Format::bytes($this->maxBytes)))
+                    ->toArray()],
+                'raw' => null,
+            ]];
         }
 
         try {
@@ -756,6 +780,17 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             ],
             ...$this->formatInput($request, $formatted),
         ];
+    }
+
+    private function contentLength(Response $response): int
+    {
+        try {
+            $content = $response->getContent();
+        } catch (Throwable) {
+            return 0;
+        }
+
+        return is_string($content) ? strlen($content) : 0;
     }
 
     private function rawBody(Response $response, string $type): ?string
