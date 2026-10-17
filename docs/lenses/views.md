@@ -13,7 +13,7 @@ Section `views`, one row per render. A row is added when the render finishes, so
 
 | Field | Meaning | Unit | Missing when |
 | --- | --- | --- | --- |
-| `view` | The view name. A view under your view paths is named with dots, so `resources/views/users/show.blade.php` is `users.show`. A view elsewhere, such as a package view, is named after its file. A component's inline template is named `<x-component-name>`, and other inline templates `inline:` plus the start of their hash. | - | never |
+| `view` | The view name. A view under your view paths is named with dots, so `resources/views/users/show.blade.php` is `users.show`. A view elsewhere, such as a package view, is named after its file. A component's inline template is named `<x-component-name>`, the inline template Livewire puts a full-page component into its layout with `layout:` plus the layout name, and other inline templates `inline:` plus the start of their hash. | - | never |
 | `path` | The view file, relative to your project. | - | never |
 | `engine` | The view engine that rendered it, such as `blade`, `php` or `file`. | - | never |
 | `duration` | How long the render took, including every view rendered inside it. | ms | never |
