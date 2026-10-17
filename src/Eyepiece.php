@@ -655,15 +655,7 @@ final class Eyepiece
      */
     public function origin(): ?array
     {
-        // Read once per capture: an origin is taken for nearly every row.
-        $this->originSettings ??= [
-            'enabled' => (bool) $this->config('origin.enabled', true),
-            'basePath' => $this->app->basePath(),
-            'frames' => (int) $this->config('origin.frames', 5),
-            'includeVendor' => (array) $this->config('origin.include_vendor', []),
-        ];
-
-        if (! $this->originSettings['enabled']) {
+        if (! $this->originSettings()['enabled']) {
             return null;
         }
 
@@ -672,6 +664,34 @@ final class Eyepiece
             frames: $this->originSettings['frames'],
             includeVendor: $this->originSettings['includeVendor'],
         );
+    }
+
+    /**
+     * The origin of something whose file and line are already known, such as a PHP warning.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function originAt(string $file, ?int $line): ?array
+    {
+        if (! $this->originSettings()['enabled']) {
+            return null;
+        }
+
+        return Origin::at($file, $line, $this->originSettings['basePath']);
+    }
+
+    /**
+     * @return array{enabled: bool, basePath: string, frames: int, includeVendor: list<string>}
+     */
+    private function originSettings(): array
+    {
+        // Read once per capture: an origin is taken for nearly every row.
+        return $this->originSettings ??= [
+            'enabled' => (bool) $this->config('origin.enabled', true),
+            'basePath' => $this->app->basePath(),
+            'frames' => (int) $this->config('origin.frames', 5),
+            'includeVendor' => (array) $this->config('origin.include_vendor', []),
+        ];
     }
 
     public function config(string $key, mixed $default = null): mixed

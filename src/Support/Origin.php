@@ -395,6 +395,16 @@ final class Origin
     }
 
     /**
+     * The origin of something whose file and line are already known, such as a PHP warning.
+     *
+     * @return array{file: string, line: int|null, call: null, frames: list<never>}
+     */
+    public static function at(string $file, ?int $line, string $basePath): array
+    {
+        return ['file' => self::relative($file, $basePath), 'line' => $line, 'call' => null, 'frames' => []];
+    }
+
+    /**
      * "file:line via Class->method" for warnings.
      *
      * @param  array<string, mixed>|null  $origin

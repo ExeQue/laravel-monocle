@@ -115,6 +115,11 @@ describe(Origin::class, function (): void {
         expect($origin['file'])->toBe('app/Http/Middleware/Locale.php');
     });
 
+    it('gives an origin at a known file and line, relative to the base path', function (): void {
+        expect(Origin::at('/app/vendor/acme/Lib.php', 7, '/app'))->toBe(['file' => 'vendor/acme/Lib.php', 'line' => 7, 'call' => null, 'frames' => []])
+            ->and(Origin::at('/elsewhere/Lib.php', null, '/app'))->toBe(['file' => '/elsewhere/Lib.php', 'line' => null, 'call' => null, 'frames' => []]);
+    });
+
     it('describes an origin for warnings with the library call it went through', function (): void {
         expect(Origin::describe(['file' => 'a.php', 'line' => 3, 'via' => ['call' => 'Lib->go']]))->toBe('a.php:3 via Lib->go')
             ->and(Origin::describe(['file' => 'a.php']))->toBe('a.php')

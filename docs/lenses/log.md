@@ -17,7 +17,7 @@ Every row in the `log` section has these fields:
 | `message` | The logged message | | never |
 | `context` | The context array passed with the message. An exception in it is reduced to `class`, `message`, `file` (file:line) and `previous`; models become `Class#id` | | empty when no context was passed |
 | `time` | When the message was logged, counted from the start of the capture | ms | never |
-| `origin` | The file and line of your code that wrote the message, with a short call chain | | `null` when [`origin.enabled`](../configuration.md#origin) is off |
+| `origin` | The file and line of your code that wrote the message, with a short call chain. For a PHP warning or deprecation, the file and line it was raised on | | `null` when [`origin.enabled`](../configuration.md#origin) is off |
 
 ## Totals, warnings and errors
 

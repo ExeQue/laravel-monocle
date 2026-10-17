@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Monocle\Lenses;
 
+use ErrorException;
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
@@ -58,12 +59,42 @@ final class LogLens implements Advises, Lens, Presentable, Summarizable
                 return;
             }
 
-            $this->eyepiece->push('log', [
+            $row = [
                 'level' => $event->level,
                 'message' => $event->message,
                 'context' => $this->context($event->context),
-            ]);
+            ];
+
+            // A PHP warning or deprecation comes from where it was raised, not from the code that happened to be running.
+            $raised = $this->raisedAt($event);
+
+            if ($raised !== null) {
+                $row['origin'] = $this->eyepiece->originAt(...$raised);
+            }
+
+            $this->eyepiece->push('log', $row);
         });
+    }
+
+    /**
+     * Laravel logs a PHP warning or deprecation with the ErrorException in the
+     * context, or with " in FILE on line N" at the end of the message.
+     *
+     * @return array{file: string, line: int}|null
+     */
+    private function raisedAt(MessageLogged $event): ?array
+    {
+        $exception = $event->context['exception'] ?? null;
+
+        if ($exception instanceof ErrorException) {
+            return ['file' => $exception->getFile(), 'line' => $exception->getLine()];
+        }
+
+        if (preg_match('/ in (.+) on line (\d+)$/', (string) $event->message, $match) === 1) {
+            return ['file' => $match[1], 'line' => (int) $match[2]];
+        }
+
+        return null;
     }
 
     public function summarize(Capture $capture): Summary
