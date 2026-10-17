@@ -205,6 +205,15 @@ describe(Eyepiece::class, function (): void {
                 ->toBeLessThanOrEqual(round($after - 15.0, 3));
         });
 
+        it('gives an origin at a known file and line, unless origins are off', function (): void {
+            expect($this->eyepiece->originAt(base_path('app/Report.php'), 12))->toBe(['file' => 'app/Report.php', 'line' => 12, 'call' => null, 'frames' => []]);
+
+            config(['monocle.origin.enabled' => false]);
+            $this->eyepiece->reset();
+
+            expect($this->eyepiece->originAt(base_path('app/Report.php'), 12))->toBeNull();
+        });
+
         it('skips origin when asked', function (): void {
             $this->eyepiece->push('custom', ['value' => 1], origin: false);
 

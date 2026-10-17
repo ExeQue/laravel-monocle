@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Lenses;
 
+use ErrorException;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\LogLens;
@@ -37,6 +38,27 @@ describe(LogLens::class, function (): void {
             ->and($summary->totals['log_by_level'])->toBe(['info' => 1, 'error' => 1, 'debug' => 1, 'warning' => 1])
             ->and($summary->warnings)->toBe(['Logged warning: Function strftime() is deprecated'])
             ->and($summary->errors)->toBe(['Logged error: Import failed']);
+    });
+
+    it('points PHP warnings and deprecations at where they were raised', function (): void {
+        config(['logging.default' => 'null']);
+        app(Eyepiece::class)->start(CaptureType::Request);
+
+        Log::warning('Method SplObjectStorage::contains() is deprecated in '.base_path('vendor/acme/lib/Store.php').' on line 151');
+        Log::warning('Undefined variable $x', ['exception' => new ErrorException('Undefined variable $x', 0, E_WARNING, base_path('app/Report.php'), 12)]);
+        Log::warning('Disk almost full');
+        $rows = app(Eyepiece::class)->finalize()->rows('log');
+
+        expect($rows[0]['origin'])->toBe(['file' => 'vendor/acme/lib/Store.php', 'line' => 151, 'call' => null, 'frames' => []])
+            ->and($rows[1]['origin'])->toBe(['file' => 'app/Report.php', 'line' => 12, 'call' => null, 'frames' => []])
+            ->and($rows[2]['origin']['file'])->toContain('LogLensTest.php');
+
+        config(['monocle.origin.enabled' => false]);
+        app(Eyepiece::class)->reset()->start(CaptureType::Request);
+        Log::warning('Function strftime() is deprecated in '.base_path('app/Old.php').' on line 3');
+        $disabled = app(Eyepiece::class)->finalize()->rows('log');
+
+        expect($disabled[0]['origin'])->toBeNull();
     });
 
     it('masks context keys that look like secrets', function (): void {
