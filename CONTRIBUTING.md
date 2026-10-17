@@ -41,7 +41,7 @@ npm install
 
 ## What a pull request needs
 
-- **Tests** for all new behaviour, written with Pest. A test file mirrors the class it tests (`src/Lenses/CacheLens.php` → `tests/Feature/Lenses/CacheLensTest.php`), uses a matching namespace and declares what it covers with `covers()`. Coverage must stay at 90% or above. Lenses for other packages are tested against the real package, running its normal flow.
+- **Tests** for all new behaviour, written with Pest. A test file mirrors the class it tests (`src/Lenses/CacheLens.php` → `tests/Feature/Lenses/CacheLensTest.php`), uses a matching namespace and declares what it covers with `covers()`. Coverage must stay at 100%; check it with `docker compose run --rm composer test:coverage`. Lenses for other packages are tested against the real package, running its normal flow.
 - **Docs** updated when behaviour or options change: the page in `docs/` and, for config options, the comment block in `config/monocle.php`.
 - **Green lint.** Run `composer lint` before pushing; CI runs `composer lint:test` and the tests only start when it passes.
 - **Dashboard changes** come with rebuilt assets: run `npm run build` and commit `resources/dist` in the same pull request. New UI also needs a page in the workbench demo app that shows it, so it can be tried with `docker compose up -d serve`.
