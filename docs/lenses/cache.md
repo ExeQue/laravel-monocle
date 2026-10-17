@@ -42,7 +42,7 @@ Section `cache`, one row per operation, in the order they happened.
 Warnings:
 
 - **Slow cache call** - `Slow cache hit (31.2 ms) on the "redis" store: user:1 from app/Http/Controllers/UserController.php:22`. One call took at least `slow_ms`. Every slow call gets its own warning, wherever it came from. When the store's driver differs from its name, the driver is added, for example `the "sessions" store (redis)`.
-- **Cache key read repeatedly** - `Cache key settings read 8 times (2.4 ms) from app/Support/Settings.php:14; remember it for the request with Cache::memo() or once().` One key on one store was read (hit or miss) at least `repeat_threshold` times and took at least `repeat_ms` in all. Not given when the first read came from package code alone.
+- **Cache key read repeatedly** - `Cache key settings read 8 times (2.4 ms) from app/Support/Settings.php:14; remember it for the request with Cache::memo() or once().` One key on one store was read (hit or miss) at least `repeat_threshold` times and took at least `repeat_ms` in all. Not given for stores with the `array` driver, or when the first read came from package code alone.
 
 This lens reports no errors.
 

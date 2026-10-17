@@ -78,11 +78,12 @@ describe(CacheLens::class, function (): void {
     });
 
     it('numbers reads, points repeats at the first read and warns about keys read often', function (): void {
-        Cache::put('a', 1, 60);
-        Cache::get('a');
-        Cache::get('a');
-        Cache::get('b');
-        Cache::get('a');
+        $cache = Cache::store('file');
+        $cache->put('a', 1, 60);
+        $cache->get('a');
+        $cache->get('a');
+        $cache->get('b');
+        $cache->get('a');
 
         $capture = app(Eyepiece::class)->finalize();
         $rows = $capture->rows('cache');
@@ -145,6 +146,22 @@ describe(CacheLens::class, function (): void {
         event(new CacheFlushed('array'));
 
         expect(app(Eyepiece::class)->active()->rows('cache'))->toBe([]);
+    });
+
+    it('does not warn about repeated reads on a store with the array driver', function (): void {
+        config(['cache.stores.local' => ['driver' => 'array']]);
+
+        foreach (['local', null] as $store) {
+            Cache::store($store)->get('a');
+            Cache::store($store)->get('a');
+        }
+
+        $capture = app(Eyepiece::class)->finalize();
+        $lens = app(CacheLens::class);
+        $lens->configure(['repeat_threshold' => 2, 'repeat_ms' => 0]);
+
+        expect(config('cache.default'))->toBe('array')
+            ->and($lens->summarize($capture)->warnings)->toBe([]);
     });
 
     it('names stores without a configured driver and skips reads without a key or from vendor code', function (): void {
