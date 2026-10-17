@@ -41,6 +41,8 @@ With file storage, the folder is also kept out of your tools - for the ones the 
 
 Restart your MCP client when the command is done. If you use Claude Code with an allow-list in `.claude/settings.local.json`, add `"monocle"` to `enabledMcpjsonServers`.
 
+The Monocle button on your pages is off until you turn on browser tracing: set `trace.browser.enabled` to `true` in `config/monocle.php`. See [Browser tracing](browser-tracing.md).
+
 Running the command again is safe: existing MCP servers and settings in the files are kept.
 
 ### Without prompts

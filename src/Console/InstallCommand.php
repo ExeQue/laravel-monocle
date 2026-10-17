@@ -101,6 +101,10 @@ final class InstallCommand extends Command
             $next[] = "Run `{$platform->artisan()} monocle:editor` to open file paths from Monocle in your editor.";
         }
 
+        if (! config('monocle.trace.browser.enabled')) {
+            $next[] = 'Set trace.browser.enabled to true in config/monocle.php for the Monocle button on your pages.';
+        }
+
         return $next;
     }
 

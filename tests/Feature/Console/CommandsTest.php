@@ -182,6 +182,18 @@ describe(InstallCommand::class, function (): void {
             ->assertSuccessful();
     });
 
+    it('recommends browser tracing for the Monocle button until it is on', function (): void {
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json'], '--no-interaction' => true])
+            ->expectsOutputToContain('Set trace.browser.enabled to true')
+            ->assertSuccessful();
+
+        config(['monocle.trace.browser.enabled' => true]);
+
+        $this->artisan('monocle:install', ['--platform' => 'lerd', '--file' => [$this->dir.'/.mcp.json'], '--no-interaction' => true])
+            ->doesntExpectOutputToContain('trace.browser.enabled')
+            ->assertSuccessful();
+    });
+
     it('does not write in dry-run mode', function (): void {
         $file = $this->dir.'/dry.json';
         config(['monocle.storage.file.path' => $this->dir.'/storage/monocle']);
