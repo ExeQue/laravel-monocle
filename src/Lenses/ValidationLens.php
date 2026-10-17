@@ -252,6 +252,10 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         foreach ($frames as $frame) {
             $object = $frame['object'] ?? null;
 
+            if (! is_object($object)) {
+                continue;
+            }
+
             if ($this->isSource($object)) {
                 return $object::class;
             }
@@ -260,7 +264,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
         return null;
     }
 
-    private function isSource(mixed $object): bool
+    private function isSource(object $object): bool
     {
         if ($object instanceof FormRequest) {
             return true;
