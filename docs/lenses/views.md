@@ -20,7 +20,7 @@ Section `views`, one row per render. A row is added when the render finishes, so
 | `data_keys` | Names of the variables passed to the view. Laravel's own variables and names starting with `_` are left out. | - | empty list when nothing was passed |
 | `data` | The variables passed to the view, with their values. Laravel's own variables are left out. | - | absent unless `data` is `true` |
 | `time` | When the render started, from the start of the capture. | ms | never |
-| `origin` | The line in your code that rendered the view. | - | `null` when [`origin`](../configuration.md#origin) is turned off |
+| `origin` | The line in your code that rendered the view. For the view of a Livewire component, its `render()` method. | - | `null` when [`origin`](../configuration.md#origin) is turned off |
 
 ## Totals, warnings and errors
 

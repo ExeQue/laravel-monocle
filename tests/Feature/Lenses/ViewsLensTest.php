@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Compilers\BladeCompiler;
 use InvalidArgumentException;
+use ReflectionMethod;
+use Tests\Fixtures\Livewire\Counter;
 use Tests\Fixtures\Livewire\Pricing;
 
 covers(ViewsLens::class, TimedEngine::class);
@@ -85,6 +87,27 @@ describe(ViewsLens::class, function (): void {
         $this->get('/pricing')->assertOk()->assertSee('Pricing');
 
         expect(array_column(latestCapture()->rows('views'), 'view'))->toBe(['partial', 'livewire.pricing', 'layouts.page', 'layout:layouts.page']);
+    });
+
+    it('points the own view of a Livewire component at its render method, not the views it includes', function (): void {
+        Route::get('/pricing', Pricing::class);
+        Route::get('/counter', fn () => Blade::render('@livewire(\\Tests\\Fixtures\\Livewire\\Counter::class)'));
+
+        $this->get('/pricing')->assertOk();
+        $pricing = collect(latestCapture()->rows('views'))->keyBy('view');
+        $this->get('/counter')->assertOk();
+        $counter = collect(latestCapture()->rows('views'))->pluck('origin.call');
+
+        expect($pricing['livewire.pricing']['origin']['file'])->toEndWith('tests/Fixtures/Livewire/Pricing.php')
+            ->and($pricing['livewire.pricing']['origin']['line'])->toBe(new ReflectionMethod(Pricing::class, 'render')->getStartLine())
+            ->and($pricing['livewire.pricing']['origin']['call'])->toBe(Pricing::class.'->render')
+            ->and($pricing['partial']['origin']['call'])->not->toBe(Pricing::class.'->render')
+            ->and($counter)->toContain(Counter::class.'->render');
+
+        config(['monocle.origin.enabled' => false]);
+        $this->get('/pricing')->assertOk();
+
+        expect(collect(latestCapture()->rows('views'))->keyBy('view')['livewire.pricing']['origin'])->toBeNull();
     });
 
     it('includes view data when configured and forwards other engine calls', function (): void {
