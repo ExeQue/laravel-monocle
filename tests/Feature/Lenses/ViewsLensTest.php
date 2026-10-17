@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Compilers\BladeCompiler;
 use InvalidArgumentException;
+use Tests\Fixtures\Livewire\Pricing;
 
 covers(ViewsLens::class, TimedEngine::class);
 
@@ -76,6 +77,14 @@ describe(ViewsLens::class, function (): void {
 
         expect($names)->toContain('<x-greeting>')
             ->and(collect($names)->first(fn (string $name): bool => str_starts_with($name, 'inline:')))->toMatch('/^inline:[0-9a-f]{8}$/');
+    });
+
+    it('names the inline template Livewire wraps a full-page component in after its layout', function (): void {
+        Route::get('/pricing', Pricing::class);
+
+        $this->get('/pricing')->assertOk()->assertSee('Pricing');
+
+        expect(array_column(latestCapture()->rows('views'), 'view'))->toBe(['partial', 'livewire.pricing', 'layouts.page', 'layout:layouts.page']);
     });
 
     it('includes view data when configured and forwards other engine calls', function (): void {

@@ -131,6 +131,13 @@ final class TimedEngine implements Engine
             return '<x-'.$component.'>';
         }
 
+        // Livewire puts a full-page component into its layout through an inline template.
+        $layout = is_object($data['layout'] ?? null) ? ($data['layout']->view ?? null) : null;
+
+        if (is_string($layout)) {
+            return 'layout:'.$layout;
+        }
+
         return 'inline:'.substr($name, 0, 8);
     }
 
