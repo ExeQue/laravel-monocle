@@ -8,6 +8,13 @@ Every pull request needs an issue first, also small ones. Open an issue describi
 
 Security issues are the exception: never open a public issue for them. See [SECURITY.md](SECURITY.md).
 
+## Fixing a bug
+
+1. Open an issue with the **Bug report** template: what happens, how to reproduce it and, if you know, the cause. One issue per bug.
+2. Branch from an up-to-date `main` as `fix/{issue}_{short-name}`, for example `fix/12_spl-object-storage-deprecations`.
+3. Fix the bug and add a test that fails without the fix.
+4. Open a pull request against `main` describing what was wrong, what the fix changes and how it was tested, with `Fixes #{issue}` in the description so the issue closes on merge.
+
 ## Lenses for other packages
 
 A lens for a widely used package can go into Monocle itself, as `src/Lenses/Packages/{Author}/{Package}Lens.php`, where `{Author}` is the root namespace of the package it records (`laravel/fortify` becomes `Laravel\FortifyLens`, `spatie/laravel-medialibrary` becomes `Spatie\MediaLibraryLens`). Every lens and response capture there implements `RequiresPackages`, naming the package it records first. A lens that adds to an existing section, rather than having its own, implements `ExtendsLens`. Say which package and what the lens records in the issue, and we decide together whether it belongs in core.
