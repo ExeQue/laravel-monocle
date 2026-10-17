@@ -305,6 +305,15 @@ describe(FilamentLens::class, function (): void {
             ->and($rows[0])->toMatchArray(['kind' => 'notification', 'name' => 'Ping', 'status' => 'info', 'channel' => 'broadcast', 'notifiable' => AnonymousNotifiable::class]);
     });
 
+    it('records notifications flashed to the session by Filament before 5.10.2', function () use ($invoke): void {
+        app(Eyepiece::class)->start(CaptureType::Request);
+        session()->put('filament.notifications', [['id' => 'saved', 'title' => 'Saved', 'status' => 'success']]);
+
+        expect($invoke('notifications'))->toBe(['Saved']);
+
+        app(Eyepiece::class)->discard();
+    });
+
     it('finds no flashed notifications without a working session', function () use ($invoke): void {
         app(Eyepiece::class)->start(CaptureType::Request);
         app()->instance('session', new class () {
