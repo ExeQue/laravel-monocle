@@ -29,8 +29,8 @@ use Illuminate\Validation\InvokableValidationRule;
 use Illuminate\Validation\Validator;
 use ReflectionFunction;
 use ReflectionProperty;
-use SplObjectStorage;
 use Stringable;
+use WeakMap;
 
 /**
  * Every validation run: where it came from, the rules per field and, when it
@@ -41,14 +41,14 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
 {
     private ?Closure $resolver = null;
 
-    /** @var SplObjectStorage<Validator, float> validators of this capture and when they were made */
-    private SplObjectStorage $validators;
+    /** @var WeakMap<Validator, float> validators of this capture and when they were made */
+    private WeakMap $validators;
 
     public function __construct(
         private readonly Eyepiece $eyepiece,
         private readonly Application $app,
     ) {
-        $this->validators = new SplObjectStorage();
+        $this->validators = new WeakMap();
     }
 
     public function key(): string
@@ -117,7 +117,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
 
     public function reset(): void
     {
-        $this->validators = new SplObjectStorage();
+        $this->validators = new WeakMap();
     }
 
     public function summarize(Capture $capture): Summary
@@ -148,7 +148,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
 
         $validator->after($this->eyepiece->wrap(function (Validator $validator) use ($source): void {
             // Validators made before this capture, or already recorded, are skipped.
-            if (! $this->validators->contains($validator)) {
+            if (! isset($this->validators[$validator])) {
                 return;
             }
 
@@ -157,7 +157,7 @@ final class ValidationLens implements Advises, Lens, Presentable, Resettable, Su
             }
 
             $started = $this->validators[$validator];
-            $this->validators->detach($validator);
+            unset($this->validators[$validator]);
             $failed = $this->failures($validator);
             $rules = $validator->getRules();
 
