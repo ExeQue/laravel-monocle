@@ -25,6 +25,8 @@ php artisan monocle:install
 
 `monocle:install` asks what to record, where to store it and which MCP clients to configure, then writes `config/monocle.php` and registers the MCP server. Restart your MCP client afterwards.
 
+For the Monocle button on your pages, which opens their captures in the dashboard, set `trace.browser.enabled` to `true` in `config/monocle.php`. See [Browser tracing](https://exeque.github.io/laravel-monocle/docs/browser-tracing).
+
 Monocle records only outside production and only with `APP_DEBUG=true`, and never while your test suite runs unless you enable it.
 
 ## What your agent can do

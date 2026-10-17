@@ -36,7 +36,7 @@ Livewire's `wire:navigate`, Inertia and other SPA routers fetch the next page fr
 
 ## The Monocle button
 
-With the dashboard on, the page also gets a round Monocle button in the bottom right corner. It comes with browser tracing; turn it off on its own with `trace.browser.button`:
+With the dashboard on, the page also gets a round Monocle button in the bottom right corner. It comes with browser tracing, so it only shows while `trace.browser.enabled` is on; turn it off on its own with `trace.browser.button`:
 
 ```php
 'trace' => [
