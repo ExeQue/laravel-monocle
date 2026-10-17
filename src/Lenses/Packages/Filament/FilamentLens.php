@@ -28,6 +28,7 @@ use Filament\Actions\Events\ActionCalling;
 use Filament\Facades\Filament;
 use Filament\Notifications\BroadcastNotification;
 use Filament\Notifications\DatabaseNotification;
+use Filament\Notifications\NotificationMailbox;
 use Filament\Pages\BasePage;
 use Filament\Resources\Events\RecordCreated;
 use Filament\Resources\Events\RecordUpdated;
@@ -465,13 +466,18 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
                 return [];
             }
 
-            $flashed = [];
+            // Filament 5.10.2 and later hold this request's notifications in a mailbox; older versions flash them to the session.
+            $notifications = app()->bound(NotificationMailbox::class) ? $this->pending(app(NotificationMailbox::class)) : [];
 
             foreach (self::NOTIFICATION_KEYS as $key) {
-                foreach ((array) session($key, []) as $notification) {
-                    if (is_array($notification) && isset($notification['id'])) {
-                        $flashed[(string) $notification['id']] = $notification;
-                    }
+                array_push($notifications, ...array_values((array) session($key, [])));
+            }
+
+            $flashed = [];
+
+            foreach ($notifications as $notification) {
+                if (is_array($notification) && isset($notification['id'])) {
+                    $flashed[(string) $notification['id']] = $notification;
                 }
             }
 
@@ -479,6 +485,16 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
         } catch (Throwable) {
             return [];
         }
+    }
+
+    /**
+     * The notifications the mailbox holds until the response is sent; it has no getter for them.
+     *
+     * @return list<mixed>
+     */
+    private function pending(NotificationMailbox $mailbox): array
+    {
+        return array_values((fn (): array => $this->pendingNotifications)->call($mailbox));
     }
 
     /**
