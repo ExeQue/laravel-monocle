@@ -44,7 +44,7 @@ describe('warnings for library code', function (): void {
     });
 
     it('leaves out repeated cache reads from libraries', function () use ($capture, $library, $app): void {
-        $reads = fn (array $origin): array => array_map(fn (int $n): array => ['n' => $n, 'type' => 'hit', 'key' => 'k', 'store' => 'array', 'duration' => 2.0, 'origin' => $origin], range(1, 6));
+        $reads = fn (array $origin): array => array_map(fn (int $n): array => ['n' => $n, 'type' => 'hit', 'key' => 'k', 'store' => 'redis', 'duration' => 2.0, 'origin' => $origin], range(1, 6));
         $lens = app(CacheLens::class);
 
         expect($lens->summarize($capture(['cache' => $reads($library)]))->warnings)->toBe([])

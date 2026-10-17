@@ -181,7 +181,7 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
             return 'the default store';
         }
 
-        $driver = config("cache.stores.{$store}.driver");
+        $driver = $this->driver($store);
 
         if (! is_string($driver)) {
             return "the \"{$store}\" store";
@@ -192,6 +192,13 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
         }
 
         return "the \"{$store}\" store ({$driver})";
+    }
+
+    private function driver(?string $store): mixed
+    {
+        $store ??= config('cache.default');
+
+        return config("cache.stores.{$store}.driver");
     }
 
     /**
@@ -215,6 +222,8 @@ final class CacheLens implements Advises, Configurable, Lens, Presentable, Reset
     {
         return collect($rows)
             ->filter(fn (array $row): bool => in_array($row['type'] ?? null, ['hit', 'miss'], true) && isset($row['key']))
+            // An array store never leaves the process, so remembering its reads saves nothing.
+            ->reject(fn (array $row): bool => $this->driver($row['store'] ?? null) === 'array')
             ->groupBy(fn (array $row): string => ($row['store'] ?? '').'|'.$row['key'])
             // The reads of each store|key, with the origin of the first.
             ->map(fn (Collection $reads): array => [
