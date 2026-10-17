@@ -9,6 +9,9 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\ViewsLens;
 use ExeQue\Monocle\Support\Normalizer;
 use Illuminate\Contracts\View\Engine;
+use ReflectionClass;
+use ReflectionMethod;
+use WeakMap;
 
 /**
  * Wraps a view engine so every render - including nested includes and
@@ -20,6 +23,9 @@ final class TimedEngine implements Engine
 {
     private const array INTERNAL_KEYS = ['__env', 'app', 'errors', '__currentLoopData', '__laravel_slots', '__data', '__path'];
 
+    /** @var WeakMap<object, true> Livewire components whose own view has been rendered. */
+    private WeakMap $components;
+
     public function __construct(
         private readonly Engine $inner,
         private readonly string $engine,
@@ -29,6 +35,7 @@ final class TimedEngine implements Engine
         private readonly string $basePath,
         private readonly bool $data = false,
     ) {
+        $this->components = new WeakMap();
     }
 
     public function get($path, array $data = []): string
@@ -46,6 +53,7 @@ final class TimedEngine implements Engine
             'engine' => $this->engine,
             'data_keys' => $keys,
         ]);
+        $span->origin = $this->componentOrigin($data) ?? $span->origin;
 
         try {
             return $this->inner->get($path, $data);
@@ -69,6 +77,37 @@ final class TimedEngine implements Engine
 
             $this->eyepiece->push('views', $row);
         }
+    }
+
+    /**
+     * Livewire renders a component's view after its render() has returned, so
+     * the stack no longer shows the component. The first view rendered for a
+     * component is its own; the ones after it are included from that view.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
+     */
+    private function componentOrigin(array $data): ?array
+    {
+        $component = $data['__livewire'] ?? null;
+
+        if (! is_object($component)) {
+            return null;
+        }
+
+        if (isset($this->components[$component])) {
+            return null;
+        }
+
+        $this->components[$component] = true;
+        $render = method_exists($component, 'render') ? new ReflectionMethod($component, 'render') : new ReflectionClass($component);
+        $origin = $this->eyepiece->originAt((string) $render->getFileName(), $render->getStartLine() ?: null);
+
+        if ($origin === null) {
+            return null;
+        }
+
+        return [...$origin, 'call' => $render instanceof ReflectionMethod ? $component::class.'->render' : $component::class];
     }
 
     public function inner(): Engine
