@@ -50,6 +50,13 @@ arch('core lenses do not depend on optional packages')
     ->not->toUse(['Livewire', 'Inertia', 'Laravel\Ai', 'Laravel\Mcp', 'Laravel\Pennant', 'Prism', 'Spatie'])
     ->ignoring(['ExeQue\Monocle\Lenses\Packages', ValidationLens::class]);
 
+// SplObjectStorage::contains(), attach() and detach() are deprecated in PHP 8.5 and log into the host app.
+test('objects are keyed with WeakMap, not SplObjectStorage', function (): void {
+    $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src')->name('*.php')->contains('SplObjectStorage');
+
+    expect(iterator_to_array($files))->toBeEmpty();
+});
+
 test('immutables are final readonly classes built only through their own methods', function (): void {
     $files = Finder::create()->files()->in(dirname(__DIR__, 2).'/src')->name('*.php');
     $immutables = [];
