@@ -116,7 +116,7 @@ The response captures are the same ones the request lens uses; see [Response cap
 
 Other settings that affect this lens:
 
-- [`mask.headers`](../configuration.md#masking) masks request and response headers. Entries keyed by `HttpClientLens::class` apply to this lens only.
+- [`mask.headers`](../configuration.md#masking) masks request and response headers. Entries keyed by `HttpClientLens::class` apply to this lens only. With `laravel/ai` installed, its providers' API key headers are masked as well; see [AI provider keys](#ai-provider-keys).
 - [`mask.inputs`](../configuration.md#masking) masks query values in the URL, payload fields, capture cards and JSON or form bodies. An expression keyed by `HttpClientLens::class` applies to this lens only.
 - [`origin`](../configuration.md#origin) decides whether rows carry the line of code that made the call.
 - [`except`](../configuration.md#except) keeps whole requests and commands out of recording, including the calls they make.
@@ -147,6 +147,32 @@ use ExeQue\Monocle\Support\Masks\FullMask;
     ],
     'inputs' => ['/pass|token|secret|authorization/i', HttpClientLens::class => '/client_secret/i'],
     // ...
+],
+```
+
+## AI provider keys
+
+With `laravel/ai` installed, the API keys its providers send are masked on every row, without any configuration. Lens: `ExeQue\Monocle\Lenses\Packages\Laravel\AiHttpClientLens`.
+
+Most providers send their key as `Authorization: Bearer …`, which the default [masking](../configuration.md#masking) settings cover already. Four providers use a header of their own, and the lens masks these with `PartialMask`, so `x-api-key: sk-ant-api03-…` is recorded as `sk-a****`:
+
+| Header | Provider |
+|---|---|
+| `x-api-key` | Anthropic |
+| `api-key` | Azure OpenAI |
+| `x-goog-api-key` | Gemini |
+| `xi-api-key` | ElevenLabs |
+
+A mask that `mask.headers` sets for one of these headers wins, for example `HttpClientLens::class => ['x-api-key' => FullMask::class]`.
+
+`AiHttpClientLens` is `true` in the `lenses` block by default, has no options, and does nothing until `laravel/ai` is installed. It runs only while `HttpClientLens` is on.
+
+```php
+use ExeQue\Monocle\Lenses\Packages\Laravel\AiHttpClientLens;
+
+'lenses' => [
+    // ...
+    AiHttpClientLens::class => true,
 ],
 ```
 

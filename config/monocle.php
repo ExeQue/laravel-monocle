@@ -25,6 +25,7 @@ use ExeQue\Monocle\Lenses\Packages\GraphQL\Rebing\RebingHook;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaCapture;
 use ExeQue\Monocle\Lenses\Packages\Inertia\InertiaLens;
 use ExeQue\Monocle\Lenses\Packages\Lab404\ImpersonateLens;
+use ExeQue\Monocle\Lenses\Packages\Laravel\AiHttpClientLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\FortifyLens;
 use ExeQue\Monocle\Lenses\Packages\Laravel\McpLens;
@@ -189,6 +190,7 @@ return [
         AiLens::class => [
             'max_text' => null,                     // null = never truncate prompts and responses
         ],
+        AiHttpClientLens::class => true,            // masks the providers' API key headers on the HTTP client section
 
         // prism-php/prism
         PrismLens::class => [

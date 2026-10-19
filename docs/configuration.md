@@ -105,7 +105,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 ],
 ```
 
-Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`.
+Headers and cookies are listed by name, each with the mask to use. Names support `*`, so `'x-api-*' => FullMask::class` covers every header starting with `x-api-`. Header names are lowercase. The session cookie is always masked, also when it is not listed. A name without a class (`'headers' => ['authorization', 'x-api-key']`) uses `using`. With `laravel/ai` installed, the API key headers of its providers (`x-api-key`, `api-key`, `x-goog-api-key`, `xi-api-key`) are masked on the HTTP client section without being listed here; see [HTTP client - AI provider keys](lenses/http-client.md#ai-provider-keys).
 
 Request input, session data, command options, HTTP client payloads, validated input, Inertia prop values and response capture cards whose key matches `inputs` are masked with `using`, and so are cookies with a matching name. `inputs` can also be a list of expressions.
 
