@@ -152,7 +152,7 @@ Other settings that affect this lens:
 - [`origin`](../configuration.md#origin) - whether tool call rows get an `origin`, and how many lines of the call chain it has.
 - [`except`](../configuration.md#except) - agents run in a request or command that is not recorded are not recorded either.
 - [`dashboard.tabs`](../dashboard.md#configuration) - where the AI tab sits among the tabs.
-- [Masking](../configuration.md#masking) - tool arguments, and tool results with keys, are masked like request input. Use `AiLens::class` as the key under `mask.inputs` for patterns that only apply here. Prompts and responses are free text and are stored as they are.
+- [Masking](../configuration.md#masking) - the API keys the providers send are masked on the HTTP client section automatically, also those in a header of their own such as Anthropic's `x-api-key`; see [HTTP client - AI provider keys](http-client.md#ai-provider-keys). Tool arguments, and tool results with keys, are masked like request input. Use `AiLens::class` as the key under `mask.inputs` for patterns that only apply here. Prompts and responses are free text and are stored as they are.
 
 ```php
 use ExeQue\Monocle\Lenses\Packages\Laravel\AiLens;

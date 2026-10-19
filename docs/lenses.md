@@ -58,6 +58,7 @@ These record something only when the package is installed; otherwise they do not
 | [stechstudio/filament-impersonate](https://github.com/stechstudio/filament-impersonate) | [Impersonation](lenses/auth.md#impersonation) | `auth` | who is impersonating the user |
 | **Laravel** | | | |
 | [laravel/ai](https://github.com/laravel/ai) | [AI](lenses/ai.md) | `ai`, `ai_tools` | agents, steps, tool calls with their time, and tokens |
+| [laravel/ai](https://github.com/laravel/ai) | part of [HTTP client](lenses/http-client.md), see [AI provider keys](lenses/http-client.md#ai-provider-keys) | `http` | the providers' API key headers, masked |
 | [Laravel Folio](https://laravel.com/docs/folio) | part of [Request](lenses/request.md), see [Folio](lenses/request.md#folio) | `request` | the page file a request matched |
 | [Laravel Fortify](https://laravel.com/docs/fortify) | [Fortify](lenses/auth.md#fortify) | `auth` | two-factor challenges, failed and passed codes |
 | [laravel/mcp](https://github.com/laravel/mcp) | [MCP servers](lenses/mcp-servers.md) | `mcp` | calls to your application's MCP servers |
