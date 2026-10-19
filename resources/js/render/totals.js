@@ -15,6 +15,7 @@ export function totalValue([, v, unit]) {
   if (unit === 'percent') return v + ' %';
   if (unit === 'bytes') return v >= 1048576 ? (v / 1048576).toFixed(1) + ' MB' : v >= 1024 ? Math.round(v / 1024) + ' KB' : v + ' B';
   if (unit === 'mb') return v + ' MB';
+  if (unit === 'usd') return '$' + (v > 0 && v < 0.01 ? v.toFixed(4) : v.toFixed(2));
   return unit ? `${v} ${unit}` : String(v);
 }
 

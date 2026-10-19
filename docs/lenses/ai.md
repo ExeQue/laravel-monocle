@@ -67,7 +67,11 @@ The summary gets these totals when the capture has at least one `ai` row:
 | --- | --- | --- |
 | `ai_ms` | spent | The `duration` of the top-level `ai` rows added up, in ms: rows whose `parent_invocation_id` is not another row. A sub-agent runs inside its caller's time, so it is not added again. |
 | `ai_tokens` | - | `input`, `output`, `cache_read`, `cache_write` and `reasoning` tokens over all rows. |
+| `ai_input_tokens` | input | The `input` tokens over all rows, in tokens. Hidden on the overview while 0. |
+| `ai_output_tokens` | output | The `output` tokens over all rows, in tokens. Hidden on the overview while 0. |
+| `ai_cached_tokens` | cached | The `cache_read` tokens over all rows, in tokens. Hidden on the overview while 0. |
 | `ai_by_model` | - | The number of runs per `provider/model`. |
+| `ai_tokens_by_model` | - | Per `provider/model`: `input` (the input tokens not read from cache), `cached` (`cache_read`) and `output` tokens. The dashboard prices these for the [estimated cost](#estimated-cost). |
 | `ai_calls` | calls | The number of `ai` rows, sub-agents included. |
 | `ai_tool_ms` | in tools | The `duration` of the tool calls made by top-level runs added up, in ms. A sub-agent's tool calls run inside the tool call that started it, so they are not added again. Only when there were tool calls. |
 | `ai_tool_calls` | tool calls | The number of `ai_tools` rows, sub-agents' tool calls included. Only when there were tool calls. |
@@ -96,6 +100,12 @@ Click a row to fold it out. An agent run shows the agent class, its status, prov
 A tool call folds out to the tool and its class, its status, whether it is a sub-agent, the agent that called it, its duration, the exception when it failed, the arguments and the result (JSON pretty printed), and the line in your code that led to it.
 
 The **Timeline** tab shows the agent, step and tool spans described above. Click a span to see its details, such as a step's tokens and finish reason.
+
+### Estimated cost
+
+Above the tables, **Token prices** folds out to one line per `provider/model` the capture used, with a price for input, cached input and output tokens, in USD per million tokens. The prices are kept in your browser only (`localStorage`), so they apply to every capture you open there, on the AI and Prism tabs alike, and are not shared with anyone else.
+
+Once every model in the capture has a price, the totals get an **Estimated cost**: the input tokens not read from cache at the input price, `cache_read` tokens at the cached price and output tokens at the output price. `laravel/ai` counts cache writes as input, so they are priced as input; Prism leaves them out of the input, so there they are not priced. A price left empty counts as 0. It is an estimate: providers with tiered or long-context prices charge differently.
 
 ## For agents
 

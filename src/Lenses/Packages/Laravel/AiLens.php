@@ -141,6 +141,7 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
 
         $tokens = self::NO_TOKENS;
         $byModel = [];
+        $tokensByModel = [];
         $warnings = [];
 
         foreach ($rows as $row) {
@@ -150,6 +151,13 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
 
             $model = ($row['provider'] ?? '?').'/'.($row['model'] ?? '?');
             $byModel[$model] = ($byModel[$model] ?? 0) + 1;
+
+            // laravel/ai counts the input read from cache as input too; the cost estimate prices it apart.
+            $cached = (int) ($row['tokens']['cache_read'] ?? 0);
+            $tokensByModel[$model] ??= ['input' => 0, 'cached' => 0, 'output' => 0];
+            $tokensByModel[$model]['input'] += max(0, (int) ($row['tokens']['input'] ?? 0) - $cached);
+            $tokensByModel[$model]['cached'] += $cached;
+            $tokensByModel[$model]['output'] += (int) ($row['tokens']['output'] ?? 0);
 
             if ($row['status'] !== 'ok') {
                 $warnings[] = sprintf('Agent %s %s: %s', $row['agent'], $row['status'], $row['exception']['message'] ?? '');
@@ -165,7 +173,11 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
             ->totals([
                 'ai_tokens' => $tokens,
                 'ai_by_model' => $byModel,
+                'ai_tokens_by_model' => $tokensByModel,
             ])
+            ->total('ai_input_tokens', $tokens['input'], 'input', 'tokens')
+            ->total('ai_output_tokens', $tokens['output'], 'output', 'tokens')
+            ->total('ai_cached_tokens', $tokens['cache_read'], 'cached', 'tokens')
             ->total('ai_calls', count($rows), 'calls')
             ->when($tools !== [])
             ->total('ai_tool_ms', round($toolMs, 3), 'in tools', Unit::Milliseconds)

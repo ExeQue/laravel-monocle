@@ -66,7 +66,11 @@ The summary gets these totals when the capture has at least one `prism` row:
 | --- | --- | --- |
 | `prism_ms` | spent | The `duration` of the `prism` rows that are not `nested` added up, in ms. A call made inside a tool runs in the time of the call that ran the tool, so it is not added again. |
 | `prism_tokens` | - | `input`, `output`, `cache_read`, `cache_write` and `reasoning` tokens over all rows. |
+| `prism_input_tokens` | input | The `input` tokens over all rows, in tokens. Hidden on the overview while 0. |
+| `prism_output_tokens` | output | The `output` tokens over all rows, in tokens. Hidden on the overview while 0. |
+| `prism_cached_tokens` | cached | The `cache_read` tokens over all rows, in tokens. Hidden on the overview while 0. |
 | `prism_by_model` | - | The number of calls per `provider/model`. |
+| `prism_tokens_by_model` | - | Per `provider/model`: `input`, `cached` (`cache_read`) and `output` tokens. The dashboard prices these for the [estimated cost](ai.md#estimated-cost). |
 | `prism_calls` | calls | The number of `prism` rows, nested calls included. |
 | `prism_tool_ms` | in tools | The `duration` of the `prism_tools` rows that are not `nested` added up, in ms. Only when tools ran. |
 | `prism_tool_calls` | tool calls | The number of `prism_tools` rows, nested ones included. Only when tools ran. |
@@ -83,7 +87,7 @@ See [Warnings and errors](../dashboard.md#warnings-and-errors) for how they are 
 
 ## In the dashboard
 
-The **Prism** tab has two tables, both in the order things happened.
+The **Prism** tab has two tables, both in the order things happened. Above them, **Token prices** turns the tokens into an estimated cost, as on the AI tab; see [Estimated cost](ai.md#estimated-cost).
 
 - The calls (`prism`). The columns are the fields that have a value in some row, up to eight, with `duration` last. `status` is coloured.
 - **Tool calls** (`prism_tools`), with the columns tool, status and duration, plus where in your code it came from. Its chips group the tool calls by tool, each group with its count, failures and timing.

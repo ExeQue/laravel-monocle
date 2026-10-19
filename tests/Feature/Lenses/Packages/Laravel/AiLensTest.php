@@ -132,6 +132,15 @@ describe(AiLens::class, function (): void {
 
         expect($summary->totals['ai_calls'])->toBe(2)
             ->and($summary->totals['ai_tokens']['input'])->toBe(107)
+            ->and($summary->totals['ai_input_tokens'])->toBe(107)
+            ->and($summary->totals['ai_output_tokens'])->toBe($summary->totals['ai_tokens']['output'])
+            ->and($summary->totals['ai_cached_tokens'])->toBe($summary->totals['ai_tokens']['cache_read'])
+            ->and($summary->units['ai_input_tokens'])->toBe('tokens')
+            ->and($summary->totals['ai_tokens_by_model']['openai/gpt-test'])->toBe([
+                'input' => 107 - $summary->totals['ai_cached_tokens'],
+                'cached' => $summary->totals['ai_cached_tokens'],
+                'output' => $summary->totals['ai_output_tokens'],
+            ])
             ->and($summary->totals['ai_by_model'])->toBe(['openai/gpt-test' => 2])
             ->and(implode(' ', $summary->errors))->toContain('gave up')->toContain('Tool weather failed');
     });
