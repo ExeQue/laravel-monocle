@@ -110,15 +110,19 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         $masker = $this->eyepiece->masker(self::class);
 
         $status = $response->status();
-        $body = $this->eyepiece->outside(fn (): string => $response->body());
-        $formatted = $this->format($event->request, $response, $body);
-        $capture = $formatted['response_capture'];
         $stats = $response->handlerStats();
+
+        // A streamed body (['stream' => true]) cannot be rewound: reading it would leave nothing for the caller.
+        $body = $response->toPsrResponse()->getBody()->isSeekable()
+            ? $this->eyepiece->outside(fn (): string => $response->body())
+            : null;
+        $formatted = $body === null ? ['response_capture' => null] : $this->format($event->request, $response, $body);
+        $capture = $formatted['response_capture'];
 
         // A captured response already carries its raw body; only fall back to the plain body without one.
         $responseBody = null;
 
-        if ($this->bodies && $capture === null) {
+        if ($this->bodies && $capture === null && $body !== null) {
             $responseBody = $masker->body($body, $response->header('Content-Type'));
         }
 
@@ -126,7 +130,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             ...$this->describe($event->request),
             'status' => $status,
             'response_headers' => $masker->headers($response->headers()),
-            'response_bytes' => strlen($body),
+            'response_bytes' => $body === null ? null : strlen($body),
             'response_body' => $responseBody,
             ...$formatted,
             'duration' => $this->duration($pending['at'] ?? null, $stats),
