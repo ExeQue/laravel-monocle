@@ -198,6 +198,10 @@ describe(PrismLens::class, function (): void {
         expect(array_key_first($summary->totals))->toBe('prism_ms')
             ->and($summary->totals['prism_calls'])->toBe(2)
             ->and($summary->totals['prism_tokens'])->toBe(['input' => 30, 'output' => 3, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0])
+            ->and($summary->totals['prism_input_tokens'])->toBe(30)
+            ->and($summary->totals['prism_output_tokens'])->toBe(3)
+            ->and($summary->totals['prism_cached_tokens'])->toBe(0)
+            ->and($summary->totals['prism_tokens_by_model'])->toBe(['openai/gpt-4o' => ['input' => 30, 'cached' => 0, 'output' => 3]])
             ->and($summary->totals['prism_by_model'])->toBe(['openai/gpt-4o' => 2])
             ->and($summary->errors)->toBe([]);
     });

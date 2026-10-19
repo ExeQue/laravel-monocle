@@ -38,6 +38,14 @@ const hiddenNames = {
   set(names) { try { localStorage.setItem('monocle.hidden', JSON.stringify(names)); } catch { /* storage blocked */ } },
 };
 
+/** Token prices per provider/model, in USD per million tokens; kept in this browser only. */
+const tokenPrices = {
+  get() {
+    try { const stored = JSON.parse(localStorage.getItem('monocle.prices') ?? 'null'); return stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}; } catch { return {}; }
+  },
+  set(prices) { try { localStorage.setItem('monocle.prices', JSON.stringify(prices)); } catch { /* storage blocked */ } },
+};
+
 
 /**
  * How well `query` matches `text` when its letters appear in order ("qrs" in "Queries"):
@@ -93,6 +101,7 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
   total: 0,
   filters: { type: '', q: '', errors: false },
   hidden: hiddenNames.get(),
+  prices: tokenPrices.get(),
   live: true,
   selectedId: null,
   capture: null,
@@ -516,9 +525,35 @@ Alpine.data('monocle', (config) => (usePathMappings(config.paths), {
       }
       groups.get(key).items.push(item);
     }
+    for (const [key, group] of groups) {
+      const cost = this.costOf(key);
+      if (cost !== null) group.items.push([`${key}_cost`, cost, 'usd', 'estimated cost']);
+    }
     const order = this.tabs.map((t) => t.key);
     const rank = (key) => (order.includes(key) ? order.indexOf(key) : order.length);
     return [...groups.values()].sort((a, b) => rank(a.key) - rank(b.key));
+  },
+
+  /** The models a section used as [provider/model, {input, cached, output}], from its `{section}_tokens_by_model` total. */
+  tokenModels(section) {
+    return Object.entries(this.summary.totals?.[`${section}_tokens_by_model`] ?? {});
+  },
+
+  /** What a section's tokens cost by the prices set here, or null while a model it used has none. */
+  costOf(section) {
+    const models = this.tokenModels(section);
+    if (!models.length || models.some(([model]) => !this.prices[model])) return null;
+    return models.reduce((sum, [model, tokens]) => sum + ['input', 'cached', 'output']
+      .reduce((cost, kind) => cost + (tokens[kind] ?? 0) * (this.prices[model][kind] ?? 0), 0) / 1e6, 0);
+  },
+
+  /** Sets a model's price per million tokens of one kind; an empty value clears it, and a model without prices is dropped. */
+  setPrice(model, kind, value) {
+    const prices = { ...this.prices[model], [kind]: value === '' ? null : Number(value) };
+    for (const k of Object.keys(prices)) if (prices[k] === null || Number.isNaN(prices[k])) delete prices[k];
+    const { [model]: _, ...rest } = this.prices;
+    this.prices = Object.keys(prices).length ? { ...rest, [model]: prices } : rest;
+    tokenPrices.set(this.prices);
   },
 
   /** The open tab's own totals, shown above its rows. */

@@ -2,6 +2,7 @@
 <x-monocle::panel name="prism">
     <template x-if="tab === 'prism'">
         <div>
+            <x-monocle::token-prices section="prism" />
             <x-monocle::section-table />
         </div>
     </template>

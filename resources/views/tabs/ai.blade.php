@@ -2,6 +2,7 @@
 <x-monocle::panel name="ai">
     <template x-if="tab === 'ai'">
         <div>
+            <x-monocle::token-prices section="ai" />
             <x-monocle::section-table />
         </div>
     </template>

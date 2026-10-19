@@ -99,6 +99,7 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Provi
         $tokens = ['input' => 0, 'output' => 0, 'cache_read' => 0, 'cache_write' => 0, 'reasoning' => 0];
         $ms = 0.0;
         $byModel = [];
+        $tokensByModel = [];
         $errors = [];
 
         foreach ($rows as $row) {
@@ -110,6 +111,12 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Provi
             $ms += ($row['nested'] ?? false) ? 0.0 : (float) ($row['duration'] ?? 0);
             $model = ($row['provider'] ?? '?').'/'.($row['model'] ?? '?');
             $byModel[$model] = ($byModel[$model] ?? 0) + 1;
+
+            // Prism leaves the input read from cache out of the input, so each is priced as it is.
+            $tokensByModel[$model] ??= ['input' => 0, 'cached' => 0, 'output' => 0];
+            $tokensByModel[$model]['input'] += (int) ($row['tokens']['input'] ?? 0);
+            $tokensByModel[$model]['cached'] += (int) ($row['tokens']['cache_read'] ?? 0);
+            $tokensByModel[$model]['output'] += (int) ($row['tokens']['output'] ?? 0);
 
             if ($row['status'] === 'failed') {
                 $errors[] = sprintf('Prism %s on %s failed: %s', $row['operation'], $model, $row['exception']['message'] ?? '');
@@ -141,7 +148,11 @@ final class PrismLens implements Advises, Configurable, Lens, Presentable, Provi
             ->totals([
                 'prism_tokens' => $tokens,
                 'prism_by_model' => $byModel,
+                'prism_tokens_by_model' => $tokensByModel,
             ])
+            ->total('prism_input_tokens', $tokens['input'], 'input', 'tokens')
+            ->total('prism_output_tokens', $tokens['output'], 'output', 'tokens')
+            ->total('prism_cached_tokens', $tokens['cache_read'], 'cached', 'tokens')
             ->total('prism_calls', count($rows), 'calls')
             ->when($tools !== [])
             ->total('prism_tool_ms', round($toolMs, 3), 'in tools', Unit::Milliseconds)
