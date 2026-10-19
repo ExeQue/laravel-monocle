@@ -24,9 +24,9 @@ Every row in the `http` section has these fields:
 | `request_body` | The raw request body, with JSON and form bodies masked | | `null` unless the `bodies` option is on |
 | `status` | Response status code | | `null` when no response arrived |
 | `response_headers` | Headers received, masked by `mask.headers` | | empty when no response arrived |
-| `response_bytes` | Size of the response body | bytes | `null` when no response arrived |
-| `response_capture` | The response as read by the capture for its content type: `capture` (the class), `cards` (masked like input) and `raw` (the body, with JSON and form bodies masked) | | `null` when no capture matches the content type, or no response arrived |
-| `response_body` | The raw response body, with JSON and form bodies masked | | `null` unless the `bodies` option is on and no capture handled the response |
+| `response_bytes` | Size of the response body | bytes | `null` when no response arrived, or the body is streamed (`['stream' => true]`), which Monocle never reads so the caller still gets all of it |
+| `response_capture` | The response as read by the capture for its content type: `capture` (the class), `cards` (masked like input) and `raw` (the body, with JSON and form bodies masked) | | `null` when no capture matches the content type, no response arrived, or the body is streamed |
+| `response_body` | The raw response body, with JSON and form bodies masked | | `null` unless the `bodies` option is on and no capture handled the response; always `null` for a streamed body |
 | `duration` | How long the call took | ms | `null` only when a failed connection cannot be matched to its start |
 | `timing` | Where the time went: `dns`, `connect`, `tls`, `wait` (time to first byte), `download` and `redirect` in ms, `remote` (address and port connected to), `protocol` (such as `HTTP/2`) and `redirects` (how many were followed) | ms | `null` for faked calls (`Http::fake()`) and failed connections; a phase that was never reached, such as `tls` on plain HTTP, is left out |
 | `failed` | `true` when the status is 400 or above, or no response arrived | | never |

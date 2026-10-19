@@ -8,7 +8,11 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\HttpClientLens;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
+use GuzzleHttp\Promise\FulfilledPromise;
+use GuzzleHttp\Psr7\NoSeekStream;
 use GuzzleHttp\Psr7\Request as PsrRequest;
+use GuzzleHttp\Psr7\Response as PsrResponse;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Request;
@@ -188,6 +192,27 @@ describe(HttpClientLens::class, function (): void {
         // A response without a capture for its content type keeps its body as is.
         expect($withBody['request_body'])->toBe('{"name":"ada"}')
             ->and($withBody['response_body'])->toBe('nope');
+    });
+
+    it('leaves a streamed response body for the caller to read', function (): void {
+        Http::fake(['stream.example.com/*' => fn (): FulfilledPromise => new FulfilledPromise(
+            new PsrResponse(200, ['Content-Type' => 'application/json'], new NoSeekStream(Utils::streamFor('{"ok":true}'))),
+        )]);
+        $lens = app(HttpClientLens::class);
+        $lens->configure(['bodies' => true]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        $response = Http::withOptions(['stream' => true])->post('https://stream.example.com/events');
+
+        $row = app(Eyepiece::class)->finalize()->rows('http')[0];
+
+        expect($response->toPsrResponse()->getBody()->getContents())->toBe('{"ok":true}')
+            ->and($row['status'])->toBe(200)
+            ->and($row['response_headers'])->toBe(['Content-Type' => 'application/json'])
+            ->and($row['response_bytes'])->toBeNull()
+            ->and($row['response_body'])->toBeNull()
+            ->and($row['response_capture'])->toBeNull()
+            ->and($row['failed'])->toBeFalse();
     });
 
     it('formats the payload of an outgoing call with the capture for its response', function (): void {
