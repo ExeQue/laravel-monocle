@@ -264,7 +264,9 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
         $hasStructured = $isComplete && property_exists($response, 'structured');
         $structured = $hasStructured ? Normalizer::value($response->structured ?? null) : null;
 
+        // The response's usage is the sum of its steps, which StepCompleted already added: it replaces them, so they count once.
         if ($isComplete) {
+            $this->usage[$event->invocationId] = self::NO_TOKENS;
             $this->addUsage($event->invocationId, $response->usage);
         }
 
