@@ -23,11 +23,13 @@ use ExeQue\Monocle\Support\ThrowableChain;
 use Illuminate\Support\Str;
 use Laravel\Ai\Events\AgentFailed;
 use Laravel\Ai\Events\AgentPrompted;
+use Laravel\Ai\Events\AgentStreamed;
 use Laravel\Ai\Events\InvokingTool;
 use Laravel\Ai\Events\PromptingAgent;
 use Laravel\Ai\Events\StartingStep;
 use Laravel\Ai\Events\StepCompleted;
 use Laravel\Ai\Events\StepFailed;
+use Laravel\Ai\Events\StreamingAgent;
 use Laravel\Ai\Events\ToolFailed;
 use Laravel\Ai\Events\ToolInvoked;
 use Laravel\Ai\Prompts\AgentPrompt;
@@ -101,6 +103,9 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
     {
         $this->eyepiece->listen(PromptingAgent::class, $this->onPrompting(...));
         $this->eyepiece->listen(AgentPrompted::class, $this->onPrompted(...));
+        // A streamed run fires subclasses of these, and listeners are matched by exact class, not by parent.
+        $this->eyepiece->listen(StreamingAgent::class, $this->onPrompting(...));
+        $this->eyepiece->listen(AgentStreamed::class, $this->onPrompted(...));
         $this->eyepiece->listen(AgentFailed::class, $this->onFailed(...));
         $this->eyepiece->listen(StartingStep::class, $this->onStartingStep(...));
         $this->eyepiece->listen(StepCompleted::class, $this->onStepCompleted(...));
@@ -469,7 +474,8 @@ final class AiLens implements Advises, Configurable, Lens, Presentable, Provides
     {
         $key = $invocationId.':'.$step;
 
-        $this->steps[$key]?->stop($meta);
+        // A step of an invocation the lens is not tracking was never started.
+        ($this->steps[$key] ?? null)?->stop($meta);
 
         unset($this->steps[$key]);
     }
