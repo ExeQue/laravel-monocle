@@ -69,6 +69,26 @@ describe(AiLens::class, function (): void {
             ->and($span->meta['status'])->toBe('ok');
     });
 
+    it('records a faked streamed agent run like a prompted one', function (): void {
+        Greeter::fake(['Hello Ada!']);
+
+        $stream = new Greeter()->stream('Say hi to Ada');
+
+        foreach ($stream as $event) {
+            // Draining the stream runs the agent.
+        }
+
+        $capture = app(Eyepiece::class)->finalize();
+        $rows = $capture->rows('ai');
+        $steps = $capture->spansOfKind('ai.step');
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0])->toMatchArray(['agent' => Greeter::class, 'status' => 'ok', 'prompt' => 'Say hi to Ada', 'response' => 'Hello Ada!', 'streamed' => true, 'steps' => 1])
+            ->and($steps)->toHaveCount(1)
+            ->and($steps[0]->meta['status'])->toBe('ok')
+            ->and($capture->rows('exceptions'))->toBe([]);
+    });
+
     it('builds the agent -> step -> tool tree with tokens and nested agents', function (): void {
         $agent = new Greeter();
         $tool = new WeatherTool();
@@ -147,6 +167,7 @@ describe(AiLens::class, function (): void {
         event(new AgentPrompted('ghost', ($this->prompt)('ghost'), new AgentResponse('ghost', 'boo', $usage, new Meta('openai', 'gpt-test'))));
         event(new AgentFailed('ghost', ($this->prompt)('ghost'), new RuntimeException('boo')));
         event(new StartingStep('ghost', 1, $agent, $this->provider, 'gpt-test', true, [], null));
+        event(new StepCompleted('ghost', 1, $agent, $this->provider, 'gpt-test', true, $step, 5.0));
         event(new InvokingTool('ghost', 'ghost-tool', $agent, $tool, []));
 
         event(new PromptingAgent('inv-1', ($this->prompt)('inv-1')));
