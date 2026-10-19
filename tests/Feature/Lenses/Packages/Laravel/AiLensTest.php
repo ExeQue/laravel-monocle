@@ -23,6 +23,7 @@ use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\FinishReason;
 use Laravel\Ai\Responses\Data\Meta;
 use Laravel\Ai\Responses\Data\TextUsage;
+use Laravel\Ai\Responses\TextResponse;
 use Mockery;
 use RuntimeException;
 use Tests\Fixtures\Ai\BrokenNameTool;
@@ -68,6 +69,24 @@ describe(AiLens::class, function (): void {
             ->and($span->name)->toBe('Greeter')
             ->and($span->meta['status'])->toBe('ok');
     });
+
+    it('counts the tokens of a run once, prompted or streamed', function (bool $streamed): void {
+        Greeter::fake([new TextResponse('Hello Ada!', new TextUsage(10, 5, 2), new Meta('openai', 'gpt-test'))]);
+
+        if ($streamed) {
+            foreach (new Greeter()->stream('Say hi to Ada') as $event) {
+                // Draining the stream runs the agent.
+            }
+        } else {
+            new Greeter()->prompt('Say hi to Ada');
+        }
+
+        $capture = app(Eyepiece::class)->finalize();
+        $tokens = ['input' => 10, 'output' => 5, 'cache_read' => 2, 'cache_write' => 0, 'reasoning' => 0];
+
+        expect($capture->rows('ai')[0]['tokens'])->toBe($tokens)
+            ->and($capture->spansOfKind('ai.agent')[0]->meta['tokens'])->toBe($tokens);
+    })->with(['prompted' => false, 'streamed' => true]);
 
     it('records a faked streamed agent run like a prompted one', function (): void {
         Greeter::fake(['Hello Ada!']);
