@@ -40,6 +40,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
     /** @var list<Span> open nested command spans */
     private array $spans = [];
 
+    /** How many excepted commands are running; whatever they call is excepted with them. */
+    private int $exceptedDepth = 0;
+
     private Application $app;
 
     private ?Span $phase = null;
@@ -104,7 +107,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
     private function onStarting(CommandStarting $event): void
     {
-        if ($this->isExcepted($event->command, $event->input)) {
+        if ($this->exceptedDepth > 0 || $this->isExcepted($event->command, $event->input)) {
+            $this->exceptedDepth++;
+
             return;
         }
 
@@ -220,7 +225,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
     private function onFinished(CommandFinished $event): void
     {
-        if ($this->isExcepted($event->command, $event->input)) {
+        if ($this->exceptedDepth > 0) {
+            $this->exceptedDepth--;
+
             return;
         }
 
