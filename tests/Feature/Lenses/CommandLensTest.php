@@ -205,6 +205,19 @@ describe(CommandLens::class, function (): void {
         expect($count('command'))->toBe(0);
     });
 
+    it('ignores the commands an excepted command calls, and records again once it has finished', function () use ($count): void {
+        config()->push('monocle.except.commands', 'monocle-test:outer');
+
+        Artisan::call('monocle-test:outer');
+
+        expect($count('command'))->toBe(0)
+            ->and(app(\ExeQue\Monocle\Eyepiece::class)->active())->toBeNull();
+
+        Artisan::call('monocle-test:ok');
+
+        expect($count('command'))->toBe(1);
+    });
+
     it('leaves Laravel\'s built-in housekeeping commands out by default', function () use ($count): void {
         $input = new \Symfony\Component\Console\Input\ArrayInput([]);
         $output = new \Symfony\Component\Console\Output\NullOutput();
