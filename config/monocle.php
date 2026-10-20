@@ -275,6 +275,12 @@ return [
             'monocle:*', 'mcp:start monocle',
             // Laravel
             'queue:work', 'queue:listen', 'schedule:work', 'package:discover', 'test', 'tinker',
+            'serve', 'about', 'help', 'inspire', 'completion', 'docs',
+            'migrate*', 'db:*', 'schema:*', 'make:*', 'install:*', '*:publish', 'key:*', 'storage:*',
+            'optimize*', 'clear-compiled', 'cache:clear', 'config:*', 'route:*', 'event:*', 'view:*',
+            'schedule:list', 'schedule:clear-cache', 'model:show', 'channel:list',
+            // Laravel Pail
+            'pail',
             // Laravel Boost
             'boost:*',
             // Laravel Horizon

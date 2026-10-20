@@ -204,6 +204,30 @@ describe(CommandLens::class, function (): void {
 
         expect($count('command'))->toBe(0);
     });
+
+    it('leaves Laravel\'s built-in housekeeping commands out by default', function () use ($count): void {
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $output = new \Symfony\Component\Console\Output\NullOutput();
+
+        foreach (['migrate', 'migrate:fresh', 'db:seed', 'make:model', 'vendor:publish', 'config:clear', 'route:list', 'optimize'] as $command) {
+            event(new \Illuminate\Console\Events\CommandStarting($command, $input, $output));
+            event(new \Illuminate\Console\Events\CommandFinished($command, $input, $output, 0));
+        }
+
+        expect($count('command'))->toBe(0)
+            ->and(app(\ExeQue\Monocle\Eyepiece::class)->active())->toBeNull();
+    });
+
+    it('still records schedule:run', function () use ($count): void {
+        $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+        $output = new \Symfony\Component\Console\Output\NullOutput();
+
+        event(new \Illuminate\Console\Events\CommandStarting('schedule:run', $input, $output));
+        event(new \Illuminate\Console\Events\CommandFinished('schedule:run', $input, $output, 0));
+
+        expect($count('command'))->toBe(1);
+    });
+
     it('records nothing for a nested command while the active capture is discarded', function (): void {
         $eyepiece = app(\ExeQue\Monocle\Eyepiece::class);
         $eyepiece->start(CaptureType::Request);
