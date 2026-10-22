@@ -46,12 +46,13 @@ Requests and commands that are never recorded:
 ```php
 'except' => [
     'paths' => ['telescope/*', 'pulse/*', 'horizon/*', 'up', 'livewire-*/livewire*.js', /* ... */],
+    'methods' => ['OPTIONS'],
     'commands' => ['monocle:*', 'queue:work', 'horizon*', 'pulse:work', 'reverb:start', /* ... */],
     'livewire' => ['pulse.*'],
 ],
 ```
 
-Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization, Laravel Boost's browser logs, the health-check route and commands of spatie/laravel-health, and long-running commands such as queue workers, Reverb, Octane, Pulse and the Nightwatch agent, as well as Laravel's built-in housekeeping commands (migrations, seeding, generators, publishing, the config, route, event and view caches, `serve` and similar), Pail, `tinker`, `test`, `package:discover`, Boost and Monocle's own commands and MCP server. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
+Paths and command names support `*`. By default the dashboards and assets of Telescope, Pulse, Horizon, Debugbar, Clockwork, Ignition and Flux are left out, as are Livewire's script and style files, the `up` health route, broadcast channel authorization, Laravel Boost's browser logs, the health-check route and commands of spatie/laravel-health, and long-running commands such as queue workers, Reverb, Octane, Pulse and the Nightwatch agent, as well as Laravel's built-in housekeeping commands (migrations, seeding, generators, publishing, the config, route, event and view caches, `serve` and similar), Pail, `tinker`, `test`, `package:discover`, Boost and Monocle's own commands and MCP server. Requests made with a method listed in `methods` are left out too; by default that is `OPTIONS`, so CORS preflights do not crowd the list. Set it to `[]` to record them. Livewire updates are still recorded unless every component in them matches `except.livewire` (default `pulse.*`, so the Pulse dashboard polling itself is left out), and so are jobs run by `queue:work` and Horizon. The dashboard itself is never recorded.
 
 ## `trace`
 

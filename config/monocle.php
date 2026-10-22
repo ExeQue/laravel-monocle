@@ -237,9 +237,11 @@ return [
     | Except
     |--------------------------------------------------------------------------
     |
-    | Requests whose path matches one of these patterns, and console commands
-    | whose name matches, are never recorded, nor are Livewire updates whose
-    | components all match `livewire` (dashboards polling themselves).
+    | Requests whose path matches one of these patterns or whose HTTP method
+    | is listed in `methods` (CORS preflights by default; empty the list to
+    | record them), and console commands whose name matches, are never
+    | recorded, nor are Livewire updates whose components all match
+    | `livewire` (dashboards polling themselves).
     | Monocle's own MCP server is listed here; the dashboard is excluded on
     | its own.
     |
@@ -270,6 +272,7 @@ return [
             // spatie/laravel-health (Oh Dear)
             'oh-dear-health-check-results',
         ],
+        'methods' => ['OPTIONS'],
         'commands' => [
             // Monocle
             'monocle:*', 'mcp:start monocle',
