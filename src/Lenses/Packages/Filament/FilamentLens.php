@@ -489,12 +489,16 @@ final class FilamentLens implements Advises, Configurable, Finalizable, Lens, Pr
 
     /**
      * The notifications the mailbox holds until the response is sent; it has no getter for them.
+     * Filament 5.10.3 and later wrap each one as ['notification' => [...], 'batch' => ...].
      *
      * @return list<mixed>
      */
     private function pending(NotificationMailbox $mailbox): array
     {
-        return array_values((fn (): array => $this->pendingNotifications)->call($mailbox));
+        return array_map(
+            fn (mixed $entry): mixed => is_array($entry) && is_array($entry['notification'] ?? null) ? $entry['notification'] : $entry,
+            array_values((fn (): array => $this->pendingNotifications)->call($mailbox)),
+        );
     }
 
     /**
