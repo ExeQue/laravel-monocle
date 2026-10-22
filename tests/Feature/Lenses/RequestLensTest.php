@@ -351,6 +351,20 @@ describe(RequestLens::class, function (): void {
         expect(latestCapture())->toBeNull();
     });
 
+    it('does not record OPTIONS requests unless except.methods is emptied', function (): void {
+        Route::match(['GET', 'OPTIONS'], 'preflight', fn () => 'ok');
+
+        $this->call('OPTIONS', '/preflight')->assertOk();
+
+        expect(latestCapture())->toBeNull();
+
+        config(['monocle.except.methods' => []]);
+
+        $this->call('OPTIONS', '/preflight')->assertOk();
+
+        expect(latestCapture()?->name)->toBe('OPTIONS /preflight');
+    });
+
     it('leaves package dashboards and asset routes out but keeps Livewire updates', function (): void {
         foreach (['telescope/requests', 'pulse', 'up', 'livewire-abc123/livewire.min.js', 'livewire-abc123/js/counter.js', 'flux/flux.js', '_debugbar/assets/js'] as $path) {
             Route::get($path, fn () => 'x');
@@ -624,7 +638,9 @@ describe(RequestLens::class, function (): void {
             ->and($response->headers->get('Server-Timing'))->toContain('db;dur=');
     });
 
-    it('records the request when global middleware answered before routing', function (string $path, bool $kept): void {
+    it('records the request when global middleware answered before routing', function (string $path, array $exceptMethods, bool $kept): void {
+        config(['monocle.except.methods' => $exceptMethods]);
+
         app(Eyepiece::class)->start(CaptureType::Request);
 
         event(new RequestHandled(Request::create($path, 'OPTIONS'), new Response('', 204)));
@@ -639,8 +655,9 @@ describe(RequestLens::class, function (): void {
                 ->and($capture->section('request')['url'])->toEndWith('/api/albums');
         }
     })->with([
-        'preflight' => ['/api/albums', true],
-        'excepted path' => ['/_monocle/api', false],
+        'preflight' => ['/api/albums', [], true],
+        'excepted path' => ['/_monocle/api', [], false],
+        'excepted method' => ['/api/albums', ['OPTIONS'], false],
     ]);
 
     it('derives no controller span when no route matched or a route middleware short-circuited', function (): void {

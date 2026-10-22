@@ -496,6 +496,10 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
             return true;
         }
 
+        if (in_array($request->getMethod(), array_map(strtoupper(...), (array) $this->eyepiece->config('except.methods', [])), true)) {
+            return true;
+        }
+
         $dashboard = trim((string) $this->eyepiece->config('dashboard.path', '_monocle'), '/');
         $patterns = [$dashboard, $dashboard.'/*', ...(array) $this->eyepiece->config('except.paths', [])];
 
