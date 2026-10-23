@@ -27,8 +27,8 @@ final class TimedEngine implements Engine
     private WeakMap $components;
 
     public function __construct(
-        private readonly Engine $inner,
-        private readonly string $engine,
+        private readonly Engine $engine,
+        private readonly string $engineName,
         private readonly Eyepiece $eyepiece,
         /** @var Closure(): list<string> */
         private readonly Closure $viewPaths,
@@ -41,7 +41,7 @@ final class TimedEngine implements Engine
     public function get($path, array $data = []): string
     {
         if (! $this->eyepiece->recording()) {
-            return $this->inner->get($path, $data);
+            return $this->engine->get($path, $data);
         }
 
         $name = $this->viewName((string) $path, $data);
@@ -50,20 +50,20 @@ final class TimedEngine implements Engine
 
         $span = $this->eyepiece->span($name, 'view')->start([
             'path' => $relative,
-            'engine' => $this->engine,
+            'engine' => $this->engineName,
             'data_keys' => $keys,
         ]);
         $span->origin = $this->componentOrigin($data) ?? $span->origin;
 
         try {
-            return $this->inner->get($path, $data);
+            return $this->engine->get($path, $data);
         } finally {
             $span->stop();
 
             $row = [
                 'view' => $name,
                 'path' => $relative,
-                'engine' => $this->engine,
+                'engine' => $this->engineName,
                 'duration' => $span->duration(),
                 'data_keys' => $keys,
                 'origin' => $span->origin,
@@ -112,7 +112,7 @@ final class TimedEngine implements Engine
 
     public function inner(): Engine
     {
-        return $this->inner;
+        return $this->engine;
     }
 
     /**
@@ -120,7 +120,7 @@ final class TimedEngine implements Engine
      */
     public function __call(string $method, array $arguments): mixed
     {
-        return $this->inner->{$method}(...$arguments);
+        return $this->engine->{$method}(...$arguments);
     }
 
     /**

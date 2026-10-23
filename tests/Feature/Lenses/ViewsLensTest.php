@@ -11,12 +11,15 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Views\TimedEngine;
 use ExeQue\Monocle\Lenses\ViewsLens;
+use Illuminate\Foundation\Exceptions\Renderer\Mappers\BladeMapper;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\View\Compilers\BladeCompiler;
+use Illuminate\View\ViewException;
 use InvalidArgumentException;
 use ReflectionMethod;
+use RuntimeException;
 use Tests\Fixtures\Livewire\Counter;
 use Tests\Fixtures\Livewire\Pricing;
 
@@ -124,6 +127,27 @@ describe(ViewsLens::class, function (): void {
             ->and($engine)->toBeInstanceOf(TimedEngine::class)
             ->and($engine->getCompiler())->toBeInstanceOf(BladeCompiler::class)
             ->and($engine->inner())->not->toBeInstanceOf(TimedEngine::class);
+    });
+
+    it('lets the exception page map compiled views back to their source', function (): void {
+        $lens = app(ViewsLens::class);
+        $lens->configure(['engines' => ['blade']]);
+        $lens->boot($this->app, app(Eyepiece::class));
+
+        $title = new class () {
+            public function __toString(): string
+            {
+                throw new RuntimeException('Broken title');
+            }
+        };
+
+        expect(fn () => view('parent', ['title' => $title, 'items' => []])->render())->toThrow(ViewException::class);
+
+        $source = realpath(view('parent')->getPath());
+        $compiled = realpath(app('blade.compiler')->getCompiledPath($source));
+
+        expect(app('view.engine.resolver')->resolve('blade'))->toBeInstanceOf(TimedEngine::class)
+            ->and(app(BladeMapper::class)->findCompiledView($compiled))->toBe($source);
     });
 
     it('masks view data keys matching the input pattern, nested ones too', function (): void {
