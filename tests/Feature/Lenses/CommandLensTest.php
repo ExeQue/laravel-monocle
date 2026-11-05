@@ -500,8 +500,11 @@ describe(CommandLens::class, function (): void {
         it('prints only for a failed run with print_capture failure', function () use ($run, $configure): void {
             $configure('failure');
 
-            expect($run('monocle-test:ok'))->toBe('')
-                ->and($run('monocle-test:ping', ['name' => 'ada']))->toContain('Captured this run as '.latestCapture()->id);
+            Artisan::command('monocle-test:passes', fn (): int => 0);
+            Artisan::command('monocle-test:fails', fn (): int => 1);
+
+            expect($run('monocle-test:passes'))->toBe('')
+                ->and($run('monocle-test:fails'))->toContain('Captured this run as '.latestCapture()->id);
         });
 
         it('prints nothing with print_capture off or any other value', function (mixed $value) use ($run, $configure): void {
