@@ -8,10 +8,12 @@ use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Lenses\CommandLens;
 use ExeQue\Monocle\Reader\CaptureReader;
 use ExeQue\Monocle\Reader\Filter;
+use ExeQue\Monocle\Support\Terminal;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Mockery;
 use RuntimeException;
+use Tests\TestCase;
 
 covers(CommandLens::class);
 
@@ -327,5 +329,191 @@ describe(CommandLens::class, function (): void {
             'turned off' => [$parent, false],
             'not a capture id' => ['nope', true],
         ]);
+    });
+
+    describe('printing the capture of a run', function (): void {
+        // The test outputs are never a terminal; stand in for one that does not open links.
+        beforeEach(function (): void {
+            $this->app->instance(Terminal::class, new Terminal(interactive: true, opensLinks: false));
+        });
+
+        $run = function (string $command, array $parameters = []): string {
+            Artisan::call($command, $parameters);
+            app()->terminate();
+
+            return Artisan::output();
+        };
+
+        $configure = function (mixed $printCapture): void {
+            TestCase::$bootConfig = ['monocle.lenses.'.CommandLens::class => ['print_capture' => $printCapture]];
+            test()->refreshApplication();
+            TestCase::$bootConfig = [];
+            app()->instance(Terminal::class, new Terminal(interactive: true, opensLinks: false));
+        };
+
+        $finish = function (\Symfony\Component\Console\Output\OutputInterface $output, int $exitCode): void {
+            $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+            event(new \Illuminate\Console\Events\CommandStarting('monocle-test:ok', $input, $output));
+            event(new \Illuminate\Console\Events\CommandFinished('monocle-test:ok', $input, $output, $exitCode));
+            app()->terminate();
+        };
+
+        it('prints the id of the stored capture in a box', function () use ($run): void {
+            $output = $run('monocle-test:ping', ['name' => 'ada']);
+            $id = latestCapture()->id;
+
+            $url = route('monocle.dashboard').'#'.$id;
+            $width = mb_strlen($url);
+
+            expect($output)->toBe(implode(PHP_EOL, [
+                'pong',
+                '',
+                '╭─ Monocle '.str_repeat('─', $width - 8).'╮',
+                '│ '.str_pad('Captured this run as '.$id, $width).' │',
+                '│ '.str_pad('php artisan monocle:show '.$id, $width).' │',
+                '│ '.$url.' │',
+                '╰'.str_repeat('─', $width + 2).'╯',
+                '',
+            ]));
+        });
+
+        it('prints for a command that succeeded by default', function () use ($run): void {
+            expect($run('monocle-test:ok'))->toContain('Captured this run as '.latestCapture()->id);
+        });
+
+        it('makes the id a link to the dashboard in a terminal that opens links', function () use ($finish): void {
+            $output = new \Symfony\Component\Console\Output\BufferedOutput(decorated: true);
+
+            $this->app->instance(Terminal::class, new Terminal(interactive: true, opensLinks: true));
+            $finish($output, 2);
+            $linked = $output->fetch();
+            $linkedId = latestCapture()->id;
+
+            $this->app->instance(Terminal::class, new Terminal(interactive: true, opensLinks: false));
+            $finish($output, 2);
+            $plain = $output->fetch();
+            $plainId = latestCapture()->id;
+
+            $dashboard = route('monocle.dashboard');
+
+            expect($linked)->toContain("\033]8;;{$dashboard}#{$linkedId}\033\\")
+                ->and(substr_count($linked, PHP_EOL))->toBe(5)
+                ->and($plain)->not->toContain("\033]8;;")
+                ->and($plain)->toContain($dashboard.'#'.$plainId)
+                ->and(substr_count($plain, PHP_EOL))->toBe(6);
+        });
+
+        it('prints only once per run', function () use ($run): void {
+            $run('monocle-test:ping', ['name' => 'ada']);
+            $this->app->terminate();
+
+            expect(Artisan::output())->toBe('');
+        });
+
+        it('prints to the error output of a console output', function () use ($finish): void {
+            $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+            $output->setErrorOutput($errors = new \Symfony\Component\Console\Output\BufferedOutput());
+
+            $finish($output, 2);
+
+            expect($errors->fetch())->toContain('Captured this run as '.latestCapture()->id);
+        });
+
+        it('prints below the exception of a command that threw', function (): void {
+            Artisan::command('monocle-test:boom', fn (): int => throw new RuntimeException('the command went boom'));
+
+            $kernel = app(\Illuminate\Contracts\Console\Kernel::class);
+            $input = new \Symfony\Component\Console\Input\ArrayInput(['command' => 'monocle-test:boom']);
+            $output = new \Symfony\Component\Console\Output\BufferedOutput();
+
+            // Testbench's kernel rethrows what Laravel's catches and renders; do what Laravel's does.
+            try {
+                $kernel->handle($input, $output);
+            } catch (RuntimeException $e) {
+                app(\Illuminate\Contracts\Debug\ExceptionHandler::class)->renderForConsole($output, $e);
+            }
+
+            $kernel->terminate($input, 1);
+            $text = $output->fetch();
+
+            expect($text)->toContain('the command went boom')
+                ->and(strpos($text, 'Captured this run as '.latestCapture()->id))->toBeGreaterThan(strpos($text, 'the command went boom'));
+        });
+
+        it('prints only the capture of the command run, not of one it called', function (): void {
+            Artisan::command('monocle-test:calls-failing', function (): int {
+                Artisan::call('monocle-test:ping', ['name' => 'nested']);
+
+                return 0;
+            });
+
+            // Artisan::output() holds the nested call's output afterwards, so the outer run writes to its own buffer.
+            Artisan::call('monocle-test:calls-failing', [], $output = new \Symfony\Component\Console\Output\BufferedOutput());
+            $this->app->terminate();
+            $text = $output->fetch();
+
+            expect(substr_count($text, 'Captured this run as '))->toBe(1)
+                ->and($text)->toContain(latestCapture()->id);
+        });
+
+        it('prints nothing when the capture was not stored', function () use ($run): void {
+            Artisan::command('monocle-test:discarded', function (): int {
+                app(\ExeQue\Monocle\Eyepiece::class)->discard();
+
+                return 3;
+            });
+            config()->push('monocle.except.commands', 'monocle-test:ping');
+
+            expect($run('monocle-test:discarded'))->toBe('')
+                ->and($run('monocle-test:ping', ['name' => 'ada']))->toBe('pong'.PHP_EOL);
+        });
+
+        it('prints nothing with the output quiet', function () use ($run): void {
+            expect($run('monocle-test:ping', ['name' => 'ada', '--quiet' => true]))->toBe('');
+        });
+
+        it('prints nothing when the output is not a terminal', function () use ($finish): void {
+            $this->app->instance(Terminal::class, new Terminal());
+            $output = new \Symfony\Component\Console\Output\StreamOutput(fopen('php://memory', 'w+'));
+
+            $finish($output, 2);
+            rewind($output->getStream());
+
+            expect(stream_get_contents($output->getStream()))->toBe('');
+        });
+
+        it('leaves the dashboard link out when the dashboard is off or its url cannot be built', function () use ($run): void {
+            config(['monocle.dashboard.enabled' => false]);
+            $disabled = $run('monocle-test:ping', ['name' => 'ada']);
+
+            config(['monocle.dashboard.enabled' => true]);
+            Artisan::call('monocle-test:ping', ['name' => 'ada']);
+            $url = Mockery::mock(\Illuminate\Routing\UrlGenerator::class);
+            $url->shouldReceive('route')->andThrow(new RuntimeException('no url'));
+            $this->app->instance('url', $url);
+            $this->app->terminate();
+
+            expect($disabled)->toContain('php artisan monocle:show')->not->toContain('_monocle#')
+                ->and(Artisan::output())->toContain('php artisan monocle:show')->not->toContain('_monocle#');
+        });
+
+        it('prints only for a failed run with print_capture failure', function () use ($run, $configure): void {
+            $configure('failure');
+
+            Artisan::command('monocle-test:passes', fn (): int => 0);
+            Artisan::command('monocle-test:fails', fn (): int => 1);
+
+            expect($run('monocle-test:passes'))->toBe('')
+                ->and($run('monocle-test:fails'))->toContain('Captured this run as '.latestCapture()->id);
+        });
+
+        it('prints nothing with print_capture off or any other value', function (mixed $value) use ($run, $configure): void {
+            $configure($value);
+
+            Artisan::command('monocle-test:fail', fn (): int => 3);
+
+            expect($run('monocle-test:fail'))->toBe('')
+                ->and(latestCapture()->section('command')['exit_code'])->toBe(3);
+        })->with(['off', false, true, 'yes']);
     });
 });

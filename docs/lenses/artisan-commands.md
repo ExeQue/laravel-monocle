@@ -14,6 +14,20 @@ The Artisan commands lens records every artisan command you run as a capture of 
 - A command run in a process started with the `Process` facade, while a capture is recorded, is handed `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID` in its environment. Its capture becomes a child of the capture that started the process, in the same trace. Only values that look like capture ids are used, and only with [`trace.processes`](../configuration.md#trace) on (the default). See [Tracing](../tracing.md).
 - Long-running commands such as `queue:work`, `horizon` and `schedule:work` are not recorded (see [Configuration](#configuration)). The jobs a worker runs are recorded as job captures.
 
+## Finding the capture of a run
+
+When a command run from a terminal ends, Monocle prints the id of its capture to the error output in a box, after a blank line and below any exception Laravel shows for a command that threw:
+
+```text
+╭─ Monocle ──────────────────────────────────────────────────────╮
+│ Captured this run as 01a12c76-6f82-71f5-8387-75067ec20c61      │
+│ php artisan monocle:show 01a12c76-6f82-71f5-8387-75067ec20c61  │
+│ http://localhost/_monocle#01a12c76-6f82-71f5-8387-75067ec20c61 │
+╰────────────────────────────────────────────────────────────────╯
+```
+
+The last line, a link that opens the capture in the [dashboard](../dashboard.md), is left out when the dashboard is turned off. In a terminal that opens links, the id itself is that link and the last line is left out; JetBrains IDEs' terminal and older Konsole versions get the line instead. The box only shows when the error output is a terminal, so a file, a pipe, a scheduler's log or a CI job never gets it. Nothing is printed for a run that was not stored (an excepted command or a discarded capture), for commands called with `Artisan::call()` inside another capture, or when the command runs with `-q`. The `print_capture` option limits it to failed runs, a non-zero exit code, or turns it off (see [Configuration](#configuration)).
+
 ## Rows
 
 ### Section `command`
@@ -94,9 +108,11 @@ Where the time of a slow command went: `monocle-show` with `"sections": ["summar
 
 ## Configuration
 
-Turn the lens on or off in the `lenses` block of `config/monocle.php`, keyed by the lens class: `true` runs it, `false` turns it off. See [Lenses](../configuration.md#lenses).
+Turn the lens on or off, or give it options, in the `lenses` block of `config/monocle.php`, keyed by the lens class: `true` runs it with its defaults, `false` turns it off, an array sets its options. See [Lenses](../configuration.md#lenses).
 
-The lens has no options.
+| Option | Default | Effect |
+|---|---|---|
+| `print_capture` | `'always'` | Which runs at a terminal print the id of their capture: `'always'` every run, `'failure'` only runs with a non-zero exit code, and any other value none. See [Finding the capture of a run](#finding-the-capture-of-a-run). |
 
 Other settings that affect this lens:
 
@@ -109,7 +125,9 @@ Other settings that affect this lens:
 use ExeQue\Monocle\Lenses\CommandLens;
 
 'lenses' => [
-    CommandLens::class => true,
+    CommandLens::class => [
+        'print_capture' => 'failure', // only failed runs print the id of their capture
+    ],
 ],
 
 'except' => [

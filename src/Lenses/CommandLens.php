@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
@@ -18,6 +19,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\Terminal;
 use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
@@ -25,15 +27,20 @@ use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Helper\Helper;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
  * Artisan commands become captures of type command; a command invoked while
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead, and a row of the commands section when it finishes.
+ * A command run at a terminal prints the id of its capture once the application
+ * terminates, below any exception Laravel rendered for it.
  */
-final class CommandLens implements Advises, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
+final class CommandLens implements Advises, Configurable, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
 {
     private bool $usedLaravelStart = false;
 
@@ -46,6 +53,12 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
     private Application $app;
 
     private ?Span $phase = null;
+
+    /** Which runs print their capture id to the terminal: 'always', 'failure' or 'off'. */
+    private string $printCapture = 'always';
+
+    /** @var array{string, OutputInterface}|null the stored capture id of the run and its output, until printed */
+    private ?array $pendingRun = null;
 
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -72,6 +85,15 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
         return 'Look here for an artisan command\'s arguments, options and exit code.';
     }
 
+    public function configure(array $options): void
+    {
+        $this->printCapture = match ($options['print_capture'] ?? $this->printCapture) {
+            'always' => 'always',
+            'failure' => 'failure',
+            default => 'off',
+        };
+    }
+
     public function boot(Application $app): void
     {
         $this->app = $app;
@@ -91,6 +113,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
         $this->eyepiece->listen(CommandStarting::class, $this->onStarting(...));
         $this->eyepiece->listen(CommandFinished::class, $this->onFinished(...));
+
+        // The console kernel renders an uncaught exception after CommandFinished; terminating runs after that.
+        $app->terminating($this->printRun(...));
     }
 
     public function finalize(Capture $capture): void
@@ -249,7 +274,91 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
         $this->eyepiece->describe(status: (string) $event->exitCode);
         $this->eyepiece->set('command', ['exit_code' => $event->exitCode]);
-        $this->eyepiece->finalize();
+        $stored = $this->eyepiece->finalize();
+
+        // Only a capture that was stored can be looked up; a discarded one has nothing to show.
+        $prints = $this->printCapture === 'always' || ($this->printCapture === 'failure' && $event->exitCode !== 0);
+        $this->pendingRun = $prints && $stored !== null ? [$stored->id, $event->output] : null;
+    }
+
+    private function printRun(): void
+    {
+        if ($this->pendingRun === null) {
+            return;
+        }
+
+        [$id, $output] = $this->pendingRun;
+        $this->pendingRun = null;
+
+        if ($output instanceof ConsoleOutputInterface) {
+            $output = $output->getErrorOutput();
+        }
+
+        if ($output->isQuiet()) {
+            return;
+        }
+
+        $terminal = $this->app->make(Terminal::class);
+
+        // A file, a pipe or a scheduler's log is left as the command wrote it.
+        if (! $terminal->interactive($output)) {
+            return;
+        }
+
+        $dashboard = $this->dashboardUrl();
+        $url = $dashboard !== null ? $dashboard.'#'.$id : null;
+
+        // A terminal that opens links gets the id as one; anywhere else the url is printed below it.
+        $linked = $url !== null && $output->isDecorated() && $terminal->opensLinks();
+
+        $lines = [
+            sprintf(
+                'Captured this run as %s',
+                $linked ? sprintf('<href=%s;fg=#c08429;options=bold,underscore>%s</>', $url, $id) : sprintf('<fg=#c08429;options=bold>%s</>', $id),
+            ),
+            sprintf('<fg=gray>php artisan monocle:show %s</>', $id),
+        ];
+
+        if ($url !== null && ! $linked) {
+            $lines[] = sprintf('<fg=gray>%s</>', $url);
+        }
+
+        $output->writeln(['', ...$this->box('Monocle', $lines, $output)]);
+    }
+
+    /**
+     * Draws a rounded bronze box around the lines, with the title in its top edge.
+     *
+     * @param  list<string>  $lines
+     * @return list<string>
+     */
+    private function box(string $title, array $lines, OutputInterface $output): array
+    {
+        $visible = fn (string $line): int => Helper::width(Helper::removeDecoration($output->getFormatter(), $line));
+        $width = max([...array_map($visible, $lines), $visible($title) + 2]);
+        $edge = fn (string $line): string => '<fg=#c08429>'.$line.'</>';
+
+        return [
+            $edge('╭─ ').'<fg=#c08429;options=bold>'.$title.'</>'.$edge(' '.str_repeat('─', $width - $visible($title) - 1).'╮'),
+            ...array_map(fn (string $line): string => $edge('│').' '.$line.str_repeat(' ', $width - $visible($line)).' '.$edge('│'), $lines),
+            $edge('╰'.str_repeat('─', $width + 2).'╯'),
+        ];
+    }
+
+    /**
+     * The dashboard opens the capture named by the location hash.
+     */
+    private function dashboardUrl(): ?string
+    {
+        if (! $this->eyepiece->config('dashboard.enabled', true) || ! $this->app->make('router')->has('monocle.dashboard')) {
+            return null;
+        }
+
+        try {
+            return $this->app->make('url')->route('monocle.dashboard');
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function finishNested(Span $span, int $exitCode): void
