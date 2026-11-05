@@ -751,4 +751,25 @@ expect($capture->rows('stripe'))->toHaveCount(1);
 
 ## Sharing your lens
 
+### Views in a package
+
+Monocle is often a dev dependency, so a production install leaves it out. `php artisan view:cache` (part of `php artisan optimize`) compiles every view a package registers, and a view that uses `<x-monocle::...>` components fails to compile there. Keep your lens's views in a folder of their own, under a namespace of their own, and register it only when Monocle is installed:
+
+```php
+use ExeQue\Monocle\Facades\Monocle;
+
+public function boot(): void
+{
+    $this->loadViewsFrom(__DIR__.'/../resources/views', 'payments');
+
+    if (class_exists(Monocle::class)) {
+        $this->loadViewsFrom(__DIR__.'/../resources/monocle', 'payments-monocle');
+    }
+}
+```
+
+The lens then points at `payments-monocle::details`. Never put a Monocle view in your package's main view folder.
+
+### Getting listed
+
 Publish the lens as its own package and open an issue to have it listed under [Third-party lenses](third-party-lenses.md).
