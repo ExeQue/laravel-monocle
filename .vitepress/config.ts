@@ -6,7 +6,8 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Monocle',
   description: 'A request profiler for Laravel, built for AI coding agents.',
-  base: '/laravel-monocle/',
+  // GitHub Pages serves the docs under /laravel-monocle/; the lerd docs worker serves them at the root of its subdomain.
+  base: process.env.DOCS_BASE ?? '/laravel-monocle/',
   lastUpdated: true,
   cleanUrls: true,
 
@@ -33,6 +34,10 @@ export default defineConfig({
   // The dashboard's icon doubles as the favicon, served from its own folder.
   vite: {
     publicDir: fileURLToPath(new URL('../resources/static', import.meta.url)),
+    server: {
+      // Served through lerd on docs.monocle.test, which Vite would otherwise refuse.
+      allowedHosts: ['.test'],
+    },
   },
 
   themeConfig: {
