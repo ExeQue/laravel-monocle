@@ -120,6 +120,23 @@ describe(FilamentLens::class, function (): void {
             ->and($lens()->summarize(latestCapture())->totals)->toMatchArray(['filament_actions' => 1, 'filament_notifications' => 1]);
     });
 
+    it('reads every shape Filament has kept its pending notifications in', function () use ($lens): void {
+        $mailbox = app(\Filament\Notifications\NotificationMailbox::class);
+
+        // 5.11 serializes each one, 5.10.3 kept the array in a wrapper and 5.10.2 kept it bare.
+        (function (): void {
+            $this->pendingNotifications = [
+                ['notification' => serialize(['id' => 'serialized', 'title' => 'Serialized'])],
+                ['notification' => ['id' => 'wrapped', 'title' => 'Wrapped']],
+                ['id' => 'bare', 'title' => 'Bare'],
+            ];
+        })->call($mailbox);
+
+        $pending = (fn (): array => $this->pending($mailbox))->call($lens());
+
+        expect(array_column($pending, 'title'))->toBe(['Serialized', 'Wrapped', 'Bare']);
+    });
+
     it('records an action whose modal opened and then failed validation', function () use ($rows): void {
         $page = Livewire::test(ListBooks::class)->mountAction('rename');
 
