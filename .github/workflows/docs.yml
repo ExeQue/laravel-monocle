@@ -3,6 +3,8 @@ name: Documentation
 on:
   push:
     branches: [ "main" ]
+    # A release tag deploys; path filters do not apply to tags.
+    tags: [ 'v*' ]
     paths: &docs
       - 'README.md'
       - 'LICENSE.md'
@@ -17,8 +19,8 @@ on:
     paths: *docs
   workflow_dispatch:
 
-# The build runs on a pull request too: VitePress fails on a dead link, which is
-# the check that matters. A pull request stops there; main and a manual run deploy.
+# Every run builds: VitePress fails on a dead link, which is the check that matters.
+# Only a release tag or a manual run deploys, so the site matches the released package.
 #
 # Nothing here reads a secret, and the write permissions the deployment needs are
 # granted to that job alone - the build runs the repository's own npm scripts, and
@@ -56,13 +58,13 @@ jobs:
         run: npm run docs:build
 
       - name: Upload the artifact
-        if: github.event_name != 'pull_request'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-pages-artifact@v3
         with:
           path: .vitepress/dist
 
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
 
