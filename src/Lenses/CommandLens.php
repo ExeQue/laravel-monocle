@@ -6,6 +6,7 @@ namespace ExeQue\Monocle\Lenses;
 
 use ExeQue\Monocle\Contracts\Lens;
 use ExeQue\Monocle\Contracts\Lenses\Advises;
+use ExeQue\Monocle\Contracts\Lenses\Configurable;
 use ExeQue\Monocle\Contracts\Lenses\Finalizable;
 use ExeQue\Monocle\Contracts\Lenses\Presentable;
 use ExeQue\Monocle\Contracts\Lenses\ProvidesSections;
@@ -26,14 +27,18 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\ConsoleOutputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
 
 /**
  * Artisan commands become captures of type command; a command invoked while
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead, and a row of the commands section when it finishes.
+ * A command that fails prints the id of its capture once the application
+ * terminates, below any exception Laravel rendered for it.
  */
-final class CommandLens implements Advises, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
+final class CommandLens implements Advises, Configurable, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
 {
     private bool $usedLaravelStart = false;
 
@@ -46,6 +51,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
     private Application $app;
 
     private ?Span $phase = null;
+
+    private bool $printFailedCapture = true;
+
+    /** @var array{string, OutputInterface}|null the stored capture id of a failed command and its output, until printed */
+    private ?array $failedRun = null;
 
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -72,6 +82,11 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
         return 'Look here for an artisan command\'s arguments, options and exit code.';
     }
 
+    public function configure(array $options): void
+    {
+        $this->printFailedCapture = (bool) ($options['print_failed_capture'] ?? $this->printFailedCapture);
+    }
+
     public function boot(Application $app): void
     {
         $this->app = $app;
@@ -91,6 +106,9 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
         $this->eyepiece->listen(CommandStarting::class, $this->onStarting(...));
         $this->eyepiece->listen(CommandFinished::class, $this->onFinished(...));
+
+        // The console kernel renders an uncaught exception after CommandFinished; terminating runs after that.
+        $app->terminating($this->printFailedRun(...));
     }
 
     public function finalize(Capture $capture): void
@@ -249,7 +267,59 @@ final class CommandLens implements Advises, Finalizable, Lens, Presentable, Prov
 
         $this->eyepiece->describe(status: (string) $event->exitCode);
         $this->eyepiece->set('command', ['exit_code' => $event->exitCode]);
-        $this->eyepiece->finalize();
+        $stored = $this->eyepiece->finalize();
+
+        // Only a capture that was stored can be looked up; a discarded one has nothing to show.
+        $this->failedRun = $this->printFailedCapture && $event->exitCode !== 0 && $stored !== null
+            ? [$stored->id, $event->output]
+            : null;
+    }
+
+    private function printFailedRun(): void
+    {
+        if ($this->failedRun === null) {
+            return;
+        }
+
+        [$id, $output] = $this->failedRun;
+        $this->failedRun = null;
+
+        if ($output instanceof ConsoleOutputInterface) {
+            $output = $output->getErrorOutput();
+        }
+
+        if ($output->isQuiet()) {
+            return;
+        }
+
+        $lines = [
+            sprintf('Monocle captured this run as <options=bold>%s</>', $id),
+            sprintf('  <fg=gray>php artisan monocle:show %s</>', $id),
+        ];
+
+        $dashboard = $this->dashboardUrl();
+
+        if ($dashboard !== null) {
+            $lines[] = sprintf('  <fg=gray>%s#%s</>', $dashboard, $id);
+        }
+
+        $output->writeln($lines);
+    }
+
+    /**
+     * The dashboard opens the capture named by the location hash.
+     */
+    private function dashboardUrl(): ?string
+    {
+        if (! $this->eyepiece->config('dashboard.enabled', true) || ! $this->app->make('router')->has('monocle.dashboard')) {
+            return null;
+        }
+
+        try {
+            return $this->app->make('url')->route('monocle.dashboard');
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function finishNested(Span $span, int $exitCode): void

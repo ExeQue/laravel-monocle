@@ -144,7 +144,9 @@ return [
             'ignore' => ['Illuminate\*', 'Laravel\*', 'Livewire\*', 'eloquent.*', 'composing:*', 'creating:*', 'bootstrapping:*', 'bootstrapped:*', 'locale.*'],
         ],
         QueueLens::class => true,
-        CommandLens::class => true,
+        CommandLens::class => [
+            'print_failed_capture' => true,         // a failed command prints the id of its capture
+        ],
         ProcessLens::class => [
             'slow_ms' => 1000,
         ],

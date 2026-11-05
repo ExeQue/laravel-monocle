@@ -14,6 +14,18 @@ The Artisan commands lens records every artisan command you run as a capture of 
 - A command run in a process started with the `Process` facade, while a capture is recorded, is handed `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID` in its environment. Its capture becomes a child of the capture that started the process, in the same trace. Only values that look like capture ids are used, and only with [`trace.processes`](../configuration.md#trace) on (the default). See [Tracing](../tracing.md).
 - Long-running commands such as `queue:work`, `horizon` and `schedule:work` are not recorded (see [Configuration](#configuration)). The jobs a worker runs are recorded as job captures.
 
+## Finding the capture of a failed run
+
+When a command run from a terminal fails (a non-zero exit code, which includes a command that threw), Monocle prints the id of its capture to the error output, below any exception Laravel shows for it:
+
+```text
+Monocle captured this run as 01a12c76-6f82-71f5-8387-75067ec20c61
+  php artisan monocle:show 01a12c76-6f82-71f5-8387-75067ec20c61
+  http://localhost/_monocle#01a12c76-6f82-71f5-8387-75067ec20c61
+```
+
+The last line, a link that opens the capture in the [dashboard](../dashboard.md), is left out when the dashboard is turned off. Nothing is printed for a successful run, for a run that was not stored (an excepted command or a discarded capture), for commands called with `Artisan::call()` inside another capture, or when the command runs with `-q`. Turn it off with the `print_failed_capture` option (see [Configuration](#configuration)).
+
 ## Rows
 
 ### Section `command`
@@ -94,9 +106,11 @@ Where the time of a slow command went: `monocle-show` with `"sections": ["summar
 
 ## Configuration
 
-Turn the lens on or off in the `lenses` block of `config/monocle.php`, keyed by the lens class: `true` runs it, `false` turns it off. See [Lenses](../configuration.md#lenses).
+Turn the lens on or off, or give it options, in the `lenses` block of `config/monocle.php`, keyed by the lens class: `true` runs it with its defaults, `false` turns it off, an array sets its options. See [Lenses](../configuration.md#lenses).
 
-The lens has no options.
+| Option | Default | Effect |
+|---|---|---|
+| `print_failed_capture` | `true` | A command run that fails prints the id of its capture; see [Finding the capture of a failed run](#finding-the-capture-of-a-failed-run). |
 
 Other settings that affect this lens:
 
@@ -109,7 +123,9 @@ Other settings that affect this lens:
 use ExeQue\Monocle\Lenses\CommandLens;
 
 'lenses' => [
-    CommandLens::class => true,
+    CommandLens::class => [
+        'print_failed_capture' => false, // keep the terminal output as the command left it
+    ],
 ],
 
 'except' => [

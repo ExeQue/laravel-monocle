@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 use Mockery;
 use RuntimeException;
+use Tests\TestCase;
 
 covers(CommandLens::class);
 
@@ -327,5 +328,123 @@ describe(CommandLens::class, function (): void {
             'turned off' => [$parent, false],
             'not a capture id' => ['nope', true],
         ]);
+    });
+
+    describe('printing the capture of a failed run', function (): void {
+        $run = function (string $command, array $parameters = []): string {
+            Artisan::call($command, $parameters);
+            app()->terminate();
+
+            return Artisan::output();
+        };
+
+        it('prints the id of the stored capture when a command exits with a non-zero code', function () use ($run): void {
+            $output = $run('monocle-test:ping', ['name' => 'ada']);
+            $id = latestCapture()->id;
+
+            expect($output)->toBe(implode(PHP_EOL, [
+                'pong',
+                'Monocle captured this run as '.$id,
+                '  php artisan monocle:show '.$id,
+                '  http://localhost/_monocle#'.$id,
+                '',
+            ]));
+        });
+
+        it('prints only once per failed run', function () use ($run): void {
+            $run('monocle-test:ping', ['name' => 'ada']);
+            $this->app->terminate();
+
+            expect(Artisan::output())->toBe('');
+        });
+
+        it('prints to the error output of a console output', function (): void {
+            $input = new \Symfony\Component\Console\Input\ArrayInput([]);
+            $output = new \Symfony\Component\Console\Output\ConsoleOutput();
+            $output->setErrorOutput($errors = new \Symfony\Component\Console\Output\BufferedOutput());
+
+            event(new \Illuminate\Console\Events\CommandStarting('monocle-test:ok', $input, $output));
+            event(new \Illuminate\Console\Events\CommandFinished('monocle-test:ok', $input, $output, 2));
+            $this->app->terminate();
+
+            expect($errors->fetch())->toStartWith('Monocle captured this run as '.latestCapture()->id);
+        });
+
+        it('prints below the exception of a command that threw', function (): void {
+            Artisan::command('monocle-test:boom', fn (): int => throw new RuntimeException('the command went boom'));
+
+            $kernel = app(\Illuminate\Contracts\Console\Kernel::class);
+            $input = new \Symfony\Component\Console\Input\ArrayInput(['command' => 'monocle-test:boom']);
+            $output = new \Symfony\Component\Console\Output\BufferedOutput();
+
+            // Testbench's kernel rethrows what Laravel's catches and renders; do what Laravel's does.
+            try {
+                $kernel->handle($input, $output);
+            } catch (RuntimeException $e) {
+                app(\Illuminate\Contracts\Debug\ExceptionHandler::class)->renderForConsole($output, $e);
+            }
+
+            $kernel->terminate($input, 1);
+            $text = $output->fetch();
+
+            expect($text)->toContain('the command went boom')
+                ->and(strpos($text, 'Monocle captured this run as '.latestCapture()->id))->toBeGreaterThan(strpos($text, 'the command went boom'));
+        });
+
+        it('prints nothing for a command that succeeded', function () use ($run): void {
+            expect($run('monocle-test:ok'))->toBe('');
+        });
+
+        it('prints nothing for a failed command called inside another capture', function () use ($run): void {
+            Artisan::command('monocle-test:calls-failing', function (): int {
+                Artisan::call('monocle-test:ping', ['name' => 'nested']);
+
+                return 0;
+            });
+
+            expect($run('monocle-test:calls-failing'))->not->toContain('Monocle captured');
+        });
+
+        it('prints nothing when the capture was not stored', function () use ($run): void {
+            Artisan::command('monocle-test:discarded', function (): int {
+                app(\ExeQue\Monocle\Eyepiece::class)->discard();
+
+                return 3;
+            });
+            config()->push('monocle.except.commands', 'monocle-test:ping');
+
+            expect($run('monocle-test:discarded'))->toBe('')
+                ->and($run('monocle-test:ping', ['name' => 'ada']))->toBe('pong'.PHP_EOL);
+        });
+
+        it('prints nothing with the output quiet', function () use ($run): void {
+            expect($run('monocle-test:ping', ['name' => 'ada', '--quiet' => true]))->toBe('');
+        });
+
+        it('leaves the dashboard link out when the dashboard is off or its url cannot be built', function () use ($run): void {
+            config(['monocle.dashboard.enabled' => false]);
+            $disabled = $run('monocle-test:ping', ['name' => 'ada']);
+
+            config(['monocle.dashboard.enabled' => true]);
+            Artisan::call('monocle-test:ping', ['name' => 'ada']);
+            $url = Mockery::mock(\Illuminate\Routing\UrlGenerator::class);
+            $url->shouldReceive('route')->andThrow(new RuntimeException('no url'));
+            $this->app->instance('url', $url);
+            $this->app->terminate();
+
+            expect($disabled)->toContain('php artisan monocle:show')->not->toContain('_monocle#')
+                ->and(Artisan::output())->toContain('php artisan monocle:show')->not->toContain('_monocle#');
+        });
+
+        it('prints nothing with print_failed_capture turned off', function () use ($run): void {
+            TestCase::$bootConfig = ['monocle.lenses.'.CommandLens::class => ['print_failed_capture' => false]];
+            $this->refreshApplication();
+            TestCase::$bootConfig = [];
+
+            Artisan::command('monocle-test:fail', fn (): int => 3);
+
+            expect($run('monocle-test:fail'))->toBe('')
+                ->and(latestCapture()->section('command')['exit_code'])->toBe(3);
+        });
     });
 });
