@@ -37,6 +37,10 @@ export default defineConfig({
     server: {
       // Served through lerd on docs.monocle.test, which Vite would otherwise refuse.
       allowedHosts: ['.test'],
+      // srcExclude only skips pages; without this the watcher also crawls vendor/ and runs out of heap.
+      watch: {
+        ignored: ['**/vendor/**', '**/workbench/**', '**/build/**', '**/tests/**'],
+      },
     },
   },
 
