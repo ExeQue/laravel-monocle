@@ -36,4 +36,4 @@ php artisan monocle:clear
 
 The commands work even when recording is turned off, so earlier captures can always be read.
 
-When a command you run fails, Monocle prints the id of its capture with the `monocle:show` line to open it; see [Artisan commands](lenses/artisan-commands.md#finding-the-capture-of-a-failed-run).
+When a command you run at a terminal ends, Monocle prints the id of its capture with the `monocle:show` line to open it; see [Artisan commands](lenses/artisan-commands.md#finding-the-capture-of-a-run).

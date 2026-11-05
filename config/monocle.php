@@ -145,7 +145,7 @@ return [
         ],
         QueueLens::class => true,
         CommandLens::class => [
-            'print_failed_capture' => true,         // a failed command prints the id of its capture
+            'print_capture' => 'always',     // which runs print the id of their capture at a terminal: 'always', 'failure' or 'off'
         ],
         ProcessLens::class => [
             'slow_ms' => 1000,

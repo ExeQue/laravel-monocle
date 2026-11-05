@@ -19,6 +19,7 @@ use ExeQue\Monocle\Data\Summary;
 use ExeQue\Monocle\Enums\CaptureType;
 use ExeQue\Monocle\Enums\Unit;
 use ExeQue\Monocle\Eyepiece;
+use ExeQue\Monocle\Support\Terminal;
 use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
@@ -26,6 +27,7 @@ use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Foundation\Console\ClosureCommand;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Helper\Helper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\ConsoleOutputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -35,7 +37,7 @@ use Throwable;
  * Artisan commands become captures of type command; a command invoked while
  * another capture is active (Artisan::call inside a request or a command)
  * becomes a span instead, and a row of the commands section when it finishes.
- * A command that fails prints the id of its capture once the application
+ * A command run at a terminal prints the id of its capture once the application
  * terminates, below any exception Laravel rendered for it.
  */
 final class CommandLens implements Advises, Configurable, Finalizable, Lens, Presentable, ProvidesSections, Resettable, Summarizable
@@ -52,10 +54,11 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     private ?Span $phase = null;
 
-    private bool $printFailedCapture = true;
+    /** Which runs print their capture id to the terminal: 'always', 'failure' or 'off'. */
+    private string $printCapture = 'always';
 
-    /** @var array{string, OutputInterface}|null the stored capture id of a failed command and its output, until printed */
-    private ?array $failedRun = null;
+    /** @var array{string, OutputInterface}|null the stored capture id of the run and its output, until printed */
+    private ?array $pendingRun = null;
 
     public function __construct(
         private readonly Eyepiece $eyepiece
@@ -84,7 +87,11 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function configure(array $options): void
     {
-        $this->printFailedCapture = (bool) ($options['print_failed_capture'] ?? $this->printFailedCapture);
+        $this->printCapture = match ($options['print_capture'] ?? $this->printCapture) {
+            'always' => 'always',
+            'failure' => 'failure',
+            default => 'off',
+        };
     }
 
     public function boot(Application $app): void
@@ -108,7 +115,7 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
         $this->eyepiece->listen(CommandFinished::class, $this->onFinished(...));
 
         // The console kernel renders an uncaught exception after CommandFinished; terminating runs after that.
-        $app->terminating($this->printFailedRun(...));
+        $app->terminating($this->printRun(...));
     }
 
     public function finalize(Capture $capture): void
@@ -270,19 +277,18 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
         $stored = $this->eyepiece->finalize();
 
         // Only a capture that was stored can be looked up; a discarded one has nothing to show.
-        $this->failedRun = $this->printFailedCapture && $event->exitCode !== 0 && $stored !== null
-            ? [$stored->id, $event->output]
-            : null;
+        $prints = $this->printCapture === 'always' || ($this->printCapture === 'failure' && $event->exitCode !== 0);
+        $this->pendingRun = $prints && $stored !== null ? [$stored->id, $event->output] : null;
     }
 
-    private function printFailedRun(): void
+    private function printRun(): void
     {
-        if ($this->failedRun === null) {
+        if ($this->pendingRun === null) {
             return;
         }
 
-        [$id, $output] = $this->failedRun;
-        $this->failedRun = null;
+        [$id, $output] = $this->pendingRun;
+        $this->pendingRun = null;
 
         if ($output instanceof ConsoleOutputInterface) {
             $output = $output->getErrorOutput();
@@ -292,18 +298,51 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
             return;
         }
 
-        $lines = [
-            sprintf('Monocle captured this run as <options=bold>%s</>', $id),
-            sprintf('  <fg=gray>php artisan monocle:show %s</>', $id),
-        ];
+        $terminal = $this->app->make(Terminal::class);
 
-        $dashboard = $this->dashboardUrl();
-
-        if ($dashboard !== null) {
-            $lines[] = sprintf('  <fg=gray>%s#%s</>', $dashboard, $id);
+        // A file, a pipe or a scheduler's log is left as the command wrote it.
+        if (! $terminal->interactive($output)) {
+            return;
         }
 
-        $output->writeln($lines);
+        $dashboard = $this->dashboardUrl();
+        $url = $dashboard !== null ? $dashboard.'#'.$id : null;
+
+        // A terminal that opens links gets the id as one; anywhere else the url is printed below it.
+        $linked = $url !== null && $output->isDecorated() && $terminal->opensLinks();
+
+        $lines = [
+            sprintf(
+                'Captured this run as %s',
+                $linked ? sprintf('<href=%s;fg=#c08429;options=bold,underscore>%s</>', $url, $id) : sprintf('<fg=#c08429;options=bold>%s</>', $id),
+            ),
+            sprintf('<fg=gray>php artisan monocle:show %s</>', $id),
+        ];
+
+        if ($url !== null && ! $linked) {
+            $lines[] = sprintf('<fg=gray>%s</>', $url);
+        }
+
+        $output->writeln(['', ...$this->box('Monocle', $lines, $output)]);
+    }
+
+    /**
+     * Draws a rounded bronze box around the lines, with the title in its top edge.
+     *
+     * @param  list<string>  $lines
+     * @return list<string>
+     */
+    private function box(string $title, array $lines, OutputInterface $output): array
+    {
+        $visible = fn (string $line): int => Helper::width(Helper::removeDecoration($output->getFormatter(), $line));
+        $width = max([...array_map($visible, $lines), $visible($title) + 2]);
+        $edge = fn (string $line): string => '<fg=#c08429>'.$line.'</>';
+
+        return [
+            $edge('╭─ ').'<fg=#c08429;options=bold>'.$title.'</>'.$edge(' '.str_repeat('─', $width - $visible($title) - 1).'╮'),
+            ...array_map(fn (string $line): string => $edge('│').' '.$line.str_repeat(' ', $width - $visible($line)).' '.$edge('│'), $lines),
+            $edge('╰'.str_repeat('─', $width + 2).'╯'),
+        ];
     }
 
     /**
