@@ -103,7 +103,13 @@
 </div>
 <div
     class="flex flex-wrap gap-2 text-[13px]"
-    x-show="summary.parent_id || summary.missing_parent_id || summary.remote_parent || summary.children?.length"
+    x-show="
+        summary.parent_id ||
+        summary.missing_parent_id ||
+        summary.remote_parent ||
+        summary.remote_children?.length ||
+        summary.children?.length
+    "
 >
     <span x-show="summary.remote_parent"
         >Called from
@@ -121,6 +127,29 @@
     ></span>
     <span class="text-muted" x-show="summary.missing_parent_id"
         >Asked to link to <code class="font-mono text-xs" x-text="summary.missing_parent_id"></code>, not found</span>
+    <span x-show="summary.remote_children?.length"
+        >Called
+        <template x-for="(peer, i) in summary.remote_children ?? []" :key="peer.url">
+            <span
+                ><span x-show="i > 0">, </span
+                ><a
+                    x-show="peer.ids.length === 1"
+                    :class="cls.link"
+                    :href="peer.url + '#' + peer.ids[0]"
+                    target="_blank"
+                    rel="noopener"
+                    x-text="peer.name"
+                ></a
+                ><button
+                    type="button"
+                    x-show="peer.ids.length > 1"
+                    :class="cls.link"
+                    @click="openTab('http')"
+                    x-text="peer.name + ' (' + peer.ids.length + ')'"
+                ></button
+            ></span>
+        </template>
+    </span>
     <span x-show="summary.children?.length"
         >Started
         <button

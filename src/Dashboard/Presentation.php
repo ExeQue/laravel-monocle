@@ -152,6 +152,7 @@ final readonly class Presentation
      *     'rules'                    validation rules per field
      *     ['capture', 'job_id']      a link to the capture started from this row: the newest child
      *                                capture whose job_id is the value, or "pending" until there is one
+     *     'peer'                     a link to a capture in another application's dashboard: {id, name, url}
      *
      * @param  array<string, string|list<mixed>>|Enumerable<string, string|list<mixed>>  $formats  field => format or [format, ...arguments]
      */
