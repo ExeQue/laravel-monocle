@@ -1,5 +1,13 @@
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
+/**
+ * The window a Monocle dashboard opens in, named after its host, so links to
+ * one application land in the same tab. Same rule as TraceContext::windowName().
+ */
+export const dashboardWindow = (url) => {
+  try { return 'monocle:' + new URL(url, location.href).host; } catch { return '_blank'; }
+};
+
 export const ms = (n) => {
   const v = Number(n ?? 0);
   if (v > 0 && v < 0.05) return '<0.1 ms';

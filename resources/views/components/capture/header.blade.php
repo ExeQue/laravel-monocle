@@ -116,8 +116,7 @@
         <a
             :class="cls.link"
             :href="summary.remote_parent ? summary.remote_parent.url + '#' + summary.remote_parent.id : null"
-            target="_blank"
-            rel="noopener"
+            :target="dashboardWindow(summary.remote_parent?.url)"
             x-text="summary.remote_parent?.name"
         ></a
     ></span>
@@ -136,8 +135,7 @@
                     x-show="peer.ids.length === 1"
                     :class="cls.link"
                     :href="peer.url + '#' + peer.ids[0]"
-                    target="_blank"
-                    rel="noopener"
+                    :target="dashboardWindow(peer.url)"
                     x-text="peer.name"
                 ></a
                 ><button

@@ -81,6 +81,22 @@ final class TraceContext
     }
 
     /**
+     * The window a dashboard opens in, named after its host (and a port
+     * other than the scheme's default), so links to one application land in
+     * the same tab. The dashboard's own tab takes the same name, which is
+     * why these links leave noopener out: a named tab is only found again
+     * from the tab that opened it, or from one it opened.
+     */
+    public static function windowName(string $url): string
+    {
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        $port = parse_url($url, PHP_URL_PORT);
+        $default = $scheme === 'http' ? 80 : 443;
+
+        return 'monocle:'.strtolower((string) parse_url($url, PHP_URL_HOST)).($port === null || $port === $default ? '' : ':'.$port);
+    }
+
+    /**
      * An application name from outside or from config, trimmed and cut to
      * 100 characters; null when there is none.
      */

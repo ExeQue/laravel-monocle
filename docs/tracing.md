@@ -45,6 +45,8 @@ Calls to other hosts and ports carry none of them, so they never reach third-par
 - **The caller** reads the `X-Monocle-Id` the peer answers with. The call's row in the HTTP tab gets `peer`, shown in the **Peer** column as a link to the capture it started there. The capture's header sums the calls up per peer: *Called Billing, Search (3)*. A peer with one capture links straight to it; one with several opens the HTTP tab. `monocle-show` returns the same as `remote_children` (`name`, `url` and the capture `ids`) in its summary. The peer is named by its key in `trace.peers`, then by the name it gives itself (its `trace.name`, sent back as `X-Monocle-Name`), then by its host.
 - **The peer** needs no configuration. Its capture of the call gets `remote_parent` and its header says *Called from Shop*, linking back to the capture in the caller's dashboard. The caller is named by its `trace.name`, or by its host.
 
+Links to a peer open in one tab per application, named after its host (`monocle:billing.test`), and each dashboard gives its own tab that name. Following links back and forth reuses the same two tabs instead of opening a new one for every click.
+
 Only one side lists the other. Each capture stays a root in its own store: the link is a pair of dashboard links, not one trace, so the Trace tab and `monocle-trace` show each application's part on its own. Both dashboards have to be reachable from the browser, as they are for local sites.
 
 ## How a link was made

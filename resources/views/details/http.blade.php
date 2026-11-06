@@ -30,8 +30,7 @@
             <a
                 class="text-brass underline underline-offset-[3px]"
                 href="{{ $row['peer']['url'] }}#{{ $row['peer']['id'] }}"
-                target="_blank"
-                rel="noopener"
+                target="{{ \ExeQue\Monocle\Support\TraceContext::windowName($row['peer']['url']) }}"
             >a capture in {{ $row['peer']['name'] }}</a>
         </div>
     @endisset
