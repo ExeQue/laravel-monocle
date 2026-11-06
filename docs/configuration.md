@@ -65,12 +65,16 @@ How captures are linked into a trace beyond queued jobs, which are always linked
         'button' => true,
     ],
     'processes' => true,
+    'name' => env('MONOCLE_NAME'),
+    'peers' => [],
 ],
 ```
 
 - `browser.enabled` (default `false`): recorded HTML pages get a small inline script that sends the page's capture id, as `X-Monocle-Parent`, with the `fetch()` and `XMLHttpRequest` calls the page makes to its own origin. A request carrying that header becomes a child of the page when the page's capture is in this store. With it off, no script is added and the header is ignored.
 - `browser.button` (default `true`): with `browser.enabled` and the dashboard on, those pages also get a Monocle button that opens their captures in the dashboard. Set it to `false` to keep the linking without the button. See [Browser tracing](browser-tracing.md#the-monocle-button).
 - `processes` (default `true`): processes started through the `Process` facade while a capture is recorded get `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID`, and an artisan command captured in such a process becomes a child of that capture.
+- `name` (default `null`): what this application calls itself towards its peers, sent as `X-Monocle-Name` on calls to peers and on every recorded response. With `null`, other applications show this application's host.
+- `peers` (default `[]`): the dashboard URLs of other applications with Monocle, such as `'https://billing.test/_monocle'`. Calls to a peer's host and port get `X-Monocle-Parent`, `X-Monocle-Origin` and `X-Monocle-Name`, and link to the capture they started there; that capture links back. A string key (`'Billing' => 'https://billing.test/_monocle'`) labels the peer, ahead of the name it gives itself and its host. See [Calls between applications](tracing.md#calls-between-applications).
 
 ## Masking
 

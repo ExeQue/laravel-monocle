@@ -108,7 +108,7 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
 
     public function description(): string
     {
-        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default); a response over capture.max_bytes (1 MB by default) gets one "Response not captured" card and no raw body, input_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it.';
+        return 'Request and response facts: method, url, route (name, action, parameters, middleware list), masked headers and input (the payload), files, cookies (decrypted, sensitive ones masked), auth user, status, response size, headers, and response_capture: cards from the capture registered for the route (capture.routes, e.g. one per Livewire component with calls, updates and data changes) or for the content type (capture.response_types, JSON by default); a response over capture.max_bytes (1 MB by default) gets one "Response not captured" card and no raw body, input_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), peak memory. Phase spans (bootstrap, middleware, routing, handle, terminate) live in the timeline. With trace.browser.enabled on, HTML pages get a small script that sends X-Monocle-Parent on their same-origin fetch/XHR calls; a request carrying it joins the trace of that page capture as a child, or keeps missing_parent_id when this store does not hold it. A call from another application with Monocle that lists this one in trace.peers keeps remote_parent: {id, name, url}, the capture that made the call and that application\'s dashboard url.';
     }
 
     public function advice(): string
@@ -313,9 +313,23 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         try {
             $this->injectTraceScript($capture, $request, $response);
             $response->headers->set('X-Monocle-Id', $capture->id);
+            $this->nameResponse($response);
             $response->headers->set('Server-Timing', $this->serverTiming($capture));
         } catch (Throwable) {
             // Streamed or already-sent responses may refuse header changes.
+        }
+    }
+
+    /**
+     * The name this application gives itself (trace.name), so an application
+     * that called it shows that name.
+     */
+    private function nameResponse(Response $response): void
+    {
+        $name = TraceContext::name($this->eyepiece->config('trace.name'));
+
+        if ($name !== null) {
+            $response->headers->set(TraceContext::NAME_HEADER, $name);
         }
     }
 
@@ -333,11 +347,16 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
      */
     private function joinTrace(Capture $capture, Request $request): void
     {
-        if (! $this->eyepiece->config('trace.browser.enabled', false)) {
+        $parentId = $request->headers->get(TraceContext::PARENT_HEADER);
+        $origin = $request->headers->get(TraceContext::ORIGIN_HEADER);
+
+        if ($this->noteRemoteParent($parentId, $origin, $request->headers->get(TraceContext::NAME_HEADER))) {
             return;
         }
 
-        $parentId = $request->headers->get(TraceContext::PARENT_HEADER);
+        if (! $this->eyepiece->config('trace.browser.enabled', false)) {
+            return;
+        }
 
         if (! TraceContext::isCaptureId($parentId)) {
             return;
@@ -355,6 +374,29 @@ final class RequestLens implements Advises, Configurable, Finalizable, Lens, Pre
         $capture->parentId = $parentId;
         $capture->traceId = (string) ($parent['trace_id'] ?? $parentId);
         $capture->linkedVia = 'browser';
+    }
+
+    /**
+     * A call from another application with Monocle (one that lists this one
+     * in trace.peers) links to the capture that made it, in that
+     * application's dashboard. It names itself, or its host does. False
+     * when the call carries no usable origin and parent.
+     */
+    private function noteRemoteParent(mixed $parentId, mixed $origin, mixed $name): bool
+    {
+        $url = TraceContext::dashboardUrl($origin);
+
+        if ($url === null || ! TraceContext::isCaptureId($parentId)) {
+            return false;
+        }
+
+        $this->eyepiece->set('request', ['remote_parent' => [
+            'id' => strtolower($parentId),
+            'name' => TraceContext::name($name) ?? (string) parse_url($url, PHP_URL_HOST),
+            'url' => $url,
+        ]]);
+
+        return true;
     }
 
     /**

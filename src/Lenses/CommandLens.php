@@ -305,7 +305,7 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
             return;
         }
 
-        $dashboard = $this->dashboardUrl();
+        $dashboard = $this->eyepiece->dashboardUrl();
         $url = $dashboard !== null ? $dashboard.'#'.$id : null;
 
         // A terminal that opens links gets the id as one; anywhere else the url is printed below it.
@@ -343,22 +343,6 @@ final class CommandLens implements Advises, Configurable, Finalizable, Lens, Pre
             ...array_map(fn (string $line): string => $edge('│').' '.$line.str_repeat(' ', $width - $visible($line)).' '.$edge('│'), $lines),
             $edge('╰'.str_repeat('─', $width + 2).'╯'),
         ];
-    }
-
-    /**
-     * The dashboard opens the capture named by the location hash.
-     */
-    private function dashboardUrl(): ?string
-    {
-        if (! $this->eyepiece->config('dashboard.enabled', true) || ! $this->app->make('router')->has('monocle.dashboard')) {
-            return null;
-        }
-
-        try {
-            return $this->app->make('url')->route('monocle.dashboard');
-        } catch (Throwable) {
-            return null;
-        }
     }
 
     private function finishNested(Span $span, int $exitCode): void

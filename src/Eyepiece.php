@@ -700,6 +700,23 @@ final class Eyepiece
     }
 
     /**
+     * The dashboard's address, which opens the capture named by its location
+     * hash; null when the dashboard is off.
+     */
+    public function dashboardUrl(): ?string
+    {
+        if (! $this->config('dashboard.enabled', true) || ! $this->app->make('router')->has('monocle.dashboard')) {
+            return null;
+        }
+
+        try {
+            return $this->app->make('url')->route('monocle.dashboard');
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Register a lens (its listeners, decorators and hooks) and credit the
      * time to it: on the capture running now, or the next one.
      *

@@ -63,11 +63,12 @@ The `controller` span starts where the last middleware handed the request on and
 
 ### Response headers Monocle adds
 
-Every recorded response gets two extra headers:
+Every recorded response gets two extra headers, and a third with `trace.name` set:
 
 | Header | Holds |
 |---|---|
 | `X-Monocle-Id` | the capture id, to pass to `monocle-show` |
+| `X-Monocle-Name` | the name this application gives itself ([`trace.name`](../configuration.md#trace)); an application that called it shows that name. See [Calls between applications](../tracing.md#calls-between-applications) |
 | `Server-Timing` | `app` (the request so far), each finished phase (`bootstrap`, `middleware-request`, `routing`, `handle`) and `db` (total query time, when there were queries), in milliseconds. Browser developer tools show these in the network panel. |
 
 Send an `X-Monocle-Label` header with a request to label its capture, so you can find it with `monocle-list` (`label`) or compare it with `monocle-compare`.
@@ -77,6 +78,10 @@ Send an `X-Monocle-Label` header with a request to label its capture, so you can
 With [`trace.browser.enabled`](../configuration.md#trace) on (it is off by default), recorded HTML pages get a small inline script before `</body>` that sends `X-Monocle-Parent: <capture id of the page>` with the page's own `fetch()` and `XMLHttpRequest` calls. Calls to other origins are left alone. Pages that move on without a full reload (`wire:navigate`, Inertia and other SPA routers that fetch the next page from the server) hand the script on to the next page.
 
 A request carrying `X-Monocle-Parent` with a capture id becomes a child of that capture, in its trace, when the capture is in this application's Monocle store. When it is not (another application with its own store, a capture already pushed out of the ring buffer, or a call that arrived before the page's capture was stored), the request is recorded as a capture of its own and its `request` section holds `missing_parent_id`; the dashboard header says *Asked to link to `<id>`, not found*. Anything that is not a capture id is ignored, and so is the header while `trace.browser.enabled` is off.
+
+### Calls from other applications
+
+A request that carries `X-Monocle-Origin` as well came from another application with Monocle, one that lists this application in [`trace.peers`](../tracing.md#calls-between-applications). Its `request` section holds `remote_parent`: `id` (the capture that made the call, in that application), `name` (from `X-Monocle-Name`, or the host of its dashboard) and `url` (its dashboard). The dashboard header says *Called from `<name>`*, linking to that capture. This works with `trace.browser.enabled` off. An origin that is not an absolute `http` or `https` URL, or a parent that is not a capture id, is ignored.
 
 A Content Security Policy that forbids inline scripts blocks the script: nothing is linked and the page works as before. A nonce set with Laravel's `Vite::useCspNonce()` is added to the script. See [Tracing](../tracing.md).
 

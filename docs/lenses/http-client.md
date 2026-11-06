@@ -32,6 +32,7 @@ Every row in the `http` section has these fields:
 | `failed` | `true` when the status is 400 or above, or no response arrived | | never |
 | `exception` | For a failed connection: `class`, `message`, `file` (file:line) and `previous` (the exceptions it wraps) | | `null` when a response arrived |
 | `pool` | A number shared by the requests sent together by one `Http::pool()` or `Http::batch()`, counting from 1 in each capture | | `null` for a request sent on its own |
+| `peer` | For a call to an application listed in [`trace.peers`](../tracing.md#calls-between-applications): `id` (the capture the call started there), `name` and `url` (that application's dashboard) | | `null` for other hosts, and when the answer carries no `X-Monocle-Id` |
 | `time` | When the call started, counted from the start of the capture | ms | never |
 | `origin` | The file and line of your code that made the call, with a short call chain | | `null` when [`origin.enabled`](../configuration.md#origin) is off |
 
@@ -57,6 +58,7 @@ The **HTTP** tab lists the calls with method, status, URL, request size, respons
 A row folds out to:
 
 - the method and full URL, with a copy button
+- for a call to a peer, a link to the capture it started in that application's dashboard
 - status, duration, start time, bytes sent and received, and the pool
 - a timing bar split into DNS, connect, TLS, waiting, download and redirects, with the remote address, protocol and redirects followed (real calls only)
 - the exception and the exceptions it wraps, for a failed connection

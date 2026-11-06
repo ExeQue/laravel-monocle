@@ -31,6 +31,7 @@
 | Request phases | [Request](lenses/request.md) |
 | Linking pages, jobs and processes into a trace | [Tracing](tracing.md) |
 | Jumping from a page to its captures | [Browser tracing](browser-tracing.md) |
+| Linking HTTP calls between applications with Monocle | [Tracing](tracing.md#calls-between-applications) |
 | N+1 and slow query warnings | [Database](lenses/database.md) |
 
 ## Contributing

@@ -20,17 +20,20 @@ use ExeQue\Monocle\Eyepiece;
 use ExeQue\Monocle\Lenses\Request\JsonCapture;
 use ExeQue\Monocle\LensRegistry;
 use ExeQue\Monocle\Support\ThrowableChain;
+use ExeQue\Monocle\Support\TraceContext;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Batch;
 use Illuminate\Http\Client\Events\ConnectionFailed;
 use Illuminate\Http\Client\Events\RequestSending;
 use Illuminate\Http\Client\Events\ResponseReceived;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\Client\Response as ClientResponse;
 use Illuminate\Http\Request as HttpRequest;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Str;
+use Psr\Http\Message\RequestInterface;
 use Throwable;
 use WeakMap;
 
@@ -67,7 +70,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
 
     public function description(): string
     {
-        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), request_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and timing (cURL transfer stats: dns, connect, tls, wait (time to first byte), download and redirect in ms, the remote address, protocol and redirects followed; absent for faked calls and failed connections), pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise). Bodies only with the option bodies=true.';
+        return 'Outgoing HTTP client calls (Http facade): method, url (query masked), request headers (masked) and size, status, response headers and size, duration, failed flag, request_payload (a JSON or form body as masked fields), request_formats (payload fields the capture shows in a format, such as a GraphQL query, by dotted key), response_capture (cards from the capture registered for the response content type under capture.response_types, JSON by default, with the raw body), the exception for connection failures, and timing (cURL transfer stats: dns, connect, tls, wait (time to first byte), download and redirect in ms, the remote address, protocol and redirects followed; absent for faked calls and failed connections), pool (a number shared by the requests sent together by one Http::pool() or Http::batch(), null otherwise), peer (for a call to an application listed in trace.peers that answered with its X-Monocle-Id: {id, name, url}, the capture the call started there and its dashboard url). Bodies only with the option bodies=true.';
     }
 
     public function advice(): string
@@ -86,6 +89,103 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         $this->eyepiece->listen(RequestSending::class, $this->onRequestSending(...));
         $this->eyepiece->listen(ResponseReceived::class, $this->onResponseReceived(...));
         $this->eyepiece->listen(ConnectionFailed::class, $this->onConnectionFailed(...));
+        $this->app->make(Factory::class)->globalRequestMiddleware($this->announce(...));
+    }
+
+    /**
+     * A call to a peer (trace.peers) carries this capture's id, this dashboard
+     * and this application's name, so the capture it starts there links back.
+     */
+    private function announce(RequestInterface $request): RequestInterface
+    {
+        $capture = $this->eyepiece->active();
+
+        if ($capture === null || ! $this->eyepiece->recording() || $this->peer((string) $request->getUri()) === null) {
+            return $request;
+        }
+
+        $dashboard = $this->eyepiece->dashboardUrl();
+
+        if ($dashboard === null) {
+            return $request;
+        }
+
+        $request = $request
+            ->withHeader(TraceContext::PARENT_HEADER, $capture->id)
+            ->withHeader(TraceContext::ORIGIN_HEADER, $dashboard);
+
+        $name = TraceContext::name($this->eyepiece->config('trace.name'));
+
+        return $name === null ? $request : $request->withHeader(TraceContext::NAME_HEADER, $name);
+    }
+
+    /**
+     * The peer (trace.peers) whose dashboard lives on the host and port of this url.
+     *
+     * @return array{label: string|null, url: string}|null
+     */
+    private function peer(string $url): ?array
+    {
+        $authority = $this->authority($url);
+
+        if ($authority === null) {
+            return null;
+        }
+
+        foreach ((array) $this->eyepiece->config('trace.peers', []) as $label => $dashboard) {
+            $dashboard = TraceContext::dashboardUrl($dashboard);
+
+            if ($dashboard !== null && $this->authority($dashboard) === $authority) {
+                return ['label' => is_string($label) ? $label : null, 'url' => $dashboard];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The host and port of a url, the port filled in from the scheme, so
+     * several local applications on one host keep apart.
+     */
+    private function authority(string $url): ?string
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+        if ($host === '') {
+            return null;
+        }
+
+        $port = parse_url($url, PHP_URL_PORT) ?? (strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'http' ? 80 : 443);
+
+        return $host.':'.$port;
+    }
+
+    /**
+     * The capture a call to a peer started there, from the X-Monocle-Id it
+     * answered with. The peer's key in trace.peers names it, then the name
+     * the peer gives itself, then its host.
+     *
+     * @return array{id: string, name: string, url: string}|null
+     */
+    private function peerCapture(Request $request, ClientResponse $response): ?array
+    {
+        $id = $response->header('X-Monocle-Id');
+
+        if (! TraceContext::isCaptureId($id)) {
+            return null;
+        }
+
+        $peer = $this->peer($request->url());
+
+        if ($peer === null) {
+            return null;
+        }
+
+        return [
+            'id' => strtolower($id),
+            'name' => $peer['label'] ?? TraceContext::name($response->header(TraceContext::NAME_HEADER)) ?? (string) parse_url($peer['url'], PHP_URL_HOST),
+            'url' => $peer['url'],
+        ];
     }
 
     private function onRequestSending(RequestSending $event): void
@@ -138,6 +238,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             'failed' => $status >= 400,
             'exception' => null,
             'pool' => $pending['pool'] ?? null,
+            'peer' => $this->peerCapture($event->request, $response),
         ]);
     }
 
@@ -168,6 +269,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
             'failed' => true,
             'exception' => ThrowableChain::describe($event->exception),
             'pool' => $pool,
+            'peer' => null,
         ]);
     }
 
@@ -565,7 +667,7 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
         return Presentation::table()
             ->tab('monocle::tabs.http')
             ->columns(['method', 'status', 'url', 'request_bytes', 'response_bytes', 'pool', 'duration'])
-            ->detailsOnly(['exception', 'failed', 'timing', 'host', 'endpoint'])
+            ->detailsOnly(['exception', 'failed', 'timing', 'host', 'endpoint', 'peer'])
             ->groupBy(['endpoint' => 'by endpoint', 'host' => 'by host', 'pool' => 'by pool', 'status' => 'by status'])
             ->details('monocle::details.http')
             ->format(['status' => 'http-status', 'pool' => ['prefix', '#']]);

@@ -865,4 +865,55 @@ describe(RequestLens::class, function (): void {
             'a UUIDv4' => ['9b2f1c1e-8a7d-4c1e-9f3a-2d5e6f7a8b9c'],
         ]);
     });
+
+    describe('calls from other applications', function (): void {
+        it('links a call to the capture that made it in the other application', function (): void {
+            $parent = '019a0000-0000-7000-8000-000000000001';
+
+            $this->get('/ping/1', [
+                'X-Monocle-Parent' => strtoupper($parent),
+                'X-Monocle-Origin' => 'https://shop.test/_monocle#ignored',
+                'X-Monocle-Name' => '  Shop  ',
+            ])->assertOk();
+            $named = latestCapture();
+
+            $this->get('/ping/2', ['X-Monocle-Parent' => $parent, 'X-Monocle-Origin' => 'https://shop.test/_monocle'])->assertOk();
+            $unnamed = latestCapture();
+
+            expect($named->section('request')['remote_parent'])->toBe(['id' => $parent, 'name' => 'Shop', 'url' => 'https://shop.test/_monocle'])
+                ->and($named->parentId)->toBeNull()
+                ->and($named->section('request'))->not->toHaveKey('missing_parent_id')
+                ->and(app(Viewfinder::class)->show(['id' => $named->id])['summary']['remote_parent']['name'])->toBe('Shop')
+                ->and($unnamed->section('request')['remote_parent']['name'])->toBe('shop.test');
+        });
+
+        it('ignores a remote parent it cannot link to', function (string $parent, string $origin): void {
+            $this->get('/ping/1', ['X-Monocle-Parent' => $parent, 'X-Monocle-Origin' => $origin])->assertOk();
+
+            expect(latestCapture()->section('request'))->not->toHaveKey('remote_parent');
+        })->with([
+            'a javascript url' => ['019a0000-0000-7000-8000-000000000001', 'javascript:alert(1)//https://shop.test'],
+            'a relative url' => ['019a0000-0000-7000-8000-000000000001', '/_monocle'],
+            'no capture id' => ['nope', 'https://shop.test/_monocle'],
+        ]);
+
+        it('joins the page trace when the origin is not usable', function (): void {
+            config(['monocle.trace.browser.enabled' => true]);
+            $this->get('/page');
+            $page = latestCapture();
+
+            $this->get('/ping/1', ['X-Monocle-Parent' => $page->id, 'X-Monocle-Origin' => 'javascript:alert(1)'])->assertOk();
+
+            expect(latestCapture()->parentId)->toBe($page->id)
+                ->and(latestCapture()->section('request'))->not->toHaveKey('remote_parent');
+        });
+
+        it('names itself on its responses when trace.name is set', function (): void {
+            $this->get('/ping/1')->assertHeaderMissing('X-Monocle-Name');
+
+            config(['monocle.trace.name' => 'Billing']);
+
+            $this->get('/ping/1')->assertHeader('X-Monocle-Name', 'Billing');
+        });
+    });
 });
