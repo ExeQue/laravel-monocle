@@ -53,7 +53,7 @@ This lens reports no warnings, and it has no threshold for slow calls.
 
 ## In the dashboard
 
-The **HTTP** tab lists the calls with method, status, URL, request size, response size, pool and duration, plus the line of code that made each call. Statuses are coloured; a call without a response shows `failed`. Group the rows **by endpoint**, **by host**, **by pool** or **by status**. Each group shows its count, how many failed, and the total, average and maximum time.
+The **HTTP** tab lists the calls with method, status, URL, the peer (a link to the capture a call to [another application with Monocle](../tracing.md#calls-between-applications) started there), request size, response size, pool and duration, plus the line of code that made each call. Statuses are coloured; a call without a response shows `failed`. Group the rows **by endpoint**, **by host**, **by pool** or **by status**. Each group shows its count, how many failed, and the total, average and maximum time.
 
 A row folds out to:
 

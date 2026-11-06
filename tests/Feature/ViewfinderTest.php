@@ -194,6 +194,24 @@ describe(Viewfinder::class, function (): void {
             ->and(app(CaptureReader::class)->indexRow('missing'))->toBeNull();
     });
 
+    it('groups the captures a capture started in other applications per application', function (): void {
+        $capture = new Capture('calls-peers', CaptureType::Request, microtime(true));
+        $billing = ['name' => 'Billing', 'url' => 'https://billing.test/_monocle'];
+        $capture->sections['http'] = [
+            ['url' => 'https://billing.test/a', 'method' => 'GET', 'failed' => false, 'peer' => [...$billing, 'id' => 'b-1']],
+            ['url' => 'https://example.com/', 'method' => 'GET', 'failed' => false, 'peer' => null],
+            ['url' => 'https://search.test/q', 'method' => 'GET', 'failed' => false, 'peer' => ['id' => 's-1', 'name' => 'search.test', 'url' => 'https://search.test/_monocle']],
+            ['url' => 'https://billing.test/b', 'method' => 'GET', 'failed' => false, 'peer' => [...$billing, 'id' => 'b-2']],
+        ];
+
+        app(StoreManager::class)->store()->put($capture);
+
+        expect(app(Viewfinder::class)->show(['id' => 'calls-peers'])['summary']['remote_children'])->toBe([
+            [...$billing, 'ids' => ['b-1', 'b-2']],
+            ['name' => 'search.test', 'url' => 'https://search.test/_monocle', 'ids' => ['s-1']],
+        ]);
+    });
+
     it('refuses to compare without a first capture', function (): void {
         expect(app(Viewfinder::class)->compare(['a' => ''])['error'])->toBe('Capture [] not found by id or label.');
     });

@@ -409,6 +409,6 @@ describe(HttpClientLens::class, function (): void {
             ->and($lens->advice())->toStartWith('Look here when an outgoing API call')
             ->and($presentation->tabView)->toBe('monocle::tabs.http')
             ->and($presentation->detailsView)->toBe('monocle::details.http')
-            ->and($presentation->formats)->toBe(['status' => ['http-status'], 'pool' => ['prefix', '#']]);
+            ->and($presentation->formats)->toBe(['status' => ['http-status'], 'pool' => ['prefix', '#'], 'peer' => ['peer']]);
     });
 });

@@ -81,6 +81,8 @@ const FORMATS = {
     if (!run) return '<span class="text-muted italic">pending</span>';
     return `<a class="${statusClass(run.status) || 'text-brass'} underline-offset-2 hover:underline" href="#${esc(run.id)}/overview">${esc(run.status ?? 'open')} →</a>`;
   },
+  // A link to the capture this row started in another application's dashboard ({id, name, url}).
+  peer: (v) => (v?.url && v?.id ? `<a class="${cls.link} whitespace-nowrap" href="${esc(v.url)}#${esc(v.id)}" target="_blank" rel="noopener">${esc(v.name)} ↗</a>` : ''),
   rules: (v, row) => (v && typeof v === 'object' && !Array.isArray(v)
     ? Object.entries(v).map(([field, rules]) => `<div><span class="font-mono">${esc(field)}</span> <span class="text-muted">${(Array.isArray(rules) ? rules.map(fmtValue) : String(rules).split('|')).map((r) => maybeLink(r, row._links?.rules?.[r])).join(' | ')}</span></div>`).join('')
     : esc(fmtValue(v))),

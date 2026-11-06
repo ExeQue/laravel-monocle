@@ -132,6 +132,8 @@ final class SummaryBuilder
             'missing_parent_id' => $capture->section('request')['missing_parent_id'] ?? null,
             // A call from another application with Monocle (trace.peers): {id, name, url} of the capture that made it.
             'remote_parent' => $capture->section('request')['remote_parent'] ?? null,
+            // The captures this one started in other applications (trace.peers), per application.
+            'remote_children' => $this->remoteChildren($capture),
             'trace_id' => $capture->traceId,
             'linked_via' => $capture->linkedVia,
             'children' => $childIds,
@@ -153,6 +155,30 @@ final class SummaryBuilder
             'meta' => $capture->meta,
             'health' => $capture->health + ['sections' => array_keys($capture->sections)],
         ];
+    }
+
+    /**
+     * The captures the HTTP calls of this capture started in other
+     * applications (HttpClientLens rows with a peer), grouped per dashboard.
+     *
+     * @return list<array{name: string, url: string, ids: list<string>}>
+     */
+    private function remoteChildren(Capture $capture): array
+    {
+        $peers = [];
+
+        foreach ($capture->rows('http') as $row) {
+            $peer = $row['peer'] ?? null;
+
+            if (! is_array($peer)) {
+                continue;
+            }
+
+            $peers[$peer['url']] ??= ['name' => $peer['name'], 'url' => $peer['url'], 'ids' => []];
+            $peers[$peer['url']]['ids'][] = $peer['id'];
+        }
+
+        return array_values($peers);
     }
 
     private function memoryPeakMb(Capture $capture): ?float
