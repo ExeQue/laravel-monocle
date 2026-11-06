@@ -18,6 +18,35 @@ Off by default. With [`trace.browser.enabled`](configuration.md#trace) on, recor
 
 On by default (`trace.processes`). A process started through the `Process` facade while a capture is being recorded gets two environment variables, `MONOCLE_TRACE_ID` and `MONOCLE_PARENT_ID`. When that process runs an artisan command of the same application (`Process::run('php artisan orders:sync')`), the command capture becomes a child of the capture that started the process. Variables you pass yourself with `Process::env()` win over these.
 
+### Calls between applications
+
+Off until you list peers. Several applications with Monocle, each with its own store, can link the HTTP calls between them: list the dashboards of the applications this one calls in `trace.peers`.
+
+```php
+'trace' => [
+    'name' => env('MONOCLE_NAME'),
+    'peers' => [
+        'https://billing.test/_monocle',
+        'Search' => 'https://search.test/_monocle',
+    ],
+],
+```
+
+A call made through the `Http` facade to a peer's host and port, while a capture is being recorded, carries three headers:
+
+| Header | Holds |
+|---|---|
+| `X-Monocle-Parent` | the id of the capture that made the call |
+| `X-Monocle-Origin` | this application's dashboard URL (nothing is sent with the dashboard off) |
+| `X-Monocle-Name` | `trace.name`, when it is set |
+
+Calls to other hosts and ports carry none of them, so they never reach third-party APIs.
+
+- **The caller** reads the `X-Monocle-Id` the peer answers with. The call's row in the HTTP tab gets `peer` and links to the capture it started: *Started a capture in Billing*. The peer is named by its key in `trace.peers`, then by the name it gives itself (its `trace.name`, sent back as `X-Monocle-Name`), then by its host.
+- **The peer** needs no configuration. Its capture of the call gets `remote_parent` and its header says *Called from Shop*, linking back to the capture in the caller's dashboard. The caller is named by its `trace.name`, or by its host.
+
+Only one side lists the other. Each capture stays a root in its own store: the link is a pair of dashboard links, not one trace, so the Trace tab and `monocle-trace` show each application's part on its own. Both dashboards have to be reachable from the browser, as they are for local sites.
+
 ## How a link was made
 
 Every child capture says how it was linked to its parent, as `linked_via`:
@@ -66,7 +95,7 @@ See [Configuration](configuration.md#trace).
 ## What is not linked
 
 - **Browser calls** that are not linked (full page loads, other origins, calls without `fetch` or `XMLHttpRequest`, pages whose CSP blocks the script): see [Browser tracing](browser-tracing.md#what-is-not-linked).
-- **Parents this store does not hold.** Linking needs the parent in the same Monocle store. A page captured by another application with its own store, a parent pushed out of the ring buffer (`storage.limit`), or a call the page made so early that it arrived before the page's capture was stored, give the *not found* note instead.
+- **Parents this store does not hold.** Linking needs the parent in the same Monocle store; calls from another application are linked by dashboard link instead (see [Calls between applications](#calls-between-applications)). A page captured by another application with its own store, a parent pushed out of the ring buffer (`storage.limit`), or a call the page made so early that it arrived before the page's capture was stored, give the *not found* note instead.
 - **Requests and commands that are not recorded** (`except.paths`, `except.commands`, the dashboard). They pass nothing on, and the pages among them get no script.
 - **`Artisan::call()`** runs in the same process. The command is a span in the capture that called it, not a child capture.
 - **Processes started without the `Process` facade** (`exec()`, `shell_exec()`, Symfony's `Process` directly), and processes that are not an artisan command of an application with Monocle enabled.

@@ -232,6 +232,89 @@ describe(HttpClientLens::class, function (): void {
             ->and($plain['request_payload'])->toBe(['query' => '{ a }', 'token' => 'abc****']);
     });
 
+    describe('peers', function (): void {
+        it('sends the capture id, dashboard and name only to peers', function (): void {
+            config(['monocle.trace.peers' => ['https://api.example.com/_monocle'], 'monocle.trace.name' => 'Shop']);
+            $capture = app(Eyepiece::class)->active();
+
+            Http::get('https://api.example.com/orders');
+            Http::get('https://down.example.com/health');
+
+            [[$peer], [$other]] = Http::recorded()->all();
+
+            expect($peer->header('X-Monocle-Parent'))->toBe([$capture->id])
+                ->and($peer->header('X-Monocle-Origin'))->toBe([route('monocle.dashboard')])
+                ->and($peer->header('X-Monocle-Name'))->toBe(['Shop'])
+                ->and($other->hasHeader('X-Monocle-Parent'))->toBeFalse()
+                ->and($other->hasHeader('X-Monocle-Origin'))->toBeFalse();
+        });
+
+        it('sends no name when trace.name is not set, and nothing while not recording', function (): void {
+            config(['monocle.trace.peers' => ['https://api.example.com/_monocle']]);
+
+            Http::get('https://api.example.com/orders');
+            app(Eyepiece::class)->discard();
+            Http::get('https://api.example.com/unrecorded');
+
+            [[$named], [$unrecorded]] = Http::recorded()->all();
+
+            expect($named->hasHeader('X-Monocle-Origin'))->toBeTrue()
+                ->and($named->hasHeader('X-Monocle-Name'))->toBeFalse()
+                ->and($unrecorded->hasHeader('X-Monocle-Parent'))->toBeFalse();
+        });
+
+        it('links a call to the capture it started in a peer', function (array $peers, array $headers, string $name): void {
+            $id = '019a0000-0000-7000-8000-000000000002';
+            config(['monocle.trace.peers' => $peers]);
+            Http::fake([
+                'billing.test/*' => Http::response(['ok' => true], 200, ['X-Monocle-Id' => strtoupper($id), ...$headers]),
+                'other.test/*' => Http::response(['ok' => true], 200, ['X-Monocle-Id' => $id]),
+            ]);
+
+            Http::get('https://billing.test/api/invoices');
+            Http::get('https://other.test/api');
+
+            $rows = app(Eyepiece::class)->finalize()->rows('http');
+
+            expect($rows[0]['peer'])->toBe(['id' => $id, 'name' => $name, 'url' => 'https://billing.test/_monocle'])
+                ->and($rows[1]['peer'])->toBeNull();
+        })->with([
+            'labelled by its key' => [['Invoices' => 'https://billing.test/_monocle'], ['X-Monocle-Name' => 'Billing'], 'Invoices'],
+            'named by itself' => [['https://billing.test/_monocle'], ['X-Monocle-Name' => 'Billing'], 'Billing'],
+            'named by its host' => [['https://billing.test/_monocle'], [], 'billing.test'],
+        ]);
+
+        it('tells peers on one host apart by port', function (): void {
+            config(['monocle.trace.peers' => ['A' => 'http://localhost:8001/_monocle', 'B' => 'http://localhost:8002/_monocle']]);
+            Http::fake(['localhost:8002/*' => Http::response('', 200, ['X-Monocle-Id' => '019a0000-0000-7000-8000-000000000002']), 'localhost/*' => Http::response()]);
+
+            Http::get('http://localhost:8002/api');
+            Http::get('http://localhost/api');
+
+            [[$peer], [$other]] = Http::recorded()->all();
+
+            expect(app(Eyepiece::class)->finalize()->rows('http')[0]['peer']['name'])->toBe('B')
+                ->and($peer->hasHeader('X-Monocle-Parent'))->toBeTrue()
+                ->and($other->hasHeader('X-Monocle-Parent'))->toBeFalse();
+        });
+
+        it('sends nothing with the dashboard off', function (): void {
+            config(['monocle.trace.peers' => ['https://api.example.com/_monocle'], 'monocle.dashboard.enabled' => false]);
+
+            Http::get('https://api.example.com/orders');
+
+            expect(Http::recorded()->all()[0][0]->hasHeader('X-Monocle-Parent'))->toBeFalse();
+        });
+
+        it('links nothing for an answer without a capture id', function (): void {
+            config(['monocle.trace.peers' => ['https://api.example.com/_monocle']]);
+
+            Http::get('https://api.example.com/orders');
+
+            expect(app(Eyepiece::class)->finalize()->rows('http')[0]['peer'])->toBeNull();
+        });
+    });
+
     it('summarizes nothing without calls', function (): void {
         expect(app(HttpClientLens::class)->summarize(app(Eyepiece::class)->finalize()))->toEqual(\ExeQue\Monocle\Data\Summary::make());
     });

@@ -130,6 +130,8 @@ final class SummaryBuilder
             'parent_id' => $capture->parentId,
             // A request asked to join a capture this store does not hold (trace.browser.enabled).
             'missing_parent_id' => $capture->section('request')['missing_parent_id'] ?? null,
+            // A call from another application with Monocle (trace.peers): {id, name, url} of the capture that made it.
+            'remote_parent' => $capture->section('request')['remote_parent'] ?? null,
             'trace_id' => $capture->traceId,
             'linked_via' => $capture->linkedVia,
             'children' => $childIds,

@@ -103,8 +103,18 @@
 </div>
 <div
     class="flex flex-wrap gap-2 text-[13px]"
-    x-show="summary.parent_id || summary.missing_parent_id || summary.children?.length"
+    x-show="summary.parent_id || summary.missing_parent_id || summary.remote_parent || summary.children?.length"
 >
+    <span x-show="summary.remote_parent"
+        >Called from
+        <a
+            :class="cls.link"
+            :href="summary.remote_parent ? summary.remote_parent.url + '#' + summary.remote_parent.id : null"
+            target="_blank"
+            rel="noopener"
+            x-text="summary.remote_parent?.name"
+        ></a
+    ></span>
     <span x-show="summary.parent_id"
         >Started by <button type="button" :class="cls.link" @click="select(summary.parent_id)">parent capture</button
         ><span x-show="summary.linked_via" x-text="' via ' + summary.linked_via"></span

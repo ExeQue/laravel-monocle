@@ -322,6 +322,12 @@ return [
     | started through the Process facade join the trace of the capture that
     | started them.
     |
+    | List the dashboards of other applications with Monocle in `peers` to
+    | link the HTTP calls between them: a call to a peer's host links to the
+    | capture it started there, and that capture links back. A string key
+    | labels the peer; without one it shows the peer's own `name`, or its
+    | host. `name` is what this application calls itself; null is its host.
+    |
     */
 
     'trace' => [
@@ -330,6 +336,11 @@ return [
             'button' => true,
         ],
         'processes' => true,
+        'name' => env('MONOCLE_NAME'),
+        'peers' => [
+            // 'https://billing.test/_monocle',
+            // 'Billing' => 'https://billing.test/_monocle',
+        ],
     ],
 
     /*

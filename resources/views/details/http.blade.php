@@ -1,4 +1,4 @@
-{{-- An outgoing HTTP call: the call, its facts and timing, an exception, both header sets, the payload and the response. --}}
+{{-- An outgoing HTTP call: the call, the capture it started in a peer, its facts and timing, an exception, both header sets, the payload and the response. --}}
 @php
     use ExeQue\Monocle\Dashboard\Format;
 
@@ -23,6 +23,18 @@
         <span class="[overflow-wrap:anywhere]">{{ $row['url'] ?? '' }}</span>
         <x-monocle::copy :text="$row['url'] ?? ''" what="url" />
     </div>
+
+    @isset($row['peer'])
+        <div class="text-[13px]">
+            Started
+            <a
+                class="text-brass underline underline-offset-[3px]"
+                href="{{ $row['peer']['url'] }}#{{ $row['peer']['id'] }}"
+                target="_blank"
+                rel="noopener"
+            >a capture in {{ $row['peer']['name'] }}</a>
+        </div>
+    @endisset
 
     <x-monocle::facts
         :items="[
