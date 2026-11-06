@@ -40,6 +40,13 @@ describe(TraceContext::class, function (): void {
         'not a string' => [['https://shop.test'], null],
     ]);
 
+    it('names the window of a dashboard after its host and a port other than the default', function (): void {
+        expect(TraceContext::windowName('https://Shop.test/_monocle'))->toBe('monocle:shop.test')
+            ->and(TraceContext::windowName('https://shop.test:443/_monocle'))->toBe('monocle:shop.test')
+            ->and(TraceContext::windowName('http://localhost:8001/_monocle'))->toBe('monocle:localhost:8001')
+            ->and(TraceContext::windowName('http://localhost:80/_monocle'))->toBe('monocle:localhost');
+    });
+
     it('trims names, cuts them to 100 characters and drops empty ones', function (): void {
         expect(TraceContext::name('  Shop '))->toBe('Shop')
             ->and(TraceContext::name(str_repeat('a', 150)))->toBe(str_repeat('a', 100))
