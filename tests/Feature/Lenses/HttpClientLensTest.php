@@ -266,10 +266,13 @@ describe(HttpClientLens::class, function (): void {
         it('links a call to the capture it started in a peer', function (array $peers, array $headers, string $name): void {
             $id = '019a0000-0000-7000-8000-000000000002';
             config(['monocle.trace.peers' => $peers]);
-            Http::fake(['billing.test/*' => Http::response(['ok' => true], 200, ['X-Monocle-Id' => strtoupper($id), ...$headers])]);
+            Http::fake([
+                'billing.test/*' => Http::response(['ok' => true], 200, ['X-Monocle-Id' => strtoupper($id), ...$headers]),
+                'other.test/*' => Http::response(['ok' => true], 200, ['X-Monocle-Id' => $id]),
+            ]);
 
             Http::get('https://billing.test/api/invoices');
-            Http::get('https://api.example.com/orders');
+            Http::get('https://other.test/api');
 
             $rows = app(Eyepiece::class)->finalize()->rows('http');
 

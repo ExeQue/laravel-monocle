@@ -23,6 +23,7 @@ use ExeQue\Monocle\Support\Masks\PartialMask;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Mockery;
 use RuntimeException;
 
 covers(Eyepiece::class, Span::class, MonocleManager::class, Capture::class, InvalidMaskException::class, InvalidSpanColorException::class);
@@ -427,6 +428,24 @@ describe(Eyepiece::class, function (): void {
             ->and(latestCapture())->toBeNull();
 
         Log::shouldHaveReceived('warning')->once()->withArgs(fn (string $message): bool => str_contains($message, 'summary broke'));
+    });
+
+    it('gives the dashboard url, or null when the dashboard is off or its url cannot be built', function (): void {
+        $eyepiece = app(Eyepiece::class);
+        $on = $eyepiece->dashboardUrl();
+        $expected = route('monocle.dashboard');
+
+        config(['monocle.dashboard.enabled' => false]);
+        $off = $eyepiece->dashboardUrl();
+
+        config(['monocle.dashboard.enabled' => true]);
+        $url = Mockery::mock(\Illuminate\Routing\UrlGenerator::class);
+        $url->shouldReceive('route')->andThrow(new RuntimeException('no url'));
+        $this->app->instance('url', $url);
+
+        expect($on)->toBe($expected)
+            ->and($off)->toBeNull()
+            ->and($eyepiece->dashboardUrl())->toBeNull();
     });
 
     it('stays silent when the log itself is unavailable', function (): void {

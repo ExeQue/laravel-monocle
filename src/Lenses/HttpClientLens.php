@@ -128,10 +128,6 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
     {
         $authority = $this->authority($url);
 
-        if ($authority === null) {
-            return null;
-        }
-
         foreach ((array) $this->eyepiece->config('trace.peers', []) as $label => $dashboard) {
             $dashboard = TraceContext::dashboardUrl($dashboard);
 
@@ -147,14 +143,9 @@ final class HttpClientLens implements Advises, Configurable, Lens, Presentable, 
      * The host and port of a url, the port filled in from the scheme, so
      * several local applications on one host keep apart.
      */
-    private function authority(string $url): ?string
+    private function authority(string $url): string
     {
         $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-
-        if ($host === '') {
-            return null;
-        }
-
         $port = parse_url($url, PHP_URL_PORT) ?? (strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'http' ? 80 : 443);
 
         return $host.':'.$port;
